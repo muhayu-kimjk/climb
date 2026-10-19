@@ -95,10 +95,11 @@ svg { flex-shrink: 0; }
 }
 
 /* ---------- 3. 헤더 (KRDS 헤더) ----------
- * 2줄 구성 (REQ-UI-13)
- *   1줄: [CLIMB | 무하유 계약 관리 플랫폼]            [알림 | 이도윤님 영업]
- *   2줄: [MUHAYU Contract Lifecycle Management Base]            [로그아웃]
- * 같은 줄끼리 글자 밑선(baseline)을 맞추고, 오른쪽 열은 본문 오른쪽 끝에 딱 붙입니다. */
+ * 구성 (REQ-UI-13)
+ *   1줄: [CLIMB | 무하유 계약 관리 플랫폼]            [이도윤님 영업 | 로그아웃]
+ *   2줄: [MUHAYU Contract Lifecycle Management Base]
+ * 오른쪽 한 줄은 왼쪽 첫 줄과 글자 밑선(baseline)을 맞추고, 본문 오른쪽 끝에 딱 붙입니다.
+ * 화면 알림(종 모양, 알림 숫자)은 두지 않음. 알림은 이메일로 보냄 (REQ-ENV-09) */
 .site-header { position: relative; z-index: 20; background: var(--surface-white); border-bottom: 1px solid var(--border-gray-light); }
 .header-top .inner {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; align-content: center;
@@ -107,7 +108,6 @@ svg { flex-shrink: 0; }
 .header-top .brand-title { grid-column: 1; grid-row: 1; justify-self: start; }
 .header-top .brand-en { grid-column: 1; grid-row: 2; }
 .header-top .user-line { grid-column: 2; grid-row: 1; justify-self: end; }
-.header-top .logout-link { grid-column: 2; grid-row: 2; justify-self: end; }
 
 /* 시스템 이름 (REQ-NAME-03~04): 로고 그림 없이 글자로. 헤더, 푸터, 로그인 화면이 함께 씀
  * 첫 줄 "CLIMB | 무하유 계약 관리 플랫폼"의 세로선은 글자 대신 얇은 선(Gray)으로 그림 */
@@ -117,21 +117,15 @@ svg { flex-shrink: 0; }
 .brand-en { font-size: var(--fs-body-xsmall); line-height: 1.4; color: var(--text-subtle); white-space: nowrap; }
 a.brand-title:hover { color: var(--text-primary); }
 
-/* 오른쪽 1줄: 알림 | 사용자 이름 + 역할 */
+/* 오른쪽 한 줄: 사용자 이름 + 역할 | 로그아웃 */
 .user-line { display: flex; align-items: baseline; gap: 1.2rem; font-size: var(--fs-body-small); }
 .user-line .badge, .user-line .util-divider { align-self: center; }
 .user-name { font-weight: 700; color: var(--text-bolder); }
 .util-link { display: inline-flex; align-items: baseline; gap: 0.4rem; color: var(--text-basic); }
-.util-link .icon, .util-link .count-badge { align-self: center; }
+.util-link .icon { align-self: center; }
 .util-link:hover { text-decoration: underline; text-underline-offset: 0.3rem; }
-/* 오른쪽 2줄: 로그아웃 (왼쪽 영문 이름 줄과 같은 작은 글자) */
-.logout-link { font-size: var(--fs-body-xsmall); line-height: 1.4; color: var(--text-subtle); }
+.logout-link { color: var(--text-subtle); }
 .logout-link:hover { color: var(--text-basic); }
-.count-badge {
-  display: inline-flex; align-items: center; justify-content: center; min-width: 2rem; height: 2rem; padding: 0 0.6rem;
-  border-radius: var(--radius-max); background: var(--count-badge-bg); color: var(--count-badge-text);
-  font-size: var(--fs-body-xsmall); font-weight: 700; line-height: 1;
-}
 .util-divider { width: 1px; height: 1.2rem; background: var(--border-gray-light); }
 
 /* ---------- 4. 메인 메뉴 (KRDS 메인 메뉴) ----------
@@ -330,11 +324,11 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
    * 제목 크기와 좌우 여백은 tokens.css의 휴대폰 값이 자동으로 적용됩니다. */
   .sheet { margin: 0; min-height: 100vh; box-shadow: none; }
 
-  /* 헤더: PC와 같은 좌우 2줄 구성 유지. 폭이 좁아 "알림" 글자와 역할 배지만 감춤 */
+  /* 헤더: PC와 같은 구성 유지. 폭이 좁아 역할 배지만 감춤 (이름 | 로그아웃) */
   .header-top .inner { min-height: 6.4rem; padding-top: 1.2rem; padding-bottom: 1.2rem; column-gap: 1.2rem; }
   .header-top .brand-title { font-size: var(--fs-body-large); }
   .header-top .brand-en { white-space: normal; }
-  .user-line .badge, .util-label { display: none; }
+  .user-line .badge { display: none; }
   .user-line { gap: 0.8rem; }
 
   /* 누르기 쉬운 크기: 글자 크기와 줄 위치는 그대로 두고, 누를 수 있는 영역만 위아래로 넓힘 */
@@ -388,7 +382,7 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
 
   /* 종이에서 쓸 수 없는 요소 */
   /* 푸터도 감춤: 시스템 이름과 쪽 번호는 모든 쪽 아래에 찍히는 @page 영역이 대신함 */
-  .demo-bar, .skip-link, .gnb, .user-line, .logout-link, .toast, .link-more, .col-action, .site-footer, .no-print { display: none !important; }
+  .demo-bar, .skip-link, .gnb, .user-line, .toast, .link-more, .col-action, .site-footer, .no-print { display: none !important; }
 
   /* 종이 틀: 용지 여백이 대신하므로 틀의 여백과 그림자를 없앰 */
   .sheet { display: block; max-width: none; min-height: 0; margin: 0; box-shadow: none; }
@@ -489,6 +483,8 @@ a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: under
 @media screen and (max-width: 600px) {
   .step-body { padding-right: 0.8rem; }
   .step-wrap .step-tit { white-space: normal; }
+  /* 5단계는 칸이 좁아 단계 아래 설명이 길게 늘어지므로 감춤. 같은 내용은 아래 진행 상세 표에 있음 (REQ-ENV-08) */
+  .step-wrap .step-note { display: none; }
   .page-intro { padding: 1.6rem; }
   .modal { padding: 2.4rem 2rem; }
   .modal-actions .btn { flex: 1 1 0; }

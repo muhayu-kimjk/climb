@@ -3,11 +3,12 @@
  * ---------------------------------------------------------------------
  * 관련 요구사항: REQ-DASH-01~15, REQ-AUTH-04, REQ-AUTH-09
  * 상자는 한 줄에 하나씩 쌓습니다. (REQ-DASH-15)
- *   1. 계약 진행 현황: KRDS 단계 표시기(계약 등록 → 계약 검토 → 계약 체결 → 보관함)
- *      + 그 아래 진행 상세 표(계약, 상태, 현재 진행). 최대한 간단하게 진행 상황만 보여줌
+ *   1. 계약 진행 현황: KRDS 단계 표시기(계약 등록 → 계약 검토 → 계약 체결 → 운영 검토 → 계약 완료)
+ *      + 그 아래 진행 상세 표(고객사, 서비스, 상태, 현재 진행). 최대한 간단하게 진행 상황만 보여줌
  *   2. 내가 검토할 계약: 결재 역할에게만
- *   3. 확인 필요 [제안]
- *   4. 만료 임박
+ *   3. 만료 임박
+ * 계약명은 따로 두지 않으므로 계약은 고객사와 서비스로 표시합니다. (v0.12)
+ * "확인 필요" 상자는 뺐습니다. (REQ-DASH-09, v0.12)
  * 범위 [가정, REQ-DASH-14]: 영업은 내가 등록한 계약, 그 외 역할은 전체 계약
  * 프로토타입에서는 mock-data.js의 예시 데이터로 계산합니다.
  * 실제 시스템에서는 서버가 집계한 값을 받아 그리면 됩니다.
@@ -26,8 +27,6 @@
   const all = D.CONTRACTS;
   const byStatus = function (list, s) { return list.filter(function (c) { return c.status === s; }); };
   const inReview = byStatus(all, 'IN_REVIEW');
-  const rejected = byStatus(all, 'REJECTED');
-  const approved = byStatus(all, 'APPROVED');
   const active = byStatus(all, 'ACTIVE');
   const expiring = active
     .filter(function (c) { const d = C.daysUntil(c.endDate); return d >= 0 && d <= 90; })
@@ -41,14 +40,19 @@
     : all.filter(function (c) { return c.status !== 'DRAFT'; });
 
   /* ---------- 공통 조각 ---------- */
-  // 계약명 칸: 이름만 간단히. 열람 권한이 없으면 가림 (REQ-AUTH-09)
-  function contractName(c) {
+  // 고객사 칸과 서비스 칸: 계약명 대신 고객사와 서비스로 계약을 구분 (v0.12)
+  // 휴대폰에서는 서비스 칸을 감추고 고객사 아래 작은 글자로 보여줌 (칸이 넘치지 않게, REQ-ENV-08)
+  // 열람 권한이 없으면 "열람 제한 계약"으로만 보여주고 서비스도 가림 (REQ-AUTH-09)
+  function customerCells(c) {
     if (!C.canView(c, me)) {
-      return '<span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>';
+      return '<td><span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span></td><td class="col-service">-</td>';
     }
     // 작성 중인 계약은 계약 등록 화면(SCR-11)에서 이어서 작성
-    if (c.status === 'DRAFT') return '<a class="cell-title" href="new-contract.html?id=' + encodeURIComponent(c.draftKey) + '">' + esc(c.title) + '</a>';
-    return '<a class="cell-title" ' + C.todoAttrs('계약 상세', 'SCR-42') + '>' + esc(c.title) + '</a>';
+    const link = c.status === 'DRAFT'
+      ? '<a class="cell-title" href="new-contract.html?id=' + encodeURIComponent(c.draftKey) + '">' + esc(c.counterparty) + '</a>'
+      : '<a class="cell-title" ' + C.todoAttrs('계약 상세', 'SCR-42') + '>' + esc(c.counterparty) + '</a>';
+    const service = esc(C.serviceLabel(c.services));
+    return '<td>' + link + '<span class="cell-sub">' + service + '</span></td><td class="col-service">' + service + '</td>';
   }
 
   // 결재 단계 점: 승인 완료(채움), 현재 차례(테두리), 대기(회색), 반려(핑크)
@@ -70,7 +74,9 @@
     if (c.status === 'IN_REVIEW') {
       return stepDots(c) + esc(C.roleLabel(C.currentStep(c).role)) + ' 검토 중 (' + C.waitDays(c) + '일째)';
     }
-    if (c.status === 'ACTIVE') return '체결 완료 (만료 ' + C.fmtDate(c.endDate) + ')';
+    // 운영 검토: ⑨ 운영 적용(CEM) 또는 ⑩ 재무 확인 차례 [가정]
+    if (c.status === 'OPS_REVIEW') return (c.opsStep === 'CEM' ? 'CEM 운영 적용 중' : '재무 확인 중') + ' (체결 후 ' + C.daysSince(c.signedAt) + '일)';
+    if (c.status === 'ACTIVE') return '계약 완료 (만료 ' + C.fmtDate(c.endDate) + ')';
     return '-';
   }
 
@@ -102,13 +108,15 @@
   }
 
   /* ---------- 2. 계약 진행 현황 (REQ-DASH-04, 06, 08, 14) ----------
-   * 업무 흐름 4단계(REQ-FLOW-13)를 KRDS 단계 표시기로 보여주고, 단계마다 건수를 붙입니다.
+   * 업무 흐름 5단계(REQ-FLOW-13)를 KRDS 단계 표시기로 보여주고, 단계마다 건수를 붙입니다.
+   * 단계는 메뉴 구성과 따로 갑니다: 계약 등록 → 계약 검토 → 계약 체결 → 운영 검토 → 계약 완료(보관함)
    * 건수가 있는 단계는 초록 원, 없는 단계는 회색 원입니다. */
   const STEPS = [
     { label: '계약 등록', statuses: ['DRAFT'], target: '내 등록 목록', scr: 'SCR-12' },
     { label: '계약 검토', statuses: ['IN_REVIEW', 'REJECTED'], target: '전체 진행 현황', scr: 'SCR-20' },
     { label: '계약 체결', statuses: ['APPROVED'], target: '체결 대기', scr: 'SCR-31' },
-    { label: '보관함', statuses: ['ACTIVE'], target: '보관함 전체 계약', scr: 'SCR-41' },
+    { label: '운영 검토', statuses: ['OPS_REVIEW'], target: '전체 진행 현황', scr: 'SCR-20' },
+    { label: '계약 완료', statuses: ['ACTIVE'], target: '보관함 전체 계약', scr: 'SCR-41' },
   ];
 
   function stepNote(i, list) {
@@ -121,7 +129,11 @@
       const late = list.filter(function (c) { return C.daysSince(c.approvedAt) >= R.uploadOverdueDays; }).length;
       return '체결본 등록 대기' + (late ? ', ' + R.uploadOverdueDays + '일 이상 ' + late + '건' : '');
     }
-    return '체결 완료';
+    if (i === 3) {
+      const cem = list.filter(function (c) { return c.opsStep === 'CEM'; }).length;
+      return '운영 적용 ' + cem + '건, 재무 확인 ' + (list.length - cem) + '건';
+    }
+    return '보관함에 보관';
   }
 
   function renderProgress() {
@@ -140,8 +152,8 @@
       '</li>';
     }).join('');
 
-    // 진행 상세: 아직 진행 중인 계약(작성 중, 검토 중, 반려, 체결 대기). 체결 완료는 보관함에서 봄
-    const order = { DRAFT: 0, IN_REVIEW: 1, REJECTED: 1, APPROVED: 2 };
+    // 진행 상세: 아직 진행 중인 계약(작성 중, 검토 중, 반려, 체결 대기, 운영 검토). 계약 완료는 보관함에서 봄
+    const order = { DRAFT: 0, IN_REVIEW: 1, REJECTED: 1, APPROVED: 2, OPS_REVIEW: 3 };
     const dateOf = function (c) { return c.requestedAt || c.savedAt; };
     const rows = scope
       .filter(function (c) { return order[c.status] != null; })
@@ -150,11 +162,11 @@
     const sub = (isSales ? '내가 등록한 계약 ' : '전체 계약 ') + scope.length + '건';
     const table = rows.length
       ? '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
-          '<caption class="sr-only">진행 상세: 계약, 상태, 현재 진행</caption>' +
-          '<thead><tr><th scope="col" class="col-main">계약</th><th scope="col">상태</th><th scope="col">현재 진행</th></tr></thead>' +
+          '<caption class="sr-only">진행 상세: 고객사, 서비스, 상태, 현재 진행</caption>' +
+          '<thead><tr><th scope="col" class="col-main">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col">상태</th><th scope="col">현재 진행</th></tr></thead>' +
           '<tbody>' + rows.map(function (c) {
             return '<tr' + (c.status === 'REJECTED' ? ' class="is-alert"' : '') + '>' +
-              '<td>' + contractName(c) + '</td>' +
+              customerCells(c) +
               '<td class="nowrap">' + C.statusBadge(c) + '</td>' +
               '<td>' + progressText(c) + '</td>' +
             '</tr>';
@@ -178,66 +190,25 @@
     if (!rows.length) { el.innerHTML = head + '<p class="empty">지금 검토할 계약이 없습니다.</p>'; return; }
     el.innerHTML = head +
       '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
-        '<caption class="sr-only">내가 검토할 계약: 계약, 요청자, 대기 일수, 결재 단계</caption>' +
-        '<thead><tr><th scope="col" class="col-main">계약</th><th scope="col">요청자</th><th scope="col" class="num">대기</th><th scope="col">결재 단계</th></tr></thead>' +
+        '<caption class="sr-only">내가 검토할 계약: 고객사, 서비스, 요청자, 대기 일수, 결재 단계</caption>' +
+        '<thead><tr><th scope="col" class="col-main">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col">요청자</th><th scope="col" class="num">대기</th><th scope="col">결재 단계</th></tr></thead>' +
         '<tbody>' + rows.map(function (c) {
           const p = C.stepPosition(c);
           const wait = C.waitDays(c);
+          // 내 차례인 결재 건은 열람 제한이어도 볼 수 있음 (REQ-AUTH-09)
           return '<tr>' +
-            '<td><a class="cell-title" ' + C.todoAttrs('검토 상세', 'SCR-23') + '>' + esc(c.title) + '</a></td>' +
+            '<td><a class="cell-title" ' + C.todoAttrs('검토 상세', 'SCR-23') + '>' + esc(c.counterparty) + '</a>' +
+              '<span class="cell-sub">' + esc(C.serviceLabel(c.services)) + '</span></td>' +
+            '<td class="col-service">' + esc(C.serviceLabel(c.services)) + '</td>' +
             '<td class="nowrap">' + esc(C.userName(c.requesterId)) + '</td>' +
             '<td class="num"><span' + (wait >= R.approvalDelayDays ? ' class="wait-long"' : '') + '>' + wait + '일</span></td>' +
-            '<td class="nowrap">' + stepDots(c) + p.total + '단계 중 ' + p.pos + '단계</td>' +
+            '<td class="nowrap col-steps">' + stepDots(c) + p.total + '단계 중 ' + p.pos + '단계</td>' +
           '</tr>';
         }).join('') + '</tbody>' +
       '</table></div>';
   }
 
-  /* ---------- 4. 확인 필요 [제안] (REQ-DASH-09) ----------
-   * 영업은 본인 등록 건만, 그 외 역할은 전체를 봅니다. 기준 일수는 mock-data.js ALERT_RULES */
-  function renderChecks() {
-    const mineOnly = function (c) { return !isSales || c.requesterId === me.id; };
-    const groups = [
-      {
-        title: '체결본 미등록', rule: '승인 후 ' + R.uploadOverdueDays + '일 이상',
-        items: approved.filter(mineOnly).filter(function (c) { return C.daysSince(c.approvedAt) >= R.uploadOverdueDays; })
-          .map(function (c) { return { c: c, days: '승인 후 ' + C.daysSince(c.approvedAt) + '일' }; }),
-      },
-      {
-        title: '반려 후 재기안 없음', rule: '반려 후 ' + R.resubmitOverdueDays + '일 이상',
-        items: rejected.filter(mineOnly).filter(function (c) { return C.daysSince(c.rejectedAt) >= R.resubmitOverdueDays; })
-          .map(function (c) { return { c: c, days: '반려 후 ' + C.daysSince(c.rejectedAt) + '일' }; }),
-      },
-      {
-        title: '검토 지연', rule: '한 결재 단계 ' + R.approvalDelayDays + '일 이상',
-        items: inReview.filter(mineOnly).filter(function (c) { return C.waitDays(c) >= R.approvalDelayDays; })
-          .map(function (c) { return { c: c, days: C.roleLabel(C.currentStep(c).role) + ' ' + C.waitDays(c) + '일째' }; }),
-      },
-    ].filter(function (g) { return g.items.length; });
-
-    const head =
-      '<div class="panel-head"><h2 class="panel-title" id="checks-title">확인 필요 <span class="badge badge--proposal">제안 기능</span></h2></div>' +
-      '<p class="panel-desc">기획 확정 전 제안 기능입니다. 기준 일수는 조정할 수 있습니다.</p>';
-
-    const body = groups.length
-      ? '<ul class="check-list">' + groups.map(function (g) {
-          return '<li>' + C.icon('alert') + '<div class="item-body">' +
-            '<p class="check-title">' + esc(g.title) + ' <span class="check-count">' + g.items.length + '건</span></p>' +
-            '<p class="check-rule">기준: ' + esc(g.rule) + '</p>' +
-            '<ul class="check-items">' + g.items.map(function (it) {
-              const name = C.canView(it.c, me)
-                ? '<a ' + C.todoAttrs('계약 상세', 'SCR-42') + '>' + esc(it.c.title) + '</a>'
-                : '<span class="is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>';
-              return '<li>' + name + '<span class="days">' + esc(it.days) + '</span></li>';
-            }).join('') + '</ul>' +
-          '</div></li>';
-        }).join('') + '</ul>'
-      : '<p class="empty">확인이 필요한 계약이 없습니다.</p>';
-
-    document.getElementById('checks').innerHTML = head + body;
-  }
-
-  /* ---------- 5. 만료 임박 (REQ-DASH-07) ---------- */
+  /* ---------- 4. 만료 임박 (REQ-DASH-07) ---------- */
   function renderExpiring() {
     const head = panelHead('expiring-title', '만료 임박', null, '전체 보기', 'SCR-43') +
       '<p class="panel-desc">90일 이내에 만료되는 계약입니다.</p>';
@@ -251,8 +222,8 @@
       const tone = d <= 30 ? 'danger' : d <= 60 ? 'attention' : 'progress';
       const ddayLabel = '<span class="badge badge--' + tone + '" aria-label="만료까지 ' + d + '일">D-' + d + '</span>';
       const body = C.canView(c, me)
-        ? '<a class="item-title" ' + C.todoAttrs('계약 상세', 'SCR-42') + '>' + esc(c.title) + '</a>' +
-          '<span class="item-meta">' + C.meta(['만료 ' + C.fmtDate(c.endDate), '담당 ' + esc(C.userName(c.requesterId))]) + '</span>'
+        ? '<a class="item-title" ' + C.todoAttrs('계약 상세', 'SCR-42') + '>' + esc(c.counterparty) + '</a>' +
+          '<span class="item-meta">' + C.meta([esc(C.serviceLabel(c.services)), '만료 ' + C.fmtDate(c.endDate), '담당 ' + esc(C.userName(c.requesterId))]) + '</span>'
         : '<span class="item-title cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>' +
           '<span class="item-meta">만료 ' + C.fmtDate(c.endDate) + '</span>';
       return '<li>' + ddayLabel + '<div class="item-body">' + body + '</div></li>';
@@ -263,6 +234,5 @@
   renderGreeting();
   renderProgress();
   renderMyReviews();
-  renderChecks();
   renderExpiring();
 })();

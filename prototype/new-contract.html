@@ -50,12 +50,13 @@
         <p class="sub"><span class="req" aria-hidden="true">*</span> 표시는 꼭 입력해야 하는 항목입니다. 임시 저장한 계약은 나만 볼 수 있습니다.</p>
       </div>
 
-      <!-- 업무 흐름 4단계 중 지금 위치 (KRDS 단계 표시기) -->
+      <!-- 업무 흐름 5단계 중 지금 위치 (KRDS 단계 표시기, REQ-FLOW-13) -->
       <ol class="step-wrap" aria-label="업무 흐름 단계">
         <li class="is-on"><span class="step-body"><em class="sr-only">현재 단계</em><i class="step">1단계</i><span class="step-tit">계약 등록</span></span></li>
         <li><span class="step-body"><i class="step">2단계</i><span class="step-tit">계약 검토</span></span></li>
         <li><span class="step-body"><i class="step">3단계</i><span class="step-tit">계약 체결</span></span></li>
-        <li><span class="step-body"><i class="step">4단계</i><span class="step-tit">보관함</span></span></li>
+        <li><span class="step-body"><i class="step">4단계</i><span class="step-tit">운영 검토</span></span></li>
+        <li><span class="step-body"><i class="step">5단계</i><span class="step-tit">계약 완료</span></span></li>
       </ol>
 
       <!-- 이어서 작성, 보완 후 재기안, 권한 없음, 기안 완료 안내 -->
@@ -89,11 +90,7 @@
             <p class="field-error" hidden></p>
           </div>
 
-          <div class="field" data-field="title">
-            <label class="field-label" for="f-title">계약명<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
-            <input class="input" id="f-title" name="title" type="text" placeholder="예: 한빛대학교 SaaS 이용계약">
-            <p class="field-error" hidden></p>
-          </div>
+          <!-- 계약명 칸은 두지 않음: 계약은 거래처(고객사)와 서비스로 구분하고 계약번호로 식별 (v0.12) -->
 
           <div class="field-row">
             <div class="field" data-field="counterparty">

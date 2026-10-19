@@ -46,7 +46,7 @@
 .case-summary:empty { display: none; }
 
 /* ---------- 결재선 (자동) ----------
- * 단계(2단계 계약 검토, 3단계 계약 체결, 4단계 보관함)별로 세부 단계를 나열하고,
+ * 단계(2단계 계약 검토, 3단계 계약 체결, 4단계 운영 검토, 5단계 계약 완료)별로 세부 단계를 나열하고,
  * 거치는 단계는 "거침", 건너뛰는 단계는 "생략" 배지와 이유를 붙입니다. */
 .route-stage + .route-stage { margin-top: 2rem; }
 .route-stage-title { margin-bottom: 0.4rem; font-size: var(--fs-body-small); font-weight: 700; color: var(--text-subtle); }

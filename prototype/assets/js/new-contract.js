@@ -74,10 +74,10 @@
   $('#settlement-choices').innerHTML = Object.keys(D.SETTLEMENTS).map(function (k) {
     return '<label class="choice"><input type="radio" name="settlement" value="' + k + '">' + esc(D.SETTLEMENTS[k]) + '</label>';
   }).join('');
-  // 원계약 후보: 보관함의 체결 완료 계약 중 볼 수 있는 것
+  // 원계약 후보: 보관함의 계약 완료 계약 중 볼 수 있는 것
   const origins = D.CONTRACTS.filter(function (c) { return c.status === 'ACTIVE' && C.canView(c, me); });
   $('#f-origin').innerHTML = '<option value="">고르세요</option>' + origins.map(function (c) {
-    return '<option value="' + esc(c.id) + '">' + esc(c.id + ' ' + c.title) + '</option>';
+    return '<option value="' + esc(c.id) + '">' + esc(c.id + ' ' + c.counterparty + ' (' + C.serviceLabel(c.services) + ')') + '</option>';
   }).join('');
 
   /* ---------- 2. 이어서 작성, 보완 후 재기안 (REQ-FLOW-14, REQ-FLOW-17) ---------- */
@@ -153,6 +153,13 @@
       const discount = std && amount != null ? Math.max(0, (std - amount) / std) : null;
       return { li: li, code: code, qty: qty, amount: amount, product: p, std: std, discount: discount, cap: p ? p.discountCap : null };
     });
+  }
+
+  // 서비스: 계약명 대신 거래처와 함께 계약을 구분하는 값. 넣은 제품의 서비스에서 정해짐 (v0.12)
+  function serviceOfProducts() {
+    const codes = [];
+    readProducts().forEach(function (r) { if (r.product && codes.indexOf(r.product.service) < 0) codes.push(r.product.service); });
+    return codes.length ? C.serviceLabel(codes) : '없음';
   }
 
   /* ---------- 연도별 금액 (REQ-FLOW-21) ---------- */
@@ -259,9 +266,12 @@
         { no: '⑦', name: '상대방 서명, 체결본 등록', who: '영업 (나)', state: 'go', reason: '서명은 시스템 밖에서' },
         { no: '⑧', name: '체결본 확인', who: '세일즈어드민', state: 'go', reason: '승인된 내용과 같은지 확인' },
       ] },
-      { stage: '4단계 보관함', items: [
+      { stage: '4단계 운영 검토', items: [
         { no: '⑨', name: '운영 적용', who: 'CEM', state: 'go', reason: '라이선스나 도메인 열기' },
         { no: '⑩', name: '재무 확인', who: '재무 ' + D.USERS.u_finance.name, state: 'go', reason: '회계 인식 (결재선에는 없음)' },
+      ] },
+      { stage: '5단계 계약 완료', items: [
+        { no: '⑪', name: '계약 완료', who: '보관함', state: 'go', reason: '계약 완료 기록으로 보관' },
       ] },
     ];
   }
@@ -360,11 +370,10 @@
     help.textContent = no
       ? '기안하면 ' + no + '(' + D.KINDS[val('kind')] + ' ' + no.slice(-2).replace(/^0/, '') + '차)로 원계약과 함께 묶입니다.'
       : '보관함에 있는 계약 중에서 고릅니다. 원계약 번호에 차수가 붙어 함께 묶입니다.';
-    // 원계약을 고르면 거래처와 계약명을 미리 채움 (비어 있을 때만)
+    // 원계약을 고르면 거래처와 계약 유형을 미리 채움 (비어 있을 때만). 계약명은 두지 않음 (v0.12)
     const o = D.CONTRACTS.find(function (c) { return c.id === $('#f-origin').value; });
     if (o) {
       if (!$('#f-counterparty').value) $('#f-counterparty').value = o.counterparty;
-      if (!$('#f-title').value) $('#f-title').value = o.title + ' ' + D.KINDS[val('kind')] + '계약';
       if (!$('#f-type').value) $('#f-type').value = o.type;
     }
   }
@@ -432,7 +441,6 @@
     const kind = val('kind');
     need(!!kind, 'kind', '계약 구분을 고르세요.');
     if (kind && kind !== 'NEW') need(!!$('#f-origin').value, 'origin', '원계약을 고르세요.');
-    need(!!val('title'), 'title', '계약명을 입력하세요.');
     need(!!val('counterparty'), 'counterparty', '거래처 상호를 입력하세요.');
     need(/^\d{3}-\d{2}-\d{5}$/.test(val('bizNo')), 'bizNo', '사업자등록번호 10자리를 입력하세요.');
     need(!!val('type'), 'type', '계약 유형을 고르세요.');
@@ -520,8 +528,8 @@
       g.items.forEach(function (i) { if (g.stage.indexOf('2단계') === 0 && i.state === 'go') goes.push(i.no + ' ' + i.name); });
     });
     const rows = [
-      ['계약명', val('title')],
       ['거래처', val('counterparty')],
+      ['서비스', serviceOfProducts()],
       ['계약 금액', current.total ? won(current.total) + ' (부가세 별도)' : '금액 없음'],
       ['계약 기간', C.fmtDate(val('startDate')) + ' ~ ' + C.fmtDate(val('endDate'))],
       ['계약 검토', goes.join(', ')],
@@ -576,7 +584,6 @@
   if (source) {
     const f = source.form || {};
     setRadio('kind', source.kind || 'NEW');
-    $('#f-title').value = source.title || '';
     $('#f-counterparty').value = source.counterparty || '';
     $('#f-bizno').value = f.bizNo || '';
     $('#f-opportunity').value = f.opportunity || '';
@@ -594,7 +601,7 @@
     if (f.checklist) { setRadio('standard', f.checklist.standard); $('#f-standard-note').value = f.checklist.standardNote || ''; }
     $('#f-memo').value = f.memo || '';
     (f.products || []).forEach(function (p) { addProduct(p); });
-    if (source.status === 'REJECTED') { files.draft.push({ name: source.title + ' 1차 기안본.docx', size: 84000 }); renderFiles('draft'); }
+    if (source.status === 'REJECTED') { files.draft.push({ name: source.counterparty + ' 계약서 1차 기안본.docx', size: 84000 }); renderFiles('draft'); }
   }
   if (!$$('#product-list > li').length) addProduct();
   onKindChange();

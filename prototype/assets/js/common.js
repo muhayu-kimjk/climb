@@ -131,6 +131,11 @@ window.CLIMB = (function () {
   /* ---------- 계약·결재 관련 ---------- */
   function roleLabel(role) { return D.ROLES[role] || role; }
   function userName(id) { return D.USERS[id] ? D.USERS[id].name : '-'; }
+  // 서비스 이름: 계약명은 따로 두지 않고 고객사와 서비스로 계약을 구분 (v0.12)
+  //   codes: ['CK', 'HR'] 같은 서비스 코드 목록 → "카피킬러, HR 서비스"
+  function serviceLabel(codes) {
+    return (codes || []).map(function (s) { return D.SERVICES[s] || s; }).join(', ') || '-';
+  }
   function currentStep(c) {
     return (c.approvals || []).find(function (a) { return a.state === 'PENDING'; }) || null;
   }
@@ -217,7 +222,6 @@ window.CLIMB = (function () {
   function renderHeader(user, pageId) {
     const el = document.getElementById('site-header');
     if (!el) return;
-    const actionCount = myActions(user).length;
     const allowed = function (m) { return !m.roles || m.roles.indexOf(user.role) > -1; };
     // 메뉴와 하위 메뉴를 역할에 맞게 거름. 하위 메뉴가 하나도 안 남으면 그 메뉴도 감춤
     const menu = MENU.filter(allowed).map(function (m) {
@@ -242,24 +246,21 @@ window.CLIMB = (function () {
       '</li>';
     }).join('');
 
-    /* 헤더 2줄 구성 (REQ-UI-13)
-     *   1줄: [CLIMB | 무하유 계약 관리 플랫폼]            [알림 | 이도윤님 영업]
-     *   2줄: [MUHAYU Contract Lifecycle Management Base]            [로그아웃]
-     * 왼쪽과 오른쪽의 같은 줄끼리 글자 밑선(baseline)을 맞추고, 오른쪽 끝은 본문 오른쪽 끝에 맞춥니다. */
+    /* 헤더 구성 (REQ-UI-13)
+     *   1줄: [CLIMB | 무하유 계약 관리 플랫폼]            [이도윤님 영업 | 로그아웃]
+     *   2줄: [MUHAYU Contract Lifecycle Management Base]
+     * 오른쪽 한 줄은 왼쪽 첫 줄과 글자 밑선(baseline)을 맞추고, 오른쪽 끝은 본문 오른쪽 끝에 맞춥니다.
+     * 화면 알림(종 모양, 알림 숫자)은 두지 않습니다. 알림은 이메일로 보냅니다. (REQ-ENV-09) */
     el.className = 'site-header';
     el.innerHTML =
       '<div class="header-top"><div class="inner">' +
         '<a class="brand-title" href="index.html" title="개요로 이동">' + brandTitleHtml() + '</a>' +
         '<div class="user-line">' +
-          '<a class="util-link" ' + todoAttrs('알림 목록') + ' aria-label="알림 ' + actionCount + '건">' +
-            icon('bell', 'sm') + '<span class="util-label">알림</span>' +
-            (actionCount ? '<span class="count-badge" aria-hidden="true">' + actionCount + '</span>' : '') +
-          '</a>' +
-          '<span class="util-divider" aria-hidden="true"></span>' +
           '<span class="user-name">' + esc(user.name) + '님</span>' + badge('line', roleLabel(user.role)) +
+          '<span class="util-divider" aria-hidden="true"></span>' +
+          '<a class="util-link logout-link" href="login.html">로그아웃</a>' +
         '</div>' +
         '<span class="brand-en">' + esc(D.BRAND.en) + '</span>' +
-        '<a class="util-link logout-link" href="login.html">' + icon('logout', 'sm') + '로그아웃</a>' +
         // 인쇄할 때만 보이는 출력 정보 (REQ-UI-11). 실제 시스템은 출력하는 순간의 날짜와 시각을 씁니다.
         '<p class="print-meta">' + meta(['출력일 ' + fmtDate(D.TODAY), '출력자 ' + esc(user.name) + '님 (' + esc(roleLabel(user.role)) + ')']) + '</p>' +
       '</div></div>' +
@@ -340,7 +341,7 @@ window.CLIMB = (function () {
   return {
     init: init, getRole: getRole, saveRole: saveRole, currentUser: currentUser,
     daysSince: daysSince, daysUntil: daysUntil, fmtDate: fmtDate, fmtToday: fmtToday, fmtKRW: fmtKRW,
-    roleLabel: roleLabel, userName: userName, currentStep: currentStep, stepPosition: stepPosition, waitDays: waitDays,
+    roleLabel: roleLabel, userName: userName, serviceLabel: serviceLabel, currentStep: currentStep, stepPosition: stepPosition, waitDays: waitDays,
     canView: canView, myActions: myActions,
     esc: esc, badge: badge, statusBadge: statusBadge, todoAttrs: todoAttrs, icon: icon, brandText: brandText, meta: meta, toast: toast,
   };

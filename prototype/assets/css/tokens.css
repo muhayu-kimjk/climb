@@ -117,10 +117,8 @@
   --status-success-line: var(--mh-green);
   --status-neutral-bg: var(--gray-8);       /* 만료·해지, 열람 제한 — Gray */
   --status-neutral-line: var(--mh-gray);
-  --status-notice-bg: var(--mh-beige);      /* 확인 필요 알림 바탕 — Beige */
+  --status-notice-bg: var(--mh-beige);      /* 안내 상자(notice) 바탕 — Beige */
   --status-notice-icon: var(--mh-pink);
-  --count-badge-bg: var(--pink-strong);     /* 헤더 알림 숫자: 진한 핑크 + 흰 글자 */
-  --count-badge-text: var(--white);
 
   /* 프로토타입 시연 도구 (실제 시스템에서는 삭제) */
   --demo-bg: var(--mh-black);
