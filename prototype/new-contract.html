@@ -33,15 +33,7 @@
 
   <main id="main" class="page">
     <div class="inner">
-      <!-- KRDS 브레드크럼 -->
-      <nav class="breadcrumb" aria-label="현재 위치">
-        <ol>
-          <li><a href="index.html">개요</a></li>
-          <li><a href="#" data-todo="내 등록 목록" data-scr="SCR-12">계약 등록</a></li>
-          <li aria-current="page" id="crumb-current">새 계약 등록</li>
-        </ol>
-      </nav>
-
+      <!-- 경로(브레드크럼)는 두지 않음: 메뉴에서 지금 위치(계약 등록)가 표시되므로 (v0.15) -->
       <div class="page-head page-head--sub">
         <h1 class="page-title" id="page-title">새 계약 등록</h1>
       </div>
@@ -50,14 +42,7 @@
         <p class="sub"><span class="req" aria-hidden="true">*</span> 표시는 꼭 입력해야 하는 항목입니다. 임시 저장한 계약은 나만 볼 수 있습니다.</p>
       </div>
 
-      <!-- 업무 흐름 5단계 중 지금 위치 (KRDS 단계 표시기, REQ-FLOW-13) -->
-      <ol class="step-wrap" aria-label="업무 흐름 단계">
-        <li class="is-on"><span class="step-body"><em class="sr-only">현재 단계</em><i class="step">1단계</i><span class="step-tit">계약 등록</span></span></li>
-        <li><span class="step-body"><i class="step">2단계</i><span class="step-tit">계약 검토</span></span></li>
-        <li><span class="step-body"><i class="step">3단계</i><span class="step-tit">계약 체결</span></span></li>
-        <li><span class="step-body"><i class="step">4단계</i><span class="step-tit">운영 검토</span></span></li>
-        <li><span class="step-body"><i class="step">5단계</i><span class="step-tit">계약 완료</span></span></li>
-      </ol>
+      <!-- 업무 흐름 5단계 표시기는 이 화면에 두지 않음. 5단계 설명은 이용 안내(매뉴얼)에서 (v0.15) -->
 
       <!-- 이어서 작성, 보완 후 재기안, 권한 없음, 기안 완료 안내 -->
       <div id="notice"></div>

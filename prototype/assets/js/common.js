@@ -248,7 +248,7 @@ window.CLIMB = (function () {
 
     /* 헤더 구성 (REQ-UI-13)
      *   1줄: [CLIMB | 무하유 계약 관리 플랫폼]
-     *   2줄: [MUHAYU Contract Lifecycle Management Base]     [이도윤님 영업 | (아이콘)로그아웃]
+     *   2줄: [MUHAYU Contract Lifecycle Management Base]     [영업 이도윤님 | (아이콘)로그아웃]
      * 오른쪽 한 줄은 왼쪽 둘째 줄과 글자 밑선(baseline)을 맞추고, 오른쪽 끝은 본문 오른쪽 끝에 맞춥니다. (v0.15)
      * 화면 알림(종 모양, 알림 숫자)은 두지 않습니다. 알림은 이메일로 보냅니다. (REQ-ENV-09) */
     el.className = 'site-header';
@@ -256,7 +256,8 @@ window.CLIMB = (function () {
       '<div class="header-top"><div class="inner">' +
         '<a class="brand-title" href="index.html" title="개요로 이동">' + brandTitleHtml() + '</a>' +
         '<div class="user-line">' +
-          '<span class="user-name">' + esc(user.name) + '님</span>' + badge('line', roleLabel(user.role)) +
+          // 역할 배지를 이름 앞에 둠: [영업] 이도윤님 | 로그아웃 (v0.15)
+          badge('line', roleLabel(user.role)) + '<span class="user-name">' + esc(user.name) + '님</span>' +
           '<span class="util-divider" aria-hidden="true"></span>' +
           '<a class="util-link logout-link" href="login.html">' + icon('logout', 'sm') + '로그아웃</a>' +
         '</div>' +

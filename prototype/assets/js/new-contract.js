@@ -98,7 +98,7 @@
     $('#notice').innerHTML = noticeHtml('', '임시 저장한 계약을 이어서 작성합니다',
       C.fmtDate(source.savedAt) + '에 임시 저장했습니다. 임시 저장한 계약은 나만 볼 수 있습니다.', '');
   }
-  function setTitle(t) { $('#page-title').textContent = t; $('#crumb-current').textContent = t; }
+  function setTitle(t) { $('#page-title').textContent = t; }
 
   /* ---------- 3. 제품별 금액 (CPQ, REQ-SCOPE-02) ---------- */
   let productSeq = 0;
@@ -574,8 +574,6 @@
       '다음 단계: ② 체크리스트 검토 (세일즈어드민). 진행 상황은 개요의 계약 진행 현황에서 볼 수 있습니다.<br>' +
       '프로토타입이라 실제로 저장되지는 않습니다.',
       '<a class="btn btn--primary btn--md" href="index.html">개요로 가기</a><a class="btn btn--tertiary btn--md" href="new-contract.html">새 계약 하나 더 등록</a>');
-    $('.step-wrap > li.is-on').classList.remove('is-on');
-    $$('.step-wrap > li')[1].classList.add('is-on');
     window.scrollTo(0, 0);
     C.toast('기안했습니다. (프로토타입)');
   }
