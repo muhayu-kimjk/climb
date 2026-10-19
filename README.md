@@ -48,7 +48,7 @@ Projects/CLM
       ├─ js/common.js      헤더, 메뉴, 푸터, 권한 판단 등 공통 기능
       ├─ js/dashboard.js   개요 화면 로직
       ├─ js/new-contract.js 새 계약 등록 화면 로직 (체크리스트 자동 계산, 결재선, 입력 검사)
-      └─ img/favicon.svg   브라우저 탭 아이콘 (무하유 심볼 근사본, 원본 파일로 교체 필요)
+      └─ img/favicon.svg   브라우저 탭 아이콘 (무하유 심볼 Black 원본. favicon.png는 SVG를 못 읽는 브라우저용)
 ```
 
 ## 개발팀 참고
