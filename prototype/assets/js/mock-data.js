@@ -12,11 +12,12 @@ window.CLIMB_DATA = (function () {
   const TODAY = '2026-10-19';
 
   // 시스템 명칭 (REQ-NAME-01~05)
+  //   화면 표기 첫 줄: CLIMB | 무하유 계약 관리 플랫폼 / 둘째 줄: MUHAYU Contract Lifecycle Management Base
   const BRAND = {
-    name: 'CLIMB',                 // 브라우저 탭 제목
-    ko: '무하유 계약 관리 플랫폼',   // 화면 안 대표 이름
-    // 마지막 글자 B는 Base (REQ-NAME-05 확정)
-    en: 'MUHAYU Contract Lifecycle Management Base (CLIMB)',
+    name: 'CLIMB',                 // 브라우저 탭 제목, 시스템 이름 첫 줄 앞부분
+    ko: '무하유 계약 관리 플랫폼',   // 시스템 이름 첫 줄 뒷부분 (세로선 뒤)
+    // 마지막 글자 B는 Base (REQ-NAME-05 확정). 첫 줄에 CLIMB이 있으므로 둘째 줄 끝의 (CLIMB)은 뺌
+    en: 'MUHAYU Contract Lifecycle Management Base',
   };
 
 
@@ -70,8 +71,25 @@ window.CLIMB_DATA = (function () {
     TERMINATED: { label: '해지', tone: 'neutral' },
   };
 
-  // 계약 구분 (REQ-FLOW-08~09: 갱신·변경은 원계약(parentId)과 연결)
+  // 계약 구분 (REQ-FLOW-08~09: 갱신, 변경은 원계약(parentId)과 연결)
   const KINDS = { NEW: '신규', AMEND: '변경', RENEW: '갱신' };
+
+  /* ---------- 계약 등록(SCR-11) 선택지 (요구사항 정의서 3.4) ---------- */
+  const CONTRACT_TYPES = ['SaaS 이용계약', '비밀유지계약(NDA)', '리셀러 계약', '개인정보 처리위탁 계약', '기타'];
+  const METHODS = { DIRECT: '직접', PROCURE: '조달', RESELLER: '리셀러' };      // C-10 확정
+  const SETTLEMENTS = { LUMP: '일시', SPLIT: '분할', POST: '후불' };          // C-10 확정
+
+  /* ---------- 가격 기준: 표준단가표와 할인율 캡 (REQ-SCOPE-02, REQ-CHK-04) ----------
+   * 시연용 가상 값입니다. 실제 단가가 아닙니다.
+   * 실제 시스템에서는 관리자가 "가격 기준 관리"(SCR-54)에서 관리하고, 영업, 세일즈어드민, 관리자만 볼 수 있습니다.
+   * listPrice: 표준 단가(원, 부가세 별도) / discountCap: 할인율 캡(이 비율까지 할인 가능) */
+  const PRICE_BOOK = [
+    { code: 'CK-ORG', name: 'CK 기관 라이선스', unit: '기관, 1년', listPrice: 12000000, discountCap: 0.20 },
+    { code: 'CK-USER', name: 'CK 추가 이용자', unit: '100명, 1년', listPrice: 1500000, discountCap: 0.15 },
+    { code: 'CK-API', name: 'CK API 연동', unit: '1식, 1년', listPrice: 6000000, discountCap: 0.10 },
+    { code: 'HR-BASE', name: 'HR 서비스 기본', unit: '기관, 1년', listPrice: 9600000, discountCap: 0.20 },
+    { code: 'HR-ADD', name: 'HR 추가 모듈', unit: '모듈, 1년', listPrice: 3600000, discountCap: 0.15 },
+  ];
 
   // 결재 단계 한 칸을 만드는 도우미.
   // state: DONE 승인 / PENDING 결재 차례 / WAITING 앞 단계 대기 / REJECTED 반려
@@ -87,9 +105,17 @@ window.CLIMB_DATA = (function () {
   const CONTRACTS = [
     /* ----- 작성 중 (DRAFT): 계약번호는 기안할 때 부여 [가정] ----- */
     {
-      id: null, title: '바름고등학교 SaaS 이용계약', counterparty: '바름고등학교', type: 'SaaS 이용계약', kind: 'NEW',
+      // draftKey: 계약번호가 없는 임시 저장 건을 화면 주소로 부를 때 쓰는 임시 키 (new-contract.html?id=D-0001)
+      id: null, draftKey: 'D-0001', title: '바름고등학교 SaaS 이용계약', counterparty: '바름고등학교', type: 'SaaS 이용계약', kind: 'NEW',
       amount: 7200000, requesterId: 'u_sales1', savedAt: '2026-10-18', restricted: false, personalData: true,
       status: 'DRAFT', approvals: [],
+      // 계약 등록 화면(SCR-11)에 이어서 채울 값 (3.4 입력 항목)
+      form: {
+        bizNo: '214-82-10457', method: 'DIRECT', settlement: 'LUMP',
+        startDate: '2027-01-01', endDate: '2027-12-31', autoRenew: 'NO',
+        products: [{ code: 'HR-BASE', qty: 1, amount: 7200000 }], // 표준 960만 원에서 25% 할인 → 캡 20% 초과 예시
+        checklist: { standard: 'YES', standardNote: '' },
+      },
     },
 
     /* ----- 검토 중 (IN_REVIEW) ----- */
@@ -138,7 +164,16 @@ window.CLIMB_DATA = (function () {
       amount: 18000000, requesterId: 'u_sales1', requestedAt: '2026-10-06', restricted: false, personalData: false,
       status: 'REJECTED', rejectedAt: '2026-10-10',
       rejectReason: '손해배상 한도 조항이 표준계약서 기준을 벗어납니다. 수정 후 다시 요청해 주세요.',
+      round: 1, // 기안 차수 (REQ-FLOW-17). 보완 후 재기안하면 2차
       approvals: [step('HEAD', 'DONE', '2026-10-07'), step('LEGAL', 'REJECTED', '2026-10-10')],
+      // 보완 후 재기안 때 계약 등록 화면(SCR-11)에 미리 채울 값
+      form: {
+        bizNo: '107-86-33921', method: 'DIRECT', settlement: 'SPLIT', opportunity: 'OPP-2026-0311',
+        contractDate: '2026-10-06', startDate: '2026-11-01', endDate: '2027-10-31', autoRenew: 'YES', noticeDays: 60,
+        products: [{ code: 'CK-ORG', qty: 1, amount: 12000000 }, { code: 'CK-USER', qty: 4, amount: 6000000 }],
+        checklist: { standard: 'NO', standardNote: '고객 요청으로 손해배상 한도 조항 수정' },
+        memo: '손해배상 한도를 계약 금액의 2배로 요청받아 협의 중입니다.',
+      },
     },
 
     /* ----- 승인 완료, 체결 대기 (APPROVED) ----- */
@@ -222,5 +257,5 @@ window.CLIMB_DATA = (function () {
     approvalDelayDays: 5,    // 한 결재 단계에 머문 기간
   };
 
-  return { TODAY, BRAND, ROLES, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, CONTRACTS, ALERT_RULES };
+  return { TODAY, BRAND, ROLES, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, CONTRACT_TYPES, METHODS, SETTLEMENTS, PRICE_BOOK, CONTRACTS, ALERT_RULES };
 })();

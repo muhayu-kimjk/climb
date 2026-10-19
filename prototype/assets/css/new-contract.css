@@ -1,0 +1,78 @@
+/* =====================================================================
+ * SCR-11 새 계약 등록 전용 스타일 (new-contract.css)
+ * 관련 요구사항: 요구사항 정의서 3.4(입력 항목), 3.5(체크리스트와 결재선), REQ-SCOPE-01~02
+ * 입력 컴포넌트 공통 스타일은 form.css에 있습니다.
+ * ===================================================================== */
+
+.opt { font-size: var(--fs-body-small); font-weight: 500; color: var(--text-subtle); }
+.sub-fields { margin-top: 1.2rem; }
+
+/* ---------- 제품별 금액 (CPQ) ----------
+ * 제품 하나 = 상자 하나: [제품] [수량] [계약 금액] / [사용 업체] / 표준 금액과 할인율 */
+.product-list > li { padding: 1.6rem; border: 1px solid var(--border-gray-light); border-radius: var(--radius-lg); }
+.product-list > li + li { margin-top: 1.2rem; }
+.product-list > li.is-invalid { border-color: var(--status-danger-fill); }
+.product-grid { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 0.9fr) minmax(0, 1.6fr); gap: 0 1.2rem; }
+.product-grid > .field, .product-list .field { margin-bottom: 1.2rem; }
+.product-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1.2rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
+.product-foot .price-info { flex: 1 1 auto; min-width: 0; }
+.product-list .field-error { margin-top: 0.8rem; }
+.btn--add { margin-top: 1.2rem; }
+
+.amount-total {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.4rem 1.6rem;
+  margin: 0 0 2.4rem; padding: 1.6rem 2rem; border-radius: var(--radius-lg); background: var(--surface-secondary-subtler);
+}
+.amount-total-label { font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
+.amount-total-value { font-size: var(--fs-heading-medium); font-weight: 700; color: var(--text-bolder); font-variant-numeric: tabular-nums; }
+.amount-total-value .exact { margin-left: 0.6rem; font-size: var(--fs-body-small); font-weight: 500; color: var(--text-subtle); }
+
+/* 연도별 금액 */
+.year-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 1.2rem; align-items: center; padding: 0.8rem 0; border-bottom: 1px solid var(--border-gray-light); }
+.year-row:last-child { border-bottom: 0; }
+.year-label { font-size: var(--fs-body-small); color: var(--text-basic); }
+.year-label strong { display: block; font-size: var(--fs-body-medium); color: var(--text-bolder); }
+.year-sum { margin-top: 0.8rem; font-size: var(--fs-body-small); color: var(--text-subtle); text-align: right; }
+
+/* ---------- 체크리스트 ---------- */
+.check-q { margin-bottom: 1.2rem; }
+.check-q--auto .field-label { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.8rem; }
+.check-q--auto .field-label .badge { align-self: center; }
+.check-answer { display: flex; flex-wrap: wrap; align-items: center; gap: 0.8rem; min-height: var(--touch-min); font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
+.check-result { margin-top: 0.4rem; font-size: var(--fs-body-small); color: var(--text-primary); font-weight: 700; }
+.check-result:empty { display: none; }
+.case-summary { margin-top: 0.8rem; padding: 1.6rem 2rem; border-radius: var(--radius-lg); background: var(--surface-primary-subtler); font-size: var(--fs-body-small); color: var(--text-basic); }
+.case-summary strong { color: var(--text-bolder); }
+.case-summary:empty { display: none; }
+
+/* ---------- 결재선 (자동) ----------
+ * 단계(2단계 계약 검토, 3단계 계약 체결, 4단계 보관함)별로 세부 단계를 나열하고,
+ * 거치는 단계는 "거침", 건너뛰는 단계는 "생략" 배지와 이유를 붙입니다. */
+.route-stage + .route-stage { margin-top: 2rem; }
+.route-stage-title { margin-bottom: 0.4rem; font-size: var(--fs-body-small); font-weight: 700; color: var(--text-subtle); }
+.route-list > li {
+  display: grid; grid-template-columns: 3.2rem minmax(0, 1fr) auto; gap: 0 1.2rem; align-items: baseline;
+  padding: 1.2rem 0; border-bottom: 1px solid var(--border-gray-light);
+}
+.route-list > li:last-child { border-bottom: 0; }
+.route-no { font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-primary); }
+.route-name { font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
+.route-who { margin-left: 0.6rem; font-size: var(--fs-body-small); font-weight: 500; color: var(--text-subtle); }
+.route-reason { display: block; margin-top: 0.2rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
+.route-list > li.is-skip .route-name, .route-list > li.is-skip .route-no { color: var(--text-disabled); }
+.route-list .badge { align-self: center; }
+
+/* 기안 확인 창 안의 요약 */
+.confirm-list { margin-top: 0.4rem; }
+.confirm-list > div { display: grid; grid-template-columns: 10rem minmax(0, 1fr); gap: 1.2rem; padding: 0.8rem 0; border-bottom: 1px solid var(--border-gray-light); font-size: var(--fs-body-small); }
+.confirm-list dt { color: var(--text-subtle); }
+.confirm-list dd { color: var(--text-bolder); font-weight: 700; }
+
+/* ---------- 휴대폰 화면 (방식 B) ----------
+ * 제품 상자: 제품은 한 줄 전체, 수량과 금액은 다음 줄에 나란히 */
+@media screen and (max-width: 600px) {
+  .product-grid { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr); }
+  .product-grid > .field:first-child { grid-column: 1 / -1; }
+  .year-row { grid-template-columns: minmax(0, 1fr); gap: 0.4rem; }
+  .confirm-list > div { grid-template-columns: minmax(0, 1fr); gap: 0.2rem; }
+}

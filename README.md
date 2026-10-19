@@ -1,6 +1,6 @@
-# 무하유 계약 관리 플랫폼 프로토타입
+# CLIMB | 무하유 계약 관리 플랫폼 프로토타입
 
-MUHAYU Contract Lifecycle Management Base (CLIMB). 계약 등록, 계약 검토, 계약 체결, 보관함 4단계로 계약을 관리하는 사내 시스템의 **화면 시안**입니다.
+MUHAYU Contract Lifecycle Management Base. 계약 등록, 계약 검토, 계약 체결, 보관함 4단계로 계약을 관리하는 사내 시스템의 **화면 시안**입니다.
 실제 시스템은 사내 개발팀이 이 시안과 아래 문서를 바탕으로 구현합니다.
 
 ## 프로토타입 보는 법
@@ -12,7 +12,7 @@ MUHAYU Contract Lifecycle Management Base (CLIMB). 계약 등록, 계약 검토,
    ```
 
 2. 브라우저에서 http://localhost:8730 을 엽니다. (첫 화면: 로그인)
-3. 화면 맨 위 검은 띠의 **시연용 역할 전환**으로 역할(영업, 부서장, 법무, 개인정보 담당, 재무, 관리자)을 바꿔 가며 볼 수 있습니다.
+3. 화면 맨 위 검은 띠의 **시연용 역할 전환**으로 역할(영업, 부서장, 법무, 관리자 등)을 바꿔 가며 볼 수 있습니다.
 
 아직 만들지 않은 화면의 메뉴, 버튼을 누르면 "아직 시안을 만들기 전"이라는 안내가 나옵니다.
 
@@ -36,14 +36,18 @@ Projects/CLM
 ├─ docs/                   기획 문서
 └─ prototype/              화면 시안
    ├─ login.html           SCR-00 로그인
-   ├─ index.html           SCR-01 대시보드
+   ├─ index.html           SCR-01 개요 (대시보드)
+   ├─ new-contract.html    SCR-11 새 계약 등록 (?id= 로 이어서 작성, 보완 후 재기안)
    └─ assets/
       ├─ css/tokens.css    색, 글자, 크기 값 (회사 컬러는 여기만 바꾸면 됨)
       ├─ css/common.css    모든 화면 공통 스타일 (KRDS 구조)
-      ├─ css/dashboard.css 대시보드 전용 스타일
+      ├─ css/form.css      입력 화면 공통 스타일 (KRDS 입력 폼, 라디오, 파일 업로드, 오류 표시)
+      ├─ css/dashboard.css 개요 화면 전용 스타일
+      ├─ css/new-contract.css 새 계약 등록 화면 전용 스타일
       ├─ js/mock-data.js   시연용 예시 데이터 (가상의 사람, 거래처)
       ├─ js/common.js      헤더, 메뉴, 푸터, 권한 판단 등 공통 기능
-      ├─ js/dashboard.js   대시보드 화면 로직
+      ├─ js/dashboard.js   개요 화면 로직
+      ├─ js/new-contract.js 새 계약 등록 화면 로직 (체크리스트 자동 계산, 결재선, 입력 검사)
       └─ img/favicon.svg   브라우저 탭 아이콘 (무하유 심볼 근사본, 원본 파일로 교체 필요)
 ```
 
@@ -51,5 +55,6 @@ Projects/CLM
 
 - 프로토타입은 특정 프레임워크 없이 순수 HTML, CSS, JavaScript로 만들었습니다. 사내 표준 기술로 옮길 때 구조와 동작을 참고하세요.
 - `mock-data.js`의 데이터 구조(계약, 결재 단계, 상태값)는 화면 설계를 위한 **가정**입니다. DB 설계 시 요구사항정의서와 함께 검토가 필요합니다.
+- 가격 기준(`mock-data.js`의 `PRICE_BOOK`)은 시연용 가상 값입니다. 체크리스트 2, 3번 계산과 결재선 결정은 실제 시스템에서 서버가 다시 검증해야 합니다(요구사항 정의서 3.4.1).
 - 열람 제한(REQ-AUTH-09), 도메인 제한 로그인(REQ-ENV-03) 같은 권한 처리는 프로토타입에서는 화면에서만 흉내 냅니다. 실제 시스템에서는 반드시 서버에서 처리해야 합니다.
 - 글꼴(Noto Sans KR)을 Google Fonts에서 불러옵니다. 사내망에서 막혀 있으면 글꼴 파일을 서버에 직접 두는 방식으로 바꿔야 합니다.

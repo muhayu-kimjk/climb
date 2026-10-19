@@ -19,7 +19,7 @@ window.CLIMB = (function () {
     { label: '개요', scr: 'SCR-01', href: 'index.html' },
     // 계약 등록: 내용 작성과 기안 (REQ-FLOW-14)
     { label: '계약 등록', roles: ['SALES'], children: [
-      { label: '새 계약 등록', scr: 'SCR-11' },
+      { label: '새 계약 등록', scr: 'SCR-11', href: 'new-contract.html' },
       { label: '내 등록 목록', scr: 'SCR-12' },
     ] },
     // 계약 현황: 검토와 체결이 진행 중인 계약 (REQ-FLOW-03~05)
@@ -52,6 +52,7 @@ window.CLIMB = (function () {
     alert: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
     logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
     help: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+    check: '<circle cx="12" cy="12" r="10"/><path d="m8 12.5 2.8 2.8L16.5 9.5"/>',
   };
   function icon(name, size) {
     const cls = 'icon' + (size ? ' icon--' + size : '');
@@ -59,9 +60,15 @@ window.CLIMB = (function () {
   }
 
   // 시스템 이름 표기: 로고 그림 없이 글자로만 표시 (REQ-NAME-03~04, REQ-UI-03)
-  //   첫 줄: 무하유 계약 관리 플랫폼 / 둘째 줄: MUHAYU Contract Lifecycle Management Base (CLIMB)
+  //   첫 줄: CLIMB | 무하유 계약 관리 플랫폼 / 둘째 줄: MUHAYU Contract Lifecycle Management Base
+  //   세로선은 글자가 아닌 선으로 그려 화면낭독기는 "CLIMB 무하유 계약 관리 플랫폼"으로 읽음
+  function brandTitleHtml() {
+    return '<span class="brand-name">' + esc(D.BRAND.name) + '</span>' +
+      '<span class="brand-sep" aria-hidden="true"></span>' +
+      '<span class="brand-ko">' + esc(D.BRAND.ko) + '</span>';
+  }
   function brandText(tag) {
-    return '<' + tag + ' class="brand-title">' + esc(D.BRAND.ko) + '</' + tag + '>' +
+    return '<' + tag + ' class="brand-title">' + brandTitleHtml() + '</' + tag + '>' +
       '<span class="brand-en">' + esc(D.BRAND.en) + '</span>';
   }
 
@@ -236,13 +243,13 @@ window.CLIMB = (function () {
     }).join('');
 
     /* 헤더 2줄 구성 (REQ-UI-13)
-     *   1줄: [무하유 계약 관리 플랫폼]                    [알림 | 이도윤님 영업]
-     *   2줄: [MUHAYU Contract ... (CLIMB)]                          [로그아웃]
+     *   1줄: [CLIMB | 무하유 계약 관리 플랫폼]            [알림 | 이도윤님 영업]
+     *   2줄: [MUHAYU Contract Lifecycle Management Base]            [로그아웃]
      * 왼쪽과 오른쪽의 같은 줄끼리 글자 밑선(baseline)을 맞추고, 오른쪽 끝은 본문 오른쪽 끝에 맞춥니다. */
     el.className = 'site-header';
     el.innerHTML =
       '<div class="header-top"><div class="inner">' +
-        '<a class="brand-title" href="index.html" title="개요로 이동">' + esc(D.BRAND.ko) + '</a>' +
+        '<a class="brand-title" href="index.html" title="개요로 이동">' + brandTitleHtml() + '</a>' +
         '<div class="user-line">' +
           '<a class="util-link" ' + todoAttrs('알림 목록') + ' aria-label="알림 ' + actionCount + '건">' +
             icon('bell', 'sm') + '<span class="util-label">알림</span>' +

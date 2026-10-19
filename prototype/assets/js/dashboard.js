@@ -46,6 +46,8 @@
     if (!C.canView(c, me)) {
       return '<span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>';
     }
+    // 작성 중인 계약은 계약 등록 화면(SCR-11)에서 이어서 작성
+    if (c.status === 'DRAFT') return '<a class="cell-title" href="new-contract.html?id=' + encodeURIComponent(c.draftKey) + '">' + esc(c.title) + '</a>';
     return '<a class="cell-title" ' + C.todoAttrs('계약 상세', 'SCR-42') + '>' + esc(c.title) + '</a>';
   }
 
@@ -127,7 +129,7 @@
       const list = scope.filter(function (c) { return s.statuses.indexOf(c.status) > -1; });
       const unknown = i === 0 && !isSales; // 작성 중 계약은 작성자 본인만 셀 수 있음
       const count = unknown ? '-' : list.length;
-      const cls = !unknown && list.length ? ' class="has"' : '';
+      const cls = !unknown && list.length ? ' class="is-on"' : '';
       return '<li' + cls + '>' +
         '<a class="step-body" ' + C.todoAttrs(s.target, s.scr) + '>' +
           '<i class="step">' + (i + 1) + '단계</i>' +
@@ -162,7 +164,7 @@
 
     document.getElementById('progress').innerHTML =
       panelHead('progress-title', '계약 진행 현황', esc(sub)) +
-      '<ol class="step-wrap" aria-label="계약 진행 단계별 건수">' + stepsHtml + '</ol>' +
+      '<ol class="step-wrap step-wrap--count" aria-label="계약 진행 단계별 건수">' + stepsHtml + '</ol>' +
       '<h3 class="block-subtitle">진행 상세</h3>' + table;
   }
 

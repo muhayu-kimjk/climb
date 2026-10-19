@@ -1,0 +1,124 @@
+/* =====================================================================
+ * 입력 폼 공통 스타일 (form.css)
+ * ---------------------------------------------------------------------
+ * KRDS 입력 폼 패턴과 입력 컴포넌트(텍스트 입력, 셀렉트, 라디오, 체크박스, 파일 업로드)를 따릅니다.
+ *   - 이름표(label)는 입력칸 위, 필수 항목은 이름표 뒤에 * 표시 + 화면낭독기용 "(필수)"
+ *   - 도움말은 입력칸 아래 작은 글자, 오류는 입력칸 아래 진한 핑크 글자 + 입력칸 테두리
+ *   - 입력칸 높이 48px(KRDS medium), 글자 17px. 휴대폰에서도 같은 크기 (REQ-ENV-07 방식 B)
+ * 관련 요구사항: REQ-UI-01, REQ-UI-05, REQ-ENV-08
+ * ===================================================================== */
+
+.form-stack { display: flex; flex-direction: column; gap: 2.4rem; }
+.section-title { display: flex; align-items: baseline; gap: 0.8rem; font-size: var(--fs-heading-small); font-weight: 700; color: var(--text-bolder); }
+.section-title .num { color: var(--text-primary); }
+.section-desc { margin: 0.6rem 0 2rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
+
+/* ---------- 항목 하나 (이름표 + 입력칸 + 도움말 + 오류) ---------- */
+.field { min-width: 0; margin: 0 0 2.4rem; padding: 0; border: 0; }
+.field:last-child { margin-bottom: 0; }
+.field-label { display: block; float: none; width: 100%; margin-bottom: 0.8rem; padding: 0; font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
+.field-label--sm { margin-bottom: 0.4rem; font-size: var(--fs-body-small); }
+.req { margin-left: 0.2rem; color: var(--status-danger-fill); }
+.tag-tbd { margin-left: 0.6rem; vertical-align: 0.1rem; }
+.field-help { margin-top: 0.6rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
+.field-error { display: flex; align-items: flex-start; gap: 0.4rem; margin-top: 0.6rem; font-size: var(--fs-body-small); font-weight: 700; color: var(--status-danger-fill); }
+.field-error[hidden] { display: none; }
+.field-error .icon { margin-top: 0.2rem; }
+
+/* 한 줄에 여러 항목: 폭이 모자라면 자동으로 다음 줄로 */
+.field-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 0 1.6rem; }
+.field-row > .field { margin-bottom: 2.4rem; }
+.field-row:last-child > .field { margin-bottom: 0; }
+
+/* ---------- 텍스트 입력, 셀렉트, 여러 줄 입력 ---------- */
+.input, .select, .textarea {
+  width: 100%; height: var(--height-md); padding: 0 1.6rem;
+  border: 1px solid var(--border-gray); border-radius: var(--radius-md); background: var(--surface-white);
+  font-size: var(--fs-body-medium); color: var(--text-basic);
+}
+.input::placeholder, .textarea::placeholder { color: var(--text-disabled); }
+.input:hover, .select:hover, .textarea:hover { border-color: var(--text-subtle); }
+.input:focus-visible, .select:focus-visible, .textarea:focus-visible { border-color: var(--mh-blue); box-shadow: var(--focus-ring); border-radius: var(--radius-md); }
+.input[readonly] { background: var(--surface-gray-subtler); border-color: var(--border-gray-light); color: var(--text-subtle); }
+.textarea { height: auto; min-height: 12rem; padding: 1.2rem 1.6rem; line-height: 1.5; resize: vertical; }
+.textarea--sm { min-height: 8rem; }
+.select {
+  padding-right: 4.4rem; appearance: none; cursor: pointer;
+  background: var(--surface-white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23021821' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 1.4rem center / 2rem;
+}
+.is-invalid .input, .is-invalid .select, .is-invalid .textarea, .is-invalid .file-drop { border-color: var(--status-danger-fill); }
+
+/* 숫자 + 단위(원, 일) */
+.input-unit { position: relative; }
+.input-unit .input { padding-right: 4.4rem; text-align: right; font-variant-numeric: tabular-nums; }
+.input-unit .unit { position: absolute; top: 50%; right: 1.6rem; transform: translateY(-50%); font-size: var(--fs-body-medium); color: var(--text-subtle); pointer-events: none; }
+.inline-input { display: inline-flex; align-items: center; gap: 0.8rem; font-size: var(--fs-body-medium); }
+.inline-input .input-unit { width: 12rem; }
+
+/* ---------- 라디오, 체크박스 (KRDS 선택 컴포넌트) ----------
+ * 누를 수 있는 영역은 최소 44px. 선택 표시는 Dark Green (흰 바탕 대비 5.5:1) */
+.choice-row { display: flex; flex-wrap: wrap; gap: 0 2.4rem; }
+.choice { display: inline-flex; align-items: center; gap: 0.8rem; min-height: var(--touch-min); font-size: var(--fs-body-medium); color: var(--text-basic); cursor: pointer; }
+.choice input { appearance: none; flex-shrink: 0; display: grid; place-content: center; width: 2.4rem; height: 2.4rem; margin: 0; border: 1px solid var(--border-gray); background: var(--surface-white); cursor: pointer; }
+.choice input[type="radio"] { border-radius: 50%; }
+.choice input[type="radio"]::before { content: ""; width: 1.2rem; height: 1.2rem; border-radius: 50%; background: var(--mh-dark-green); transform: scale(0); transition: transform 0.1s ease; }
+.choice input[type="radio"]:checked { border: 0.2rem solid var(--mh-dark-green); }
+.choice input[type="radio"]:checked::before { transform: scale(1); }
+.choice input[type="checkbox"] { border-radius: var(--radius-sm); }
+.choice input[type="checkbox"]::before {
+  content: ""; width: 1.6rem; height: 1.6rem; background: var(--white); transform: scale(0); transition: transform 0.1s ease;
+  clip-path: polygon(14% 52%, 0 66%, 38% 100%, 100% 22%, 86% 8%, 38% 72%);
+}
+.choice input[type="checkbox"]:checked { border-color: var(--mh-dark-green); background: var(--mh-dark-green); }
+.choice input[type="checkbox"]:checked::before { transform: scale(1); }
+.choice input:focus-visible { box-shadow: var(--focus-ring); }
+.is-invalid .choice input { border-color: var(--status-danger-fill); }
+
+/* ---------- 파일 업로드 (KRDS 파일 업로드) ---------- */
+.file-drop {
+  padding: 2.4rem; border: 1px dashed var(--border-gray); border-radius: var(--radius-lg);
+  background: var(--surface-gray-subtler); text-align: center;
+}
+.file-drop.is-dragover { border-color: var(--mh-dark-green); background: var(--surface-primary-subtler); }
+.file-drop p { margin-bottom: 1.2rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
+.file-drop input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.file-list > li {
+  display: flex; align-items: center; justify-content: space-between; gap: 1.2rem; margin-top: 0.8rem; padding: 1.2rem 1.6rem;
+  border: 1px solid var(--border-gray-light); border-radius: var(--radius-md); font-size: var(--fs-body-small);
+}
+.file-list .file-name { font-weight: 700; color: var(--text-basic); overflow-wrap: anywhere; }
+.file-list .file-size { margin-left: 0.6rem; color: var(--text-subtle); }
+.btn-text { display: inline-flex; align-items: center; gap: 0.4rem; min-height: var(--touch-min); padding: 0 0.4rem; font-size: var(--fs-body-small); color: var(--text-subtle); text-decoration: underline; text-underline-offset: 0.3rem; }
+.btn-text:hover { color: var(--text-basic); }
+
+/* ---------- 오류 요약 (KRDS 오류 패턴): 기안할 때 빠진 항목을 맨 위에 모아 보여줌 ---------- */
+.error-summary { margin-bottom: 2.4rem; padding: 2rem 2.4rem; border: 0.2rem solid var(--status-danger-fill); border-radius: var(--radius-lg); background: var(--surface-white); }
+.error-summary[hidden] { display: none; }
+.error-summary-title { display: flex; align-items: center; gap: 0.8rem; font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
+.error-summary-title .icon { color: var(--status-danger-fill); }
+.error-summary ul { margin-top: 0.8rem; padding-left: 2.8rem; list-style: disc; font-size: var(--fs-body-small); }
+.error-summary a { color: var(--status-danger-fill); font-weight: 700; text-decoration: underline; text-underline-offset: 0.3rem; }
+
+/* ---------- 폼 아래 버튼 줄 ---------- */
+.btn--md { height: var(--height-md); padding: 0 2.4rem; font-size: var(--fs-body-medium); }
+.form-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 1.2rem; margin-top: 3.2rem; }
+
+/* 휴대폰 화면 (방식 B): 배치는 같게, 버튼은 줄을 꽉 채워 누르기 쉽게 */
+@media screen and (max-width: 600px) {
+  .form-actions .btn { flex: 1 1 0; }
+}
+
+/* 인쇄: 입력한 값은 그대로 보이고, 파일 선택 버튼과 폼 버튼은 감춤 */
+@media print {
+  .form-actions, .file-drop, .btn-text, .btn--add, .error-summary { display: none !important; }
+  .select { background-image: none; }
+  /* 항목 이름과 입력칸이 쪽 사이에서 갈라지지 않게, 간격은 조금 줄여 쪽 수를 줄임 */
+  /* 목록이 든 큰 항목(제품, 연도별 금액, 결재선)은 통째로 넘기면 빈칸이 커지므로 줄 단위로만 묶음 */
+  .field:not(:has(ul, ol)), .field-row, .check-q, .product-list > li, .route-list > li, .amount-total, .year-row { break-inside: avoid; }
+  .section-title, .section-desc, .field-label { break-after: avoid; }
+  .section-desc { break-inside: avoid; }
+  .field, .field-row > .field { margin-bottom: 1.6rem; }
+  .input, .select { height: 4rem; }
+  .textarea { min-height: 6rem; resize: none; }
+  .choice { min-height: 3.2rem; }
+}
