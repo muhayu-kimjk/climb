@@ -15,31 +15,33 @@ window.CLIMB_DATA = (function () {
   const BRAND = {
     name: 'CLIMB',                 // 브라우저 탭 제목
     ko: '무하유 계약 관리 플랫폼',   // 화면 안 대표 이름
-    // 마지막 단어(B의 의미)는 미정. 결정 전까지 Base로 표기 (REQ-NAME-05)
+    // 마지막 글자 B는 Base (REQ-NAME-05 확정)
     en: 'MUHAYU Contract Lifecycle Management Base (CLIMB)',
   };
 
 
   // 역할 코드 → 화면 표시 이름 (REQ-AUTH-01, REQ-AUTH-02)
-  // 표시 이름에는 '·'를 쓰지 않습니다. (REQ-UI-08) 법무·컴플라이언스 역할은 '컴플라이언스'로 표시 [가정]
+  // 표시 이름에는 가운뎃점을 쓰지 않습니다. (REQ-UI-08) 법무 검토 역할의 표시 이름은 '법무' (C-08 확정)
   const ROLES = {
     SALES: '영업',
     HEAD: '부서장',
-    LEGAL: '컴플라이언스',
+    LEGAL: '법무',
     PRIVACY: '개인정보 담당',
     FINANCE: '재무',
     ADMIN: '관리자',
   };
 
   // 결재선에 들어갈 수 있는 역할
-  const APPROVER_ROLES = ['HEAD', 'LEGAL', 'PRIVACY', 'FINANCE'];
+  // 재무는 결재선에 들어가지 않고 체결 뒤 회계 인식만 확인합니다. (C-15 확정, REQ-FLOW-26)
+  // 세일즈어드민, 영업 담당 임원, 총무, CEM 역할(REQ-AUTH-12)은 검토 화면을 만들 때 시연 데이터에 추가합니다.
+  const APPROVER_ROLES = ['HEAD', 'LEGAL', 'PRIVACY'];
 
   // 사용자 (실제로는 Google 계정 로그인 정보 + 관리자가 지정한 역할)
   const USERS = {
     u_sales1: { name: '이도윤', dept: '영업1팀', role: 'SALES' },
     u_sales2: { name: '정하은', dept: '영업2팀', role: 'SALES' },
     u_head: { name: '최민준', dept: '영업본부', role: 'HEAD' },
-    u_legal: { name: '김지우', dept: '컴플라이언스팀', role: 'LEGAL' },
+    u_legal: { name: '김지우', dept: '법무팀', role: 'LEGAL' },
     u_privacy: { name: '한서연', dept: '정보보호팀', role: 'PRIVACY' },
     u_finance: { name: '오현우', dept: '재무팀', role: 'FINANCE' },
     u_admin: { name: '윤재민', dept: '경영지원팀', role: 'ADMIN' },
@@ -79,7 +81,8 @@ window.CLIMB_DATA = (function () {
     return { role: role, userId: ROLE_USER[role], state: state, date: date || null };
   }
 
-  // 결재선 예시 [가정]: 부서장 → 법무·컴플라이언스 → (개인정보 포함 시) 개인정보 담당 → (1억 원 이상) 재무
+  // 결재선 예시 [가정]: 부서장 → 법무 → (개인정보 포함 시) 개인정보 담당
+  // 실제 결재선은 체크리스트 답(3.5)과 위임전결규정으로 정합니다. 재무는 결재선에 없음 (C-15)
   // ※ 실제 규칙은 위임전결규정을 받은 뒤 확정합니다. (REQ-AUTH-06)
   const CONTRACTS = [
     /* ----- 작성 중 (DRAFT): 계약번호는 기안할 때 부여 [가정] ----- */
@@ -100,7 +103,7 @@ window.CLIMB_DATA = (function () {
       id: 'CT-2026-0405', title: '하늘연구원 SaaS 이용계약', counterparty: '하늘연구원', type: 'SaaS 이용계약', kind: 'NEW',
       amount: 220000000, requesterId: 'u_sales2', requestedAt: '2026-10-10', restricted: false, personalData: true,
       status: 'IN_REVIEW',
-      approvals: [step('HEAD', 'DONE', '2026-10-10'), step('LEGAL', 'DONE', '2026-10-14'), step('PRIVACY', 'DONE', '2026-10-15'), step('FINANCE', 'PENDING', '2026-10-15')],
+      approvals: [step('HEAD', 'DONE', '2026-10-10'), step('LEGAL', 'DONE', '2026-10-14'), step('PRIVACY', 'PENDING', '2026-10-14')],
     },
     {
       id: 'CT-2026-0412', title: '한빛대학교 SaaS 이용계약', counterparty: '한빛대학교', type: 'SaaS 이용계약', kind: 'NEW',
@@ -120,7 +123,7 @@ window.CLIMB_DATA = (function () {
       id: 'CT-2026-0421', title: '가람전자 리셀러 계약', counterparty: '가람전자', type: '리셀러 계약', kind: 'NEW',
       amount: 150000000, requesterId: 'u_sales1', requestedAt: '2026-10-17', restricted: true, personalData: false,
       status: 'IN_REVIEW',
-      approvals: [step('HEAD', 'PENDING', '2026-10-17'), step('LEGAL', 'WAITING'), step('FINANCE', 'WAITING')],
+      approvals: [step('HEAD', 'PENDING', '2026-10-17'), step('LEGAL', 'WAITING')],
     },
     {
       id: 'CT-2026-0427', title: '단비소프트 비밀유지계약', counterparty: '단비소프트', type: '비밀유지계약(NDA)', kind: 'NEW',
@@ -188,7 +191,7 @@ window.CLIMB_DATA = (function () {
       id: 'CT-2026-0150', title: '가온테크 리셀러 계약', counterparty: '가온테크', type: '리셀러 계약', kind: 'NEW',
       amount: 120000000, requesterId: 'u_sales2', requestedAt: '2026-02-10', restricted: false, personalData: false,
       status: 'ACTIVE', startDate: '2026-03-01', endDate: '2028-02-29',
-      approvals: [step('HEAD', 'DONE', '2026-02-11'), step('LEGAL', 'DONE', '2026-02-16'), step('FINANCE', 'DONE', '2026-02-18')],
+      approvals: [step('HEAD', 'DONE', '2026-02-11'), step('LEGAL', 'DONE', '2026-02-16')],
     },
     {
       id: 'CT-2026-0222', title: '이음병원 SaaS 이용계약', counterparty: '이음병원', type: 'SaaS 이용계약', kind: 'NEW',

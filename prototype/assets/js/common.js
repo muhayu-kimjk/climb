@@ -27,7 +27,8 @@ window.CLIMB = (function () {
       { label: '전체 진행 현황', scr: 'SCR-20' },
       { label: '검토 대기', scr: 'SCR-21', roles: D.APPROVER_ROLES },
       { label: '검토 완료', scr: 'SCR-22', roles: D.APPROVER_ROLES },
-      { label: '체결 대기', scr: 'SCR-31', roles: ['SALES', 'LEGAL'] },
+      // 체결본 확인은 세일즈어드민 담당 (REQ-FLOW-24). 세일즈어드민 역할은 시연 데이터에 추가 예정
+      { label: '체결 대기', scr: 'SCR-31', roles: ['SALES'] },
     ] },
     // 보관함: 반려, 승인, 체결된 모든 계약 (REQ-FLOW-15~16)
     { label: '보관함', children: [
