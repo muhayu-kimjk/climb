@@ -247,9 +247,9 @@ window.CLIMB = (function () {
     }).join('');
 
     /* 헤더 구성 (REQ-UI-13)
-     *   1줄: [CLIMB | 무하유 계약 관리 플랫폼]            [이도윤님 영업 | (아이콘)로그아웃]
-     *   2줄: [MUHAYU Contract Lifecycle Management Base]
-     * 오른쪽 한 줄은 왼쪽 첫 줄과 글자 밑선(baseline)을 맞추고, 오른쪽 끝은 본문 오른쪽 끝에 맞춥니다.
+     *   1줄: [CLIMB | 무하유 계약 관리 플랫폼]
+     *   2줄: [MUHAYU Contract Lifecycle Management Base]     [이도윤님 영업 | (아이콘)로그아웃]
+     * 오른쪽 한 줄은 왼쪽 둘째 줄과 글자 밑선(baseline)을 맞추고, 오른쪽 끝은 본문 오른쪽 끝에 맞춥니다. (v0.15)
      * 화면 알림(종 모양, 알림 숫자)은 두지 않습니다. 알림은 이메일로 보냅니다. (REQ-ENV-09) */
     el.className = 'site-header';
     el.innerHTML =
@@ -290,14 +290,26 @@ window.CLIMB = (function () {
     }
   }
 
+  // 보안 안내 문구 (REQ-UI-15): 기획자 초안을 법령, 시스템 요구사항, 어문 규범에 맞게 다듬은 문장
+  //   모든 화면의 푸터와 로그인 화면(로그인 버튼 아래)에 같은 문장을 씀
+  //   가운뎃점(·)은 쓰지 않음 (REQ-UI-08). 법령 이름은 홑낫표(「」)로 묶고 공식 제명 그대로 씀
+  //   "접속 기록과 작업 내역" 기록은 REQ-AUTH-13을 따름
+  const SECURITY_NOTICE = [
+    '본 시스템은 인가된 사용자만 접근할 수 있으며, 접속 기록과 작업 내역은 관계 법령과 회사 보안 정책에 따라 기록되고 보관됩니다.',
+    '본 시스템에는 「부정경쟁방지 및 영업비밀보호에 관한 법률」에 따라 보호되는 영업비밀 등 회사의 기밀 정보와 「개인정보 보호법」에 따라 보호되는 개인정보가 포함되어 있습니다.',
+    '허용된 권한을 넘어 열람하거나, 업무 목적 밖에서 복제, 출력, 배포, 반출하거나, 제3자에게 제공하는 행위는 엄격히 금지됩니다.',
+    '이를 위반하면 사규에 따라 징계를 받을 수 있으며, 「정보통신망 이용촉진 및 정보보호 등에 관한 법률」 등 관계 법령에 따라 민사상, 형사상 책임을 질 수 있습니다.',
+  ].join(' ');
+
   function renderFooter() {
     const el = document.getElementById('site-footer');
     if (!el) return;
     el.className = 'site-footer';
     el.innerHTML =
-      // 푸터: 시스템 이름 두 줄 + 저작권. 이용 안내는 메뉴 줄로 옮기고 시스템 문의는 뺌 (REQ-UI-14)
+      // 푸터: 시스템 이름 두 줄 + 보안 안내 문구 + 저작권. 이용 안내는 메뉴 줄로 옮기고 시스템 문의는 뺌 (REQ-UI-14, 15)
       '<div class="inner">' +
         '<div class="footer-brand">' + brandText('p') + '</div>' +
+        '<p class="footer-notice">' + esc(SECURITY_NOTICE) + '</p>' +
         '<p class="footer-copy">' + meta(['© 2026 MUHAYU. All rights reserved.', '프로토타입 v0.1']) + '</p>' +
       '</div>';
   }
@@ -344,5 +356,6 @@ window.CLIMB = (function () {
     roleLabel: roleLabel, userName: userName, serviceLabel: serviceLabel, currentStep: currentStep, stepPosition: stepPosition, waitDays: waitDays,
     canView: canView, myActions: myActions,
     esc: esc, badge: badge, statusBadge: statusBadge, todoAttrs: todoAttrs, icon: icon, brandText: brandText, meta: meta, toast: toast,
+    securityNotice: SECURITY_NOTICE,
   };
 })();

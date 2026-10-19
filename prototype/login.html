@@ -37,6 +37,8 @@
         Google 계정으로 로그인
       </button>
       <p class="login-help">@muhayu.com 계정만 사용할 수 있습니다.<br>사내망 또는 VPN에 연결한 상태에서 접속하세요.</p>
+      <!-- 보안 안내 문구: 접속하기 전에 보이도록 로그인 버튼 아래에 둠 (REQ-UI-15). 문장은 common.js SECURITY_NOTICE -->
+      <p class="login-notice" id="login-notice"></p>
 
       <!-- 프로토타입 시연용: 실제 시스템에서는 삭제 -->
       <div class="demo-box">
@@ -57,6 +59,7 @@
 
       // 이름 영역: 무하유 계약 관리 플랫폼 + 영문 명칭 (REQ-NAME-03~04)
       document.getElementById('login-brand').innerHTML = C.brandText('h1');
+      document.getElementById('login-notice').textContent = C.securityNotice;
       document.getElementById('login-foot').innerHTML =
         C.meta(['© 2026 MUHAYU. All rights reserved.']);
 
