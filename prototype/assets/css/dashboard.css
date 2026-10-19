@@ -1,0 +1,78 @@
+/* =====================================================================
+ * SCR-01 대시보드 전용 스타일 (dashboard.css)
+ * 관련 요구사항: REQ-DASH-01~12, REQ-UI-10~11
+ * 배치는 A4 세로 본문 폭(190mm, 약 718px)을 기준으로 합니다. 화면과 인쇄가 같은 배치입니다.
+ *   1줄: [내 할 일] [90일 내 만료 예정]
+ *   2줄: [전체 계약 진행 현황: 검토 중 → 체결 대기 → 체결 완료]
+ *   3줄: 역할별 주요 목록 (전체 폭)
+ *   4줄: [확인 필요] [만료 임박]
+ * ===================================================================== */
+
+/* ---------- 핵심 숫자 (REQ-DASH-04, REQ-DASH-08) ---------- */
+.kpi {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.6rem;
+  margin-bottom: 2.4rem;
+}
+
+.stat {
+  display: flex; flex-direction: column; gap: 0.4rem; padding: 2rem 2.4rem;
+  background: var(--surface-white); border: 1px solid var(--border-gray-light); border-radius: var(--radius-xl);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+a.stat:hover { border-color: var(--border-primary); box-shadow: var(--shadow-1); }
+.stat-label { display: flex; align-items: center; gap: 0.6rem; font-size: var(--fs-body-medium); font-weight: 500; color: var(--text-subtle); }
+.stat-value { margin-top: auto; padding-top: 0.4rem; font-size: var(--fs-display-small); font-weight: 700; line-height: 1.25; color: var(--text-bolder); }
+.stat-value .unit { margin-left: 0.2rem; font-size: var(--fs-body-medium); font-weight: 500; color: var(--text-subtle); }
+.stat-note { font-size: var(--fs-body-small); color: var(--text-subtle); }
+
+/* 내 할 일: 가장 먼저 눈에 들어오도록 강조 */
+.stat--mine { background: var(--surface-primary-subtler); border-color: var(--border-primary-light); }
+.stat--mine .stat-label { font-weight: 700; color: var(--text-primary); }
+.stat--mine .stat-value { color: var(--text-primary); }
+
+/* 전체 계약 진행 현황 (KRDS 단계 표시기 응용): 둘째 줄 전체 폭 */
+.pipeline-box { grid-column: 1 / -1; order: 3; padding: 1.6rem 1.6rem 1.2rem; border: 1px solid var(--border-gray-light); border-radius: var(--radius-xl); }
+.pipeline-title { padding: 0 0.8rem; margin-bottom: 0.4rem; font-size: var(--fs-body-small); font-weight: 700; color: var(--text-subtle); }
+.pipeline { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); }
+.stage { display: flex; flex-direction: column; gap: 0.4rem; padding: 0.8rem; border-radius: var(--radius-lg); }
+a.stage:hover { background: var(--action-hover); }
+.stage .stat-value { padding-top: 0.2rem; }
+.stage-arrow { display: flex; align-items: center; padding: 0 0.4rem; color: var(--icon-muted); }
+.step-num {
+  display: inline-flex; align-items: center; justify-content: center; width: 2.4rem; height: 2.4rem;
+  border-radius: 50%; background: var(--surface-secondary-subtler); color: var(--text-primary);
+  font-size: var(--fs-body-xsmall); font-weight: 700;
+}
+
+/* ---------- 주요 목록(전체 폭) + 보조 정보 2개(나란히) ---------- */
+.dash-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2.4rem; }
+.side-stack { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2.4rem; align-items: start; }
+.count-text { font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-primary); }
+
+.reject-reason { display: block; margin-top: 0.4rem; font-size: var(--fs-body-small); color: var(--text-basic); }
+.reject-reason strong { font-weight: 700; }
+/* 한 단계에 오래 머문 건: 진한 핑크 바탕 + 흰 굵은 글자 (REQ-UI-09) */
+.wait-long { display: inline-block; padding: 0 0.6rem; border-radius: var(--radius-sm); background: var(--status-danger-fill); color: var(--text-inverse); font-weight: 700; }
+
+/* ---------- 확인 필요 [제안] (REQ-DASH-09) ---------- */
+.check-list > li { display: flex; gap: 1rem; padding: 1.4rem 1.6rem; border-radius: var(--radius-lg); background: var(--status-notice-bg); }
+.check-list > li + li { margin-top: 0.8rem; }
+/* 아이콘(2rem)을 제목 첫 줄(글자 크기 x 1.5)의 세로 가운데에 맞춤 */
+.check-list .icon { margin-top: calc((var(--fs-body-small) * 1.5 - 2rem) / 2); color: var(--status-notice-icon); }
+.check-title { font-size: var(--fs-body-small); font-weight: 700; color: var(--text-basic); }
+.check-count { margin-left: 0.4rem; }
+.check-rule { margin-top: 0.2rem; font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
+.check-items { margin-top: 0.4rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
+.check-items li { display: flex; justify-content: space-between; gap: 0.8rem; padding-top: 0.4rem; }
+.check-items a { color: var(--text-basic); }
+.check-items a:hover { text-decoration: underline; text-underline-offset: 0.3rem; }
+.check-items .is-masked { display: inline-flex; align-items: center; gap: 0.4rem; }
+.check-items .days { flex-shrink: 0; font-variant-numeric: tabular-nums; }
+
+/* ---------- 휴대폰 화면 (인쇄에는 적용 안 됨) ---------- */
+@media screen and (max-width: 600px) {
+  .kpi, .side-stack, .pipeline { grid-template-columns: minmax(0, 1fr); }
+  .stage-arrow { justify-content: center; padding: 0; transform: rotate(90deg); }
+}

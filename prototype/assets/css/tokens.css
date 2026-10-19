@@ -1,0 +1,172 @@
+/* =====================================================================
+ * CLIMB 디자인 토큰 (tokens.css)
+ * ---------------------------------------------------------------------
+ * - 화면의 모든 색·글자 크기·모서리 값은 이 파일의 변수만 사용합니다.
+ *   다른 CSS 파일에 색상 코드(#...)를 직접 쓰지 않습니다.
+ * - 색: 무하유 브랜드 색 8가지만 사용합니다. (REQ-UI-03)
+ *   연한 배경색 등은 브랜드 색을 흰색에 섞어(투명도처럼) 만든 것입니다.
+ * - 글자 크기·모서리·간격: KRDS 디자인 토큰 값입니다. (REQ-UI-01)
+ * - KRDS는 1rem = 10px 기준입니다. (html { font-size: 62.5% })
+ * - 파비콘(assets/img/favicon.svg)은 변수를 쓸 수 없어 색을 직접 적었습니다.
+ *   이 파일의 브랜드 색을 바꾸면 파비콘도 함께 바꿔야 합니다.
+ *
+ * [글자 대비 기준] 글자와 배경의 명도 대비 4.5:1 이상 (KRDS·웹 접근성 기준, REQ-UI-05)
+ *   - 무하유 Green(#11BE8A) 위에 흰 글자는 2.4:1로 기준 미달 → 초록 버튼의 글자는 Black(7.6:1)
+ *   - 초록 계열 글자는 Dark Green(#407178, 흰 바탕 5.5:1) 사용
+ *   - Gray(#8F8F9B)는 흰 바탕 3.2:1 → 글자 대신 테두리·아이콘·비활성 표시에 사용
+ * ===================================================================== */
+
+:root {
+  /* ---------------------------------------------------------------
+   * 1. 무하유 브랜드 색 (원색 8가지)
+   * --------------------------------------------------------------- */
+  --mh-green: #11BE8A;       /* 무하유 Green — 메인 색 */
+  --mh-dark-green: #407178;  /* Dark Green */
+  --mh-black: #021821;       /* Black */
+  --mh-gray: #8F8F9B;        /* Gray */
+  --mh-beige: #FEEFE0;       /* Beige */
+  --mh-blue: #0075FF;        /* Blue */
+  --mh-purple: #9330FF;      /* Purple */
+  --mh-pink: #FF258E;        /* Pink */
+  --white: #FFFFFF;
+
+  /* ---------------------------------------------------------------
+   * 2. 브랜드 색에서 만든 단계 색
+   *    이름 뒤 숫자 = 흰색에 섞은 브랜드 색의 비율(%)
+   * --------------------------------------------------------------- */
+  --green-8: #ECFAF6;
+  --green-14: #DEF6EF;
+  --green-30: #B8ECDC;
+  --green-hover: #0FAA7D;    /* Green 88% + Black 12% (버튼 마우스 올림) */
+  --green-pressed: #0D9671;  /* Green 76% + Black 24% (버튼 누름) */
+
+  --dark-green-8: #F0F4F4;
+  --dark-green-14: #E4EBEC;
+
+  --black-72: #49595F;       /* 보조 글자 (흰 바탕 7.3:1) */
+
+  --gray-8: #F6F6F7;
+  --gray-14: #EFEFF1;
+  --gray-35: #D8D8DC;
+
+  --blue-8: #EBF4FF;
+  --purple-8: #F6EEFF;
+  --pink-5: #FFF4F9;
+  --pink-8: #FFEEF6;
+  --pink-strong: #DC237F;    /* Pink 86% + Black 14%: 흰 글자를 올리는 핑크 바탕 (4.6:1) */
+
+  /* ---------------------------------------------------------------
+   * 3. 용도별 색 — 화면 CSS는 이 이름만 씁니다.
+   * --------------------------------------------------------------- */
+  /* 글자 */
+  --text-bolder: var(--mh-black);
+  --text-basic: var(--mh-black);
+  --text-subtle: var(--black-72);
+  --text-disabled: var(--mh-gray);
+  --text-primary: var(--mh-dark-green);     /* 강조 글자·숫자 */
+  --text-inverse: var(--white);
+
+  /* 바탕 */
+  --surface-white: var(--white);
+  --surface-gray-subtler: var(--gray-8);         /* 푸터, 빈 목록 안내 */
+  --surface-primary-subtler: var(--green-8);     /* 강조 카드 */
+  --surface-secondary-subtler: var(--dark-green-8); /* 표 머리글, 단계 번호 */
+  --surface-warm: var(--mh-beige);               /* 로그인 배경, 확인 필요 알림 */
+  --surface-inverse: var(--mh-black);            /* 안내 메시지(토스트), 건너뛰기 링크 */
+
+  /* 테두리 */
+  --border-gray-light: var(--gray-35);      /* 카드·표 구분선 */
+  --border-gray: var(--mh-gray);            /* 입력창·보조 버튼 테두리 (3.2:1) */
+  --border-primary: var(--mh-green);
+  --border-primary-light: var(--green-30);
+  --border-secondary-light: var(--dark-green-14);
+
+  /* 버튼 */
+  --button-primary-fill: var(--mh-green);
+  --button-primary-fill-hover: var(--green-hover);
+  --button-primary-fill-pressed: var(--green-pressed);
+  --button-primary-text: var(--mh-black);
+  --button-secondary-fill: var(--green-8);
+  --button-secondary-fill-hover: var(--green-14);
+  --button-secondary-border: var(--mh-green);
+  --button-secondary-text: var(--mh-dark-green);
+
+  /* 메뉴·선택 */
+  --action-hover: var(--dark-green-8);      /* 메뉴에 마우스를 올렸을 때 */
+  --action-active: var(--mh-green);         /* 현재 메뉴 밑줄 */
+  --icon-muted: var(--mh-gray);
+  --focus-ring: 0 0 0 0.3rem var(--mh-blue);  /* 키보드 이동 표시 (흰 바탕 4.2:1) */
+
+  /* 결재 단계 점 */
+  --step-done: var(--mh-green);
+  --step-current: var(--mh-dark-green);
+  --step-waiting: var(--gray-35);
+
+  /* 계약 상태 배지 [가정]: 연한 바탕 + 브랜드 색 테두리 + Black 글자
+   * 색만으로 구분하지 않도록 항상 글자(예: "반려")를 함께 표시합니다. */
+  --status-progress-bg: var(--blue-8);      /* 결재 중 — Blue */
+  --status-progress-line: var(--mh-blue);
+  /* 반려, D-30 이내 — Pink. 핑크 바탕에는 흰 글자 (REQ-UI-09)
+   * 원래 Pink(#FF258E) 위 흰 글자는 3.6:1로 기준(4.5:1) 미달 → 바탕만 살짝 진한 핑크 사용 */
+  --status-danger-fill: var(--pink-strong);
+  --status-danger-line: var(--mh-pink);
+  --status-danger-row: var(--pink-5);       /* 반려 건 표 줄 강조 */
+  --status-attention-bg: var(--purple-8);   /* 체결본 대기, D-60 이내 — Purple */
+  --status-attention-line: var(--mh-purple);
+  --status-success-bg: var(--green-8);      /* 이행 중 — Green */
+  --status-success-line: var(--mh-green);
+  --status-neutral-bg: var(--gray-8);       /* 만료·해지, 열람 제한 — Gray */
+  --status-neutral-line: var(--mh-gray);
+  --status-notice-bg: var(--mh-beige);      /* 확인 필요 알림 바탕 — Beige */
+  --status-notice-icon: var(--mh-pink);
+  --count-badge-bg: var(--pink-strong);     /* 헤더 알림 숫자: 진한 핑크 + 흰 글자 */
+  --count-badge-text: var(--white);
+
+  /* 프로토타입 시연 도구 (실제 시스템에서는 삭제) */
+  --demo-bg: var(--mh-black);
+  --demo-text: var(--white);
+  --demo-tag-bg: var(--mh-green);
+  --demo-tag-text: var(--mh-black);
+
+  --shadow-1: 0 0 0.2rem 0 rgba(2, 24, 33, 0.06), 0 0.4rem 0.8rem 0 rgba(2, 24, 33, 0.08);
+
+  /* ---------------------------------------------------------------
+   * 4. 글자 (KRDS PC 기준 크기)
+   *    글꼴: Noto Sans KR (REQ-UI-02, KRDS 기본 Pretendard GOV 대신)
+   * --------------------------------------------------------------- */
+  --font-family: "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Malgun Gothic", "맑은 고딕", sans-serif;
+
+  --fs-display-small: 3.6rem;
+  --fs-heading-xlarge: 4rem;
+  --fs-heading-large: 3.2rem;
+  --fs-heading-medium: 2.4rem;
+  --fs-heading-small: 1.9rem;
+  --fs-heading-xsmall: 1.7rem;
+  --fs-body-large: 1.9rem;
+  --fs-body-medium: 1.7rem;
+  --fs-body-small: 1.5rem;
+  --fs-body-xsmall: 1.3rem;
+
+  /* ---------------------------------------------------------------
+   * 5. 형태·크기 (KRDS radius / size-height / layout)
+   * --------------------------------------------------------------- */
+  --radius-sm: 0.4rem;
+  --radius-md: 0.6rem;
+  --radius-lg: 0.8rem;
+  --radius-xl: 1.2rem;
+  --radius-max: 100rem;
+
+  --height-xs: 3.2rem;  /* 작은 버튼 */
+  --height-sm: 4rem;    /* 기본 버튼(small) */
+  --height-md: 4.8rem;  /* 입력창·버튼(medium) */
+  --height-lg: 5.6rem;  /* 큰 버튼, 메인 메뉴 높이 */
+
+  /* A4 세로 문서 틀 (REQ-UI-10)
+   * 화면도 A4 폭으로 보여 주고, 좌우 여백을 인쇄 여백과 같게 해서
+   * 화면에서 보이는 줄바꿈과 배치가 인쇄물과 같아지도록 합니다.
+   * 본문 폭 = 210mm - 10mm x 2 = 190mm (약 718px) */
+  --page-width: 210mm;          /* A4 가로 */
+  --page-height: 297mm;         /* A4 세로 */
+  --page-margin: 10mm;          /* 화면 좌우 여백 = 인쇄 좌우 여백 */
+  --desk-bg: var(--gray-14);    /* 종이 바깥 바탕 (화면 전용) */
+}

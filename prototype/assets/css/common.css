@@ -1,0 +1,380 @@
+/* =====================================================================
+ * CLIMB 공통 스타일 (common.css)
+ * ---------------------------------------------------------------------
+ * - 모든 화면이 같이 쓰는 레이아웃·컴포넌트 스타일입니다.
+ * - 구조와 컴포넌트는 KRDS를 따릅니다. (REQ-UI-01)
+ *   헤더 → 메인 메뉴 → 본문 → 푸터
+ * - KRDS 공공 전용 요소(공식 배너, 운영기관 식별자, 다국어 전환,
+ *   글자·화면 설정)는 넣지 않습니다. (REQ-UI-04)
+ * - 색, 크기 값은 tokens.css의 변수만 씁니다.
+ * - 모든 화면은 A4 세로 종이 틀(.sheet) 안에 담습니다. (REQ-UI-10)
+ *   화면 폭이 600px 이하일 때만 모바일 배치로 바꿉니다. 인쇄 본문 폭(190mm, 약 718px)이
+ *   이보다 넓어서 인쇄할 때는 모바일 배치가 적용되지 않습니다.
+ * ===================================================================== */
+
+/* ---------- 1. 기본 설정 ---------- */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html { font-size: 62.5%; -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  font-size: var(--fs-body-medium);
+  line-height: 1.5;
+  color: var(--text-basic);
+  background: var(--desk-bg);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+h1, h2, h3, h4, p, ul, ol, dl, dd, figure { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+a { color: inherit; text-decoration: none; }
+button, select, input { font: inherit; color: inherit; }
+button { background: none; border: 0; padding: 0; cursor: pointer; }
+table { border-collapse: collapse; width: 100%; }
+svg { flex-shrink: 0; }
+
+:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
+
+/* 화면에는 안 보이고 화면낭독기만 읽는 글자 */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* KRDS 건너뛰기 링크: 키보드 사용자가 메뉴를 건너뛰고 본문으로 이동 */
+.skip-link {
+  position: absolute; left: 1.6rem; top: -10rem; z-index: 100;
+  padding: 1.2rem 2rem; background: var(--surface-inverse); color: var(--text-inverse);
+  border-radius: var(--radius-md); font-size: var(--fs-body-small);
+}
+.skip-link:focus { top: 1.6rem; }
+
+/* A4 세로 종이 틀 (REQ-UI-10)
+ * 헤더, 본문, 푸터를 A4 폭(210mm) 종이 한 장처럼 담습니다.
+ * 화면이 A4보다 좁으면 화면 폭에 맞춰 줄어듭니다. */
+.sheet {
+  display: flex; flex-direction: column;
+  width: 100%; max-width: var(--page-width); min-height: var(--page-height);
+  margin: 2.4rem auto 4rem; background: var(--surface-white); box-shadow: var(--shadow-1);
+}
+.sheet > main { flex: 1; }
+
+/* 종이 안쪽 좌우 여백 = 인쇄 여백 10mm */
+.inner { padding: 0 var(--page-margin); }
+
+.icon { width: 2rem; height: 2rem; }
+.icon--sm { width: 1.6rem; height: 1.6rem; }
+.icon--lg { width: 2.4rem; height: 2.4rem; }
+
+/* ---------- 2. 프로토타입 시연 띠 (실제 시스템에서는 삭제) ---------- */
+.demo-bar {
+  background: var(--demo-bg);
+  color: var(--demo-text);
+  font-size: var(--fs-body-small);
+}
+.demo-bar .inner { max-width: var(--page-width); margin: 0 auto; display: flex; align-items: center; flex-wrap: wrap; gap: 0.8rem 1.2rem; min-height: 4.4rem; padding-top: 0.4rem; padding-bottom: 0.4rem; }
+.demo-tag {
+  display: inline-flex; align-items: center; height: 2.4rem; padding: 0 0.8rem;
+  border-radius: var(--radius-sm); background: var(--demo-tag-bg); color: var(--demo-tag-text);
+  font-weight: 700; font-size: var(--fs-body-xsmall);
+}
+.demo-bar label { font-weight: 700; }
+.demo-select {
+  height: var(--height-xs); padding: 0 3.2rem 0 1.2rem;
+  border: 1px solid var(--border-gray); border-radius: var(--radius-md);
+  background: var(--surface-white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23021821' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 0.8rem center / 1.6rem;
+  appearance: none; font-size: var(--fs-body-small); color: var(--text-basic); cursor: pointer;
+}
+
+/* ---------- 3. 헤더 (KRDS 헤더) ----------
+ * 2줄 구성 (REQ-UI-13)
+ *   1줄: [무하유 계약 관리 플랫폼]                    [알림 | 이도윤님 영업]
+ *   2줄: [MUHAYU Contract ... (CLIMB)]                          [로그아웃]
+ * 같은 줄끼리 글자 밑선(baseline)을 맞추고, 오른쪽 열은 본문 오른쪽 끝에 딱 붙입니다. */
+.site-header { position: relative; z-index: 20; background: var(--surface-white); border-bottom: 1px solid var(--border-gray-light); }
+.header-top .inner {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; align-content: center;
+  column-gap: 1.6rem; row-gap: 0.2rem; min-height: 8rem; padding-top: 1.2rem; padding-bottom: 1.2rem;
+}
+.header-top .brand-title { grid-column: 1; grid-row: 1; justify-self: start; }
+.header-top .brand-en { grid-column: 1; grid-row: 2; }
+.header-top .user-line { grid-column: 2; grid-row: 1; justify-self: end; }
+.header-top .logout-link { grid-column: 2; grid-row: 2; justify-self: end; }
+
+/* 시스템 이름 (REQ-NAME-03~04): 로고 그림 없이 글자로. 헤더, 푸터, 로그인 화면이 함께 씀 */
+.brand-title { font-size: var(--fs-heading-medium); font-weight: 700; line-height: 1.3; color: var(--text-bolder); }
+.brand-en { font-size: var(--fs-body-xsmall); line-height: 1.4; color: var(--text-subtle); white-space: nowrap; }
+a.brand-title:hover { color: var(--text-primary); }
+
+/* 오른쪽 1줄: 알림 | 사용자 이름 + 역할 */
+.user-line { display: flex; align-items: baseline; gap: 1.2rem; font-size: var(--fs-body-small); }
+.user-line .badge, .user-line .util-divider { align-self: center; }
+.user-name { font-weight: 700; color: var(--text-bolder); }
+.util-link { display: inline-flex; align-items: baseline; gap: 0.4rem; color: var(--text-basic); }
+.util-link .icon, .util-link .count-badge { align-self: center; }
+.util-link:hover { text-decoration: underline; text-underline-offset: 0.3rem; }
+/* 오른쪽 2줄: 로그아웃 (왼쪽 영문 이름 줄과 같은 작은 글자) */
+.logout-link { font-size: var(--fs-body-xsmall); line-height: 1.4; color: var(--text-subtle); }
+.logout-link:hover { color: var(--text-basic); }
+.count-badge {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 2rem; height: 2rem; padding: 0 0.6rem;
+  border-radius: var(--radius-max); background: var(--count-badge-bg); color: var(--count-badge-text);
+  font-size: var(--fs-body-xsmall); font-weight: 700; line-height: 1;
+}
+.util-divider { width: 1px; height: 1.2rem; background: var(--border-gray-light); }
+
+/* ---------- 4. 메인 메뉴 (KRDS 메인 메뉴) ----------
+ * 왼쪽: 개요, 계약 등록, 계약 현황, 보관함 / 오른쪽 끝: 이용 안내 (REQ-UI-14) */
+.gnb { border-top: 1px solid var(--border-gray-light); }
+.gnb .inner { display: flex; align-items: center; justify-content: space-between; gap: 1.6rem; }
+.gnb-list { display: flex; flex-wrap: wrap; margin-left: -1.6rem; }
+.gnb-aside { display: inline-flex; align-items: center; gap: 0.4rem; font-size: var(--fs-body-small); color: var(--text-subtle); white-space: nowrap; }
+.gnb-aside:hover { color: var(--text-basic); text-decoration: underline; text-underline-offset: 0.3rem; }
+.gnb-item { position: relative; }
+.gnb-link {
+  position: relative; display: flex; align-items: center; gap: 0.4rem;
+  height: var(--height-lg); padding: 0 1.6rem;
+  font-size: var(--fs-body-large); font-weight: 700; color: var(--text-subtle);
+}
+.gnb-link:hover { color: var(--text-basic); background: var(--action-hover); }
+.gnb-link .icon { transition: transform 0.2s ease; }
+.gnb-item.is-open .gnb-link .icon { transform: rotate(180deg); }
+.gnb-link.is-current { color: var(--text-bolder); }
+.gnb-link.is-current::after {
+  content: ""; position: absolute; left: 1.6rem; right: 1.6rem; bottom: 0; height: 0.4rem;
+  border-radius: 0.2rem 0.2rem 0 0; background: var(--action-active);
+}
+.gnb-sub {
+  position: absolute; top: 100%; left: 0; z-index: 30; display: none; min-width: 22rem; padding: 0.8rem;
+  background: var(--surface-white); border: 1px solid var(--border-gray-light);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg); box-shadow: var(--shadow-1);
+}
+.gnb-item.is-open .gnb-sub { display: block; }
+.gnb-sub a { display: block; padding: 1rem 1.2rem; border-radius: var(--radius-md); font-size: var(--fs-body-medium); }
+.gnb-sub a:hover { background: var(--action-hover); }
+
+/* ---------- 5. 본문 공통 ---------- */
+.page { padding-top: 4rem; padding-bottom: 4.8rem; }
+
+/* 인쇄할 때만 보이는 출력 정보 (출력일, 출력자). 화면에서는 숨김 (REQ-UI-11) */
+.print-meta { display: none; }
+/* 기준일은 인사말 마지막 줄의 글자 밑선(baseline)에 맞춤 */
+.page-head { display: flex; align-items: flex-end; align-items: last baseline; justify-content: space-between; flex-wrap: wrap; gap: 1.6rem 2.4rem; margin-bottom: 3.2rem; }
+.page-title { font-size: var(--fs-heading-xlarge); font-weight: 700; line-height: 1.4; color: var(--text-bolder); }
+.page-desc { margin-top: 0.8rem; font-size: var(--fs-body-large); color: var(--text-subtle); }
+/* 큰 제목 없이 화면을 여는 첫 문장 (개요 화면의 인사말) */
+.page-lead { margin-top: 0; }
+.page-desc strong { color: var(--text-basic); font-weight: 700; }
+.page-desc .em { color: var(--text-primary); }
+.page-date { font-size: var(--fs-body-small); color: var(--text-subtle); }
+
+.panel { background: var(--surface-white); border: 1px solid var(--border-gray-light); border-radius: var(--radius-xl); padding: 2.4rem 2.8rem; }
+.panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1.2rem; margin-bottom: 1.6rem; }
+/* 제목과 건수는 글자 밑선(baseline)에 맞추고, 배지는 세로 가운데 */
+.panel-title { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.8rem; font-size: var(--fs-heading-small); font-weight: 700; color: var(--text-bolder); }
+.panel-title .badge { align-self: center; }
+.panel-desc { margin: -0.8rem 0 1.6rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
+
+.link-more { display: inline-flex; align-items: center; gap: 0.2rem; font-size: var(--fs-body-small); color: var(--text-subtle); white-space: nowrap; }
+.link-more:hover { color: var(--text-basic); text-decoration: underline; text-underline-offset: 0.3rem; }
+
+/* 여러 정보를 한 줄에 나열할 때: 글자 '·' 대신 얇은 세로선으로 구분 (REQ-UI-08)
+ * 예) 한빛대학교 | 4,800만 원 | CT-2026-0412 */
+.meta-list { display: block; overflow: hidden; }
+.meta-list-in { display: flex; flex-wrap: wrap; align-items: center; margin-left: -1.6rem; }
+.meta-list-in > span { position: relative; margin-left: 1.6rem; }
+/* 항목 사이 세로선. 줄이 바뀌어 맨 앞에 온 세로선은 바깥 상자에 가려져 보이지 않음 */
+.meta-list-in > span::before {
+  content: ""; position: absolute; left: -0.8rem; top: 50%; width: 1px; height: 1.1rem; margin-top: -0.55rem;
+  background: var(--border-gray);
+}
+.login-foot .meta-list-in { justify-content: center; }
+
+/* ---------- 6. 배지 (KRDS 배지) — 상태는 항상 글자와 함께 ---------- */
+.badge {
+  display: inline-flex; align-items: center; gap: 0.4rem; height: 2.4rem; padding: 0 0.8rem;
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+  font-size: var(--fs-body-xsmall); font-weight: 700; line-height: 1; white-space: nowrap;
+}
+/* 상태 배지 [가정]: 연한 바탕 + 브랜드 색 테두리 + Black 글자 (tokens.css 3. 계약 상태 배지) */
+.badge--progress { background: var(--status-progress-bg); border-color: var(--status-progress-line); color: var(--text-basic); }
+/* Pink는 진한 핑크 바탕 + 흰 글자 (REQ-UI-09) */
+.badge--danger { background: var(--status-danger-fill); border-color: var(--status-danger-fill); color: var(--text-inverse); }
+.badge--attention { background: var(--status-attention-bg); border-color: var(--status-attention-line); color: var(--text-basic); }
+.badge--success { background: var(--status-success-bg); border-color: var(--status-success-line); color: var(--text-basic); }
+.badge--neutral { background: var(--status-neutral-bg); border-color: var(--status-neutral-line); color: var(--text-basic); }
+.badge--line { background: var(--surface-white); border-color: var(--border-gray); color: var(--text-subtle); font-weight: 500; }
+/* 기획 확정 전 '제안' 기능 표시 */
+.badge--proposal { background: var(--surface-white); border: 1px dashed var(--border-gray); color: var(--text-subtle); font-weight: 500; }
+
+/* ---------- 7. 버튼 (KRDS 버튼) ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.6rem;
+  height: var(--height-sm); padding: 0 1.6rem; border: 1px solid transparent; border-radius: var(--radius-md);
+  font-size: var(--fs-body-small); font-weight: 500; white-space: nowrap; cursor: pointer;
+}
+.btn--xs { height: var(--height-xs); padding: 0 1.2rem; }
+.btn--lg { height: var(--height-lg); padding: 0 2.4rem; font-size: var(--fs-body-large); border-radius: var(--radius-lg); }
+/* 무하유 Green 위 흰 글자는 대비 미달(2.4:1) → Black 글자 (REQ-UI-05) */
+.btn--primary { background: var(--button-primary-fill); color: var(--button-primary-text); font-weight: 700; }
+.btn--primary:hover { background: var(--button-primary-fill-hover); }
+.btn--primary:active { background: var(--button-primary-fill-pressed); }
+.btn--secondary { background: var(--button-secondary-fill); border-color: var(--button-secondary-border); color: var(--button-secondary-text); font-weight: 700; }
+.btn--secondary:hover { background: var(--button-secondary-fill-hover); }
+.btn--tertiary { background: var(--surface-white); border-color: var(--border-gray); color: var(--text-basic); }
+.btn--tertiary:hover { background: var(--surface-gray-subtler); }
+
+/* ---------- 8. 표 (KRDS 표) ---------- */
+.tbl-wrap { overflow-x: auto; }
+.tbl { font-size: var(--fs-body-small); }
+.tbl th {
+  padding: 0.8rem 1.6rem; background: var(--surface-secondary-subtler); border-bottom: 1px solid var(--border-secondary-light);
+  font-weight: 700; color: var(--text-bolder); text-align: left; white-space: nowrap;
+}
+/* 세로 정렬: 한 줄(행) 안의 모든 칸이 첫 줄 글자 밑선(baseline)을 맞춤.
+ * 칸마다 줄 수가 달라도 계약명, 상태 배지, 진행 상황, 버튼의 첫 줄이 한 높이에 놓임 */
+.tbl td { padding: 1.4rem 1.6rem; border-bottom: 1px solid var(--border-gray-light); color: var(--text-subtle); vertical-align: baseline; }
+.tbl .col-main { min-width: 22rem; }
+/* 대시보드처럼 폭이 좁은 영역에 쓰는 촘촘한 표 */
+.tbl--compact th, .tbl--compact td { padding-left: 1.2rem; padding-right: 1.2rem; }
+.tbl .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tbl .center { text-align: center; }
+.tbl .nowrap { white-space: nowrap; }
+.tbl tr.is-alert td { background: var(--status-danger-row); }
+.cell-title { display: inline; font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-basic); }
+a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; }
+.cell-title.is-masked { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--text-subtle); }
+.cell-sub { display: block; margin-top: 0.2rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
+/* 계약명과 배지(변경계약, 열람 제한)를 한 줄에서 세로 가운데로 맞춤 */
+.cell-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.6rem; }
+.cell-badges { display: inline-flex; gap: 0.4rem; }
+
+/* 결재 단계 점 표시: 승인 완료(채움) / 현재 차례(테두리) / 대기(회색) */
+.step-dots { display: inline-flex; align-items: center; gap: 0.4rem; margin-right: 0.6rem; vertical-align: middle; }
+.step-dot { width: 0.8rem; height: 0.8rem; border-radius: 50%; background: var(--step-waiting); }
+.step-dot.is-done { background: var(--step-done); }
+.step-dot.is-current { background: var(--surface-white); box-shadow: inset 0 0 0 0.2rem var(--step-current); }
+.step-dot.is-rejected { background: var(--status-danger-line); }
+
+/* ---------- 9. 목록 (KRDS 구조화 목록) ---------- */
+.s-list > li { display: flex; align-items: baseline; gap: 1.2rem; padding: 1.4rem 0; border-bottom: 1px solid var(--border-gray-light); }
+.s-list > li:first-child { padding-top: 0; }
+.s-list > li:last-child { padding-bottom: 0; border-bottom: 0; }
+.s-list .item-body { min-width: 0; flex: 1; }
+.s-list .item-title { display: block; font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-basic); }
+.s-list a.item-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; }
+.s-list .item-meta { display: block; margin-top: 0.2rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
+/* D-day 배지는 제목 첫 줄의 글자 밑선(baseline)에 맞춤 (li의 align-items: baseline) */
+.s-list .badge { flex-shrink: 0; min-width: 5.6rem; justify-content: center; font-variant-numeric: tabular-nums; }
+
+.empty {
+  padding: 3.2rem 2.4rem; border-radius: var(--radius-lg); background: var(--surface-gray-subtler);
+  text-align: center; font-size: var(--fs-body-medium); color: var(--text-subtle);
+}
+
+/* ---------- 10. 푸터 (KRDS 푸터, 운영기관 식별자 제외) ---------- */
+.site-footer { background: var(--surface-gray-subtler); border-top: 1px solid var(--border-gray-light); }
+.site-footer .inner { display: flex; flex-direction: column; gap: 1.2rem; padding-top: 4rem; padding-bottom: 4.8rem; }
+.footer-brand { display: flex; flex-direction: column; gap: 0.2rem; }
+.footer-brand .brand-title { font-size: var(--fs-heading-small); }
+.footer-brand .brand-en { font-size: var(--fs-body-small); }
+.footer-copy { font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
+
+/* ---------- 11. 안내 메시지 (아직 만들지 않은 화면 등) ---------- */
+.toast {
+  position: fixed; left: 50%; bottom: 3.2rem; z-index: 200; max-width: calc(100% - 3.2rem);
+  padding: 1.4rem 2rem; border-radius: var(--radius-lg); background: var(--surface-inverse); color: var(--text-inverse);
+  font-size: var(--fs-body-small); box-shadow: var(--shadow-1);
+  opacity: 0; transform: translate(-50%, 0.8rem); pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.toast.is-show { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---------- 12. 로그인 화면 (SCR-00) ---------- */
+.login-page { min-height: 100vh; display: flex; flex-direction: column; background: var(--surface-warm); }
+.login-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.4rem; padding: 4rem 1.6rem; }
+.login-card {
+  width: 100%; max-width: 48rem; padding: 4.8rem 4rem 4rem; text-align: center;
+  background: var(--surface-white); border: 1px solid var(--border-gray-light); border-radius: var(--radius-xl);
+}
+.login-brand { display: flex; flex-direction: column; align-items: center; gap: 0.8rem; }
+.login-brand .brand-title { font-size: var(--fs-heading-large); }
+.login-brand .brand-en { font-size: var(--fs-body-small); }
+.login-guide { margin: 3.2rem 0 1.6rem; font-size: var(--fs-body-medium); color: var(--text-subtle); }
+.btn--google { width: 100%; background: var(--surface-white); border-color: var(--border-gray); color: var(--text-basic); font-weight: 500; }
+.btn--google:hover { background: var(--surface-gray-subtler); }
+.login-help { margin-top: 1.6rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
+.demo-box {
+  margin-top: 3.2rem; padding: 1.6rem; text-align: left;
+  border: 1px dashed var(--border-gray); border-radius: var(--radius-lg); background: var(--surface-gray-subtler);
+  font-size: var(--fs-body-small); color: var(--text-basic);
+}
+.demo-box label { display: block; margin-bottom: 0.8rem; font-weight: 700; }
+.demo-box .demo-select { width: 100%; height: var(--height-sm); }
+.login-foot { font-size: var(--fs-body-xsmall); color: var(--text-subtle); text-align: center; }
+
+/* ---------- 13. 화면 폭이 좁을 때 (REQ-ENV-04: PC 기준, 모바일은 기본 대응) ----------
+ * 'screen' 조건을 붙여 인쇄에는 적용되지 않게 합니다. */
+@media screen and (max-width: 600px) {
+  .sheet { margin: 0; min-height: 100vh; box-shadow: none; }
+  .inner { padding: 0 1.6rem; }
+  .header-top .inner { min-height: 6.4rem; padding-top: 0.8rem; padding-bottom: 0.8rem; }
+  .header-top .brand-en { white-space: normal; }
+  .gnb-aside { display: none; }
+  .brand-title { font-size: var(--fs-body-large); }
+  .login-brand .brand-title { font-size: var(--fs-heading-medium); }
+  .user-line .badge, .util-label { display: none; }
+  .user-line { gap: 0.8rem; }
+  .gnb-link { height: 4.8rem; padding: 0 1.2rem; font-size: var(--fs-body-medium); }
+  .gnb-link.is-current::after { left: 1.2rem; right: 1.2rem; }
+  .gnb-list { margin-left: -1.2rem; }
+  .page { padding-top: 2.4rem; }
+  .page-title { font-size: var(--fs-heading-large); }
+  .page-desc { font-size: var(--fs-body-medium); }
+  .panel { padding: 2rem 1.6rem; }
+  .login-card { padding: 3.2rem 2rem 2.4rem; }
+}
+
+/* ---------- 14. 인쇄: A4 세로 문서 (REQ-UI-11) ----------
+ * - 용지 A4 세로, 여백은 위, 왼쪽, 오른쪽 10mm (화면의 종이 좌우 여백과 같음), 아래 14mm(쪽 번호 자리)
+ * - 쪽 아래에 시스템 이름과 쪽 번호를 찍습니다. (Chrome, Edge 지원)
+ * - 메뉴, 버튼, 시연 띠처럼 종이에서 쓸 수 없는 요소는 감추고, 출력일과 출력자를 보여 줍니다.
+ * - @page 영역은 CSS 변수를 읽지 못해 색과 글꼴을 직접 적었습니다. (#49595F = --text-subtle) */
+@page {
+  size: A4 portrait;
+  margin: 10mm 10mm 14mm;
+  @bottom-left { content: "무하유 계약 관리 플랫폼"; font: 8pt "Noto Sans KR", sans-serif; color: #49595F; }
+  @bottom-right { content: counter(page) " / " counter(pages); font: 8pt "Noto Sans KR", sans-serif; color: #49595F; }
+}
+
+@media print {
+  html, body { background: var(--white); }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* 종이에서 쓸 수 없는 요소 */
+  /* 푸터도 감춤: 시스템 이름과 쪽 번호는 모든 쪽 아래에 찍히는 @page 영역이 대신함 */
+  .demo-bar, .skip-link, .gnb, .user-line, .logout-link, .toast, .link-more, .col-action, .site-footer, .no-print { display: none !important; }
+
+  /* 종이 틀: 용지 여백이 대신하므로 틀의 여백과 그림자를 없앰 */
+  .sheet { display: block; max-width: none; min-height: 0; margin: 0; box-shadow: none; }
+  .inner { padding: 0; }
+
+  /* 문서 머리: 시스템 이름 + 출력 정보, 아래 굵은 선 */
+  .site-header { border-bottom: 2px solid var(--text-bolder); }
+  .header-top .inner { min-height: 0; padding-top: 0; padding-bottom: 3mm; }
+  /* 출력 정보는 오른쪽 열 2줄 자리(영문 이름 줄과 같은 높이)에 놓음 */
+  .print-meta { display: block; grid-column: 2; grid-row: 2; justify-self: end; font-size: var(--fs-body-xsmall); line-height: 1.4; color: var(--text-subtle); }
+
+  .page { padding: 6mm 0 0; }
+  .page-head { margin-bottom: 6mm; }
+
+  /* 쪽이 넘어갈 때 상자나 표의 한 줄이 잘리지 않게 */
+  .stat, .pipeline-box, .check-list > li, .s-list > li, .tbl tr, .empty { break-inside: avoid; }
+  .page-head, .panel-head, .panel-desc { break-after: avoid; }
+  .tbl thead { display: table-header-group; }
+  .tbl-wrap { overflow: visible; }
+}
