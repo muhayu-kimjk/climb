@@ -17,10 +17,17 @@
 /* 한 단계에 오래 머문 건: 진한 핑크 바탕 + 흰 굵은 글자 (REQ-UI-09) */
 .wait-long { display: inline-block; padding: 0 0.6rem; border-radius: var(--radius-sm); background: var(--status-danger-fill); color: var(--text-inverse); font-weight: 700; }
 
-/* 고객사 아래 서비스 줄: PC에서는 감추고(서비스 칸이 따로 있음), 휴대폰에서는 서비스 칸 대신 보여줌 (REQ-ENV-08) */
+/* 고객사 칸과 서비스 칸 너비 (REQ-DASH-06): 고객사 이름은 짧으므로 고객사 칸은 좁히고,
+ * 서비스는 여러 개(예: 카피킬러, HR 서비스)가 들어갈 수 있으므로 서비스 칸을 넉넉하게 둠 */
+.tbl .col-customer { width: 24%; }
+.tbl .col-service { width: 26%; }
+
+/* 칸 아래 작은 글자 줄(.cell-sub): PC에서는 감추고, 휴대폰에서는 감춘 칸 대신 보여줌 (REQ-ENV-08)
+ *   고객사 아래 서비스, 만료일 아래 담당자 */
 .cell-sub { display: none; }
 @media screen and (max-width: 600px) {
-  .tbl .col-service { display: none; }
+  .tbl .col-customer { width: auto; }
+  .tbl .col-service, .tbl .col-owner { display: none; }
   .tbl .col-steps { white-space: normal; } /* 결재 단계도 칸 안에서 줄을 바꿈 */
   .tbl .cell-sub { display: block; margin-top: 0.2rem; font-size: var(--fs-body-xsmall); font-weight: 400; color: var(--text-subtle); }
 }

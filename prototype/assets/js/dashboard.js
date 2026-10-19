@@ -110,7 +110,8 @@
   /* ---------- 2. 계약 진행 현황 (REQ-DASH-04, 06, 08, 14) ----------
    * 업무 흐름 5단계(REQ-FLOW-13)를 KRDS 단계 표시기로 보여주고, 단계마다 건수를 붙입니다.
    * 단계는 메뉴 구성과 따로 갑니다: 계약 등록 → 계약 검토 → 계약 체결 → 운영 검토 → 계약 완료(보관함)
-   * 건수가 있는 단계는 초록 원, 없는 단계는 회색 원입니다. */
+   * 건수가 있는 단계는 초록 원, 없는 단계는 회색 원입니다.
+   * 단계마다 단계 번호, 단계 이름, 건수만 보여 주고 아래 작은 설명 글은 두지 않습니다. (v0.14) */
   const STEPS = [
     { label: '계약 등록', statuses: ['DRAFT'], target: '내 등록 목록', scr: 'SCR-12' },
     { label: '계약 검토', statuses: ['IN_REVIEW', 'REJECTED'], target: '전체 진행 현황', scr: 'SCR-20' },
@@ -118,23 +119,6 @@
     { label: '운영 검토', statuses: ['OPS_REVIEW'], target: '전체 진행 현황', scr: 'SCR-20' },
     { label: '계약 완료', statuses: ['ACTIVE'], target: '보관함 전체 계약', scr: 'SCR-41' },
   ];
-
-  function stepNote(i, list) {
-    if (i === 0) return isSales ? '작성 중' : '작성자만 볼 수 있음';
-    if (i === 1) {
-      const r = list.filter(function (c) { return c.status === 'REJECTED'; }).length;
-      return '검토 중 ' + (list.length - r) + '건, 반려 ' + r + '건';
-    }
-    if (i === 2) {
-      const late = list.filter(function (c) { return C.daysSince(c.approvedAt) >= R.uploadOverdueDays; }).length;
-      return '체결본 등록 대기' + (late ? ', ' + R.uploadOverdueDays + '일 이상 ' + late + '건' : '');
-    }
-    if (i === 3) {
-      const cem = list.filter(function (c) { return c.opsStep === 'CEM'; }).length;
-      return '운영 적용 ' + cem + '건, 재무 확인 ' + (list.length - cem) + '건';
-    }
-    return '보관함에 보관';
-  }
 
   function renderProgress() {
     const stepsHtml = STEPS.map(function (s, i) {
@@ -147,7 +131,6 @@
           '<i class="step">' + (i + 1) + '단계</i>' +
           '<span class="step-tit">' + esc(s.label) + '</span>' +
           '<span class="step-count">' + count + (unknown ? '' : '<span class="unit">건</span>') + '</span>' +
-          '<span class="step-note">' + esc(stepNote(i, list)) + '</span>' +
         '</a>' +
       '</li>';
     }).join('');
@@ -163,7 +146,7 @@
     const table = rows.length
       ? '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
           '<caption class="sr-only">진행 상세: 고객사, 서비스, 상태, 현재 진행</caption>' +
-          '<thead><tr><th scope="col" class="col-main">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col">상태</th><th scope="col">현재 진행</th></tr></thead>' +
+          '<thead><tr><th scope="col" class="col-customer">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col">상태</th><th scope="col">현재 진행</th></tr></thead>' +
           '<tbody>' + rows.map(function (c) {
             return '<tr' + (c.status === 'REJECTED' ? ' class="is-alert"' : '') + '>' +
               customerCells(c) +
@@ -191,7 +174,7 @@
     el.innerHTML = head +
       '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
         '<caption class="sr-only">내가 검토할 계약: 고객사, 서비스, 요청자, 대기 일수, 결재 단계</caption>' +
-        '<thead><tr><th scope="col" class="col-main">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col">요청자</th><th scope="col" class="num">대기</th><th scope="col">결재 단계</th></tr></thead>' +
+        '<thead><tr><th scope="col" class="col-customer">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col">요청자</th><th scope="col" class="num">대기</th><th scope="col">결재 단계</th></tr></thead>' +
         '<tbody>' + rows.map(function (c) {
           const p = C.stepPosition(c);
           const wait = C.waitDays(c);
@@ -208,7 +191,9 @@
       '</table></div>';
   }
 
-  /* ---------- 4. 만료 임박 (REQ-DASH-07) ---------- */
+  /* ---------- 4. 만료 임박 (REQ-DASH-07) ----------
+   * 표로 보여 줍니다: 남은 일자, 고객사, 서비스, 만료일, 담당자 (v0.14)
+   * 고객사, 서비스 칸 너비는 진행 상세 표와 같게 맞춤 */
   function renderExpiring() {
     const head = panelHead('expiring-title', '만료 임박', null, '전체 보기', 'SCR-43') +
       '<p class="panel-desc">90일 이내에 만료되는 계약입니다.</p>';
@@ -216,19 +201,28 @@
       document.getElementById('expiring').innerHTML = head + '<p class="empty">90일 이내에 만료되는 계약이 없습니다.</p>';
       return;
     }
-    const items = expiring.map(function (c) {
+    const rows = expiring.map(function (c) {
       const d = C.daysUntil(c.endDate);
       // D-day 배지: 30일 이내 Pink, 60일 이내 Purple, 그 외 Blue (REQ-DASH-07)
       const tone = d <= 30 ? 'danger' : d <= 60 ? 'attention' : 'progress';
-      const ddayLabel = '<span class="badge badge--' + tone + '" aria-label="만료까지 ' + d + '일">D-' + d + '</span>';
-      const body = C.canView(c, me)
-        ? '<a class="item-title" ' + C.todoAttrs('계약 상세', 'SCR-42') + '>' + esc(c.counterparty) + '</a>' +
-          '<span class="item-meta">' + C.meta([esc(C.serviceLabel(c.services)), '만료 ' + C.fmtDate(c.endDate), '담당 ' + esc(C.userName(c.requesterId))]) + '</span>'
-        : '<span class="item-title cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>' +
-          '<span class="item-meta">만료 ' + C.fmtDate(c.endDate) + '</span>';
-      return '<li>' + ddayLabel + '<div class="item-body">' + body + '</div></li>';
+      const dday = '<span class="badge badge--' + tone + '" aria-label="만료까지 ' + d + '일">D-' + d + '</span>';
+      // 열람 제한 계약은 고객사, 서비스, 담당자를 가림 (REQ-AUTH-09)
+      const owner = C.canView(c, me) ? esc(C.userName(c.requesterId)) : '-';
+      return '<tr>' +
+        '<td class="nowrap">' + dday + '</td>' +
+        customerCells(c) +
+        // 휴대폰에서는 담당자 칸을 감추고 만료일 아래 작은 글자로 보여줌 (REQ-ENV-08)
+        '<td class="nowrap">' + C.fmtDate(c.endDate) + (C.canView(c, me) ? '<span class="cell-sub">담당 ' + owner + '</span>' : '') + '</td>' +
+        '<td class="nowrap col-owner">' + owner + '</td>' +
+      '</tr>';
     }).join('');
-    document.getElementById('expiring').innerHTML = head + '<ul class="s-list">' + items + '</ul>';
+    document.getElementById('expiring').innerHTML = head +
+      '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
+        '<caption class="sr-only">만료 임박: 남은 일자, 고객사, 서비스, 만료일, 담당자</caption>' +
+        '<thead><tr><th scope="col">남은 일자</th><th scope="col" class="col-customer">고객사</th><th scope="col" class="col-service">서비스</th>' +
+          '<th scope="col">만료일</th><th scope="col" class="col-owner">담당자</th></tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table></div>';
   }
 
   renderGreeting();
