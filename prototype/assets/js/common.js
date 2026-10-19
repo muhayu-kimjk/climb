@@ -14,6 +14,7 @@ window.CLIMB = (function () {
   /* ---------- 메뉴 구조 (docs/02_화면목록.md 1. 메뉴 구조, REQ-UI-14) ----------
    * 개요 → 계약 등록 → 계약 현황 → 보관함 (관리자 메뉴는 관리자에게만 맨 뒤에)
    * roles: 이 메뉴(또는 하위 메뉴)가 보이는 역할. 없으면 전체에게 보임.
+   *        슈퍼관리자(SUPER)는 roles와 상관없이 모든 메뉴를 봅니다. (v0.16)
    * scr  : 화면 ID. href가 없으면 아직 시안을 만들지 않은 화면입니다. */
   const MENU = [
     { label: '개요', scr: 'SCR-01', href: 'index.html' },
@@ -35,11 +36,12 @@ window.CLIMB = (function () {
       { label: '전체 계약', scr: 'SCR-41' },
       { label: '만료 예정 계약', scr: 'SCR-43' },
     ] },
-    // 관리자 메뉴는 관리자에게만 보임 (REQ-AUTH-02)
+    // 관리자 메뉴는 관리자(와 슈퍼관리자)에게만 보임 (REQ-AUTH-02)
     { label: '관리자', roles: ['ADMIN'], children: [
-      { label: '사용자 권한 관리', scr: 'SCR-51' },
+      { label: '사용자 권한 관리', scr: 'SCR-51', href: 'admin-users.html' },
       { label: '결재선 규칙', scr: 'SCR-52' },
       { label: '열람 제한 관리', scr: 'SCR-53' },
+      { label: '가격 기준 관리', scr: 'SCR-54' },
     ] },
   ];
 
@@ -48,6 +50,7 @@ window.CLIMB = (function () {
     bell: '<path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
     chevronDown: '<path d="m6 9 6 6 6-6"/>',
     chevronRight: '<path d="m9 18 6-6-6-6"/>',
+    chevronLeft: '<path d="m15 18-6-6 6-6"/>',
     lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
     alert: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
     logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
@@ -90,7 +93,7 @@ window.CLIMB = (function () {
       const saved = localStorage.getItem(ROLE_KEY);
       if (saved && D.ROLES[saved]) return saved;
     } catch (e) { /* 저장소를 못 쓰는 환경이면 기본 역할 사용 */ }
-    return 'LEGAL';
+    return 'SUPER'; // 기본은 슈퍼관리자: 화면을 슈퍼관리자 기준으로 먼저 만듦 (v0.16)
   }
   function saveRole(role) {
     try { localStorage.setItem(ROLE_KEY, role); } catch (e) { /* 무시 */ }
@@ -159,7 +162,7 @@ window.CLIMB = (function () {
     // 작성 중(임시 저장) 계약은 작성자 본인만 봅니다. [가정]
     if (c.status === 'DRAFT') return c.requesterId === user.id;
     if (!c.restricted) return true;
-    if (user.role === 'ADMIN') return true;
+    if (user.role === 'ADMIN' || user.role === 'SUPER') return true;
     if (c.requesterId === user.id) return true;
     return (c.approvals || []).some(function (a) { return a.userId === user.id; });
   }
@@ -222,7 +225,7 @@ window.CLIMB = (function () {
   function renderHeader(user, pageId) {
     const el = document.getElementById('site-header');
     if (!el) return;
-    const allowed = function (m) { return !m.roles || m.roles.indexOf(user.role) > -1; };
+    const allowed = function (m) { return user.role === 'SUPER' || !m.roles || m.roles.indexOf(user.role) > -1; };
     // 메뉴와 하위 메뉴를 역할에 맞게 거름. 하위 메뉴가 하나도 안 남으면 그 메뉴도 감춤
     const menu = MENU.filter(allowed).map(function (m) {
       return m.children ? Object.assign({}, m, { children: m.children.filter(allowed) }) : m;

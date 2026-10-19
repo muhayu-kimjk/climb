@@ -48,8 +48,8 @@
   function addMonths(d, m) { return new Date(d.getFullYear(), d.getMonth() + m, d.getDate()); }
   function iso(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 
-  /* ---------- 1. 영업만 쓸 수 있음 (REQ-AUTH-04, 4.1) ---------- */
-  if (me.role !== 'SALES') {
+  /* ---------- 1. 영업만 쓸 수 있음 (REQ-AUTH-04, 4.1). 슈퍼관리자는 모든 화면을 볼 수 있음 (v0.16) ---------- */
+  if (me.role !== 'SALES' && me.role !== 'SUPER') {
     $('#notice').innerHTML = noticeHtml('', '계약 등록은 영업만 할 수 있습니다',
       '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 화면 맨 위 검은 띠에서 영업 역할로 바꾸면 계약 등록 화면을 볼 수 있습니다.', '');
     form.hidden = true;

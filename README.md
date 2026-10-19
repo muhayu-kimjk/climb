@@ -12,7 +12,7 @@ MUHAYU Contract Lifecycle Management Base. 계약 등록, 계약 검토, 계약 
    ```
 
 2. 브라우저에서 http://localhost:8730 을 엽니다. (첫 화면: 로그인)
-3. 화면 맨 위 검은 띠의 **시연용 역할 전환**으로 역할(영업, 부서장, 법무, 관리자 등)을 바꿔 가며 볼 수 있습니다.
+3. 화면 맨 위 검은 띠의 **시연용 역할 전환**으로 역할(슈퍼관리자, 관리자, 영업, 부서장, 법무 등)을 바꿔 가며 볼 수 있습니다.
 
 아직 만들지 않은 화면의 메뉴, 버튼을 누르면 "아직 시안을 만들기 전"이라는 안내가 나옵니다.
 
@@ -38,16 +38,19 @@ Projects/CLM
    ├─ login.html           SCR-00 로그인
    ├─ index.html           SCR-01 개요 (대시보드)
    ├─ new-contract.html    SCR-11 새 계약 등록 (?id= 로 이어서 작성, 보완 후 재기안)
+   ├─ admin-users.html     SCR-51 사용자 권한 관리 (관리자, 슈퍼관리자)
    └─ assets/
       ├─ css/tokens.css    색, 글자, 크기 값 (회사 컬러는 여기만 바꾸면 됨)
       ├─ css/common.css    모든 화면 공통 스타일 (KRDS 구조)
       ├─ css/form.css      입력 화면 공통 스타일 (KRDS 입력 폼, 라디오, 파일 업로드, 오류 표시)
       ├─ css/dashboard.css 개요 화면 전용 스타일
       ├─ css/new-contract.css 새 계약 등록 화면 전용 스타일
+      ├─ css/admin-users.css 사용자 권한 관리 화면 전용 스타일 (가로 스크롤 표, 쪽 번호)
       ├─ js/mock-data.js   시연용 예시 데이터 (가상의 사람, 거래처)
       ├─ js/common.js      헤더, 메뉴, 푸터, 권한 판단 등 공통 기능
       ├─ js/dashboard.js   개요 화면 로직
       ├─ js/new-contract.js 새 계약 등록 화면 로직 (체크리스트 자동 계산, 결재선, 입력 검사)
+      ├─ js/admin-users.js 사용자 권한 관리 화면 로직 (거르기, 한 쪽 20명 쪽 나누기)
       └─ img/favicon.svg   브라우저 탭 아이콘 (무하유 심볼 Black 원본. favicon.png는 SVG를 못 읽는 브라우저용)
 ```
 
