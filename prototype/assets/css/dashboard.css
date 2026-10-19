@@ -1,58 +1,46 @@
 /* =====================================================================
- * SCR-01 대시보드 전용 스타일 (dashboard.css)
- * 관련 요구사항: REQ-DASH-01~12, REQ-UI-10~11
- * 배치는 A4 세로 본문 폭(190mm, 약 718px)을 기준으로 합니다. 화면과 인쇄가 같은 배치입니다.
- *   1줄: [내 할 일] [90일 내 만료 예정]
- *   2줄: [전체 계약 진행 현황: 검토 중 → 체결 대기 → 체결 완료]
- *   3줄: 역할별 주요 목록 (전체 폭)
- *   4줄: [확인 필요] [만료 임박]
+ * SCR-01 개요(대시보드) 전용 스타일 (dashboard.css)
+ * 관련 요구사항: REQ-DASH-01~15, REQ-UI-10~12
+ * 상자는 좌우로 나누지 않고 한 줄에 하나씩 쌓습니다. (REQ-DASH-15)
+ *   1. 계약 진행 현황 (KRDS 단계 표시기 + 진행 상세)
+ *   2. 내가 검토할 계약 (결재 역할만)
+ *   3. 확인 필요 [제안]
+ *   4. 만료 임박
  * ===================================================================== */
 
-/* ---------- 핵심 숫자 (REQ-DASH-04, REQ-DASH-08) ---------- */
-.kpi {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 1.6rem;
-  margin-bottom: 2.4rem;
+.dash-stack { display: flex; flex-direction: column; gap: 2.4rem; }
+.panel-sub { font-size: var(--fs-body-small); font-weight: 500; color: var(--text-subtle); }
+.block-subtitle { margin: 0 0 1.2rem; font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
+
+/* ---------- KRDS 단계 표시기 (REQ-DASH-08) ----------
+ * KRDS 구조: 원(단계) + 원 사이 연결선 + 단계 번호(작은 글자) + 단계 이름(굵은 글자)
+ * 개요에서는 단계마다 건수와 짧은 설명을 덧붙입니다.
+ * 건수가 있는 단계(.has)는 초록 테두리 원 + 가운데 점, 없는 단계는 회색 원입니다. */
+.step-wrap { --step-circle: 2.4rem; display: flex; margin: 0.4rem 0 2.8rem; }
+.step-wrap > li { position: relative; flex: 1 1 0; min-width: 0; }
+.step-wrap > li::after {
+  content: ""; position: absolute; top: calc(var(--step-circle) / 2 - 0.15rem); left: 0.1rem;
+  width: 100%; height: 0.3rem; background: var(--step-waiting);
 }
-
-.stat {
-  display: flex; flex-direction: column; gap: 0.4rem; padding: 2rem 2.4rem;
-  background: var(--surface-white); border: 1px solid var(--border-gray-light); border-radius: var(--radius-xl);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+.step-wrap > li:last-child::after { display: none; }
+.step-body { position: relative; display: flex; flex-direction: column; gap: 0.2rem; padding: calc(var(--step-circle) + 1.2rem) 1.6rem 0 0; }
+.step-body::before {
+  content: ""; position: absolute; top: 0; left: 0; z-index: 2; width: var(--step-circle); height: var(--step-circle);
+  border-radius: 50%; background: var(--surface-white); border: 0.1rem solid var(--border-gray);
 }
-a.stat:hover { border-color: var(--border-primary); box-shadow: var(--shadow-1); }
-.stat-label { display: flex; align-items: center; gap: 0.6rem; font-size: var(--fs-body-medium); font-weight: 500; color: var(--text-subtle); }
-.stat-value { margin-top: auto; padding-top: 0.4rem; font-size: var(--fs-display-small); font-weight: 700; line-height: 1.25; color: var(--text-bolder); }
-.stat-value .unit { margin-left: 0.2rem; font-size: var(--fs-body-medium); font-weight: 500; color: var(--text-subtle); }
-.stat-note { font-size: var(--fs-body-small); color: var(--text-subtle); }
-
-/* 내 할 일: 가장 먼저 눈에 들어오도록 강조 */
-.stat--mine { background: var(--surface-primary-subtler); border-color: var(--border-primary-light); }
-.stat--mine .stat-label { font-weight: 700; color: var(--text-primary); }
-.stat--mine .stat-value { color: var(--text-primary); }
-
-/* 전체 계약 진행 현황 (KRDS 단계 표시기 응용): 둘째 줄 전체 폭 */
-.pipeline-box { grid-column: 1 / -1; order: 3; padding: 1.6rem 1.6rem 1.2rem; border: 1px solid var(--border-gray-light); border-radius: var(--radius-xl); }
-.pipeline-title { padding: 0 0.8rem; margin-bottom: 0.4rem; font-size: var(--fs-body-small); font-weight: 700; color: var(--text-subtle); }
-.pipeline { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); }
-.stage { display: flex; flex-direction: column; gap: 0.4rem; padding: 0.8rem; border-radius: var(--radius-lg); }
-a.stage:hover { background: var(--action-hover); }
-.stage .stat-value { padding-top: 0.2rem; }
-.stage-arrow { display: flex; align-items: center; padding: 0 0.4rem; color: var(--icon-muted); }
-.step-num {
-  display: inline-flex; align-items: center; justify-content: center; width: 2.4rem; height: 2.4rem;
-  border-radius: 50%; background: var(--surface-secondary-subtler); color: var(--text-primary);
-  font-size: var(--fs-body-xsmall); font-weight: 700;
+.step-wrap > li.has .step-body::before { border: 0.3rem solid var(--step-done); }
+.step-wrap > li.has .step-body::after {
+  content: ""; position: absolute; z-index: 3; top: calc((var(--step-circle) - 1.2rem) / 2); left: calc((var(--step-circle) - 1.2rem) / 2);
+  width: 1.2rem; height: 1.2rem; border-radius: 50%; background: var(--step-done);
 }
-
-/* ---------- 주요 목록(전체 폭) + 보조 정보 2개(나란히) ---------- */
-.dash-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2.4rem; }
-.side-stack { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2.4rem; align-items: start; }
-.count-text { font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-primary); }
+.step-wrap .step { font-size: var(--fs-body-xsmall); font-style: normal; color: var(--text-subtle); }
+.step-wrap .step-tit { font-size: var(--fs-body-small); font-weight: 700; color: var(--text-bolder); white-space: nowrap; }
+.step-wrap .step-count { margin-top: 0.4rem; font-size: var(--fs-heading-large); font-weight: 700; line-height: 1.2; color: var(--text-bolder); }
+.step-wrap .step-count .unit { margin-left: 0.2rem; font-size: var(--fs-body-medium); font-weight: 500; color: var(--text-subtle); }
+.step-wrap .step-note { font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
+a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; }
 
 .reject-reason { display: block; margin-top: 0.4rem; font-size: var(--fs-body-small); color: var(--text-basic); }
-.reject-reason strong { font-weight: 700; }
 /* 한 단계에 오래 머문 건: 진한 핑크 바탕 + 흰 굵은 글자 (REQ-UI-09) */
 .wait-long { display: inline-block; padding: 0 0.6rem; border-radius: var(--radius-sm); background: var(--status-danger-fill); color: var(--text-inverse); font-weight: 700; }
 
@@ -61,6 +49,7 @@ a.stage:hover { background: var(--action-hover); }
 .check-list > li + li { margin-top: 0.8rem; }
 /* 아이콘(2rem)을 제목 첫 줄(글자 크기 x 1.5)의 세로 가운데에 맞춤 */
 .check-list .icon { margin-top: calc((var(--fs-body-small) * 1.5 - 2rem) / 2); color: var(--status-notice-icon); }
+.check-list .item-body { flex: 1; min-width: 0; }
 .check-title { font-size: var(--fs-body-small); font-weight: 700; color: var(--text-basic); }
 .check-count { margin-left: 0.4rem; }
 .check-rule { margin-top: 0.2rem; font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
@@ -71,8 +60,10 @@ a.stage:hover { background: var(--action-hover); }
 .check-items .is-masked { display: inline-flex; align-items: center; gap: 0.4rem; }
 .check-items .days { flex-shrink: 0; font-variant-numeric: tabular-nums; }
 
-/* ---------- 휴대폰 화면 (인쇄에는 적용 안 됨) ---------- */
+/* ---------- 휴대폰 화면 (인쇄에는 적용 안 됨) ----------
+ * 방식 B (REQ-ENV-07): 단계 표시기도 PC처럼 가로 배치를 유지합니다.
+ * 칸이 좁아 오른쪽 여백만 줄이고, 단계 이름과 설명은 칸 안에서 줄을 바꿉니다. */
 @media screen and (max-width: 600px) {
-  .kpi, .side-stack, .pipeline { grid-template-columns: minmax(0, 1fr); }
-  .stage-arrow { justify-content: center; padding: 0; transform: rotate(90deg); }
+  .step-body { padding-right: 0.8rem; }
+  .step-wrap .step-tit { white-space: normal; }
 }

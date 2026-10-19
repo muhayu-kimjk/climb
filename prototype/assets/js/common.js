@@ -258,7 +258,7 @@ window.CLIMB = (function () {
       '<nav class="gnb" aria-label="주 메뉴"><div class="inner">' +
         '<ul class="gnb-list">' + menuHtml + '</ul>' +
         // 이용 안내: 메뉴 줄 오른쪽 끝 (REQ-UI-14)
-        '<a class="gnb-aside" ' + todoAttrs('이용 안내') + '>' + icon('help', 'sm') + '이용 안내</a>' +
+        '<a class="gnb-aside" ' + todoAttrs('이용 안내') + '>' + icon('help', 'sm') + '<span class="gnb-aside-label">이용 안내</span></a>' +
       '</div></nav>';
 
     // 하위 메뉴 열기·닫기
