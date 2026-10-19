@@ -247,7 +247,7 @@ window.CLIMB = (function () {
     }).join('');
 
     /* 헤더 구성 (REQ-UI-13)
-     *   1줄: [CLIMB | 무하유 계약 관리 플랫폼]            [이도윤님 영업 | 로그아웃]
+     *   1줄: [CLIMB | 무하유 계약 관리 플랫폼]            [이도윤님 영업 | (아이콘)로그아웃]
      *   2줄: [MUHAYU Contract Lifecycle Management Base]
      * 오른쪽 한 줄은 왼쪽 첫 줄과 글자 밑선(baseline)을 맞추고, 오른쪽 끝은 본문 오른쪽 끝에 맞춥니다.
      * 화면 알림(종 모양, 알림 숫자)은 두지 않습니다. 알림은 이메일로 보냅니다. (REQ-ENV-09) */
@@ -258,7 +258,7 @@ window.CLIMB = (function () {
         '<div class="user-line">' +
           '<span class="user-name">' + esc(user.name) + '님</span>' + badge('line', roleLabel(user.role)) +
           '<span class="util-divider" aria-hidden="true"></span>' +
-          '<a class="util-link logout-link" href="login.html">로그아웃</a>' +
+          '<a class="util-link logout-link" href="login.html">' + icon('logout', 'sm') + '로그아웃</a>' +
         '</div>' +
         '<span class="brand-en">' + esc(D.BRAND.en) + '</span>' +
         // 인쇄할 때만 보이는 출력 정보 (REQ-UI-11). 실제 시스템은 출력하는 순간의 날짜와 시각을 씁니다.
