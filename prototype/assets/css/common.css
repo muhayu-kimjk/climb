@@ -123,8 +123,8 @@ a.brand-title:hover { color: var(--text-primary); }
 
 /* 오른쪽 한 줄: 사용자 이름 + 역할 | 로그아웃 */
 .user-line { display: flex; align-items: baseline; gap: 1.2rem; font-size: var(--fs-body-small); }
-/* 이름, 역할 배지 글자, 로그아웃 글자가 같은 밑선에 놓이게 함. 세로선과 아이콘만 글자 높이의 가운데 */
-.user-line .util-divider { align-self: center; }
+/* 이름과 로그아웃 글자는 같은 밑선에, 역할 배지 상자와 세로선, 아이콘은 글자 높이의 가운데에 놓음 (v0.15) */
+.user-line .badge, .user-line .util-divider { align-self: center; }
 .user-name { font-weight: 700; color: var(--text-bolder); }
 .util-link { display: inline-flex; align-items: baseline; gap: 0.4rem; color: var(--text-basic); }
 .util-link .icon { align-self: center; }
@@ -202,8 +202,10 @@ a.brand-title:hover { color: var(--text-primary); }
 .login-foot .meta-list-in { justify-content: center; }
 
 /* ---------- 6. 배지 (KRDS 배지) — 상태는 항상 글자와 함께 ---------- */
+/* Noto Sans KR은 글자가 줄 상자 가운데보다 약 0.07em 아래에 그려지므로, 아래 여백을 0.2rem 더 줘서
+ * 배지 안 글자가 위아래 가운데에 보이게 함 (v0.15) */
 .badge {
-  display: inline-flex; align-items: center; gap: 0.4rem; height: 2.4rem; padding: 0 0.8rem;
+  display: inline-flex; align-items: center; gap: 0.4rem; height: 2.4rem; padding: 0 0.8rem 0.2rem;
   border: 1px solid transparent; border-radius: var(--radius-sm);
   font-size: var(--fs-body-xsmall); font-weight: 700; line-height: 1; white-space: nowrap;
 }
