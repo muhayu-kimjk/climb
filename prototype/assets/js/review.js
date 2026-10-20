@@ -216,16 +216,24 @@
       return '<li><p class="check-q-text">' + esc(x[0]) + ' ' + answer(x[1]) + '</p>' +
         '<p class="check-note">비고: ' + (x[2] ? esc(x[2]) : '없음') + '</p>' + effect + '</li>';
     }).join('') + '</ul>' +
-    '<p class="check-effect">' + esc(D.STEPS.S05.no + ' ' + D.STEPS.S05.name) + ' ' + (route.S05[0] ? '거침' : '생략') + ': ' + esc(route.S05[1]) + '</p>';
+    '<p class="check-effect">' + esc(D.STEPS.S05.no + ' ' + D.STEPS.S05.name) + ' ' + (route.S05[0] ? '거침' : '생략') + ': ' + esc(route.S05[1]) + '</p>' +
+    // 4번: 회계 영향 특수 조건. 결재선에는 영향 없고, 예면 기안할 때 재무에 이메일로 알림 (REQ-CHK-08)
+    '<ul class="doc-checks doc-checks--extra"><li><p class="check-q-text">' + esc('4. 회계에 영향을 주는 특수 조건이 있나요?') + ' ' + answer(ck.accounting) + '</p>' +
+      '<p class="check-note">비고: ' + (ck.accountingNote ? esc(ck.accountingNote) : '없음') + '</p>' +
+      '<span class="check-effect">' + (ck.accounting === 'YES' ? '재무 알림: 기안할 때 재무 ' + esc(C.userName('u_finance')) + '님에게 이메일로 알렸습니다(결재선 아님)' : '재무 알림 없음') + '</span></li></ul>';
   }
 
+  /* 첨부 파일 (REQ-SEC-08): 내려받으면 워터마크 PDF. 고칠 수 있는 원본은 기안자, 법무, 관리자만.
+   * 휴대폰에서는 미리보기만 (내려받기 버튼은 review.css에서 감춤) */
+  const canOriginal = me.id === c.requesterId || ['LEGAL', 'ADMIN', 'SUPER'].indexOf(me.role) > -1;
   function renderFiles() {
     const fmtSize = function (b) { return b >= 1048576 ? (b / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(b / 1024)) + 'KB'; };
     $('#files').innerHTML = files().map(function (x) {
       return '<li><span class="file-info">' + C.badge('line', D.FILE_KINDS[x.kind]) + ' <span class="file-name">' + esc(x.name) + '</span>' +
         '<span class="file-size">' + fmtSize(x.size) + ', ' + round + '차 기안</span></span>' +
         '<span class="file-acts"><button type="button" class="btn-text" data-file="preview">미리보기</button>' +
-        '<button type="button" class="btn-text" data-file="download">내려받기</button></span></li>';
+        '<button type="button" class="btn-text file-dl" data-file="pdf">PDF 내려받기</button>' +
+        (canOriginal ? '<button type="button" class="btn-text file-dl" data-file="original">원본 내려받기</button>' : '') + '</span></li>';
     }).join('');
     $('#memo').textContent = detail.memo || '없음';
   }
@@ -346,9 +354,12 @@
   $('#files').addEventListener('click', function (e) {
     const b = e.target.closest('[data-file]');
     if (!b) return;
-    C.toast(b.getAttribute('data-file') === 'download'
-      ? '프로토타입: 실제 시스템에서는 파일을 내려받고, 누가 언제 받았는지 기록에 남깁니다.'
-      : '프로토타입: 실제 시스템에서는 새 창에서 파일 미리보기가 열립니다.');
+    const kind = b.getAttribute('data-file');
+    C.toast(kind === 'pdf'
+      ? '프로토타입: 실제 시스템에서는 이름과 일시 워터마크를 찍은 PDF로 내려받고, 누가 언제 받았는지 기록에 남깁니다.'
+      : kind === 'original'
+        ? '프로토타입: 실제 시스템에서는 고칠 수 있는 원본을 내려받고 기록에 남깁니다. 원본은 기안자, 법무, 관리자만 받을 수 있습니다.'
+        : '프로토타입: 실제 시스템에서는 새 창에서 파일 미리보기가 열립니다.');
   });
 
   renderNotice();

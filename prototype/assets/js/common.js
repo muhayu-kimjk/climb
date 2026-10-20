@@ -62,16 +62,20 @@ window.CLIMB = (function () {
     return '<svg class="' + cls + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON_PATHS[name] + '</svg>';
   }
 
-  // 시스템 이름 표기: 로고 그림 없이 글자로만 표시 (REQ-NAME-03~04, REQ-UI-03)
-  //   첫 줄: CLIMB | 무하유 계약 관리 플랫폼 / 둘째 줄: MUHAYU Contract Lifecycle Management Base
+  // 시스템 이름 표기 (REQ-NAME-03~04, REQ-UI-03)
+  //   헤더: [무하유 심볼] CLIMB / 둘째 줄 MUHAYU Contract Lifecycle Management Base (v0.22, 한글 이름은 뺌)
+  //   푸터: [무하유 심볼] CLIMB | 무하유 계약 관리 플랫폼 / 둘째 줄 영문 이름 (v0.22, 심볼만 더함)
+  //   로그인 화면: 심볼 없이 글자로만 (바꾸지 않음)
+  //   opt.mark: CLIMB 앞에 심볼(파비콘과 같은 파일) / opt.ko: 한글 이름 붙이기 (기본 true)
   //   세로선은 글자가 아닌 선으로 그려 화면낭독기는 "CLIMB 무하유 계약 관리 플랫폼"으로 읽음
-  function brandTitleHtml() {
-    return '<span class="brand-name">' + esc(D.BRAND.name) + '</span>' +
-      '<span class="brand-sep" aria-hidden="true"></span>' +
-      '<span class="brand-ko">' + esc(D.BRAND.ko) + '</span>';
+  function brandTitleHtml(opt) {
+    opt = opt || {};
+    return (opt.mark ? '<img class="brand-mark" src="assets/img/favicon.svg" alt="" aria-hidden="true">' : '') +
+      '<span class="brand-name">' + esc(D.BRAND.name) + '</span>' +
+      (opt.ko === false ? '' : '<span class="brand-sep" aria-hidden="true"></span><span class="brand-ko">' + esc(D.BRAND.ko) + '</span>');
   }
-  function brandText(tag) {
-    return '<' + tag + ' class="brand-title">' + brandTitleHtml() + '</' + tag + '>' +
+  function brandText(tag, opt) {
+    return '<' + tag + ' class="brand-title">' + brandTitleHtml(opt) + '</' + tag + '>' +
       '<span class="brand-en">' + esc(D.BRAND.en) + '</span>';
   }
 
@@ -271,6 +275,8 @@ window.CLIMB = (function () {
     if (!c.restricted) return true;
     if (user.role === 'ADMIN' || user.role === 'SUPER') return true;
     if (c.requesterId === user.id) return true;
+    // 체크리스트 4번이 예면 재무도 볼 수 있음 (REQ-CHK-08)
+    if (user.role === 'FINANCE' && c.checklist && c.checklist.accounting === 'YES') return true;
     return routedSteps(c).some(function (a) { return a.userId === user.id; });
   }
 
@@ -448,7 +454,8 @@ window.CLIMB = (function () {
     el.className = 'site-header';
     el.innerHTML =
       '<div class="header-top"><div class="inner">' +
-        '<a class="brand-title" href="index.html" title="개요로 이동">' + brandTitleHtml() + '</a>' +
+        // 헤더 첫 줄: [심볼] CLIMB (v0.22, 한글 이름은 푸터에만)
+        '<a class="brand-title" href="index.html" title="개요로 이동">' + brandTitleHtml({ mark: true, ko: false }) + '</a>' +
         '<div class="user-line">' +
           // 역할 배지를 이름 앞에 둠: [영업] 이도윤님 | 로그아웃 (v0.15)
           badge('line', roleLabel(user.role)) + '<span class="user-name">' + esc(user.name) + '님</span>' +
@@ -503,7 +510,7 @@ window.CLIMB = (function () {
     el.innerHTML =
       // 푸터: 시스템 이름 두 줄 + 보안 안내 문구 + 저작권. 이용 안내는 메뉴 줄로 옮기고 시스템 문의는 뺌 (REQ-UI-14, 15)
       '<div class="inner">' +
-        '<div class="footer-brand">' + brandText('p') + '</div>' +
+        '<div class="footer-brand">' + brandText('p', { mark: true }) + '</div>' +
         '<p class="footer-notice">' + esc(SECURITY_NOTICE) + '</p>' +
         '<p class="footer-copy">' + meta(['© 2026 MUHAYU. All rights reserved.', '프로토타입 v0.1']) + '</p>' +
       '</div>';
@@ -552,6 +559,24 @@ window.CLIMB = (function () {
       '<p class="page-range">' + pages + '쪽 중 ' + page + '쪽, ' + range + ' (한 쪽에 ' + size + unit + ')</p>';
   }
 
+  /* ---------- 워터마크 (REQ-SEC-07, REQ-ENV-11) ----------
+   * "이름 이메일 일시"를 쪽 전체에 옅게 반복해 깝니다. 화면에는 보이지 않고 인쇄와 PDF 저장 때만 나옵니다(common.css).
+   * 일시는 인쇄를 누른 때로 다시 찍습니다. 내려받는 PDF에도 서버가 같은 워터마크를 찍습니다(REQ-SEC-08). */
+  function renderWatermark(user) {
+    const account = (D.ACCOUNTS || []).filter(function (a) { return a.name === user.name; })[0];
+    const el = document.createElement('div');
+    el.className = 'watermark';
+    el.setAttribute('aria-hidden', 'true');
+    function draw() {
+      const stamp = nowStamp().slice(0, 16);
+      const text = esc(user.name + (account ? ' ' + account.email : '') + ' ' + fmtDate(stamp.slice(0, 10)) + ' ' + stamp.slice(11));
+      el.innerHTML = '<div class="watermark-grid">' + new Array(160).fill('<span>' + text + '</span>').join('') + '</div>';
+    }
+    draw();
+    document.body.appendChild(el);
+    window.addEventListener('beforeprint', draw);
+  }
+
   /* ---------- 화면 시작 ----------
    * 각 HTML의 <body data-page="SCR-xx">를 읽어 공통 영역을 그립니다. */
   function init() {
@@ -560,6 +585,7 @@ window.CLIMB = (function () {
     renderDemoBar(user);
     renderHeader(user, pageId);
     renderFooter();
+    renderWatermark(user);
     // 앞 화면에서 남긴 안내가 있으면 한 번 보여 줌
     try {
       const msg = sessionStorage.getItem('climb.flash');

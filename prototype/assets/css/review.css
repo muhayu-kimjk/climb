@@ -40,6 +40,8 @@
 .total-read { display: block; margin-top: 0.2rem; font-size: var(--fs-body-xsmall); font-weight: 400; color: var(--text-subtle); }
 .doc-checks > li { padding: 1.2rem 0; border-bottom: 1px solid var(--border-gray-light); }
 .doc-checks > li:first-child { padding-top: 0; }
+.doc-checks--extra { margin-top: 1.2rem; border-top: 1px solid var(--border-gray-light); }
+.doc-checks--extra > li:first-child { padding-top: 1.2rem; }
 .check-q-text { font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
 .check-q-text .badge { margin-left: 0.4rem; vertical-align: 0.1rem; }
 .check-note { margin-top: 0.4rem; font-size: var(--fs-body-small); color: var(--text-basic); }
@@ -50,6 +52,7 @@ p.check-effect { margin-top: 1.2rem; }
 .doc-files .file-name { font-weight: 700; color: var(--text-basic); overflow-wrap: anywhere; }
 .doc-files .file-size { margin-left: 0.6rem; font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
 .file-acts { display: inline-flex; gap: 0.8rem; }
+.mobile-only { display: none; } /* 휴대폰에서만 보이는 안내 */
 .memo-label { margin-top: 2rem; }
 .memo { font-size: var(--fs-body-medium); color: var(--text-basic); white-space: pre-line; }
 .history td { vertical-align: baseline; }
@@ -79,6 +82,9 @@ p.check-effect { margin-top: 1.2rem; }
   .act-btns .btn { flex: 1 1 0; }
   .act-pick { width: 100%; flex-wrap: wrap; }
   .act-pick .select { width: 100%; min-width: 0; }
+  /* 휴대폰에서는 첨부 파일을 미리보기만 (REQ-SEC-08) */
+  .file-acts .file-dl { display: none; }
+  .mobile-only { display: inline; }
 }
 
 @media print {

@@ -234,7 +234,7 @@
         <!-- ============ 3. 체크리스트 (3.5) ============ -->
         <section class="panel" aria-labelledby="sec-check">
           <h2 class="section-title" id="sec-check"><span class="num">3</span>체크리스트</h2>
-          <p class="section-desc">답에 따라 결재선이 정해집니다. "아니오"이면 비고에 사유를 꼭 적습니다. 체크리스트 검토(세일즈어드민)는 어떤 경우에도 생략되지 않습니다.</p>
+          <p class="section-desc">1~3번 답에 따라 결재선이 정해집니다. 1~3번이 "아니오"이거나 4번이 "예"이면 비고를 꼭 적습니다. 체크리스트 검토(세일즈어드민)는 어떤 경우에도 생략되지 않습니다.</p>
 
           <fieldset class="field check-q" data-field="standard">
             <legend class="field-label">1. 표준계약서를 사용하나요?<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
@@ -271,6 +271,23 @@
           <div class="field" data-field="capNote">
             <label class="field-label field-label--sm" for="f-cap-note">3번 비고</label>
             <textarea class="textarea textarea--sm" id="f-cap-note" name="capNote" placeholder="할인율 한도를 넘긴 영업적 사유 (예: 레퍼런스 확보)"></textarea>
+            <p class="field-error" hidden></p>
+          </div>
+
+          <!-- 4번: 회계에 영향을 주는 특수 조건 (REQ-CHK-08, v0.21). 결재선은 바꾸지 않고 재무에 이메일로 알림 -->
+          <fieldset class="field check-q" data-field="accounting">
+            <legend class="field-label">4. 회계에 영향을 주는 특수 조건이 있나요?<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
+            <p class="field-help">예: 무상 사용 기간이나 무상 추가 제공, 해지할 때 환불, 사용량이나 성과에 따른 대가, 연도별로 다른 금액, 반품 조건</p>
+            <div class="choice-row">
+              <label class="choice"><input type="radio" name="accounting" value="YES">예</label>
+              <label class="choice"><input type="radio" name="accounting" value="NO">아니오</label>
+            </div>
+            <p class="check-result" id="q4-result" aria-live="polite"></p>
+            <p class="field-error" hidden></p>
+          </fieldset>
+          <div class="field" data-field="accountingNote">
+            <label class="field-label field-label--sm" for="f-accounting-note">4번 비고</label>
+            <textarea class="textarea textarea--sm" id="f-accounting-note" name="accountingNote" placeholder="어떤 조건인지 (예: 첫 3개월 무상 사용)"></textarea>
             <p class="field-error" hidden></p>
           </div>
 

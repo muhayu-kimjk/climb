@@ -66,6 +66,7 @@
   --text-disabled: var(--mh-gray);
   --text-primary: var(--mh-dark-green);     /* 강조 글자·숫자 */
   --text-inverse: var(--white);
+  --text-watermark: rgba(2, 24, 33, 0.07);  /* Black 7%. 캡처 대비 워터마크 (REQ-SEC-07) */
 
   /* 바탕 */
   --surface-white: var(--white);

@@ -201,7 +201,8 @@ window.CLIMB_DATA = (function () {
       id: 'CT-2026-0405', counterparty: '하늘연구원', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 220000000, requesterId: 'u_sales2', requestedAt: '2026-10-10 10:05', restricted: false, personalData: true,
       status: 'IN_REVIEW',
-      checklist: { standard: 'NO', standardNote: '연구기관 보안 서약 조항 추가', price: 'NO', priceNote: '10개 기관 일괄 계약', cap: 'NO', capNote: '3년 계약 조건으로 기관 라이선스 25% 할인 요청' },
+      checklist: { standard: 'NO', standardNote: '연구기관 보안 서약 조항 추가', price: 'NO', priceNote: '10개 기관 일괄 계약', cap: 'NO', capNote: '3년 계약 조건으로 기관 라이선스 25% 할인 요청',
+        accounting: 'YES', accountingNote: '첫 3개월 무상 사용 기간이 있고, 3년 동안 연도별 금액이 다름' },
       products: [{ code: 'CK-ORG', qty: 10, amount: 90000000 }, { code: 'CK-USER', qty: 50, amount: 70000000 }, { code: 'CK-API', qty: 10, amount: 60000000 }],
       memo: '대형 연구기관 첫 계약입니다. 할인율이 한도를 넘어 영업 검토가 필요합니다.',
       history: [
@@ -365,6 +366,8 @@ window.CLIMB_DATA = (function () {
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
     },
   ];
+  // 시연용: 체크리스트 4번(v0.21)을 따로 적지 않은 예시는 "아니오"로 채움
+  CONTRACTS.forEach(function (c) { if (c.checklist && !c.checklist.accounting) c.checklist.accounting = 'NO'; });
 
   // 개요 화면 강조 기준 일수 [가정] (기획자 결정 필요)
   //   "확인 필요" 상자(v0.12)와 단계 표시기 아래 설명 글(v0.14)은 뺐고, 지금은 대기 일수 강조에만 씁니다.

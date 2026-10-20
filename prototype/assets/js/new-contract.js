@@ -314,6 +314,9 @@
     // 체크리스트
     const q1 = val('standard');
     $('#q1-result').textContent = q1 === 'YES' ? '④ 법무 검토를 생략합니다.' : q1 === 'NO' ? '④ 법무 검토를 거칩니다.' : '';
+    // 4번: 결재선은 그대로, 기안하면 재무에 이메일로 알림 (REQ-CHK-08, REQ-ENV-10)
+    const q4 = val('accounting');
+    $('#q4-result').textContent = q4 === 'YES' ? '기안하면 재무 ' + D.USERS.u_finance.name + '님에게 이메일로 알립니다. 결재선은 바뀌지 않습니다.' : '';
     const pc = priceCheck(rows);
     $('#q2-answer').innerHTML = answerHtml(pc.q2);
     $('#q2-detail').textContent = pc.d2;
@@ -483,6 +486,8 @@
     if (val('standard') === 'NO') need(!!val('standardNote'), 'standardNote', '1번이 "아니오"이면 비고에 바꾼 조항과 이유를 적으세요.');
     if (current.pc.q2 === 'NO') need(!!val('priceNote'), 'priceNote', '2번이 "아니오"이면 비고에 표준 단가와 다르게 정한 이유를 적으세요.');
     if (current.pc.q3 === 'NO') need(!!val('capNote'), 'capNote', '3번이 "아니오"이면 비고에 할인율 한도를 넘긴 영업적 사유를 적으세요.');
+    need(!!val('accounting'), 'accounting', '체크리스트 4번에 답하세요.');
+    if (val('accounting') === 'YES') need(!!val('accountingNote'), 'accountingNote', '4번이 "예"이면 비고에 어떤 조건인지 적으세요.');
 
     need(files.draft.length > 0, 'draftFile', '계약서 초안을 첨부하세요.', $('#f-draft'));
     return errors;
@@ -533,6 +538,7 @@
       ['계약 금액', current.total ? won(current.total) + ' (부가세 별도)' : '금액 없음'],
       ['계약 기간', C.fmtDate(val('startDate')) + ' ~ ' + C.fmtDate(val('endDate'))],
       ['계약 검토', goes.join(', ')],
+      ['재무 알림', val('accounting') === 'YES' ? '재무에 이메일로 알림 (결재선 아님)' : '없음'],
       ['기안 차수', round + '차' + (val('restricted') ? ', 열람 제한' : '')],
     ];
     $('#confirm-body').innerHTML = '<p>기안하면 ② 체크리스트 검토부터 시작되고, 기안한 내용은 결재가 끝날 때까지 고칠 수 없습니다.</p>' +
@@ -596,7 +602,10 @@
     setRadio('personalData', source.personalData ? 'YES' : 'NO');
     $('#f-restricted').checked = !!source.restricted;
     setRadio('settlement', f.settlement);
-    if (f.checklist) { setRadio('standard', f.checklist.standard); $('#f-standard-note').value = f.checklist.standardNote || ''; }
+    if (f.checklist) {
+      setRadio('standard', f.checklist.standard); $('#f-standard-note').value = f.checklist.standardNote || '';
+      setRadio('accounting', f.checklist.accounting); $('#f-accounting-note').value = f.checklist.accountingNote || '';
+    }
     $('#f-memo').value = f.memo || '';
     (f.products || []).forEach(function (p) { addProduct(p); });
     if (source.status === 'REJECTED') { files.draft.push({ name: source.counterparty + ' 계약서 1차 기안본.docx', size: 84000 }); renderFiles('draft'); }

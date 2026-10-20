@@ -71,7 +71,8 @@
 
         <section class="panel" aria-labelledby="files-title">
           <h2 class="section-title" id="files-title"><span class="num">4</span>첨부 파일과 검토 요청 사항</h2>
-          <p class="section-desc">내려받으면 누가 언제 받았는지 기록에 남습니다.</p>
+          <!-- 내려받기 규칙 (REQ-SEC-08): 워터마크 PDF, 원본은 기안자, 법무, 관리자만, 휴대폰은 미리보기만 -->
+          <p class="section-desc">내려받으면 이름과 일시 워터마크가 찍힌 PDF로 받고, 누가 언제 받았는지 기록에 남습니다. 고칠 수 있는 원본은 기안자, 법무, 관리자만 받습니다. <span class="mobile-only">휴대폰에서는 미리보기만 됩니다.</span></p>
           <ul class="doc-files" id="files"></ul>
           <h3 class="field-label memo-label">검토 요청 사항</h3>
           <p class="memo" id="memo"></p>

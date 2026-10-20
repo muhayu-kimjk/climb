@@ -115,9 +115,11 @@ svg { flex-shrink: 0; }
 /* 오른쪽 한 줄은 2줄(영문 이름 줄)에 두어, 글자 밑선을 "...Management Base"와 맞춤 (v0.15) */
 .header-top .user-line { grid-column: 2; grid-row: 2; justify-self: end; }
 
-/* 시스템 이름 (REQ-NAME-03~04): 로고 그림 없이 글자로. 헤더, 푸터, 로그인 화면이 함께 씀
- * 첫 줄 "CLIMB | 무하유 계약 관리 플랫폼"의 세로선은 글자 대신 얇은 선(Gray)으로 그림 */
+/* 시스템 이름 (REQ-NAME-03~04): 헤더, 푸터, 로그인 화면이 함께 씀
+ * 헤더와 푸터는 CLIMB 앞에 무하유 심볼(파비콘과 같은 파일)을 글자 높이에 맞춰 둠 (v0.22)
+ * 푸터 첫 줄 "CLIMB | 무하유 계약 관리 플랫폼"의 세로선은 글자 대신 얇은 선(Gray)으로 그림 */
 .brand-title { font-size: var(--fs-heading-medium); font-weight: 700; line-height: 1.3; color: var(--text-bolder); }
+.brand-mark { display: inline-block; width: 0.95em; height: 0.95em; margin-right: 0.35em; vertical-align: -0.12em; }
 .brand-name, .brand-ko { white-space: nowrap; }
 .brand-sep { display: inline-block; width: 1px; height: 0.8em; margin: 0 0.6em; background: var(--mh-gray); vertical-align: -0.05em; }
 /* 로그인 화면: 카드 폭이 좁아 첫 줄이 한 줄에 들어가지 않으므로 세로선 없이 CLIMB과 한글 이름을 위아래로 (REQ-NAME-04, v0.14) */
@@ -535,3 +537,15 @@ a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: under
 @media print {
   .modal-backdrop { display: none !important; }
 }
+
+/* 워터마크 (REQ-SEC-07, REQ-ENV-11)
+ * 인쇄하거나 PDF로 저장할 때만 출력자 이름, 이메일, 일시를 쪽 전체에 옅게 깝니다(position: fixed라 쪽마다 나옴).
+ * 화면에는 깔지 않습니다. 화면 가독성을 해치기 때문입니다(v0.22 기획자 결정). */
+.watermark { position: fixed; inset: 0; z-index: 400; overflow: hidden; pointer-events: none; user-select: none; display: none; }
+@media print { .watermark { display: block; } }
+.watermark-grid {
+  position: absolute; top: 50%; left: 50%; width: 200vmax; height: 200vmax;
+  display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 9.6rem 8rem;
+  transform: translate(-50%, -50%) rotate(-24deg);
+}
+.watermark-grid span { font-size: 1.4rem; font-weight: 500; line-height: 1; color: var(--text-watermark); white-space: nowrap; }
