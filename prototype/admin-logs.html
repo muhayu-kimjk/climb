@@ -18,8 +18,8 @@
 </head>
 <!-- =====================================================================
   SCR-57 접속 기록 점검 (docs/02_화면목록.md)
-  - 정보보호팀(개인정보 담당)이 씁니다(기획자 결정 v0.25). 관리자가 자기 작업 기록을 스스로 점검하지 않도록
-    관리자에게는 보이지 않습니다. 슈퍼관리자는 모든 화면을 봅니다(REQ-AUTH-14).
+  - 정보보호 담당자가 씁니다(기획자 결정 v0.25). 관리자가 자기 작업 기록을 스스로 점검하지 않도록
+    관리자에게는 보이지 않습니다. 최고관리자는 모든 화면을 봅니다(REQ-AUTH-14).
   - 이상 행위 알림 확인, 매월 기록 점검 결과, 분기마다 권한 검토 결과를 남기고, 접속 기록을 조회합니다. (REQ-SEC-05, REQ-SEC-06, REQ-AUTH-13)
   - 접속 기록은 고치거나 지울 수 없고 영구 보관합니다. 이 화면을 연 것도 접속 기록에 남습니다.
   - 동작은 assets/js/admin-logs.js
@@ -31,7 +31,7 @@
   <div class="sheet">
   <header id="site-header"></header>
 
-  <main id="main" class="page">
+  <main id="main" class="page" tabindex="-1">
     <div class="inner">
       <div class="page-head page-head--sub">
         <h1 class="page-title">접속 기록 점검</h1>

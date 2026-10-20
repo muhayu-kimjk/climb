@@ -4,7 +4,7 @@
  * 관련 요구사항: REQ-FLOW-14, 17, 31, REQ-ARC-04
  * 하는 일
  *   1. 내가 등록한 계약을 모두 모음(작성 중 포함). 최근 것부터
- *      (슈퍼관리자, 관리자는 모든 영업 것을 영업 대표 칸과 함께. 작성 중은 작성자만 보므로 빠짐)
+ *      (최고관리자, 관리자는 모든 영업 것을 영업 대표 칸과 함께. 작성 중은 작성자만 보므로 빠짐)
  *   2. 검색, 상태, 구분으로 거르기. 한 쪽에 20건
  *   3. 할 일: 이어서 작성, 임시 저장 삭제(확인 창), 보완 후 재기안, ⑦ 체결본 등록
  * ===================================================================== */
@@ -114,7 +114,7 @@
     $('#del-desc').textContent = (target ? target.counterparty + ' 계약의 ' : '') + '임시 저장 내용을 지웁니다. 기안 전이라 결재 기록은 없고, 지우면 되살릴 수 없습니다.';
     lastFocus = b;
     modal.hidden = false;
-    modal.querySelector('[data-act="confirm"]').focus();
+    C.focusModal(modal); // 제목에 포커스 (KRDS 모달, v0.28)
   });
   function closeModal() { modal.hidden = true; target = null; if (lastFocus) lastFocus.focus(); }
   modal.addEventListener('click', function (e) {

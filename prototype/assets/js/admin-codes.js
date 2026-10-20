@@ -1,11 +1,11 @@
 /* =====================================================================
  * SCR-56 코드 관리 화면 로직 (admin-codes.js)
  * ---------------------------------------------------------------------
- * 관련 요구사항: 데이터 정의서 9장(관리자 관리 코드표, 코드값 원칙), REQ-ADM-09(부서 목록), REQ-REG-17(서비스 3단계)
+ * 관련 요구사항: 데이터 정의서 9장(관리자 관리 코드표, 코드값 원칙), REQ-ADM-09(조직 목록, 실과 유닛 2단계 v0.29), REQ-REG-17(서비스 3단계)
  * 하는 일
- *   1. 코드표 고르기: 부서, 서비스, 계약 유형, 계약 방식, 정산 방식, 사후관리 기록 종류
- *   2. 코드 표: 코드, 화면 이름, (서비스는 단계와 상위), 쓰는 곳, 상태, 고치기
- *   3. 코드 추가: 코드(영문 대문자, 숫자, 밑줄. 그 코드표 안에서 중복 불가), 화면 이름, 서비스는 단계와 상위 코드
+ *   1. 코드표 고르기: 조직, 서비스, 계약 유형, 계약 방식, 정산 방식, 사후관리 기록 종류
+ *   2. 코드 표: 코드, 화면 이름, (조직과 서비스는 단계와 상위), 쓰는 곳, 상태, 고치기
+ *   3. 코드 추가: 코드(영문 대문자, 숫자, 밑줄. 그 코드표 안에서 중복 불가), 화면 이름, 조직과 서비스는 단계와 상위 코드
  *   4. 고치기: 화면 이름, 사용 여부. 코드는 바꿀 수 없음. 사용 안 함은 새로 고르는 목록에서만 빠짐
  *   5. 변경 이력
  * 프로토타입: 바꾼 내용은 이 브라우저에만 저장(시연 기록)
@@ -18,16 +18,17 @@
   const $ = function (s) { return document.querySelector(s); };
   if (!C.gate(me, ['ADMIN'], '코드 관리는 관리자만 씁니다')) return;
 
-  const LEVEL = { 1: '대분류', 2: '중분류', 3: '소분류' };
+  // 단계가 있는 코드표의 단계 이름 (CODE_GROUPS.levels: 조직은 1, 2단계, 서비스는 대분류, 중분류, 소분류)
+  function levels() { return D.CODE_GROUPS[group].levels || null; }
   let group = 'DEPT';
   function val(f, n) { return (f.elements[n].value || '').trim(); }
   function find(code) { return D.CODES.filter(function (c) { return c.group === group && c.code === code; })[0]; }
-  function serviceLabel(code) { const c = D.CODES.filter(function (x) { return x.group === 'SERVICE' && x.code === code; })[0]; return c ? c.label : code; }
+  function serviceLabel(code) { const c = D.CODES.filter(function (x) { return x.group === group && x.code === code; })[0]; return c ? c.label : code; }
 
-  // 서비스는 상위 아래에 하위가 오도록 줄 세움
+  // 단계가 있는 코드표는 상위 아래에 하위가 오도록 줄 세움
   function ordered() {
     const list = C.codeList(group, true);
-    if (group !== 'SERVICE') return list;
+    if (!levels()) return list;
     const out = [];
     (function walk(parent) {
       list.filter(function (c) { return (c.parent || null) === parent; }).forEach(function (c) { out.push(c); walk(c.code); });
@@ -49,7 +50,7 @@
   }
 
   function render() {
-    const g = D.CODE_GROUPS[group], svc = group === 'SERVICE';
+    const g = D.CODE_GROUPS[group], svc = !!levels(), LEVEL = levels() || {};
     $('#groups').innerHTML = Object.keys(D.CODE_GROUPS).map(function (k) {
       return '<button type="button" data-group="' + k + '" aria-pressed="' + (k === group) + '">' + esc(D.CODE_GROUPS[k].name) + '</button>';
     }).join('');
@@ -61,7 +62,7 @@
       '<th scope="col">쓰는 곳</th><th scope="col">상태</th><th scope="col" class="col-action">관리</th></tr>';
     $('#rows').innerHTML = ordered().map(function (c) {
       return '<tr' + (c.use ? '' : ' class="is-muted"') + '><td class="nowrap"><code>' + esc(c.code) + '</code></td>' +
-        '<td class="cell-strong">' + (svc && c.level > 1 ? '<span aria-hidden="true">' + new Array(c.level).join('　') + '└ </span>' : '') + esc(c.label) + '</td>' +
+        '<td class="cell-strong' + (svc ? ' nowrap' : '') + '">' + (svc && c.level > 1 ? '<span aria-hidden="true">' + new Array(c.level).join('　') + '└ </span>' : '') + esc(c.label) + '</td>' +
         (svc ? '<td class="nowrap">' + esc(LEVEL[c.level]) + '</td><td class="nowrap">' + (c.parent ? esc(serviceLabel(c.parent)) : '-') + '</td>' : '') +
         '<td class="nowrap">' + esc(usage(c)) + '</td>' +
         '<td class="nowrap">' + (c.use ? C.badge('success', '사용 중') : C.badge('neutral', '사용 안 함')) + '</td>' +
@@ -78,7 +79,7 @@
       body: '<p class="modal-info">코드 ' + esc(c.code) + ' (코드는 바꿀 수 없습니다), 쓰는 곳: ' + esc(usage(c)) + '</p>' +
         C.fieldHtml({ name: 'label', label: '화면 이름', required: true, value: c.label }) +
         C.fieldHtml({ name: 'use', label: '상태', type: 'select', value: String(c.use), options: [['true', '사용 중'], ['false', '사용 안 함']] }) +
-        C.fieldHtml({ name: 'reason', label: '고치는 사유', type: 'textarea', required: true, placeholder: '예: 조직 개편으로 부서 이름 변경' }),
+        C.fieldHtml({ name: 'reason', label: '고치는 사유', type: 'textarea', required: true, placeholder: '예: 조직 개편으로 조직 이름 변경' }),
       btn: '저장',
       check: function (f) {
         const label = val(f, 'label'), use = val(f, 'use') === 'true';
@@ -100,9 +101,10 @@
     });
   }
   function openAdd() {
-    const g = D.CODE_GROUPS[group], svc = group === 'SERVICE';
+    const g = D.CODE_GROUPS[group], svc = !!levels(), LEVEL = levels() || {};
+    const lvOpts = Object.keys(LEVEL).map(function (k) { return [k, LEVEL[k]]; });
     function parents(level) {
-      return C.codeList('SERVICE', true).filter(function (x) { return x.level === level - 1; }).map(function (x) { return [x.code, x.label + ' (' + x.code + ')']; });
+      return C.codeList(group, true).filter(function (x) { return x.level === level - 1; }).map(function (x) { return [x.code, x.label + ' (' + x.code + ')']; });
     }
     C.formModal({
       title: g.name + ' 코드를 추가할까요?',
@@ -112,7 +114,7 @@
           C.fieldHtml({ name: 'label', label: '화면 이름', required: true }) +
         '</div>' +
         (svc ? '<div class="field-row">' +
-          C.fieldHtml({ name: 'level', label: '단계', type: 'select', required: true, value: '2', options: [['1', '대분류'], ['2', '중분류'], ['3', '소분류']] }) +
+          C.fieldHtml({ name: 'level', label: '단계', type: 'select', required: true, value: '2', options: lvOpts }) +
           C.fieldHtml({ name: 'parent', label: '상위', type: 'select', required: true, options: [['', '고르세요']].concat(parents(2)) }) +
         '</div>' : '') +
         C.fieldHtml({ name: 'reason', label: '추가하는 사유', type: 'textarea', required: true }),
@@ -122,7 +124,7 @@
         f.elements.level.addEventListener('change', function () {
           const lv = Number(f.elements.level.value);
           f.elements.parent.disabled = lv === 1;
-          f.elements.parent.innerHTML = lv === 1 ? '<option value="">없음 (대분류)</option>'
+          f.elements.parent.innerHTML = lv === 1 ? '<option value="">없음 (' + esc(LEVEL[1]) + ')</option>'
             : '<option value="">고르세요</option>' + parents(lv).map(function (p) { return '<option value="' + esc(p[0]) + '">' + esc(p[1]) + '</option>'; }).join('');
         });
       },

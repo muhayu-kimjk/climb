@@ -18,7 +18,7 @@
 </head>
 <!-- =====================================================================
   SCR-54 가격 기준 관리 (docs/02_화면목록.md)
-  - 표준단가표와 할인율 한도를 관리합니다. 관리자와 슈퍼관리자가 바꾸고, 영업과 세일즈어드민은 볼 수만 있습니다. (REQ-SCOPE-02, 4.1)
+  - 표준단가표와 할인율 한도를 관리합니다. 관리자와 최고관리자가 바꾸고, 영업과 영업지원은 볼 수만 있습니다. (REQ-SCOPE-02, 4.1)
   - 바꿀 때는 적용 시작일, 사내 품의 문서 링크(필수), 변경 사유를 넣습니다. 승인은 CLIMB이 아니라 사내 품의 결재로 받습니다(REQ-CHK-07).
   - 기존 기준은 고치지 않고 새 적용 시작일로 새 줄을 더합니다. 이미 기안한 계약은 기안할 때의 기준을 그대로 씁니다.
   - 동작은 assets/js/admin-prices.js
@@ -30,7 +30,7 @@
   <div class="sheet">
   <header id="site-header"></header>
 
-  <main id="main" class="page">
+  <main id="main" class="page" tabindex="-1">
     <div class="inner">
       <div class="page-head page-head--sub">
         <h1 class="page-title">가격 기준 관리</h1>

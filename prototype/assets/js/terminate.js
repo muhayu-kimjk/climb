@@ -4,9 +4,9 @@
  * 관련 요구사항: REQ-FLOW-29, REQ-ARC-06
  * 하는 일
  *   1. 주소의 원계약 번호로 묶음을 찾고 해지 기안을 할 수 있는지 확인
- *      (지금 유효한 계약이 계약 완료, 영업 대표 본인(시연용 슈퍼관리자 포함), 진행 중인 갱신이나 해지 없음)
+ *      (지금 유효한 계약이 계약 완료, 영업 대표 본인(시연용 최고관리자 포함), 진행 중인 갱신이나 해지 없음)
  *   2. 해지일(오늘부터 계약 종료일 사이), 해지 사유(필수), 환불과 위약금, 해지 관련 서류(선택)
- *   3. 결재선 미리 보기: ③ 부서장 → ④ 법무 → ⑨ CEM 운영 종료 → ⑩ 재무 확인
+ *   3. 결재선 미리 보기: ③ 영업 리더 → ④ 법무 → ⑨ 고객지원 운영 종료 → ⑩ 재무 확인
  *   4. 기안하면 -T01 번호로 원계약에 묶어 저장(프로토타입은 이 브라우저에만)하고 결재 문서로 이동
  * ===================================================================== */
 (function () {
@@ -23,6 +23,7 @@
   const found = D.CONTRACTS.find(function (c) { return c.id === origin; });
   const b = found ? C.bundleOf(C.rootOf(found)) : null;
   const back = b ? 'contract.html?id=' + encodeURIComponent(b.id) : 'contracts.html';
+  C.breadcrumb([['보관함', 'contracts.html'], ['계약 상세', back], ['해지 기안']]);
   if (!b || !C.canView(b.root, me)) {
     $('#notice').innerHTML = notice('해지할 계약을 찾을 수 없습니다', '계약 상세나 만료 예정 계약에서 "해지 기안"을 눌러 들어와 주세요.');
     return;
@@ -64,9 +65,9 @@
 
   /* ---------- 결재선 미리 보기 ---------- */
   const route = [
-    { no: '③', name: '영업 검토', who: '팀 리더 ' + C.userName(C.stepUserNow('S03', root)), reason: '해지가 영업상 맞는지 승인' },
+    { no: '③', name: '영업 검토', who: '영업 리더 ' + C.userName(C.stepUserNow('S03', root)), reason: '해지가 영업상 맞는지 승인' },
     { no: '④', name: '법무 검토', who: '법무 ' + C.userName(C.stepUserNow('S04', root)), reason: '해지 사유와 위약금 등 법적 위험 검토' },
-    { no: '⑨', name: '운영 적용 (운영 종료)', who: 'CEM ' + C.userName(C.stepUserNow('S09', root)), reason: '해지일에 라이선스나 도메인을 닫음' },
+    { no: '⑨', name: '운영 적용 (운영 종료)', who: '고객지원 ' + C.userName(C.stepUserNow('S09', root)), reason: '해지일에 라이선스나 도메인을 닫음' },
     { no: '⑩', name: '재무 확인', who: '재무 ' + C.userName(C.stepUserNow('S10', root)), reason: '환불, 위약금, 매출 조정 확인' },
   ];
   $('#route').innerHTML = '<ol class="route-list">' + route.map(function (it) {
@@ -83,13 +84,8 @@
   $('#demo-file').addEventListener('click', function () { setFile(root.counterparty + '_해지합의서.pdf'); });
 
   /* ---------- 입력 검사 (KRDS 오류 패턴) ---------- */
-  function setError(name, msg) {
-    const field = document.querySelector('[data-field="' + name + '"]');
-    const err = field.querySelector('.field-error');
-    field.classList.toggle('is-invalid', !!msg);
-    err.innerHTML = msg ? C.icon('alert', 'sm') + esc(msg) : '';
-    err.hidden = !msg;
-  }
+  // 오류 표시와 aria-invalid는 공통 함수로 (KRDS, v0.28)
+  function setError(name, msg) { C.setFieldError(document.querySelector('[data-field="' + name + '"]'), msg); }
   function validate() {
     const errors = [];
     const date = $('#f-date').value, reason = $('#f-reason').value.trim();
@@ -124,7 +120,7 @@
       '<div><dt>해지 번호</dt><dd>' + esc(newId) + '</dd></div>' +
       '<div><dt>해지일</dt><dd>' + C.fmtDate($('#f-date').value) + '</dd></div></dl>';
     modal.hidden = false;
-    modal.querySelector('[data-act="confirm"]').focus();
+    C.focusModal(modal); // 제목에 포커스 (KRDS 모달, v0.28)
   });
   modal.addEventListener('click', function (e) {
     if (e.target === modal || e.target.closest('[data-act="close"]')) modal.hidden = true;

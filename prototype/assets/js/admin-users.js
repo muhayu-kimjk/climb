@@ -3,12 +3,12 @@
  * ---------------------------------------------------------------------
  * 관련 요구사항: REQ-AUTH-02(관리자가 역할 지정), REQ-AUTH-05(여러 역할), REQ-AUTH-13(접속 기록), REQ-ADM-01~09, REQ-SEC-05
  * 하는 일
- *   1. 관리자와 슈퍼관리자만 볼 수 있게 막기
- *   2. 검색(이름, 이메일), 권한, 부서, 상태로 거르기
+ *   1. 관리자와 최고관리자만 볼 수 있게 막기
+ *   2. 검색(이름, 이메일), 권한, 조직, 상태로 거르기 (v0.29: 부서 → 조직, 권한은 분야별 묶음)
  *   3. 쪽 나누기: 한 쪽에 PAGE_SIZE(20)명. 화면이 A4 2장(약 2,245px)을 넘지 않게 정한 값
- *   4. 사용자 추가: 이메일(@muhayu.com, 중복 불가), 이름, 부서(부서 목록), 권한(여러 개), 사유 → 첫 접속 전 상태
- *   5. 수정: 부서, 권한, 상태(사용 중지, 다시 사용), 사유 (기획자 결정 v0.25: 관리자가 바꾸고 사유를 남김)
- *      [가정] 자기 권한은 스스로 바꿀 수 없음(직무 분리). 슈퍼관리자 권한은 슈퍼관리자만 주거나 뺌
+ *   4. 사용자 추가: 이메일(@muhayu.com, 중복 불가), 이름, 조직(조직 목록), 권한(여러 개, 분야와 등급 2단계), 사유 → 첫 접속 전 상태
+ *   5. 수정: 조직, 권한, 상태(사용 중지, 다시 사용), 사유 (기획자 결정 v0.25: 관리자가 바꾸고 사유를 남김)
+ *      [가정] 자기 권한은 스스로 바꿀 수 없음(직무 분리). 최고관리자 권한은 최고관리자만 주거나 뺌
  *      결재 단계 담당자를 사용 중지하거나 그 역할을 빼려면 먼저 결재선 규칙(SCR-52)에서 담당자를 바꿔야 함
  *   6. 권한 변경 이력: 최근 5건, 모두 보기로 펼침
  * 프로토타입: 계정 데이터는 mock-data.js의 ACCOUNTS(가상 인물). 실제 시스템은 서버에서 거르고 쪽을 나눠 받아옵니다.
@@ -26,25 +26,34 @@
    * 25명이면 약 2,400px로 2장을 넘고, 20명이면 약 2,150px로 2장 안에 들어갑니다. 인쇄하면 A4 한 장입니다. */
   const PAGE_SIZE = 20;
 
-  /* ---------- 1. 관리자와 슈퍼관리자만 (REQ-AUTH-02) ---------- */
+  /* ---------- 1. 관리자와 최고관리자만 (REQ-AUTH-02) ---------- */
   if (me.role !== 'ADMIN' && me.role !== 'SUPER') {
     $('#notice').innerHTML =
       '<div class="notice" role="status"><p class="notice-title">' + C.icon('alert') + '사용자 권한 관리는 관리자만 볼 수 있습니다</p>' +
-      '<p>지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 화면 맨 위 검은 띠에서 관리자나 슈퍼관리자로 바꾸면 볼 수 있습니다.</p></div>';
+      '<p>지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 화면 맨 위 검은 띠에서 관리자나 최고관리자로 바꾸면 볼 수 있습니다.</p></div>';
     $('#users').hidden = true;
     return;
   }
 
   /* ---------- 거르기 선택지 ---------- */
   const all = D.ACCOUNTS;
-  const depts = all.map(function (a) { return a.dept; }).filter(function (d, i, arr) { return arr.indexOf(d) === i; });
+  // 조직은 코드표 순서(실 아래 유닛)대로
+  const deptOrder = C.codeList('DEPT', true).map(function (c) { return c.label; });
+  const rank = function (d) { const i = deptOrder.indexOf(d); return i < 0 ? 999 : i; };
+  const depts = all.map(function (a) { return a.dept; }).filter(function (d, i, arr) { return arr.indexOf(d) === i; })
+    .sort(function (a, b) { return rank(a) - rank(b); });
   function options(first, pairs) {
     return '<option value="">' + esc(first) + '</option>' + pairs.map(function (p) {
       return '<option value="' + esc(p[0]) + '">' + esc(p[1]) + '</option>';
     }).join('');
   }
-  $('#f-role').innerHTML = options('전체 권한', Object.keys(D.ROLES).map(function (r) { return [r, D.ROLES[r]]; }));
-  $('#f-dept').innerHTML = options('전체 부서', depts.map(function (d) { return [d, d]; }));
+  // 권한: 분야마다 묶어 보여 줌 (역할 2단계, v0.29)
+  $('#f-role').innerHTML = '<option value="">전체 권한</option>' + D.ROLE_AREAS.map(function (g) {
+    return '<optgroup label="' + esc(g.name) + '">' + Object.keys(g.roles).map(function (r) {
+      return '<option value="' + esc(r) + '">' + esc(D.ROLES[r]) + '</option>';
+    }).join('') + '</optgroup>';
+  }).join('');
+  $('#f-dept').innerHTML = options('전체 조직', depts.map(function (d) { return [d, d]; }));
   $('#f-status').innerHTML = options('전체 상태', Object.keys(D.ACCOUNT_STATUS).map(function (s) { return [s, D.ACCOUNT_STATUS[s].label]; }));
 
   /* ---------- 표시 도우미 ---------- */
@@ -52,7 +61,7 @@
   function dt(s) { return s ? s.replace(/-/g, '.') : '-'; }
   function roleBadges(roles) {
     return '<span class="role-badges">' + roles.map(function (r) {
-      // 슈퍼관리자와 관리자는 진한 배지로 눈에 띄게 [가정]
+      // 최고관리자와 관리자는 진한 배지로 눈에 띄게 [가정]
       return C.badge(r === 'SUPER' || r === 'ADMIN' ? 'attention' : 'line', C.roleLabel(r));
     }).join('') + '</span>';
   }
@@ -125,14 +134,21 @@
   function val(f, n) { return (f.elements[n].value || '').trim(); }
   function rolesOf(f) { return Array.prototype.slice.call(f.querySelectorAll('[name="roles"]:checked')).map(function (x) { return x.value; }); }
   function roleNames(roles) { return roles.map(C.roleLabel).join(', '); }
-  const deptOptions = function () { return [['', '고르세요']].concat(C.codeList('DEPT').map(function (c) { return [c.label, c.label]; })); };
-  // 권한 체크 묶음. 슈퍼관리자 권한은 슈퍼관리자만 보임
+  // 조직 목록: 실 아래 유닛은 들여 씀 (v0.29)
+  const deptOptions = function () {
+    return [['', '고르세요']].concat(C.codeList('DEPT').map(function (c) { return [c.label, (c.level > 1 ? '\u00a0\u00a0└ ' : '') + c.label]; }));
+  };
+  // 권한 체크 묶음: 분야(1단계)마다 한 줄에 등급(2단계)을 나란히 (v0.29). 최고관리자 권한은 최고관리자만 보임
   function rolesHtml(selected) {
-    const roles = Object.keys(D.ROLES).filter(function (r) { return r !== 'SUPER' || me.role === 'SUPER'; });
+    const rows = D.ROLE_AREAS.map(function (g) {
+      const roles = Object.keys(g.roles).filter(function (r) { return r !== 'SUPER' || me.role === 'SUPER'; });
+      if (!roles.length) return '';
+      return '<fieldset class="role-row"><legend class="role-row-name">' + esc(g.name) + '</legend><div class="role-row-choices">' + roles.map(function (r) {
+        return '<label class="choice"><input type="checkbox" name="roles" value="' + r + '"' + (selected.indexOf(r) > -1 ? ' checked' : '') + '>' + esc(g.roles[r]) + '</label>';
+      }).join('') + '</div></fieldset>';
+    }).join('');
     return '<fieldset class="field" data-field="roles"><legend class="field-label">권한<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>' +
-      '<div class="check-grid">' + roles.map(function (r) {
-        return '<label class="choice"><input type="checkbox" name="roles" value="' + r + '"' + (selected.indexOf(r) > -1 ? ' checked' : '') + '>' + esc(D.ROLES[r]) + '</label>';
-      }).join('') + '</div><p class="field-help">한 사람이 여러 역할을 가질 수 있습니다. 하는 일에 필요한 역할만 줍니다.</p><p class="field-error" hidden></p></fieldset>';
+      '<div class="role-pick">' + rows + '</div><p class="field-help">분야마다 등급(담당자, 리더, 임원)을 고릅니다. 한 사람이 여러 역할을 가질 수 있고, 하는 일에 필요한 역할만 줍니다.</p><p class="field-error" hidden></p></fieldset>';
   }
   function openAdd() {
     C.formModal({
@@ -141,9 +157,9 @@
       body: C.fieldHtml({ name: 'email', label: '이메일(계정)', type: 'email', required: true, placeholder: '이름@muhayu.com', help: '회사 Google 계정(@muhayu.com)만 넣을 수 있습니다.' }) +
         '<div class="field-row">' +
           C.fieldHtml({ name: 'uname', label: '이름', required: true }) +
-          C.fieldHtml({ name: 'dept', label: '부서', type: 'select', required: true, options: deptOptions() }) +
+          C.fieldHtml({ name: 'dept', label: '조직', type: 'select', required: true, options: deptOptions() }) +
         '</div>' + rolesHtml([]) +
-        C.fieldHtml({ name: 'reason', label: '추가하는 사유', type: 'textarea', required: true, placeholder: '예: 10월 20일 입사, 영업1팀 배치' }),
+        C.fieldHtml({ name: 'reason', label: '추가하는 사유', type: 'textarea', required: true, placeholder: '예: 10월 20일 입사, 비즈니스1유닛 배치' }),
       btn: '사용자 추가',
       check: function (f) {
         const email = val(f, 'email').toLowerCase();
@@ -151,7 +167,7 @@
           email: !/^[a-z0-9._-]+@muhayu\.com$/.test(email) ? '@muhayu.com으로 끝나는 회사 이메일을 넣으세요.'
             : all.some(function (a) { return a.email === email; }) ? '이미 등록된 이메일입니다.' : '',
           uname: val(f, 'uname') ? '' : '이름을 넣으세요.',
-          dept: val(f, 'dept') ? '' : '부서를 고르세요.',
+          dept: val(f, 'dept') ? '' : '조직을 고르세요.',
           roles: rolesOf(f).length ? '' : '권한을 하나 이상 고르세요.',
           reason: val(f, 'reason') ? '' : '추가하는 사유를 적으세요.',
         };
@@ -161,15 +177,15 @@
         C.adminSave('USER', a.name + ' (' + a.email + ')', '사용자 추가: ' + a.dept + ', ' + roleNames(a.roles), val(f, 'reason'), { k: 'ACCOUNT_ADD', a: a });
         page = Math.ceil(filtered().length / PAGE_SIZE);
         render();
-        C.toast(a.name + '님을 추가했습니다. 첫 접속 전 상태입니다.');
+        C.toast(a.name + '님을 첫 접속 전 상태로 추가했습니다.');
       },
     });
   }
   function openEdit(email) {
     const a = all.filter(function (x) { return x.email === email; })[0];
-    // 직무 분리 [가정]: 자기 권한은 다른 관리자가 바꿈. 슈퍼관리자 계정은 슈퍼관리자만
-    if (a.id === me.id) { C.toast('자기 권한은 스스로 바꿀 수 없습니다. 다른 관리자에게 요청하세요.'); return; }
-    if (a.roles.indexOf('SUPER') > -1 && me.role !== 'SUPER') { C.toast('슈퍼관리자 계정은 슈퍼관리자만 바꿀 수 있습니다.'); return; }
+    // 직무 분리 [가정]: 자기 권한은 다른 관리자가 바꿈. 최고관리자 계정은 최고관리자만
+    if (a.id === me.id) { C.toast('자기 권한은 다른 관리자에게 바꿔 달라고 요청하세요.', true); return; }
+    if (a.roles.indexOf('SUPER') > -1 && me.role !== 'SUPER') { C.toast('최고관리자 계정은 최고관리자만 바꿀 수 있습니다.', true); return; }
     const states = a.status === 'SUSPENDED' ? [['SUSPENDED', '사용 중지'], ['ACTIVE', '다시 사용']]
       : [[a.status, D.ACCOUNT_STATUS[a.status].label], ['SUSPENDED', '사용 중지']];
     C.formModal({
@@ -177,16 +193,16 @@
       desc: '저장하면 다음 화면부터 바뀐 권한이 적용됩니다. 사용 중지하면 바로 로그인할 수 없고, 계정과 기록은 지우지 않고 남깁니다.',
       body: '<p class="modal-info">' + esc(a.email) + ', 등록일 ' + C.fmtDate(a.registeredAt) + '</p>' +
         '<div class="field-row">' +
-          C.fieldHtml({ name: 'dept', label: '부서', type: 'select', required: true, value: a.dept, options: deptOptions() }) +
+          C.fieldHtml({ name: 'dept', label: '조직', type: 'select', required: true, value: a.dept, options: deptOptions() }) +
           C.fieldHtml({ name: 'status', label: '상태', type: 'select', value: a.status, options: states }) +
         '</div>' + rolesHtml(a.roles) +
-        C.fieldHtml({ name: 'reason', label: '바꾸는 사유', type: 'textarea', required: true, placeholder: '예: 10월 20일 법무팀으로 인사 이동' }),
+        C.fieldHtml({ name: 'reason', label: '바꾸는 사유', type: 'textarea', required: true, placeholder: '예: 10월 20일 경영지원유닛으로 인사 이동' }),
       btn: '저장',
       check: function (f) {
         const roles = rolesOf(f), status = val(f, 'status');
         const same = val(f, 'dept') === a.dept && status === a.status && roles.join() === a.roles.join();
         // 결재 단계 담당자는 결재선 규칙에서 먼저 담당자를 바꿔야 함
-        const steps = C.duties(a.id).filter(function (x) { return status === 'SUSPENDED' || roles.indexOf(x.role) < 0; });
+        const steps = C.duties(a.id).filter(function (x) { return status === 'SUSPENDED' || !C.canTake(roles, x.role); });
         // 지금 이 사람 차례인 결재가 남아 있으면 사용 중지 전에 대리 지정으로 넘겨야 함 (차례인 건은 원래 담당자에게 남으므로)
         const covered = D.DELEGATIONS.some(function (d) { return d.absentId === a.id && C.delegationState(d) === 'ACTIVE'; });
         const waiting = status === 'SUSPENDED' && !covered ? C.pendingQueue(me, true).filter(function (x) { return x.s.userId === a.id; }).length : 0;
@@ -194,7 +210,7 @@
           ' 담당자입니다. 먼저 결재선 규칙에서 담당자를 바꾸세요.'
           : waiting ? '지금 이 사람 차례인 결재가 ' + waiting + '건 있습니다. 먼저 결재선 규칙에서 대리 지정으로 다른 사람에게 넘기세요.' : '';
         return {
-          dept: val(f, 'dept') ? '' : '부서를 고르세요.',
+          dept: val(f, 'dept') ? '' : '조직을 고르세요.',
           status: status === 'SUSPENDED' && stepMsg ? stepMsg : '',
           roles: !roles.length ? '권한을 하나 이상 고르세요.' : same ? '바뀐 내용이 없습니다.' : status !== 'SUSPENDED' && stepMsg ? stepMsg : '',
           reason: val(f, 'reason') ? '' : '바꾸는 사유를 적으세요.',
@@ -203,7 +219,7 @@
       done: function (f) {
         const set = {}, parts = [];
         const roles = rolesOf(f), status = val(f, 'status');
-        if (val(f, 'dept') !== a.dept) { set.dept = val(f, 'dept'); parts.push('부서: ' + a.dept + ' → ' + set.dept); }
+        if (val(f, 'dept') !== a.dept) { set.dept = val(f, 'dept'); parts.push('조직: ' + a.dept + ' → ' + set.dept); }
         if (roles.join() !== a.roles.join()) { set.roles = roles; parts.push('권한: ' + roleNames(a.roles) + ' → ' + roleNames(roles)); }
         if (status !== a.status) { set.status = status; parts.push('상태: ' + D.ACCOUNT_STATUS[a.status].label + ' → ' + D.ACCOUNT_STATUS[status].label); }
         C.adminSave('USER', a.name + ' (' + a.email + ')', parts.join(', '), val(f, 'reason'), { k: 'ACCOUNT_EDIT', email: a.email, set: set });

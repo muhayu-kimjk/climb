@@ -63,6 +63,10 @@
   const legalNote = !short && !change && !!c.checklist && c.checklist.standard === 'NO';
   const isTerm = c.kind === 'TERMINATE';
   const rootId = C.rootOf(c);
+  // 브레드크럼: 진행 중이면 계약 현황, 끝난 계약이면 보관함 아래 (KRDS, v0.28)
+  C.breadcrumb(['ACTIVE', 'EXPIRED', 'TERMINATED'].indexOf(c.status) > -1
+    ? [['보관함', 'contracts.html'], ['계약 상세', 'contract.html?id=' + encodeURIComponent(rootId)], ['결재 문서 ' + c.id]]
+    : [['계약 현황', 'progress.html'], ['결재 문서 ' + c.id]]);
   const parent = c.parentId ? D.CONTRACTS.find(function (x) { return x.id === c.parentId; }) : null;
   const seq = Number(String(rootId).replace(/\D/g, '').slice(-4)) || 1;
   const reqDate = (c.requestedAt || '').slice(0, 10);
@@ -123,7 +127,7 @@
   const cancelable = (c.approvals || []).filter(function (s) { return C.canCancel(c, s, me); });
   // 내 차례: 담당자 본인이거나 대리 지정 기간 안의 대신할 사람 (REQ-REV-08)
   const isMine = function (s) { return C.isMyStep(s, me); };
-  // 보완 요청을 받은 기안자가 보완 완료를 누를 수 있는지 (슈퍼관리자는 시연용으로 대신)
+  // 보완 요청을 받은 기안자가 보완 완료를 누를 수 있는지 (최고관리자는 시연용으로 대신)
   const canResubmit = c.status === 'SUPPLEMENT' && !!c.supplement && (me.id === c.requesterId || me.role === 'SUPER');
   // 대리 지정으로 대신 처리하는 단계면 "최민준님 대신 (대리 지정 10.19 ~ 10.23)" 안내
   function behalfText(s) {
@@ -173,7 +177,7 @@
       html = canResubmit
         ? notice('', C.stepLabel(sp.step) + '에서 보완을 요청했습니다', head +
           '고친 뒤 화면 아래에서 보완 완료를 누르면 ' + no + '부터 이어서 결재합니다. 금액이나 체크리스트 답을 바꾸면 계약 검토를 처음부터 다시 받습니다.' +
-          (me.id === c.requesterId ? '' : ' (시연: 슈퍼관리자가 기안자 대신 처리해 볼 수 있습니다)'))
+          (me.id === c.requesterId ? '' : ' (시연: 최고관리자가 기안자 대신 처리해 볼 수 있습니다)'))
         : notice('', C.stepLabel(sp.step) + '에서 보완을 요청해 기안자가 고치는 중입니다', head + '기안자가 고치면 ' + no + '부터 이어서 결재합니다.');
     } else if (c.status === 'REJECTED') {
       html = notice('', C.stepLabel(c.rejection.step) + '에서 반려되었습니다',
@@ -181,7 +185,7 @@
         '<br>기안자가 보완해 ' + (round + 1) + '차로 다시 기안합니다.');
     } else if (actionable.length && me.role === 'SUPER') {
       html = notice('', '시연: 담당자 대신 처리해 볼 수 있습니다',
-        '슈퍼관리자는 모든 결재 문서를 볼 수 있고, 프로토타입에서는 담당자 대신 각 단계를 처리해 볼 수 있습니다. 실제 시스템에서는 담당자 본인과 관리자가 대리로 지정한 사람만 처리합니다(결재선 규칙의 대리 지정).' + ret);
+        '최고관리자는 모든 결재 문서를 볼 수 있고, 프로토타입에서는 담당자 대신 각 단계를 처리해 볼 수 있습니다. 실제 시스템에서는 담당자 본인과 관리자가 대리로 지정한 사람만 처리합니다(결재선 규칙의 대리 지정).' + ret);
     } else if (c.status === 'APPROVED' || c.status === 'OPS_REVIEW') {
       html = notice('success', c.status === 'APPROVED' ? '계약 검토가 끝나 체결 중입니다' : '체결이 끝나 운영 검토 중입니다',
         (c.status === 'APPROVED' ? C.fmtDateTime(c.approvedAt) + '에 계약 검토가 끝났습니다. ' : C.fmtDateTime(c.signedAt) + '에 체결본을 등록했습니다. ') +
@@ -205,9 +209,9 @@
     const skip = function (s) { return s.state === 'SKIPPED' ? ' class="is-skipped"' : ''; };
     const head = (withDraft ? '<th scope="col">' + esc(D.STEPS.S01.no + ' ' + D.STEPS.S01.short) + '</th>' : '') +
       steps.map(function (s) { return '<th scope="col">' + esc(D.STEPS[s.step].no + ' ' + D.STEPS[s.step].short) + '</th>'; }).join('');
-    const who = (withDraft ? '<td>' + esc(C.roleLabel('SALES')) + '<br><strong>' + esc(C.userName(c.requesterId)) + '</strong></td>' : '') +
+    const who = (withDraft ? '<td>' + esc(C.roleShort('SALES')) + '<br><strong>' + esc(C.userName(c.requesterId)) + '</strong></td>' : '') +
       steps.map(function (s) {
-        return '<td' + skip(s) + '>' + esc(C.roleLabel(s.role)) + '<br><strong>' + esc(C.userName(s.userId)) + '</strong></td>';
+        return '<td' + skip(s) + '>' + esc(C.roleShort(s.role)) + '<br><strong>' + esc(C.userName(s.userId)) + '</strong></td>';
       }).join('');
     const result = (withDraft ? '<td>' + C.badge('line', '기안') + '</td>' : '') +
       steps.map(function (s) {
@@ -240,10 +244,10 @@
       boxHtml(steps.filter(function (s) { return s.phase > 2; }), false);
     const routed = C.routedReview(c).map(function (s) { return D.STEPS[s.step].no; }).join(', ');
     $('#box-desc').textContent = change
-      ? '운영 변경은 ' + (C.changeSales(c)[0] ? '③ 팀 리더가 승인한 뒤 ' : '') + '⑨ ' + (hrChange ? '재무기획' : 'CEM') +
+      ? '운영 변경은 ' + (C.changeSales(c)[0] ? '③ 영업 리더가 승인한 뒤 ' : '') + '⑨ ' + (hrChange ? '재무' : '고객지원') +
         '이 반영하면 끝납니다. 체크리스트, 법무, 날인, 체결본, 재무 확인은 없습니다.'
       : short
-      ? (isTerm ? '해지 기안' : '갱신 검토') + '은 ③ 부서장, ④ 법무가 승인한 뒤 ⑨ CEM ' + (isTerm ? '운영 종료' : '기간 연장') + ', ⑩ 재무 확인을 거칩니다. 체크리스트, 날인, 체결본은 없습니다.'
+      ? (isTerm ? '해지 기안' : '갱신 검토') + '은 ③ 영업 리더, ④ 법무가 승인한 뒤 ⑨ 고객지원 ' + (isTerm ? '운영 종료' : '기간 연장') + ', ⑩ 재무 확인을 거칩니다. 체크리스트, 날인, 체결본은 없습니다.'
       : '거치는 단계: ' + routed + '. ② 다음 ③을 검토하고, 그 다음 ④와 ⑤를 동시에 검토합니다. 생략한 단계는 체크리스트 답에 따른 것입니다. ' +
         '승인 뒤에는 ⑥ 인장 날인부터 ⑩ 재무 확인까지 하나씩 차례로 거칩니다.';
   }
@@ -283,7 +287,7 @@
         dd('변경 사유', esc(c.reason || '-')),
         dd('CRM 영업활동', c.activityUrl ? '<a href="#" class="doc-link" data-activity>' + esc(c.activityUrl) + '</a>' : '-'),
         dd('③ 영업 검토', (sales[0] ? '거침: ' : '생략: ') + esc(sales[1])),
-        dd('⑨ 반영', hrChange ? '재무기획(수불부)' : 'CEM'),
+        dd('⑨ 반영', hrChange ? '재무(수불부)' : '고객지원'),
       ].join('') + '</dl>';
       return;
     }
@@ -337,7 +341,7 @@
       return;
     }
     if (short) {
-      $('#checklist').innerHTML = '<p class="empty">' + (isTerm ? '해지 기안' : '갱신 검토') + '은 체크리스트 없이 ③ 부서장과 ④ 법무가 결재합니다.</p>';
+      $('#checklist').innerHTML = '<p class="empty">' + (isTerm ? '해지 기안' : '갱신 검토') + '은 체크리스트 없이 ③ 영업 리더와 ④ 법무가 결재합니다.</p>';
       return;
     }
     const ck = c.checklist || {};
@@ -382,7 +386,7 @@
       '<thead><tr><th scope="col">일시</th><th scope="col">차수</th><th scope="col">단계</th><th scope="col">한 일</th><th scope="col">처리한 사람</th><th scope="col">의견, 사유</th></tr></thead>' +
       '<tbody>' + rows.map(function (h) {
         const a = D.APPROVAL_ACTIONS[h.action];
-        // 대신 처리한 기록: 대리 지정이면 "대리 지정"과 근거, 슈퍼관리자 시연이면 "시연"
+        // 대신 처리한 기록: 대리 지정이면 "대리 지정"과 근거, 최고관리자 시연이면 "시연"
         const who = esc(C.userName(h.actorId)) + '님' + (h.onBehalfOf ? ' <span class="behalf">(' + esc(C.userName(h.onBehalfOf)) + '님 대신, ' + (h.delegationId ? '대리 지정' : '시연') + ')</span>' : '');
         // 체결본 등록은 올린 파일 이름도 함께
         const extra = [h.fileName ? '파일: ' + esc(h.fileName) : '', h.basis ? '대리 근거: ' + esc(h.basis) : '',
@@ -419,13 +423,13 @@
     if (!actionable.length && !cancelable.length && !canResubmit) { bar.hidden = true; return; }
     let html = '';
     if (canResubmit) {
-      // 보완 완료: 기안자(시연에서는 슈퍼관리자도)
+      // 보완 완료: 기안자(시연에서는 최고관리자도)
       html += '<div class="act-row"><p class="act-target"><strong>' + esc(C.stepLabel(c.supplement.step)) + ' 보완 요청</strong>' +
         (me.id === c.requesterId ? '' : ' <span class="behalf">' + esc(C.userName(c.requesterId)) + '님 대신 (시연)</span>') + '</p>' +
         '<div class="act-btns"><button type="button" class="btn btn--primary btn--md" data-open="RESUBMIT" data-step="S01">보완 완료</button></div></div>';
     }
     if (actionable.length) {
-      // 슈퍼관리자는 ④⑤처럼 동시에 차례인 단계 중 하나를 골라 대신 처리 (프로토타입 전용)
+      // 최고관리자는 ④⑤처럼 동시에 차례인 단계 중 하나를 골라 대신 처리 (프로토타입 전용)
       const pick = actionable.length > 1
         ? '<label class="act-pick">처리할 단계 <select class="select" id="act-step">' + actionable.map(function (s) {
             return '<option value="' + s.step + '">' + esc(C.stepLabel(s.step)) + ' (' + esc(C.userName(s.userId)) + '님)</option>';
@@ -466,7 +470,7 @@
     if (action === 'RETURN') return { title: '체결본을 다시 올려 달라고 할까요?', label: '요청 사유 (필수)', btn: '다시 등록 요청', required: true, tone: 'secondary',
       desc: '오탈자나 스캔 문제처럼 계약 내용은 같을 때 씁니다. 영업이 체결본을 다시 올리면 다시 확인합니다.' };
     if (action === 'REGISTER') return { title: '체결본을 등록할까요?', label: '메모 (선택)', btn: '체결본 등록', required: false, tone: 'primary', file: true,
-      desc: '등록하면 세일즈어드민이 승인된 내용과 같은지 확인합니다. 등록한 체결본은 고치거나 지울 수 없습니다.' };
+      desc: '등록하면 영업지원이 승인된 내용과 같은지 확인합니다. 등록한 체결본은 고치거나 지울 수 없습니다.' };
     if (code === 'S04' && legalNote) return { title: '승인할까요?', label: '바꾼 조항과 판단 (필수)', btn: '승인', required: true, tone: 'primary',
       desc: '승인하면 다음 단계로 넘어갑니다. 표준계약서를 바꾼 계약이라 바꾼 조항과 받아들인 판단을 꼭 적습니다(조항 대비표 참고).' };
     if (C.isReviewStep(code)) return { title: '승인할까요?', label: '의견 (선택)', btn: '승인', required: false, tone: 'primary',
@@ -479,7 +483,7 @@
         desc: '처리하면 영업이 상대방 서명을 받아 체결본을 올릴 차례가 됩니다. 인장 사용 기록은 기존 구글 폼에 따로 남겨 주세요.',
         legend: '계약서 실물과 같은지 확인한 항목 (모두 확인)', checks: D.SEAL_CHECKS },
       S08: { title: '체결본 확인을 완료할까요?', label: '메모 (선택)', btn: '확인 완료', required: false, tone: 'primary',
-        desc: '완료하면 운영 검토로 넘어가 CEM이 운영에 적용할 차례가 됩니다.',
+        desc: '완료하면 운영 검토로 넘어가 고객지원이 운영에 적용할 차례가 됩니다.',
         legend: '확인한 내용 (모두 확인)', checks: ['체결본이 승인된 계약 내용과 같음', '양쪽 서명과 날인이 모두 있음'] },
       S09: { title: change ? '운영 변경을 완료할까요?' : isTerm ? '운영 종료를 완료할까요?' : c.renewMode === 'AUTO' ? '기간 연장을 완료할까요?' : '운영 적용을 완료할까요?',
         label: '메모 (선택)', btn: S09_BTN, required: false, tone: 'primary',
@@ -505,6 +509,8 @@
     $('#act-comment').value = '';
     $('#act-error').hidden = true;
     $('#act-field').classList.remove('is-invalid');
+    $('#act-comment').removeAttribute('aria-invalid');
+    $('#act-comment').setAttribute('aria-describedby', 'act-error'); // 오류 문장을 화면낭독기가 함께 읽음 (KRDS, v0.28)
     let extra = '';
     if (t.checks) {
       extra += '<fieldset class="field act-checks" id="act-checks"><legend class="field-label">' + esc(t.legend) + '</legend>' +
@@ -526,7 +532,7 @@
     $('#act-confirm').className = 'btn btn--' + t.tone + ' btn--md';
     lastFocus = document.activeElement;
     modal.hidden = false;
-    (modal.querySelector('#act-extra input') || $('#act-comment')).focus();
+    C.focusModal(modal); // 제목에 포커스. Enter로 바로 처리되지 않게 (KRDS 모달, v0.28)
   }
   function setFile(name) {
     fileName = name;
@@ -539,6 +545,7 @@
     err.innerHTML = msg ? C.icon('alert', 'sm') + esc(msg) : '';
     err.hidden = !msg;
     $(fieldSel).classList.toggle('is-invalid', !!msg);
+    $(fieldSel).querySelectorAll('input').forEach(function (c) { if (msg) c.setAttribute('aria-invalid', 'true'); else c.removeAttribute('aria-invalid'); });
   }
   modal.addEventListener('change', function (e) {
     if (e.target.id !== 'act-file-input') return;
@@ -571,6 +578,7 @@
       $('#act-error').innerHTML = C.icon('alert', 'sm') + esc(word) + (code >= 0 && code < 11172 && code % 28 ? '을' : '를') + ' 적어 주세요.';
       $('#act-error').hidden = false;
       $('#act-field').classList.add('is-invalid');
+      $('#act-comment').setAttribute('aria-invalid', 'true');
       ok = false;
     }
     if (!ok) { const bad = modal.querySelector('.is-invalid input, .is-invalid textarea'); if (bad) bad.focus(); return; }
@@ -617,18 +625,17 @@
   $('#amount').addEventListener('click', function (e) {
     if (!e.target.closest('[data-activity]')) return;
     e.preventDefault();
-    C.toast('CRM 영업활동 기록은 기존 CRM에서 열립니다. 시안에서는 열리지 않습니다.');
+    C.toast('CRM 영업활동 기록은 기존 CRM에서 열립니다(시안에서는 안내만).');
   });
   // 첨부 미리보기, 내려받기 (프로토타입은 안내만)
   $('#files').addEventListener('click', function (e) {
     const b = e.target.closest('[data-file]');
     if (!b) return;
     const kind = b.getAttribute('data-file');
-    C.toast(kind === 'pdf'
-      ? '프로토타입: 실제 시스템에서는 이름과 일시 워터마크를 찍은 PDF로 내려받고, 누가 언제 받았는지 기록에 남깁니다.'
-      : kind === 'original'
-        ? '프로토타입: 실제 시스템에서는 고칠 수 있는 원본을 내려받고 기록에 남깁니다. 원본은 기안자, 법무, 관리자만 받을 수 있습니다.'
-        : '프로토타입: 실제 시스템에서는 새 창에서 파일 미리보기가 열립니다.');
+    // 한 문장으로 (KRDS 토스트, v0.28)
+    C.toast(kind === 'pdf' ? '실제 시스템에서는 이름과 일시 워터마크를 찍은 PDF로 받고, 받은 기록이 남습니다(시안).'
+      : kind === 'original' ? '원본은 기안자, 법무, 관리자만 받고, 받은 기록이 남습니다(시안).'
+      : '실제 시스템에서는 새 창에서 미리보기가 열립니다(시안).');
   });
 
   renderNotice();

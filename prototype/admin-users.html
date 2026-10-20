@@ -19,14 +19,14 @@
 </head>
 <!-- =====================================================================
   SCR-51 사용자 권한 관리 (docs/02_화면목록.md)
-  - CLIMB을 쓰는 사람의 계정 정보와 역할(권한)을 한 표로 봅니다. 관리자와 슈퍼관리자만 씁니다. (REQ-AUTH-02, REQ-ADM)
-  - 칸: 이메일(계정), 이름, 부서, 권한, 상태, 등록일, 최초 접속일시, 최종 로그인일시, 최종 로그아웃일시, 권한 변경일, 관리
+  - CLIMB을 쓰는 사람의 계정 정보와 역할(권한)을 한 표로 봅니다. 관리자와 최고관리자만 씁니다. (REQ-AUTH-02, REQ-ADM)
+  - 칸: 이메일(계정), 이름, 조직, 권한, 상태, 등록일, 최초 접속일시, 최종 로그인일시, 최종 로그아웃일시, 권한 변경일, 관리
   - 표가 넓어 가로 스크롤로 보고, 이메일 칸은 옆으로 밀어도 왼쪽에 붙어 있습니다.
   - 한 쪽에 보이는 사람 수는 화면이 A4 2장을 넘지 않게 정했고, 넘는 사람은 아래 쪽 번호로 넘겨 봅니다.
-  - 검색, 권한, 부서, 상태로 거르기, 쪽 넘기기는 assets/js/admin-users.js가 처리합니다.
-  - 사용자 추가와 수정(부서, 권한, 사용 중지)은 사유가 필수이고, 아래 권한 변경 이력에 남습니다(기획자 결정 v0.25, REQ-ADM-08).
-    분기마다 정보보호팀이 접속 기록 점검(SCR-57)에서 이 이력과 사유를 확인합니다(REQ-SEC-05).
-  - [가정] 자기 권한은 스스로 바꿀 수 없고, 슈퍼관리자 권한은 슈퍼관리자만 주거나 뺄 수 있습니다.
+  - 검색, 권한, 조직, 상태로 거르기, 쪽 넘기기는 assets/js/admin-users.js가 처리합니다.
+  - 사용자 추가와 수정(조직, 권한, 사용 중지)은 사유가 필수이고, 아래 권한 변경 이력에 남습니다(기획자 결정 v0.25, REQ-ADM-08).
+    분기마다 정보보호 담당자가 접속 기록 점검(SCR-57)에서 이 이력과 사유를 확인합니다(REQ-SEC-05).
+  - [가정] 자기 권한은 스스로 바꿀 수 없고, 최고관리자 권한은 최고관리자만 주거나 뺄 수 있습니다.
 ====================================================================== -->
 <body data-page="SCR-51">
   <a class="skip-link" href="#main">본문 바로가기</a>
@@ -35,7 +35,7 @@
   <div class="sheet">
   <header id="site-header"></header>
 
-  <main id="main" class="page">
+  <main id="main" class="page" tabindex="-1">
     <div class="inner">
       <div class="page-head page-head--sub">
         <h1 class="page-title">사용자 권한 관리</h1>
@@ -62,7 +62,7 @@
             <select class="select" id="f-role"></select>
           </div>
           <div class="field">
-            <label class="field-label field-label--sm" for="f-dept">부서</label>
+            <label class="field-label field-label--sm" for="f-dept">조직</label>
             <select class="select" id="f-dept"></select>
           </div>
           <div class="field">
@@ -81,12 +81,12 @@
         <!-- 가로 스크롤 영역: 키보드로도 옆으로 움직일 수 있게 tabindex -->
         <div class="tbl-scroll" tabindex="0" role="region" aria-label="사용자 목록 표 (옆으로 밀어서 보기)">
           <table class="tbl tbl--compact tbl--users">
-            <caption class="sr-only">사용자 목록: 이메일, 이름, 부서, 권한, 상태, 등록일, 최초 접속일시, 최종 로그인일시, 최종 로그아웃일시, 권한 변경일</caption>
+            <caption class="sr-only">사용자 목록: 이메일, 이름, 조직, 권한, 상태, 등록일, 최초 접속일시, 최종 로그인일시, 최종 로그아웃일시, 권한 변경일</caption>
             <thead>
               <tr>
                 <th scope="col" class="col-email">이메일(계정)</th>
                 <th scope="col">이름</th>
-                <th scope="col">부서</th>
+                <th scope="col">조직</th>
                 <th scope="col">권한</th>
                 <th scope="col">상태</th>
                 <th scope="col">등록일</th>
@@ -110,7 +110,7 @@
             <h2 class="panel-title" id="sec-history">권한 변경 이력</h2>
             <button type="button" class="btn btn--tertiary btn--md" id="btn-history" aria-expanded="false">모두 보기</button>
           </div>
-          <p class="panel-desc">사용자를 추가하고, 부서와 권한을 바꾸고, 사용 중지한 기록입니다. 고치거나 지울 수 없습니다.</p>
+          <p class="panel-desc">사용자를 추가하고, 조직과 권한을 바꾸고, 사용 중지한 기록입니다. 고치거나 지울 수 없습니다.</p>
           <div id="history"></div>
         </section>
       </section>

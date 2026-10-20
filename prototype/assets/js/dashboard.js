@@ -6,6 +6,7 @@
  *   1. 계약 진행 현황: KRDS 단계 표시기(계약 등록 → 계약 검토 → 계약 체결 → 운영 검토 → 계약 완료)
  *      + 그 아래 진행 상세 표(고객사, 서비스, 상태, 현재 진행). 최대한 간단하게 진행 상황만 보여줌
  *   2. 내가 검토할 계약: 결재 역할에게만
+ *   2-1. 점검할 일: 정보보호 담당자, 리더와 최고관리자에게만. 이상 행위 알림, 매월 기록 점검, 분기 권한 검토 (v0.27)
  *   3. 만료 임박
  * 계약명은 따로 두지 않으므로 계약은 고객사와 서비스로 표시합니다. (v0.12)
  * "확인 필요" 상자는 뺐습니다. (REQ-DASH-09, v0.12)
@@ -20,9 +21,11 @@
   const esc = C.esc;
   const R = D.ALERT_RULES;
 
-  const isApprover = D.APPROVER_ROLES.indexOf(me.role) > -1;
-  // 단계를 처리하는 역할(결재 역할 + 총무, CEM, 재무). 결재 역할이 아니면 "검토" 대신 "처리"라고 씀 (v0.23)
-  const isProcessor = D.PROCESS_ROLES.indexOf(me.role) > -1;
+  const isApprover = C.hasRole(me, D.APPROVER_ROLES); // 리더는 그 분야 담당자처럼 (v0.29)
+  // 단계를 처리하는 역할(결재 역할 + 총무, 고객지원, 재무). 결재 역할이 아니면 "검토" 대신 "처리"라고 씀 (v0.23)
+  // 재무 리더와 재무 임원은 결재 단계를 맡지 않는 열람 역할(기획자 결정 v0.29)이라 "처리할 계약" 대신 전체 현황 인사말
+  const viewOnly = me.role !== me.base && D.STEP_LEADS.indexOf(me.role) < 0;
+  const isProcessor = C.hasRole(me, D.PROCESS_ROLES) && !viewOnly;
   const doWord = isApprover ? '검토할' : '처리할';
   const isSales = me.role === 'SALES';
 
@@ -40,6 +43,36 @@
   const scope = isSales
     ? all.filter(function (c) { return c.requesterId === me.id; })
     : all.filter(function (c) { return c.status !== 'DRAFT'; });
+
+  /* ---------- 점검할 일 (REQ-DASH-16, REQ-SEC-05, 06, REQ-ADM-19~21) ----------
+   * 접속 기록 점검(SCR-57)과 같은 기준: CLIMB을 쓰기 시작한 달(2026-09)부터,
+   * [가정] 매월 점검 기한은 다음 달 말일, 분기 권한 검토 기한은 분기가 끝난 다음 달 말일 */
+  const isAuditor = C.hasRole(me, ['PRIVACY']) || me.role === 'SUPER'; // 정보보호 담당자와 리더(v0.29)
+  function auditItems() {
+    const START = '2026-09', THIS = D.TODAY.slice(0, 7);
+    const pad = function (n) { return String(n).padStart(2, '0'); };
+    const lastDay = function (y, m) { return y + '-' + pad(m) + '-' + pad(new Date(y, m, 0).getDate()); };
+    const next = function (y, m) { return m === 12 ? [y + 1, 1] : [y, m + 1]; };
+    const items = [];
+    const open = D.SEC_ALERTS.filter(function (a) { return a.status === 'OPEN'; });
+    items.push({ what: '이상 행위 알림 확인', todo: open.length > 0, state: open.length ? '확인 전 ' + open.length + '건' : '모두 확인', due: null });
+    // 매월 기록 점검: 끝난 달 중 점검하지 않은 달
+    let y = 2026, m = 9;
+    const months = [];
+    for (; (y + '-' + pad(m)) < THIS; [y, m] = next(y, m)) months.push([y, m]);
+    const monthTodo = months.filter(function (x) { return !D.LOG_REVIEWS.some(function (r) { return r.month === x[0] + '-' + pad(x[1]); }); });
+    if (monthTodo.length) monthTodo.forEach(function (x) { const n = next(x[0], x[1]); items.push({ what: x[0] + '년 ' + x[1] + '월 기록 점검', todo: true, state: '점검 전', due: lastDay(n[0], n[1]) }); });
+    else { const n = next(Number(THIS.slice(0, 4)), Number(THIS.slice(5, 7))); items.push({ what: Number(THIS.slice(5, 7)) + '월 기록 점검', todo: false, state: '이달이 끝난 뒤', due: lastDay(n[0], n[1]) }); }
+    // 분기 권한 검토: 끝난 분기 중 검토하지 않은 분기
+    const qNow = Math.ceil(Number(THIS.slice(5, 7)) / 3), yNow = Number(THIS.slice(0, 4));
+    const quarters = [];
+    for (let qy = Number(START.slice(0, 4)), q = Math.ceil(Number(START.slice(5, 7)) / 3); qy < yNow || (qy === yNow && q < qNow); q === 4 ? (q = 1, qy++) : q++) quarters.push([qy, q]);
+    const qTodo = quarters.filter(function (x) { return !D.ACCESS_REVIEWS.some(function (r) { return r.quarter === x[0] + '-Q' + x[1]; }); });
+    qTodo.forEach(function (x) { const n = next(x[0], x[1] * 3); items.push({ what: x[0] + '년 ' + x[1] + '분기 권한 검토', todo: true, state: '검토 전', due: lastDay(n[0], n[1]) }); });
+    if (!qTodo.length) { const n = next(yNow, qNow * 3); items.push({ what: yNow + '년 ' + qNow + '분기 권한 검토', todo: false, state: '분기가 끝난 뒤', due: lastDay(n[0], n[1]) }); }
+    return items;
+  }
+  const audits = isAuditor ? auditItems() : [];
 
   /* ---------- 공통 조각 ---------- */
   // 고객사 칸과 서비스 칸: 계약명 대신 고객사와 서비스로 계약을 구분 (v0.12)
@@ -87,6 +120,9 @@
     } else {
       msg = name + '검토 중인 계약 <strong>' + inReview.length + '건</strong>, 열람 제한 계약 <strong>' + restricted.length + '건</strong>이 있습니다.';
     }
+    // 정보보호: 점검할 일도 함께 (REQ-DASH-16)
+    const auditCount = audits.filter(function (a) { return a.todo; }).length;
+    if (C.hasRole(me, ['PRIVACY']) && auditCount) msg += ' 점검할 일도 <strong class="em">' + auditCount + '건</strong> 있습니다.';
     document.getElementById('greeting').innerHTML = msg;
     document.getElementById('today').textContent = C.fmtToday() + ' 기준';
   }
@@ -94,7 +130,7 @@
   /* ---------- 2. 계약 진행 현황 (REQ-DASH-04, 06, 08, 14) ----------
    * 업무 흐름 5단계(REQ-FLOW-13)를 KRDS 단계 표시기로 보여주고, 단계마다 건수를 붙입니다.
    * 단계는 메뉴 구성과 따로 갑니다: 계약 등록 → 계약 검토 → 계약 체결 → 운영 검토 → 계약 완료(보관함)
-   * 건수가 있는 단계는 초록 원, 없는 단계는 회색 원입니다.
+   * 진행 표시로 읽히지 않게 단계 번호를 담은 원으로 그리고, 건수가 있는 단계는 Dark Green 테두리입니다(has-items, KRDS v0.28).
    * 단계마다 단계 번호, 단계 이름, 건수만 보여 주고 아래 작은 설명 글은 두지 않습니다. (v0.14) */
   const STEPS = [
     { label: '계약 등록', statuses: ['DRAFT'], target: '내 등록 목록', scr: 'SCR-12', href: 'my-contracts.html' },
@@ -113,7 +149,7 @@
         : scope.filter(function (c) { return s.statuses.indexOf(c.status) > -1; });
       const unknown = i === 0 && !isSales; // 작성 중 계약은 작성자 본인만 셀 수 있음
       const count = unknown ? '-' : list.length;
-      const cls = !unknown && list.length ? ' class="is-on"' : '';
+      const cls = !unknown && list.length ? ' class="has-items"' : ''; // 건수가 있는 단계 (v0.28: is-on 대신)
       return '<li' + cls + '>' +
         '<a class="step-body" ' + (s.href ? 'href="' + s.href + '"' : C.todoAttrs(s.target, s.scr)) + '>' +
           '<i class="step">' + (i + 1) + '단계</i>' +
@@ -147,7 +183,8 @@
 
     document.getElementById('progress').innerHTML =
       panelHead('progress-title', '계약 진행 현황', esc(sub)) +
-      '<ol class="step-wrap step-wrap--count" aria-label="계약 진행 단계별 건수">' + stepsHtml + '</ol>' +
+      // 한눈에 보기용 표시기(진행 표시와 다른 모양, KRDS v0.28)
+      '<ol class="step-wrap step-wrap--count step-wrap--flow" aria-label="계약 진행 단계별 건수">' + stepsHtml + '</ol>' +
       '<h3 class="block-subtitle">진행 상세</h3>' + table;
   }
 
@@ -159,8 +196,8 @@
     // 내 차례인 단계 (④⑤처럼 동시에 차례인 단계 중 내 것)
     const mine = function (c) { return C.pendingSteps(c).filter(function (s) { return C.isMyStep(s, me); })[0]; };
     const rows = myActions.slice().sort(function (a, b) { return C.waitDays(b, mine(b)) - C.waitDays(a, mine(a)); });
-    // CEM과 재무는 운영 검토 대기로, 그 외는 검토 대기로
-    const ops = me.role === 'CEM' || me.role === 'FINANCE';
+    // 고객지원과 재무는 운영 검토 대기로, 그 외는 검토 대기로
+    const ops = C.hasRole(me, ['CEM', 'FINANCE']);
     const head = panelHead('my-reviews-title', '내가 ' + doWord + ' 계약', rows.length + '건',
       ops ? '운영 검토 대기 전체 보기' : '검토 대기 전체 보기', ops ? 'SCR-34' : 'SCR-21', ops ? 'ops-queue.html' : 'review-queue.html');
     if (!rows.length) { el.innerHTML = head + '<p class="empty">지금 검토할 계약이 없습니다.</p>'; return; }
@@ -182,6 +219,26 @@
           '</tr>';
         }).join('') + '</tbody>' +
       '</table></div>';
+  }
+
+  /* ---------- 3-1. 점검할 일 (정보보호, REQ-DASH-16) ---------- */
+  function renderAudit() {
+    const el = document.getElementById('audit');
+    if (!isAuditor) return;
+    el.hidden = false;
+    const todo = audits.filter(function (a) { return a.todo; }).length;
+    el.innerHTML = panelHead('audit-title', '점검할 일', todo + '건', '접속 기록 점검으로', 'SCR-57', 'admin-logs.html') +
+      '<p class="panel-desc">접속 기록 점검은 정보보호 담당자가 합니다. 기한이 지나면 강조합니다.</p>' +
+      '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
+        '<caption class="sr-only">점검할 일: 할 일, 상태, 기한</caption>' +
+        '<thead><tr><th scope="col">할 일</th><th scope="col">상태</th><th scope="col">기한</th></tr></thead>' +
+        '<tbody>' + audits.map(function (a) {
+          const late = a.todo && a.due && C.daysUntil(a.due) < 0;
+          const dueText = !a.due ? (a.todo ? '바로' : '-') : C.fmtDate(a.due) + (a.todo ? ' (' + (late ? '기한 지남' : 'D-' + C.daysUntil(a.due)) + ')' : '');
+          return '<tr' + (late ? ' class="is-alert"' : '') + '><td><a class="cell-title" href="admin-logs.html">' + esc(a.what) + '</a></td>' +
+            '<td class="nowrap">' + C.badge(a.todo ? (a.what.indexOf('알림') > -1 ? 'danger' : 'attention') : 'line', a.state) + '</td>' +
+            '<td class="nowrap num-left">' + dueText + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
   }
 
   /* ---------- 4. 만료 임박 (REQ-DASH-07) ----------
@@ -221,5 +278,6 @@
   renderGreeting();
   renderProgress();
   renderMyReviews();
+  renderAudit();
   renderExpiring();
 })();

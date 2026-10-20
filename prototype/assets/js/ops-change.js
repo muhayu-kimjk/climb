@@ -4,10 +4,10 @@
  * 관련 요구사항: REQ-CHG-06~11 (기획자 결정 v0.26: 재무 문서의 계약 체결 이후 수정 절차 반영)
  * 하는 일
  *   1. 주소의 원계약 번호로 묶음을 찾고 운영 변경을 기안할 수 있는지 확인
- *      (지금 유효한 계약이 계약 완료, 영업 대표 본인(시연용 슈퍼관리자 포함), 진행 중인 해지 없음)
+ *      (지금 유효한 계약이 계약 완료, 영업 대표 본인(시연용 최고관리자 포함), 진행 중인 해지 없음)
  *   2. 변경 종류 하나: 계약 기간 변경(새 종료일), 추가 충전(수량, 유상이면 금액). 서비스에 있는 것만 고를 수 있음
  *   3. 변경 사유(필수), CRM 영업활동 링크(필수, https)
- *   4. 결재선 미리 보기: ③ 영업 검토(기간 2개월 넘게 바뀜, 무상 충전 50건 초과일 때만) → ⑨ 운영 변경(CEM, HR 충전은 재무기획)
+ *   4. 결재선 미리 보기: ③ 영업 검토(기간 2개월 넘게 바뀜, 무상 충전 50건 초과일 때만) → ⑨ 운영 변경(고객지원, HR 충전은 재무)
  *   5. 기안하면 -C01 번호로 원계약에 묶어 저장(프로토타입은 이 브라우저에만)하고 결재 문서로 이동
  * ===================================================================== */
 (function () {
@@ -24,6 +24,7 @@
   const found = D.CONTRACTS.find(function (c) { return c.id === origin; });
   const b = found ? C.bundleOf(C.rootOf(found)) : null;
   const back = b ? 'contract.html?id=' + encodeURIComponent(b.id) : 'contracts.html';
+  C.breadcrumb([['보관함', 'contracts.html'], ['계약 상세', back], ['운영 변경 기안']]);
   if (!b || !C.canView(b.root, me)) {
     $('#notice').innerHTML = notice('변경할 계약을 찾을 수 없습니다', '계약 상세에서 "운영 변경 기안"을 눌러 들어와 주세요.');
     return;
@@ -100,9 +101,9 @@
     const sales = ready ? C.changeSales(rec) : null;
     const hr = /^HR_/.test(t);
     const items = [
-      { no: '③', name: '영업 검토', who: '팀 리더 ' + C.userName(C.stepUserNow('S03', root)),
+      { no: '③', name: '영업 검토', who: '영업 리더 ' + C.userName(C.stepUserNow('S03', root)),
         state: !sales ? 'wait' : sales[0] ? 'go' : 'skip', reason: sales ? sales[1] : '변경 종류와 내용을 기다림' },
-      { no: '⑨', name: '운영 변경', who: hr ? '재무기획 ' + C.userName(C.stepUserNow('S10', root)) : 'CEM ' + C.userName(C.stepUserNow('S09', root)),
+      { no: '⑨', name: '운영 변경', who: hr ? '재무 ' + C.userName(C.stepUserNow('S10', root)) : '고객지원 ' + C.userName(C.stepUserNow('S09', root)),
         state: t ? 'go' : 'wait', reason: hr ? '수불부에 HR 추가 충전 반영' : t === 'PERIOD' ? '라이선스나 도메인 기간 변경' : t ? 'CK 추가 충전 반영' : '변경 종류를 기다림' },
     ];
     const BADGE = { go: ['progress', '거침'], skip: ['neutral', '생략'], wait: ['line', '답 대기'] };
@@ -112,7 +113,7 @@
         '<span class="route-reason">' + esc(it.reason) + '</span></span>' + C.badge(BADGE[it.state][0], BADGE[it.state][1]) + '</li>';
     }).join('') + '</ol>';
     $('#route-desc').textContent = '운영 변경은 체크리스트, 법무, 날인, 체결본, 재무 확인 없이 진행합니다. 기간이 ' + R.periodMonths +
-      '개월 넘게 바뀌거나 무상 충전이 ' + R.freeQty + '건을 넘을 때만 ③ 팀 리더가 승인합니다.';
+      '개월 넘게 바뀌거나 무상 충전이 ' + R.freeQty + '건을 넘을 때만 ③ 영업 리더가 승인합니다.';
   }
   $('#form').addEventListener('input', refresh);
   $('#form').addEventListener('change', refresh);
@@ -120,13 +121,8 @@
   $('#form').hidden = false;
 
   /* ---------- 입력 검사 (KRDS 오류 패턴) ---------- */
-  function setError(name, msg) {
-    const field = document.querySelector('[data-field="' + name + '"]');
-    const err = field.querySelector('.field-error');
-    field.classList.toggle('is-invalid', !!msg);
-    err.innerHTML = msg ? C.icon('alert', 'sm') + esc(msg) : '';
-    err.hidden = !msg;
-  }
+  // 오류 표시와 aria-invalid는 공통 함수로 (KRDS, v0.28)
+  function setError(name, msg) { C.setFieldError(document.querySelector('[data-field="' + name + '"]'), msg); }
   function validate() {
     const t = typeOf(), end = $('#f-end').value;
     const msgs = [
@@ -168,7 +164,7 @@
       '<div><dt>변경 종류</dt><dd>' + esc(D.CHANGE_TYPES[rec.changeType]) + '</dd></div>' +
       '<div><dt>변경 내용</dt><dd>' + esc(what) + '</dd></div></dl>';
     modal.hidden = false;
-    modal.querySelector('[data-act="confirm"]').focus();
+    C.focusModal(modal); // 제목에 포커스 (KRDS 모달, v0.28)
   });
   modal.addEventListener('click', function (e) {
     if (e.target === modal || e.target.closest('[data-act="close"]')) modal.hidden = true;

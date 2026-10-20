@@ -99,7 +99,7 @@
 
   /* 메뉴·선택 */
   --action-hover: var(--dark-green-8);      /* 메뉴에 마우스를 올렸을 때 */
-  --action-active: var(--mh-green);         /* 현재 메뉴 밑줄 */
+  --action-active: var(--mh-dark-green);    /* 현재 메뉴 밑줄: 흰 바탕 5.5:1 (KRDS 비텍스트 대비 3:1 이상, v0.28. Green은 2.4:1) */
   --icon-muted: var(--mh-gray);
   --focus-ring: 0 0 0 0.3rem var(--mh-blue);  /* 키보드 이동 표시 (흰 바탕 4.2:1) */
 

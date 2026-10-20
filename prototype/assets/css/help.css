@@ -42,3 +42,6 @@
 
 /* 5단계 표: 하는 일 칸에 자리를 더 줌 */
 .help-stack .col-who { width: 18%; }
+
+/* 역할별 할 일 표의 분야 칸(여러 줄을 묶음): 다른 칸처럼 위쪽에 맞추고 왼쪽 정렬 (역할 2단계, v0.29) */
+.help-stack .tbl tbody th[scope="row"] { vertical-align: top; text-align: left; padding: 1.4rem 1.6rem; border-bottom: 1px solid var(--border-gray-light); color: var(--text-bolder); white-space: nowrap; }

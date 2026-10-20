@@ -21,46 +21,64 @@ window.CLIMB_DATA = (function () {
   };
 
 
-  // 역할 코드 → 화면 표시 이름 (REQ-AUTH-01, REQ-AUTH-02)
-  // 표시 이름에는 가운뎃점을 쓰지 않습니다. (REQ-UI-08) 법무 검토 역할의 표시 이름은 '법무' (C-08 확정)
-  //   슈퍼관리자(SUPER): 모든 메뉴와 화면을 볼 수 있는 최상위 관리자. 화면은 슈퍼관리자 기준으로 먼저 만들고,
-  //   역할별로 보이는 화면은 그 뒤에 나눕니다. (v0.16)
-  //   세일즈어드민, 영업 담당 임원, 총무, CEM은 REQ-AUTH-12로 추가한 역할 (v0.16에 코드 추가)
-  const ROLES = {
-    SUPER: '슈퍼관리자',
-    ADMIN: '관리자',
-    SALES: '영업',
-    HEAD: '부서장',
-    EXEC: '영업 담당 임원',
-    SALES_ADMIN: '세일즈어드민',
-    LEGAL: '법무',
-    PRIVACY: '개인정보 담당',
-    GA: '총무',
-    CEM: 'CEM',
-    FINANCE: '재무',
-  };
+  /* ---------- 역할: 2단계 (REQ-AUTH-01, REQ-AUTH-02, 기획자 결정 v0.29) ----------
+   * 1단계는 하는 일의 분야(영업, 영업지원, 법무, 정보보호, 총무, 고객지원, 재무), 2단계는 등급(담당자, 리더, 임원)입니다.
+   *   리더: 유닛을 대표하는 부서장 / 임원: 영업은 COO, 재무는 CFO
+   *   최고관리자(SUPER, 예전 이름 슈퍼관리자), 관리자, 관찰자는 분야 없이 한 단계
+   * 화면 맨 위에는 역할 대신 조직명을 보여 줍니다. 역할은 관리자 화면(사용자 권한 관리)에서 봅니다. (v0.29)
+   * 코드는 예전 그대로 두고(SALES, HEAD 등) 표시 이름만 2단계로 바꿨습니다. 새 등급만 새 코드(SA_LEAD 등)입니다.
+   * 표시 이름에는 가운뎃점을 쓰지 않습니다. (REQ-UI-08)
+   *   org: 그 분야 사람이 주로 속한 조직(설명용) */
+  const ROLE_AREAS = [
+    { name: '시스템 관리', solo: true, roles: { SUPER: '최고관리자', ADMIN: '관리자' } },
+    { name: '영업', org: '비즈니스1~3유닛', roles: { SALES: '담당자', HEAD: '리더', EXEC: '임원' } },
+    { name: '영업지원', org: '세일즈어드민유닛', roles: { SALES_ADMIN: '담당자', SA_LEAD: '리더' } },
+    { name: '법무', org: '경영지원유닛', roles: { LEGAL: '담당자' } },
+    { name: '정보보호', org: '정보보호유닛', roles: { PRIVACY: '담당자', SEC_LEAD: '리더' } },
+    { name: '총무', org: '경영지원유닛', roles: { GA: '담당자' } },
+    { name: '고객지원', org: 'CEM유닛', roles: { CEM: '담당자', CEM_LEAD: '리더' } },
+    { name: '재무', org: '재무기획유닛', roles: { FINANCE: '담당자', FIN_LEAD: '리더', FIN_EXEC: '임원' } },
+    { name: '관찰', solo: true, roles: { OBSERVER: '관찰자' } },
+  ];
+  // 역할 코드 → 표시 이름("영업 담당자", "영업 리더"), 짧은 이름(결재란과 현재 진행 칸: 담당자는 분야 이름만, "영업", "법무")
+  const ROLES = {}, ROLE_SHORT = {}, ROLE_AREA = {};
+  ROLE_AREAS.forEach(function (g) {
+    Object.keys(g.roles).forEach(function (r) {
+      const level = g.roles[r];
+      ROLES[r] = g.solo ? level : g.name + ' ' + level;
+      ROLE_SHORT[r] = g.solo ? level : level === '담당자' ? g.name : g.name + ' ' + level;
+      ROLE_AREA[r] = g.name;
+    });
+  });
+  // 리더와 임원이 그 분야 담당자의 메뉴와 화면을 함께 쓰는 역할 (영업 리더와 영업 임원은 ③ 영업 검토라는 따로 하는 일이 있어 빠짐)
+  //   재무 리더와 재무 임원은 결재 단계를 맡지 않고 재무 담당자의 화면을 보기만 합니다(기획자 결정 v0.29)
+  const ROLE_BASE = { SA_LEAD: 'SALES_ADMIN', SEC_LEAD: 'PRIVACY', CEM_LEAD: 'CEM', FIN_LEAD: 'FINANCE', FIN_EXEC: 'FINANCE' };
+  // 결재선 규칙에서 단계 담당자나 대신할 사람으로 고를 수 있는 리더 [가정]. 재무 리더, 재무 임원, 관찰자는 열람만
+  const STEP_LEADS = ['SA_LEAD', 'SEC_LEAD', 'CEM_LEAD'];
 
-  // 2단계 계약 검토의 결재 역할: ② 세일즈어드민, ③ 부서장(리더 본인 건은 영업 담당 임원), ④ 법무, ⑤ 개인정보 담당
+  // 2단계 계약 검토의 결재 역할: ② 영업지원, ③ 영업 리더(리더 본인 건은 영업 임원), ④ 법무, ⑤ 정보보호
   // 재무는 결재선에 들어가지 않고 체결 뒤 회계 인식만 확인합니다. (C-15 확정, REQ-FLOW-26)
   const APPROVER_ROLES = ['SALES_ADMIN', 'LEGAL', 'PRIVACY', 'HEAD', 'EXEC'];
 
   // 사용자 (실제로는 Google 계정 로그인 정보 + 관리자가 지정한 역할)
+  //   dept: 조직(실, 유닛). 화면 맨 위 이름 앞에 보임 (v0.29 조직 개편 반영)
   const USERS = {
-    u_sales1: { name: '이도윤', dept: '영업1팀', role: 'SALES' },
-    u_sales2: { name: '정하은', dept: '영업2팀', role: 'SALES' },
-    u_head: { name: '최민준', dept: '영업본부', role: 'HEAD' },
-    u_legal: { name: '김지우', dept: '법무팀', role: 'LEGAL' },
-    u_privacy: { name: '한서연', dept: '정보보호팀', role: 'PRIVACY' },
-    u_finance: { name: '오현우', dept: '재무팀', role: 'FINANCE' },
-    u_admin: { name: '윤재민', dept: '경영지원팀', role: 'ADMIN' },
-    u_super: { name: '원지안', dept: '컴플라이언스팀', role: 'SUPER' },
-    u_exec: { name: '문태호', dept: '경영진', role: 'EXEC' },
-    u_sadmin: { name: '배수아', dept: '세일즈어드민팀', role: 'SALES_ADMIN' },
-    u_ga: { name: '노은채', dept: '경영지원팀', role: 'GA' },
-    u_cem: { name: '임하준', dept: 'CEM팀', role: 'CEM' },
+    u_sales1: { name: '이도윤', dept: '비즈니스1유닛', role: 'SALES' },
+    u_sales2: { name: '정하은', dept: '비즈니스2유닛', role: 'SALES' },
+    u_head: { name: '최민준', dept: '비즈니스1유닛', role: 'HEAD' },
+    u_legal: { name: '김지우', dept: '경영지원유닛', role: 'LEGAL' },
+    u_privacy: { name: '한서연', dept: '정보보호유닛', role: 'PRIVACY' },
+    u_finance: { name: '오현우', dept: '재무기획유닛', role: 'FINANCE' },
+    u_admin: { name: '윤재민', dept: '경영지원유닛', role: 'ADMIN' },
+    u_super: { name: '원지안', dept: '경영지원유닛', role: 'SUPER' },
+    u_exec: { name: '문태호', dept: '비즈니스유닛', role: 'EXEC' },
+    u_sadmin: { name: '배수아', dept: '세일즈어드민유닛', role: 'SALES_ADMIN' },
+    u_ga: { name: '노은채', dept: '경영지원유닛', role: 'GA' },
+    u_cem: { name: '임하준', dept: 'CEM유닛', role: 'CEM' },
   };
 
   // 시연용: 역할을 전환하면 이 사용자로 로그인한 것처럼 보입니다. (프로토타입 전용)
+  //   u_로 시작하는 나머지 번호는 아래 계정 목록(ACCOUNTS)에서 만들어집니다.
   const DEMO_PERSONA = {
     SUPER: 'u_super',
     ADMIN: 'u_admin',
@@ -68,11 +86,17 @@ window.CLIMB_DATA = (function () {
     HEAD: 'u_head',
     EXEC: 'u_exec',
     SALES_ADMIN: 'u_sadmin',
+    SA_LEAD: 'u_jihoon_eom',
     LEGAL: 'u_legal',
     PRIVACY: 'u_privacy',
+    SEC_LEAD: 'u_seungho_yeo',
     GA: 'u_ga',
     CEM: 'u_cem',
+    CEM_LEAD: 'u_yeonwoo_joo',
     FINANCE: 'u_finance',
+    FIN_LEAD: 'u_seojin_ma',
+    FIN_EXEC: 'u_jaewon_kook',
+    OBSERVER: 'u_daon_yong',
   };
 
   // 계약 상태 [가정]. tone은 배지 색 종류입니다. (tokens.css '계약 상태 배지')
@@ -84,7 +108,7 @@ window.CLIMB_DATA = (function () {
     SUPPLEMENT: { label: '보완 중', tone: 'attention' },  // 2단계: 결재자가 보완을 요청해 기안자가 고치는 중, 고치면 그 단계부터 이어 감 (v0.26)
     REJECTED: { label: '반려', tone: 'danger' },          // 2단계: 반려, 보완 후 재기안 가능
     APPROVED: { label: '체결 대기', tone: 'attention' },  // 3단계: 승인 완료, 오프라인 서명 후 체결본 등록 전
-    OPS_REVIEW: { label: '운영 검토', tone: 'progress' }, // 4단계: 체결 뒤 운영 적용(CEM), 재무 확인 [가정]
+    OPS_REVIEW: { label: '운영 검토', tone: 'progress' }, // 4단계: 체결 뒤 운영 적용(고객지원), 재무 확인 [가정]
     ACTIVE: { label: '계약 완료', tone: 'success' },      // 5단계: 계약 완료, 보관함에 보관, 계약 기간 중
     EXPIRED: { label: '만료', tone: 'neutral' },
     TERMINATED: { label: '해지', tone: 'neutral' },
@@ -111,7 +135,7 @@ window.CLIMB_DATA = (function () {
 
   /* ---------- 가격 기준: 표준단가표와 할인율 한도(cap) (REQ-SCOPE-02, REQ-CHK-04, REQ-CHK-07) ----------
    * 시연용 가상 값입니다. 실제 단가가 아닙니다.
-   * 관리자가 "가격 기준 관리"(SCR-54)에서 관리하고, 영업, 세일즈어드민, 관리자만 볼 수 있습니다.
+   * 관리자가 "가격 기준 관리"(SCR-54)에서 관리하고, 영업, 영업지원, 관리자만 볼 수 있습니다.
    * PRICE_ROWS: 바뀐 이력 전체. 값을 바꿀 때는 기존 줄을 고치지 않고 새 적용 시작일로 새 줄을 더합니다(데이터 정의서 8장).
    *   service: 제품이 속한 서비스(SERVICES) / listPrice: 표준 단가(원, 부가세 별도) / discountCap: 할인율 한도(이 비율까지 할인 가능)
    *   validFrom: 적용 시작일(이날 이후 기안하는 계약부터) / docUrl: 사내 품의 문서 링크(필수) / docNo: 품의 번호 / reason: 변경 사유
@@ -155,7 +179,7 @@ window.CLIMB_DATA = (function () {
     S06: { no: '⑥', name: '인장 날인 검토', short: '인장', role: 'GA', done: '날인', doneAction: '날인 완료', ing: '인장 날인 대기' },
     S07: { no: '⑦', name: '상대방 서명, 체결본 등록', short: '체결본', role: 'SALES', done: '등록', doneAction: '체결본 등록', ing: '체결본 등록 대기' },
     S08: { no: '⑧', name: '체결본 확인', short: '체결본 확인', role: 'SALES_ADMIN', done: '확인', doneAction: '확인 완료', ing: '체결본 확인 중' },
-    S09: { no: '⑨', name: '운영 적용', short: '운영', role: 'CEM', done: '적용', doneAction: '운영 적용 완료', ing: 'CEM 운영 적용 중' },
+    S09: { no: '⑨', name: '운영 적용', short: '운영', role: 'CEM', done: '적용', doneAction: '운영 적용 완료', ing: '운영 적용 중' },
     S10: { no: '⑩', name: '재무 확인', short: '재무', role: 'FINANCE', done: '확인', doneAction: '재무 확인 완료', ing: '재무 확인 중' },
     S11: { no: '⑪', name: '계약 완료', short: '완료', role: null },
   };
@@ -165,12 +189,12 @@ window.CLIMB_DATA = (function () {
   // 3단계 계약 체결과 4단계 운영 검토의 순서: ⑥ → ⑦ → ⑧ → ⑨ → ⑩, 하나씩 차례로 (REQ-SIGN-01, v0.23)
   //   ⑨ 운영 적용 다음에 ⑩ 재무 확인 (기획자 결정). 생략하는 단계는 없습니다.
   const POST_GROUPS = [['S06'], ['S07'], ['S08'], ['S09'], ['S10']];
-  // 단계를 처리하는 역할 (검토 완료 화면과 메뉴에 씀): 결재 역할 + 총무, CEM, 재무
+  // 단계를 처리하는 역할 (검토 완료 화면과 메뉴에 씀): 결재 역할 + 총무, 고객지원, 재무
   const PROCESS_ROLES = ['SALES_ADMIN', 'LEGAL', 'PRIVACY', 'HEAD', 'EXEC', 'GA', 'CEM', 'FINANCE'];
   // 단계별 담당자(처음 설정) [가정]. 관리자가 결재선 규칙(SCR-52)에서 바꾸면 ASSIGNEE_CHANGES에 쌓입니다. (REQ-AUTH-06)
-  //   ③ 영업 검토는 영업본부 부서장 한 명 [가정]. 부서장 본인이 기안한 계약은 영업 담당 임원(REQ-AUTH-12)
+  //   ③ 영업 검토는 기안자 유닛의 영업 리더(TEAM_LEADERS). 리더 본인이 기안한 계약은 영업 임원(COO) (REQ-AUTH-06, 12)
   const STEP_ASSIGNEE = {
-    // S03: 리더 본인이 기안한 계약의 ③ 영업 검토(영업 담당 임원). 팀원 계약은 TEAM_LEADERS의 팀 리더 (재무 문서 반영 v0.26)
+    // S03: 리더 본인이 기안한 계약의 ③ 영업 검토(영업 임원). 팀원 계약은 TEAM_LEADERS의 유닛 리더 (재무 문서 반영 v0.26)
     S02: 'u_sadmin', S03: 'u_exec', S04: 'u_legal', S05: 'u_privacy',
     S06: 'u_ga', S08: 'u_sadmin', S09: 'u_cem', S10: 'u_finance',
   };
@@ -195,16 +219,16 @@ window.CLIMB_DATA = (function () {
   };
   // ⑥ 총무가 날인 전에 계약서 실물과 맞춰 보는 항목 (REQ-FLOW-23, panda p.31)
   const SEAL_CHECKS = ['고객사명', '체결 제품', '계약 금액', '계약 기간'];
-  // ⑨ CEM이 운영에 적용하는 일. 서비스마다 다릅니다 (REQ-FLOW-25, panda p.35) [가정] 서비스 3단계 목록이 오면 다시 정함
+  // ⑨ 고객지원이 운영에 적용하는 일. 서비스마다 다릅니다 (REQ-FLOW-25, panda p.35) [가정] 서비스 3단계 목록이 오면 다시 정함
   const OPS_CHECKS = {
     CK: ['라이선스 열기', '계약번호 설정', '계약 기간 설정', '계약 금액 설정'],
     HR: ['도메인 열기', '계약 기간 설정'],
   };
-  // 해지할 때 ⑨에서 CEM이 하는 일 (REQ-SIGN-09) [가정]
+  // 해지할 때 ⑨에서 고객지원이 하는 일 (REQ-SIGN-09) [가정]
   const OPS_CHECKS_END = { CK: ['라이선스 닫기', '계약 종료일 설정'], HR: ['도메인 닫기', '계약 종료일 설정'] };
-  // 자동갱신(그대로 연장)할 때 ⑨에서 CEM이 하는 일 (REQ-ARC-07) [가정]
+  // 자동갱신(그대로 연장)할 때 ⑨에서 고객지원이 하는 일 (REQ-ARC-07) [가정]
   const OPS_CHECKS_EXTEND = { CK: ['라이선스 기간 연장'], HR: ['도메인 기간 연장'] };
-  // 운영 변경의 기간 변경(연장 또는 단축)에서 ⑨ CEM이 하는 일 (v0.26) [가정]
+  // 운영 변경의 기간 변경(연장 또는 단축)에서 ⑨ 고객지원이 하는 일 (v0.26) [가정]
   const OPS_CHECKS_PERIOD = { CK: ['라이선스 기간 변경'], HR: ['도메인 기간 변경'] };
   // 사후관리 기록 종류 (데이터 정의서 CODE-AFTERCARE-TYPE)
   const AFTERCARE_TYPES = { CONTACT_CHANGE: '담당자 변경', ISSUE: '특이사항' };
@@ -264,7 +288,7 @@ window.CLIMB_DATA = (function () {
       memo: '대형 연구기관 첫 계약입니다. 할인율이 한도를 넘어 영업 검토가 필요합니다.',
       history: [
         ev('S02', 'APPROVE', '2026-10-10 15:00'),
-        ev('S03', 'APPROVE', '2026-10-12 10:20', '3년 계약과 연구기관 레퍼런스 확보를 고려해 할인 승인', 'u_eunseong_ko'), // 영업2팀 리더
+        ev('S03', 'APPROVE', '2026-10-12 10:20', '3년 계약과 연구기관 레퍼런스 확보를 고려해 할인 승인', 'u_eunseong_ko'), // 비즈니스2유닛 리더
         ev('S05', 'APPROVE', '2026-10-13 10:05', '개인정보 처리위탁 조항 확인'),
       ],
     },
@@ -316,7 +340,7 @@ window.CLIMB_DATA = (function () {
       ],
     },
     {
-      // ③ 영업 검토 차례 예시(v0.26): 영업1팀 이도윤님의 계약이라 영업1팀 리더 최민준님이 검토
+      // ③ 영업 검토 차례 예시(v0.26): 비즈니스1유닛 이도윤님의 계약이라 비즈니스1유닛 리더 최민준님이 검토
       id: 'CT-2026-0418', counterparty: '새봄평생교육원', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 18000000, requesterId: 'u_sales1', requestedAt: '2026-10-16 15:00', restricted: false, personalData: false,
       status: 'IN_REVIEW',
@@ -376,7 +400,7 @@ window.CLIMB_DATA = (function () {
       checklist: { standard: 'NO', price: 'NA', cap: 'NA' },
     },
 
-    /* ----- 운영 검토 (OPS_REVIEW): ⑧ 체결본 확인 뒤 ⑨ 운영 적용(CEM) → ⑩ 재무 확인 ----- */
+    /* ----- 운영 검토 (OPS_REVIEW): ⑧ 체결본 확인 뒤 ⑨ 운영 적용(고객지원) → ⑩ 재무 확인 ----- */
     {
       id: 'CT-2026-0386', counterparty: '마루중학교', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 13200000, requesterId: 'u_sales1', requestedAt: '2026-09-18 10:00', restricted: false, personalData: false,
@@ -439,19 +463,19 @@ window.CLIMB_DATA = (function () {
       amount: 42000000, requesterId: 'u_sales1', requestedAt: '2026-04-13 10:00', restricted: false, personalData: true,
       status: 'ACTIVE', approvedAt: '2026-04-20 15:00', autoHistory: true, startDate: '2026-05-01', endDate: '2027-04-30',
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
-      notes: [{ type: 'ISSUE', at: '2026-08-20 11:00', by: 'u_sales1', content: '병원 정보보호팀 감사로 접속 기록 사본을 요청받아 CEM이 제공함' }],
+      notes: [{ type: 'ISSUE', at: '2026-08-20 11:00', by: 'u_sales1', content: '병원 정보보호팀 감사로 접속 기록 사본을 요청받아 CEM유닛이 제공함' }],
     },
-    /* ----- 갱신 검토와 해지 기안 (짧은 결재: ③ 부서장 → ④ 법무 → ⑨ 운영 → ⑩ 재무, REQ-ARC-06, 07) ----- */
+    /* ----- 갱신 검토와 해지 기안 (짧은 결재: ③ 영업 리더 → ④ 법무 → ⑨ 운영 → ⑩ 재무, REQ-ARC-06, 07) ----- */
     {
-      // 갱신 검토 "그대로 자동갱신" 예시: ③ 부서장 승인, ④ 법무 차례
+      // 갱신 검토 "그대로 자동갱신" 예시: ③ 영업 리더 승인, ④ 법무 차례
       id: 'CT-2026-0011-R01', parentId: 'CT-2026-0011', counterparty: '온새미로대학교', services: ['CK', 'HR'], type: 'SaaS 이용계약',
       kind: 'RENEW', renewMode: 'AUTO', amount: 72000000, requesterId: 'u_sales1', requestedAt: '2026-10-15 10:00',
       restricted: false, personalData: true, status: 'IN_REVIEW', startDate: '2027-01-10', endDate: '2028-01-09',
       autoRenew: 'YES', noticeDays: 30, reason: '이용 규모와 조건이 같아 기존 조건 그대로 1년 연장',
-      history: [ev('S03', 'APPROVE', '2026-10-16 09:30', '조건 그대로 연장에 동의', 'u_head')], // 영업1팀 리더
+      history: [ev('S03', 'APPROVE', '2026-10-16 09:30', '조건 그대로 연장에 동의', 'u_head')], // 비즈니스1유닛 리더
     },
     {
-      // 해지 기안 예시: ③ 부서장, ④ 법무 승인 뒤 ⑨ CEM 운영 종료 차례
+      // 해지 기안 예시: ③ 영업 리더, ④ 법무 승인 뒤 ⑨ 운영 종료 차례
       id: 'CT-2026-0150-T01', parentId: 'CT-2026-0150', counterparty: '가온테크', services: ['CK'], type: '리셀러 계약',
       kind: 'TERMINATE', amount: 0, requesterId: 'u_sales2', requestedAt: '2026-10-05 10:00', restricted: false, personalData: false,
       status: 'OPS_REVIEW', approvedAt: '2026-10-08 15:00', autoHistory: true, postAt: 'S09',
@@ -477,7 +501,7 @@ window.CLIMB_DATA = (function () {
      * changeType: CHANGE_TYPES / changeQty: 충전 수량(건) / changeAmount: 유상 충전 금액(원, 부가세 별도)
      * oldEndDate, endDate: 기간 변경 전후 종료일 / reason: 변경 사유 / activityUrl: CRM 영업활동 링크(재무 문서: 사유는 영업활동에 적고 링크를 남김) */
     {
-      // 무상 충전 80건(50건 초과)이라 ③ 영업 검토 차례. 끝나면 ⑨에서 재무기획이 수불부에 반영
+      // 무상 충전 80건(50건 초과)이라 ③ 영업 검토 차례. 끝나면 ⑨에서 재무가 수불부에 반영
       id: 'CT-2026-0222-C01', parentId: 'CT-2026-0222', counterparty: '이음병원', services: ['HR'], type: 'SaaS 이용계약', kind: 'CHANGE',
       changeType: 'HR_FREE', changeQty: 80, changeAmount: 0, amount: 0,
       requesterId: 'u_sales1', requestedAt: '2026-10-17 11:00', restricted: false, personalData: false, status: 'IN_REVIEW',
@@ -486,7 +510,7 @@ window.CLIMB_DATA = (function () {
       history: [],
     },
     {
-      // 무상 충전 30건(50건 이내)이라 영업 검토 없이 ⑨ CEM 운영 변경 차례
+      // 무상 충전 30건(50건 이내)이라 영업 검토 없이 ⑨ 고객지원 운영 변경 차례
       id: 'CT-2026-0105-C01', parentId: 'CT-2026-0105', counterparty: '누리교육재단', services: ['CK'], type: 'SaaS 이용계약', kind: 'CHANGE',
       changeType: 'CK_FREE', changeQty: 30, changeAmount: 0, amount: 0,
       requesterId: 'u_sales2', requestedAt: '2026-10-15 14:00', restricted: false, personalData: false, status: 'IN_REVIEW',
@@ -519,49 +543,52 @@ window.CLIMB_DATA = (function () {
   };
   const ACCOUNTS = [
     // [이메일(계정), 이름, 부서, 역할, 상태, 등록일, 최초 접속일시, 최종 로그인일시, 최종 로그아웃일시, 권한 변경일]
-    ['jian.won@muhayu.com', '원지안', '컴플라이언스팀', ['SUPER'], 'ACTIVE', '2026-09-01', '2026-09-03 10:12', '2026-10-15 12:17', '2026-10-15 19:18', '2026-09-01'],
-    ['jaemin.yoon@muhayu.com', '윤재민', '경영지원팀', ['ADMIN'], 'ACTIVE', '2026-09-01', '2026-09-03 11:03', '2026-10-13 12:28', '2026-10-13 19:45', '2026-09-01'],
-    ['eunchae.noh@muhayu.com', '노은채', '경영지원팀', ['GA'], 'ACTIVE', '2026-09-18', '2026-09-20 10:03', '2026-10-16 12:14', '2026-10-16 17:19', '2026-09-18'],
-    ['seoyun.tak@muhayu.com', '탁서윤', '경영지원팀', ['GA'], 'ACTIVE', '2026-09-06', '2026-09-09 14:03', '2026-10-13 13:17', '2026-10-13 21:28', '2026-09-06'],
-    ['taeho.moon@muhayu.com', '문태호', '경영진', ['EXEC'], 'ACTIVE', '2026-09-19', '2026-09-19 14:47', '2026-10-19 11:00', '2026-10-19 14:22', '2026-09-19'],
-    ['minjun.choi@muhayu.com', '최민준', '영업본부', ['HEAD'], 'ACTIVE', '2026-09-11', '2026-09-14 13:47', '2026-10-18 13:16', '2026-10-18 19:22', '2026-09-11'],
-    ['doyun.lee@muhayu.com', '이도윤', '영업1팀', ['SALES'], 'ACTIVE', '2026-09-22', '2026-09-23 16:34', '2026-10-19 09:47', '2026-10-19 11:11', '2026-09-22'],
-    ['seohyun.park@muhayu.com', '박서현', '영업1팀', ['SALES'], 'ACTIVE', '2026-09-02', '2026-09-04 13:47', '2026-10-18 08:37', '2026-10-18 17:22', '2026-09-02'],
-    ['taeyun.kim@muhayu.com', '김태윤', '영업1팀', ['SALES'], 'ACTIVE', '2026-09-08', '2026-09-11 13:03', '2026-10-17 08:33', '2026-10-17 14:15', '2026-09-08'],
-    ['yerin.jang@muhayu.com', '장예린', '영업1팀', ['SALES'], 'ACTIVE', '2026-09-06', '2026-09-08 17:03', '2026-10-13 12:12', '2026-10-13 16:43', '2026-09-06'],
-    ['junseo.hong@muhayu.com', '홍준서', '영업1팀', ['SALES'], 'ACTIVE', '2026-09-04', '2026-09-06 11:21', '2026-10-17 11:16', '2026-10-17 18:55', '2026-09-04'],
-    ['gaeun.shin@muhayu.com', '신가은', '영업1팀', ['SALES'], 'ACTIVE', '2026-09-13', '2026-09-15 09:21', '2026-10-19 10:35', '2026-10-19 14:03', '2026-09-13'],
-    ['taemin.ki@muhayu.com', '기태민', '영업1팀', ['SALES'], 'SUSPENDED', '2026-09-05', '2026-09-05 15:34', '2026-09-30 12:29', '2026-09-30 16:05', '2026-10-02'],
-    ['eunseong.ko@muhayu.com', '고은성', '영업2팀', ['HEAD'], 'ACTIVE', '2026-09-09', '2026-09-10 14:12', '2026-10-19 08:22', '2026-10-19 09:29', '2026-09-09'],
-    ['haeun.jung@muhayu.com', '정하은', '영업2팀', ['SALES'], 'ACTIVE', '2026-09-09', '2026-09-11 13:12', '2026-10-19 09:52', '2026-10-19 13:46', '2026-09-09'],
-    ['jiho.yoo@muhayu.com', '유지호', '영업2팀', ['SALES'], 'ACTIVE', '2026-09-11', '2026-09-12 12:12', '2026-10-15 08:52', '2026-10-15 13:58', '2026-09-11'],
-    ['nayeon.kwon@muhayu.com', '권나연', '영업2팀', ['SALES'], 'ACTIVE', '2026-09-21', '2026-09-22 14:21', '2026-10-19 08:22', '2026-10-19 10:01', '2026-09-21'],
-    ['siwoo.hwang@muhayu.com', '황시우', '영업2팀', ['SALES'], 'ACTIVE', '2026-09-04', '2026-09-04 09:03', '2026-10-16 15:42', '2026-10-16 23:31', '2026-09-04'],
-    ['chaewon.ahn@muhayu.com', '안채원', '영업2팀', ['SALES'], 'ACTIVE', '2026-09-22', '2026-09-23 09:47', '2026-10-15 14:38', '2026-10-15 22:59', '2026-09-22'],
-    ['hyunseo.cho@muhayu.com', '조현서', '영업2팀', ['SALES'], 'ACTIVE', '2026-09-17', '2026-09-20 13:12', '2026-10-15 11:23', '2026-10-15 14:52', '2026-09-17'],
-    ['yuna.cha@muhayu.com', '차유나', '영업3팀', ['HEAD'], 'ACTIVE', '2026-09-06', '2026-09-08 17:55', '2026-10-17 09:06', '2026-10-17 12:07', '2026-10-12'],
-    ['geonwoo.yoon@muhayu.com', '윤건우', '영업3팀', ['SALES'], 'ACTIVE', '2026-09-20', '2026-09-21 12:21', '2026-10-17 11:08', '2026-10-17 14:41', '2026-09-20'],
-    ['soyul.nam@muhayu.com', '남소율', '영업3팀', ['SALES'], 'ACTIVE', '2026-09-26', '2026-09-27 09:34', '2026-10-15 09:42', '2026-10-15 16:46', '2026-09-26'],
-    ['dohyun.baek@muhayu.com', '백도현', '영업3팀', ['SALES'], 'ACTIVE', '2026-09-10', '2026-09-10 09:55', '2026-10-19 11:33', '2026-10-19 13:02', '2026-09-10'],
-    ['jia.ryu@muhayu.com', '류지아', '영업3팀', ['SALES'], 'ACTIVE', '2026-09-10', '2026-09-13 16:55', '2026-10-19 10:42', '2026-10-19 13:20', '2026-09-10'],
-    ['woojin.shim@muhayu.com', '심우진', '영업3팀', ['SALES'], 'ACTIVE', '2026-09-23', '2026-09-24 13:47', '2026-10-18 10:17', '2026-10-18 14:47', '2026-09-23'],
-    ['haram.do@muhayu.com', '도하람', '영업3팀', ['SALES'], 'ACTIVE', '2026-09-17', '2026-09-19 14:55', '2026-10-18 15:50', '2026-10-18 22:38', '2026-09-17'],
-    ['eunwoo.seol@muhayu.com', '설은우', '영업3팀', ['SALES'], 'INVITED', '2026-10-15', null, null, null, '2026-10-15'],
-    ['sua.bae@muhayu.com', '배수아', '세일즈어드민팀', ['SALES_ADMIN'], 'ACTIVE', '2026-09-07', '2026-09-07 14:12', '2026-10-19 10:57', '2026-10-19 12:48', '2026-09-07'],
-    ['jihoon.eom@muhayu.com', '엄지훈', '세일즈어드민팀', ['SALES_ADMIN'], 'ACTIVE', '2026-09-24', '2026-09-26 16:21', '2026-10-13 14:35', '2026-10-13 17:47', '2026-09-24'],
-    ['dain.seok@muhayu.com', '석다인', '세일즈어드민팀', ['SALES_ADMIN'], 'ACTIVE', '2026-09-22', '2026-09-25 14:21', '2026-10-19 09:45', '2026-10-19 10:50', '2026-10-12'],
-    ['jiwoo.kim@muhayu.com', '김지우', '법무팀', ['LEGAL'], 'ACTIVE', '2026-09-12', '2026-09-14 16:21', '2026-10-18 09:15', '2026-10-18 17:13', '2026-09-12'],
-    ['minjae.song@muhayu.com', '송민재', '법무팀', ['LEGAL', 'ADMIN'], 'ACTIVE', '2026-09-24', '2026-09-26 17:47', '2026-10-16 09:13', '2026-10-16 16:45', '2026-10-06'],
-    ['seoyeon.han@muhayu.com', '한서연', '정보보호팀', ['PRIVACY'], 'ACTIVE', '2026-09-07', '2026-09-10 09:55', '2026-10-16 12:02', '2026-10-16 18:39', '2026-09-07'],
-    ['hajun.lim@muhayu.com', '임하준', 'CEM팀', ['CEM'], 'ACTIVE', '2026-09-26', '2026-09-28 11:47', '2026-10-19 10:44', '2026-10-19 14:14', '2026-09-26'],
-    ['yeonwoo.joo@muhayu.com', '주연우', 'CEM팀', ['CEM'], 'ACTIVE', '2026-09-17', '2026-09-20 09:03', '2026-10-17 12:47', '2026-10-17 17:13', '2026-09-17'],
-    ['harin.pyeon@muhayu.com', '편하린', 'CEM팀', ['CEM'], 'ACTIVE', '2026-09-04', '2026-09-04 12:34', '2026-10-18 13:42', '2026-10-18 20:50', '2026-09-04'],
-    ['sihyun.bang@muhayu.com', '방시현', 'CEM팀', ['CEM'], 'ACTIVE', '2026-09-13', '2026-09-13 09:55', '2026-10-18 08:55', '2026-10-18 16:05', '2026-09-13'],
-    ['sihwan.jin@muhayu.com', '진시환', 'CEM팀', ['CEM'], 'ACTIVE', '2026-09-08', '2026-09-11 15:34', '2026-10-13 09:53', '2026-10-13 13:21', '2026-09-08'],
-    ['jua.yeon@muhayu.com', '연주아', 'CEM팀', ['CEM'], 'INVITED', '2026-10-16', null, null, null, '2026-10-16'],
-    ['hyunwoo.oh@muhayu.com', '오현우', '재무팀', ['FINANCE'], 'ACTIVE', '2026-09-22', '2026-09-25 11:47', '2026-10-18 14:20', '2026-10-18 23:08', '2026-09-22'],
-    ['seojin.ma@muhayu.com', '마서진', '재무팀', ['FINANCE'], 'ACTIVE', '2026-09-17', '2026-09-18 17:47', '2026-10-15 12:48', '2026-10-15 17:34', '2026-09-17'],
-    ['yejun.pyo@muhayu.com', '표예준', '재무팀', ['FINANCE'], 'ACTIVE', '2026-09-04', '2026-09-05 10:03', '2026-10-19 08:35', '2026-10-19 10:27', '2026-09-04'],
+    ['jian.won@muhayu.com', '원지안', '경영지원유닛', ['SUPER'], 'ACTIVE', '2026-09-01', '2026-09-03 10:12', '2026-10-15 12:17', '2026-10-15 19:18', '2026-09-01'],
+    ['jaemin.yoon@muhayu.com', '윤재민', '경영지원유닛', ['ADMIN'], 'ACTIVE', '2026-09-01', '2026-09-03 11:03', '2026-10-13 12:28', '2026-10-13 19:45', '2026-09-01'],
+    ['eunchae.noh@muhayu.com', '노은채', '경영지원유닛', ['GA'], 'ACTIVE', '2026-09-18', '2026-09-20 10:03', '2026-10-16 12:14', '2026-10-16 17:19', '2026-09-18'],
+    ['seoyun.tak@muhayu.com', '탁서윤', '경영지원유닛', ['GA'], 'ACTIVE', '2026-09-06', '2026-09-09 14:03', '2026-10-13 13:17', '2026-10-13 21:28', '2026-09-06'],
+    ['taeho.moon@muhayu.com', '문태호', '비즈니스유닛', ['EXEC'], 'ACTIVE', '2026-09-19', '2026-09-19 14:47', '2026-10-19 11:00', '2026-10-19 14:22', '2026-09-19'],
+    ['minjun.choi@muhayu.com', '최민준', '비즈니스1유닛', ['HEAD'], 'ACTIVE', '2026-09-11', '2026-09-14 13:47', '2026-10-18 13:16', '2026-10-18 19:22', '2026-09-11'],
+    ['doyun.lee@muhayu.com', '이도윤', '비즈니스1유닛', ['SALES'], 'ACTIVE', '2026-09-22', '2026-09-23 16:34', '2026-10-19 09:47', '2026-10-19 11:11', '2026-09-22'],
+    ['seohyun.park@muhayu.com', '박서현', '비즈니스1유닛', ['SALES'], 'ACTIVE', '2026-09-02', '2026-09-04 13:47', '2026-10-18 08:37', '2026-10-18 17:22', '2026-09-02'],
+    ['taeyun.kim@muhayu.com', '김태윤', '비즈니스1유닛', ['SALES'], 'ACTIVE', '2026-09-08', '2026-09-11 13:03', '2026-10-17 08:33', '2026-10-17 14:15', '2026-09-08'],
+    ['yerin.jang@muhayu.com', '장예린', '비즈니스1유닛', ['SALES'], 'ACTIVE', '2026-09-06', '2026-09-08 17:03', '2026-10-13 12:12', '2026-10-13 16:43', '2026-09-06'],
+    ['junseo.hong@muhayu.com', '홍준서', '비즈니스1유닛', ['SALES'], 'ACTIVE', '2026-09-04', '2026-09-06 11:21', '2026-10-17 11:16', '2026-10-17 18:55', '2026-09-04'],
+    ['gaeun.shin@muhayu.com', '신가은', '비즈니스1유닛', ['SALES'], 'ACTIVE', '2026-09-13', '2026-09-15 09:21', '2026-10-19 10:35', '2026-10-19 14:03', '2026-09-13'],
+    ['taemin.ki@muhayu.com', '기태민', '비즈니스1유닛', ['SALES'], 'SUSPENDED', '2026-09-05', '2026-09-05 15:34', '2026-09-30 12:29', '2026-09-30 16:05', '2026-10-02'],
+    ['eunseong.ko@muhayu.com', '고은성', '비즈니스2유닛', ['HEAD'], 'ACTIVE', '2026-09-09', '2026-09-10 14:12', '2026-10-19 08:22', '2026-10-19 09:29', '2026-09-09'],
+    ['haeun.jung@muhayu.com', '정하은', '비즈니스2유닛', ['SALES'], 'ACTIVE', '2026-09-09', '2026-09-11 13:12', '2026-10-19 09:52', '2026-10-19 13:46', '2026-09-09'],
+    ['jiho.yoo@muhayu.com', '유지호', '비즈니스2유닛', ['SALES'], 'ACTIVE', '2026-09-11', '2026-09-12 12:12', '2026-10-15 08:52', '2026-10-15 13:58', '2026-09-11'],
+    ['nayeon.kwon@muhayu.com', '권나연', '비즈니스2유닛', ['SALES'], 'ACTIVE', '2026-09-21', '2026-09-22 14:21', '2026-10-19 08:22', '2026-10-19 10:01', '2026-09-21'],
+    ['siwoo.hwang@muhayu.com', '황시우', '비즈니스2유닛', ['SALES'], 'ACTIVE', '2026-09-04', '2026-09-04 09:03', '2026-10-16 15:42', '2026-10-16 23:31', '2026-09-04'],
+    ['chaewon.ahn@muhayu.com', '안채원', '비즈니스2유닛', ['SALES'], 'ACTIVE', '2026-09-22', '2026-09-23 09:47', '2026-10-15 14:38', '2026-10-15 22:59', '2026-09-22'],
+    ['hyunseo.cho@muhayu.com', '조현서', '비즈니스2유닛', ['SALES'], 'ACTIVE', '2026-09-17', '2026-09-20 13:12', '2026-10-15 11:23', '2026-10-15 14:52', '2026-09-17'],
+    ['yuna.cha@muhayu.com', '차유나', '비즈니스3유닛', ['HEAD'], 'ACTIVE', '2026-09-06', '2026-09-08 17:55', '2026-10-17 09:06', '2026-10-17 12:07', '2026-10-12'],
+    ['geonwoo.yoon@muhayu.com', '윤건우', '비즈니스3유닛', ['SALES'], 'ACTIVE', '2026-09-20', '2026-09-21 12:21', '2026-10-17 11:08', '2026-10-17 14:41', '2026-09-20'],
+    ['soyul.nam@muhayu.com', '남소율', '비즈니스3유닛', ['SALES'], 'ACTIVE', '2026-09-26', '2026-09-27 09:34', '2026-10-15 09:42', '2026-10-15 16:46', '2026-09-26'],
+    ['dohyun.baek@muhayu.com', '백도현', '비즈니스3유닛', ['SALES'], 'ACTIVE', '2026-09-10', '2026-09-10 09:55', '2026-10-19 11:33', '2026-10-19 13:02', '2026-09-10'],
+    ['jia.ryu@muhayu.com', '류지아', '비즈니스3유닛', ['SALES'], 'ACTIVE', '2026-09-10', '2026-09-13 16:55', '2026-10-19 10:42', '2026-10-19 13:20', '2026-09-10'],
+    ['woojin.shim@muhayu.com', '심우진', '비즈니스3유닛', ['SALES'], 'ACTIVE', '2026-09-23', '2026-09-24 13:47', '2026-10-18 10:17', '2026-10-18 14:47', '2026-09-23'],
+    ['haram.do@muhayu.com', '도하람', '비즈니스3유닛', ['SALES'], 'ACTIVE', '2026-09-17', '2026-09-19 14:55', '2026-10-18 15:50', '2026-10-18 22:38', '2026-09-17'],
+    ['eunwoo.seol@muhayu.com', '설은우', '비즈니스3유닛', ['SALES'], 'INVITED', '2026-10-15', null, null, null, '2026-10-15'],
+    ['sua.bae@muhayu.com', '배수아', '세일즈어드민유닛', ['SALES_ADMIN'], 'ACTIVE', '2026-09-07', '2026-09-07 14:12', '2026-10-19 10:57', '2026-10-19 12:48', '2026-09-07'],
+    ['jihoon.eom@muhayu.com', '엄지훈', '세일즈어드민유닛', ['SA_LEAD'], 'ACTIVE', '2026-09-24', '2026-09-26 16:21', '2026-10-13 14:35', '2026-10-13 17:47', '2026-09-24'],
+    ['dain.seok@muhayu.com', '석다인', '세일즈어드민유닛', ['SALES_ADMIN'], 'ACTIVE', '2026-09-22', '2026-09-25 14:21', '2026-10-19 09:45', '2026-10-19 10:50', '2026-10-12'],
+    ['jiwoo.kim@muhayu.com', '김지우', '경영지원유닛', ['LEGAL'], 'ACTIVE', '2026-09-12', '2026-09-14 16:21', '2026-10-18 09:15', '2026-10-18 17:13', '2026-09-12'],
+    ['minjae.song@muhayu.com', '송민재', '경영지원유닛', ['LEGAL', 'ADMIN'], 'ACTIVE', '2026-09-24', '2026-09-26 17:47', '2026-10-16 09:13', '2026-10-16 16:45', '2026-10-06'],
+    ['seoyeon.han@muhayu.com', '한서연', '정보보호유닛', ['PRIVACY'], 'ACTIVE', '2026-09-07', '2026-09-10 09:55', '2026-10-16 12:02', '2026-10-16 18:39', '2026-09-07'],
+    ['seungho.yeo@muhayu.com', '여승호', '정보보호유닛', ['SEC_LEAD'], 'ACTIVE', '2026-09-01', '2026-09-02 09:30', '2026-10-19 09:10', '2026-10-19 18:05', '2026-09-01'],
+    ['hajun.lim@muhayu.com', '임하준', 'CEM유닛', ['CEM'], 'ACTIVE', '2026-09-26', '2026-09-28 11:47', '2026-10-19 10:44', '2026-10-19 14:14', '2026-09-26'],
+    ['yeonwoo.joo@muhayu.com', '주연우', 'CEM유닛', ['CEM_LEAD'], 'ACTIVE', '2026-09-17', '2026-09-20 09:03', '2026-10-17 12:47', '2026-10-17 17:13', '2026-09-17'],
+    ['harin.pyeon@muhayu.com', '편하린', 'CEM유닛', ['CEM'], 'ACTIVE', '2026-09-04', '2026-09-04 12:34', '2026-10-18 13:42', '2026-10-18 20:50', '2026-09-04'],
+    ['sihyun.bang@muhayu.com', '방시현', 'CEM유닛', ['CEM'], 'ACTIVE', '2026-09-13', '2026-09-13 09:55', '2026-10-18 08:55', '2026-10-18 16:05', '2026-09-13'],
+    ['sihwan.jin@muhayu.com', '진시환', 'CEM유닛', ['CEM'], 'ACTIVE', '2026-09-08', '2026-09-11 15:34', '2026-10-13 09:53', '2026-10-13 13:21', '2026-09-08'],
+    ['jua.yeon@muhayu.com', '연주아', 'CEM유닛', ['CEM'], 'INVITED', '2026-10-16', null, null, null, '2026-10-16'],
+    ['hyunwoo.oh@muhayu.com', '오현우', '재무기획유닛', ['FINANCE'], 'ACTIVE', '2026-09-22', '2026-09-25 11:47', '2026-10-18 14:20', '2026-10-18 23:08', '2026-09-22'],
+    ['seojin.ma@muhayu.com', '마서진', '재무기획유닛', ['FIN_LEAD'], 'ACTIVE', '2026-09-17', '2026-09-18 17:47', '2026-10-15 12:48', '2026-10-15 17:34', '2026-09-17'],
+    ['yejun.pyo@muhayu.com', '표예준', '재무기획유닛', ['FINANCE'], 'ACTIVE', '2026-09-04', '2026-09-05 10:03', '2026-10-19 08:35', '2026-10-19 10:27', '2026-09-04'],
+    ['jaewon.kook@muhayu.com', '국재원', '경영지원실', ['FIN_EXEC'], 'ACTIVE', '2026-09-15', '2026-09-16 10:20', '2026-10-17 16:40', '2026-10-17 18:12', '2026-09-15'],
+    ['daon.yong@muhayu.com', '용다온', '경영지원유닛', ['OBSERVER'], 'ACTIVE', '2026-10-05', '2026-10-06 09:40', '2026-10-16 15:02', '2026-10-16 15:30', '2026-10-05'],
   ].map(function (a) {
     return {
       email: a[0], name: a[1], dept: a[2], roles: a[3], status: a[4], registeredAt: a[5],
@@ -582,9 +609,9 @@ window.CLIMB_DATA = (function () {
   });
 
   /* ---------- 영업 팀 리더: ③ 영업 검토 담당 (재무 문서 반영 v0.26) ----------
-   * 팀원이 기안한 계약은 그 팀의 리더가, 리더 본인이 기안한 계약은 영업 담당 임원(STEP_ASSIGNEE.S03)이 검토합니다.
-   * [가정] 영업본부 부서장 최민준님이 영업1팀 리더를 겸합니다. 관리자가 결재선 규칙(SCR-52)에서 바꿉니다. */
-  const TEAM_LEADERS = { '영업1팀': 'u_head', '영업2팀': 'u_eunseong_ko', '영업3팀': 'u_yuna_cha' };
+   * 유닛 담당자가 기안한 계약은 그 유닛의 리더가, 리더 본인이 기안한 계약은 영업 임원(COO, STEP_ASSIGNEE.S03)이 검토합니다.
+   * 키는 비즈니스 유닛 이름(조직). 관리자가 결재선 규칙(SCR-52)에서 바꿉니다. (v0.29 조직 개편: 영업1~3팀 → 비즈니스1~3유닛) */
+  const TEAM_LEADERS = { '비즈니스1유닛': 'u_head', '비즈니스2유닛': 'u_eunseong_ko', '비즈니스3유닛': 'u_yuna_cha' };
 
   /* ---------- 거래처 목록: 거래처 관리(SCR-55), 계약 등록의 고객사 고르기 (REQ-REG-18, 데이터 정의서 6장, D-01) ----------
    * 가상의 거래처와 가상의 사업자등록번호입니다.
@@ -625,18 +652,22 @@ window.CLIMB_DATA = (function () {
    * 사용 안 함인 코드는 새로 고르는 목록에서만 빠지고, 이미 저장된 기록에는 그대로 보입니다.
    * 서비스는 대분류, 중분류, 소분류 3단계(level 1~3, parent 상위 코드). 중분류, 소분류는 기획자가 든 예 (D-09 목록 전달 예정) */
   const CODE_GROUPS = {
-    DEPT: { name: '부서', table: 'CODE-DEPT', note: '사용자 권한 관리에서 고르는 부서' },
-    SERVICE: { name: '서비스', table: 'CODE-SERVICE', note: '대분류, 중분류, 소분류 3단계. 제품(가격 기준)이 속하는 서비스', levels: true },
+    // levels: 단계가 있는 코드표의 단계 이름 (조직은 실과 그 아래 유닛, 서비스는 3단계)
+    DEPT: { name: '조직', table: 'CODE-DEPT', note: '사용자 권한 관리에서 고르는 조직(실, 유닛). 화면 맨 위 이름 앞에 보임', levels: { 1: '1단계', 2: '2단계' } },
+    SERVICE: { name: '서비스', table: 'CODE-SERVICE', note: '대분류, 중분류, 소분류 3단계. 제품(가격 기준)이 속하는 서비스', levels: { 1: '대분류', 2: '중분류', 3: '소분류' } },
     CONTRACT_TYPE: { name: '계약 유형', table: 'CODE-CONTRACT-TYPE', note: '계약 등록에서 고르는 유형' },
     METHOD: { name: '계약 방식', table: 'CODE-METHOD', note: '계약 등록에서 고르는 방식' },
     SETTLEMENT: { name: '정산 방식', table: 'CODE-SETTLEMENT', note: '계약 등록에서 고르는 방식' },
     AFTERCARE: { name: '사후관리 기록 종류', table: 'CODE-AFTERCARE-TYPE', note: '계약 상세의 사후관리 기록에서 고르는 종류' },
   };
   const CODES = [
-    ['DEPT', 'COMPLIANCE', '컴플라이언스팀'], ['DEPT', 'EXECUTIVE', '경영진'], ['DEPT', 'SALES_HQ', '영업본부'],
-    ['DEPT', 'SALES_1', '영업1팀'], ['DEPT', 'SALES_2', '영업2팀'], ['DEPT', 'SALES_3', '영업3팀'],
-    ['DEPT', 'SALES_ADMIN', '세일즈어드민팀'], ['DEPT', 'LEGAL', '법무팀'], ['DEPT', 'INFOSEC', '정보보호팀'],
-    ['DEPT', 'MGMT_SUPPORT', '경영지원팀'], ['DEPT', 'CEM', 'CEM팀'], ['DEPT', 'FINANCE', '재무팀'],
+    // 조직 (기획자 지정 v0.29). 괄호는 맡는 일: 경영지원실(CFO) 아래 경영지원유닛(법무, 인사, 총무 [가정]), 재무기획유닛(재무)
+    //   비즈니스유닛(COO) 아래 비즈니스1유닛(CK), 비즈니스2, 3유닛(HR), 세일즈어드민유닛(영업지원), CEM유닛(고객지원, 위치 [가정])
+    //   정보보호유닛(개인정보 보호)
+    ['DEPT', 'MGMT', '경영지원실', 1], ['DEPT', 'MGMT_SUPPORT', '경영지원유닛', 2, 'MGMT'], ['DEPT', 'FIN_PLAN', '재무기획유닛', 2, 'MGMT'],
+    ['DEPT', 'BIZ', '비즈니스유닛', 1], ['DEPT', 'BIZ_1', '비즈니스1유닛', 2, 'BIZ'], ['DEPT', 'BIZ_2', '비즈니스2유닛', 2, 'BIZ'],
+    ['DEPT', 'BIZ_3', '비즈니스3유닛', 2, 'BIZ'], ['DEPT', 'SALES_ADMIN', '세일즈어드민유닛', 2, 'BIZ'], ['DEPT', 'CEM', 'CEM유닛', 2, 'BIZ'],
+    ['DEPT', 'INFOSEC', '정보보호유닛', 1],
     ['SERVICE', 'CK', SERVICES.CK, 1], ['SERVICE', 'HR', SERVICES.HR, 1], ['SERVICE', 'ETC', '기타', 1],
     ['SERVICE', 'CK_CAMPUS', '카피킬러 캠퍼스', 2, 'CK'], ['SERVICE', 'CK_SCHOOL', '카피킬러 스쿨', 2, 'CK'], ['SERVICE', 'CK_CONTEST', '카피킬러 콘테스트', 2, 'CK'],
     ['SERVICE', 'HR_PRISM', '프리즘', 2, 'HR'], ['SERVICE', 'HR_MONSTER', '몬스터', 2, 'HR'], ['SERVICE', 'HR_PRISM_Q', '프리즘Q', 3, 'HR_PRISM'],
@@ -654,9 +685,9 @@ window.CLIMB_DATA = (function () {
    * by, at: 지정한 관리자와 일시 / endedAt: 기간 전에 끝냈으면 그 일시 */
   const DELEGATIONS = [
     { id: 'DL-001', absentId: 'u_legal', delegateId: 'u_minjae_song', from: '2026-10-05', to: '2026-10-07',
-      reason: '김지우님 연차(10.5~10.7). 같은 법무팀 송민재님이 법무 검토를 대신함', by: 'u_admin', at: '2026-10-02 10:20', endedAt: null },
+      reason: '김지우님 연차(10.5~10.7). 같은 법무 담당자 송민재님이 법무 검토를 대신함', by: 'u_admin', at: '2026-10-02 10:20', endedAt: null },
     { id: 'DL-002', absentId: 'u_eunseong_ko', delegateId: 'u_exec', from: '2026-10-19', to: '2026-10-23',
-      reason: '고은성님 해외 출장(10.19~10.23). 영업2팀 계약의 영업 검토를 영업 담당 임원이 대신 결재(위임전결규정 대결)', by: 'u_admin', at: '2026-10-16 17:40', endedAt: null },
+      reason: '고은성님 해외 출장(10.19~10.23). 비즈니스2유닛 계약의 영업 검토를 영업 임원이 대신 결재(위임전결규정 대결)', by: 'u_admin', at: '2026-10-16 17:40', endedAt: null },
   ];
   // 단계 담당자를 바꾼 이력. 바꾸면 아직 차례가 오지 않은 단계부터 새 담당자에게 갑니다(기획자 결정 v0.25).
   //   { step, to, at } 시연으로 바꾼 것은 common.js가 더함. 처음 설정은 STEP_ASSIGNEE
@@ -667,18 +698,19 @@ window.CLIMB_DATA = (function () {
    * area: USER 사용자 권한 / RULE 결재선 규칙 / RESTRICT 열람 제한 / CUSTOMER 거래처 / CODE 코드 / AUDIT 기록 점검
    * 아래는 이미 반영된 예시 기록입니다(시연으로 바꾼 것은 common.js가 이 브라우저에 저장해 더함). 가격 기준 이력은 PRICE_ROWS에 있습니다. */
   const ADMIN_LOG = [
-    { at: '2026-09-01 09:00', by: 'u_super', area: 'RULE', target: '결재선 규칙', change: '처음 설정: ② 배수아, ③ 팀 리더(영업1팀 최민준, 영업2팀 고은성, 영업3팀 차유나, 리더 본인 계약은 문태호), ④ 김지우, ⑤ 한서연, ⑥ 노은채, ⑧ 배수아, ⑨ 임하준, ⑩ 오현우, 결재 대기 독촉 5일, 체결 지연 독촉 14일', reason: 'CLIMB 도입' },
+    { at: '2026-09-01 09:00', by: 'u_super', area: 'RULE', target: '결재선 규칙', change: '처음 설정: ② 배수아, ③ 유닛 리더(비즈니스1유닛 최민준, 비즈니스2유닛 고은성, 비즈니스3유닛 차유나, 리더 본인 계약은 문태호), ④ 김지우, ⑤ 한서연, ⑥ 노은채, ⑧ 배수아, ⑨ 임하준, ⑩ 오현우, 결재 대기 독촉 5일, 체결 지연 독촉 14일', reason: 'CLIMB 도입' },
     { at: '2026-09-01 09:00', by: 'u_super', area: 'CUSTOMER', target: '거래처 13곳', change: '거래처 추가: 한결대학교 외 12곳', reason: 'CLIMB 도입: 기존 계약관리대장에서 옮김' },
-    { at: '2026-09-01 09:00', by: 'u_super', area: 'CODE', target: '코드표 6개', change: '처음 등록: 부서, 서비스, 계약 유형, 계약 방식, 정산 방식, 사후관리 기록 종류', reason: 'CLIMB 도입' },
+    { at: '2026-09-01 09:00', by: 'u_super', area: 'CODE', target: '코드표 6개', change: '처음 등록: 조직, 서비스, 계약 유형, 계약 방식, 정산 방식, 사후관리 기록 종류', reason: 'CLIMB 도입' },
     { at: '2026-10-02 09:30', by: 'u_admin', area: 'USER', target: '기태민 (taemin.ki@muhayu.com)', change: '상태: 사용 중 → 사용 중지', reason: '9월 30일 퇴사(인사팀 퇴사 통보 10.1)' },
-    { at: '2026-10-02 10:20', by: 'u_admin', area: 'RULE', target: '④ 법무 검토 대리 지정', change: '대리 지정: 김지우 → 송민재 (2026.10.05 ~ 2026.10.07)', reason: '김지우님 연차(10.5~10.7). 같은 법무팀 송민재님이 법무 검토를 대신함' },
-    { at: '2026-10-06 14:10', by: 'u_super', area: 'USER', target: '송민재 (minjae.song@muhayu.com)', change: '권한: 법무 → 법무, 관리자', reason: '관리자 부재에 대비해 법무팀 송민재님을 관리자로 함께 지정(경영지원팀 요청)' },
+    { at: '2026-10-02 10:20', by: 'u_admin', area: 'RULE', target: '④ 법무 검토 대리 지정', change: '대리 지정: 김지우 → 송민재 (2026.10.05 ~ 2026.10.07)', reason: '김지우님 연차(10.5~10.7). 같은 법무 담당자 송민재님이 법무 검토를 대신함' },
+    { at: '2026-10-06 14:10', by: 'u_super', area: 'USER', target: '송민재 (minjae.song@muhayu.com)', change: '권한: 법무 담당자 → 법무 담당자, 관리자', reason: '관리자 부재에 대비해 법무 담당자 송민재님을 관리자로 함께 지정(경영지원유닛 요청)' },
     { at: '2026-10-08 16:00', by: 'u_admin', area: 'RESTRICT', target: 'CT-2026-0301 해랑출판', change: '열람 제한 해제', reason: '보도자료로 계약 사실이 공개되어 더 가릴 필요 없음(영업 요청)' },
-    { at: '2026-10-12 11:00', by: 'u_admin', area: 'USER', target: '석다인 (dain.seok@muhayu.com)', change: '부서: 영업2팀 → 세일즈어드민팀, 권한: 영업 → 세일즈어드민', reason: '10월 12일 세일즈어드민팀으로 인사 이동' },
-    { at: '2026-10-12 11:05', by: 'u_admin', area: 'USER', target: '차유나 (yuna.cha@muhayu.com)', change: '권한: 영업 → 부서장', reason: '10월 12일 영업3팀 부서장 발령' },
-    { at: '2026-10-15 10:00', by: 'u_admin', area: 'USER', target: '설은우 (eunwoo.seol@muhayu.com)', change: '사용자 추가: 영업3팀, 영업', reason: '10월 15일 입사' },
-    { at: '2026-10-16 10:00', by: 'u_admin', area: 'USER', target: '연주아 (jua.yeon@muhayu.com)', change: '사용자 추가: CEM팀, CEM', reason: '10월 16일 입사' },
-    { at: '2026-10-16 17:40', by: 'u_admin', area: 'RULE', target: '③ 영업 검토(영업2팀 리더) 대리 지정', change: '대리 지정: 고은성 → 문태호 (2026.10.19 ~ 2026.10.23)', reason: '고은성님 해외 출장(10.19~10.23). 영업2팀 계약의 영업 검토를 영업 담당 임원이 대신 결재(위임전결규정 대결)' },
+    { at: '2026-10-12 11:00', by: 'u_admin', area: 'USER', target: '석다인 (dain.seok@muhayu.com)', change: '조직: 비즈니스2유닛 → 세일즈어드민유닛, 권한: 영업 담당자 → 영업지원 담당자', reason: '10월 12일 세일즈어드민유닛으로 인사 이동' },
+    { at: '2026-10-12 11:05', by: 'u_admin', area: 'USER', target: '차유나 (yuna.cha@muhayu.com)', change: '권한: 영업 담당자 → 영업 리더', reason: '10월 12일 비즈니스3유닛 리더 발령' },
+    { at: '2026-10-15 10:00', by: 'u_admin', area: 'USER', target: '설은우 (eunwoo.seol@muhayu.com)', change: '사용자 추가: 비즈니스3유닛, 영업 담당자', reason: '10월 15일 입사' },
+    { at: '2026-10-16 10:00', by: 'u_admin', area: 'USER', target: '연주아 (jua.yeon@muhayu.com)', change: '사용자 추가: CEM유닛, 고객지원 담당자', reason: '10월 16일 입사' },
+    { at: '2026-10-16 17:40', by: 'u_admin', area: 'RULE', target: '③ 영업 검토(비즈니스2유닛 리더) 대리 지정', change: '대리 지정: 고은성 → 문태호 (2026.10.19 ~ 2026.10.23)', reason: '고은성님 해외 출장(10.19~10.23). 비즈니스2유닛 계약의 영업 검토를 영업 임원이 대신 결재(위임전결규정 대결)' },
+    { at: '2026-10-19 09:00', by: 'u_super', area: 'CODE', target: '조직 코드표', change: '조직 개편: 부서 12개를 실과 유닛 10개로 바꿈(영업1~3팀 → 비즈니스1~3유닛, 법무팀과 경영지원팀 → 경영지원유닛 등), 사람마다 새 조직으로 옮김', reason: '2026년 10월 조직 개편' },
   ];
   // 열람 제한을 건 기록 (계약을 등록할 때 영업이 건 것). 관리자가 바꾼 것은 ADMIN_LOG의 RESTRICT
   const RESTRICT_LOG = [
@@ -688,10 +720,10 @@ window.CLIMB_DATA = (function () {
   ];
 
   /* ---------- 접속 기록 점검: SCR-57 (REQ-SEC-05, REQ-SEC-06, 기획자 결정 v0.25) ----------
-   * 점검은 정보보호팀(개인정보 담당)이 합니다. 관리자가 자기 작업 기록을 스스로 점검하지 않게 하려는 것입니다.
+   * 점검은 정보보호 담당자와 리더(정보보호유닛)가 합니다. 관리자가 자기 작업 기록을 스스로 점검하지 않게 하려는 것입니다.
    * LOG_REVIEWS: 매월 접속 기록과 내려받기 기록 점검 결과 [가정] 기한: 다음 달 말일
    * ACCESS_REVIEWS: 분기마다 모든 계정의 권한 검토 결과 [가정] 기한: 분기가 끝난 다음 달 말일
-   * SEC_ALERTS: 이상 행위 알림. 주기와 상관없이 바로 정보보호 담당에게 이메일로 감(REQ-SEC-06). 가상 인물의 가상 기록입니다.
+   * SEC_ALERTS: 이상 행위 알림. 주기와 상관없이 바로 정보보호 담당자에게 이메일로 감(REQ-SEC-06). 가상 인물의 가상 기록입니다.
    *   kind: BULK 짧은 시간에 많은 열람이나 내려받기 / NIGHT 업무 시간 밖 접속 / NEW_PLACE 처음 보는 곳에서 접속 */
   const LOG_REVIEWS = [
     { month: '2026-09', by: 'u_privacy', at: '2026-10-05 15:00', result: 'OK',
@@ -706,7 +738,7 @@ window.CLIMB_DATA = (function () {
       doneBy: 'u_privacy', doneAt: '2026-10-09 14:00', action: '본인에게 확인: 회사가 새로 지급한 노트북. 이상 없음' },
   ];
 
-  return { TODAY, BRAND, ROLES, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, CONTRACT_TYPES, METHODS, SETTLEMENTS, PRICE_BOOK, STEPS, REVIEW_GROUPS, POST_GROUPS, PROCESS_ROLES, STEP_ASSIGNEE, APPROVAL_STATE, APPROVAL_ACTIONS, SEAL_CHECKS, OPS_CHECKS, OPS_CHECKS_END, OPS_CHECKS_EXTEND, AFTERCARE_TYPES, FILE_KINDS, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS,
+  return { TODAY, BRAND, ROLES, ROLE_AREAS, ROLE_SHORT, ROLE_AREA, ROLE_BASE, STEP_LEADS, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, CONTRACT_TYPES, METHODS, SETTLEMENTS, PRICE_BOOK, STEPS, REVIEW_GROUPS, POST_GROUPS, PROCESS_ROLES, STEP_ASSIGNEE, APPROVAL_STATE, APPROVAL_ACTIONS, SEAL_CHECKS, OPS_CHECKS, OPS_CHECKS_END, OPS_CHECKS_EXTEND, AFTERCARE_TYPES, FILE_KINDS, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS,
     CHANGE_TYPES, CHANGE_RULES, OPS_CHECKS_PERIOD, TEAM_LEADERS,
     PRICE_ROWS, currentPrices, CUSTOMERS, CODE_GROUPS, CODES, DELEGATIONS, ASSIGNEE_CHANGES, ADMIN_LOG, RESTRICT_LOG,
     LOG_REVIEWS, ACCESS_REVIEWS, SEC_ALERT_KINDS, SEC_ALERTS };

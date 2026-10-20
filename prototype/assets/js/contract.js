@@ -5,7 +5,7 @@
  * 하는 일
  *   1. 주소의 번호로 계약 묶음을 찾고(common.js bundleOf), 볼 수 있는 사람인지 확인
  *   2. 지금 유효한 계약, 차수별 이력, 체결본, 사후관리 기록을 한 장으로
- *   3. 영업 대표(시연용 슈퍼관리자 포함)에게 변경 기안, 갱신 기안(자동갱신이면 갱신 검토), 해지 기안 버튼
+ *   3. 영업 대표(시연용 최고관리자 포함)에게 변경 기안, 갱신 기안(자동갱신이면 갱신 검토), 해지 기안 버튼
  *   4. 사후관리 기록 남기기(영업 대표, 법무, 관리자). 덧붙이기만 하고 고치거나 지울 수 없음
  * ===================================================================== */
 (function () {
@@ -20,6 +20,7 @@
   };
 
   const id = new URLSearchParams(location.search).get('id');
+  C.breadcrumb([['보관함', 'contracts.html'], ['계약 상세' + (id ? ' ' + id : '')]]);
   const found = D.CONTRACTS.find(function (c) { return c.id === id; });
   const b = found ? C.bundleOf(C.rootOf(found)) : null;
   if (!b) {
@@ -48,7 +49,7 @@
   }
 
   /* ---------- 할 일 버튼 (REQ-ARC-02) ----------
-   * 지금 유효한 계약이 계약 완료일 때, 영업 대표 본인(시연용 슈퍼관리자 포함)에게만.
+   * 지금 유효한 계약이 계약 완료일 때, 영업 대표 본인(시연용 최고관리자 포함)에게만.
    * 진행 중인 갱신이나 해지가 있으면 갱신, 해지 버튼은 감춤 */
   const canDraft = root.requesterId === me.id || me.role === 'SUPER';
   const blocking = b.open.some(function (o) { return o.kind === 'RENEW' || o.kind === 'TERMINATE'; });
@@ -142,7 +143,7 @@
       }).join('') : '<tr><td class="empty-row" colspan="4">남긴 기록이 없습니다.</td></tr>') + '</tbody>';
   }
   renderNotes();
-  // 남길 수 있는 사람: 영업 대표, 법무, 관리자(슈퍼관리자 포함) [가정]. 계약 완료, 만료, 해지된 계약에만
+  // 남길 수 있는 사람: 영업 대표, 법무, 관리자(최고관리자 포함) [가정]. 계약 완료, 만료, 해지된 계약에만
   const canNote = (root.requesterId === me.id || ['LEGAL', 'ADMIN', 'SUPER'].indexOf(me.role) > -1) &&
     ['ACTIVE', 'EXPIRED', 'TERMINATED'].indexOf(root.status) > -1;
   if (canNote) {
@@ -156,18 +157,15 @@
       const content = $('#note-content').value.trim();
       const type = (document.querySelector('input[name="note-type"]:checked') || {}).value;
       if (!content) {
-        $('#note-error').innerHTML = C.icon('alert', 'sm') + '내용을 적어 주세요.';
-        $('#note-error').hidden = false;
-        $('#note-field').classList.add('is-invalid');
+        C.setFieldError($('#note-field'), '내용을 적어 주세요.'); // 오류 표시와 aria-invalid (KRDS, v0.28)
         $('#note-content').focus();
         return;
       }
       C.addNote(root, { type: type, by: me.id, content: content });
       $('#note-content').value = '';
-      $('#note-error').hidden = true;
-      $('#note-field').classList.remove('is-invalid');
+      C.setFieldError($('#note-field'), '');
       renderNotes();
-      C.toast('사후관리 기록을 남겼습니다. 남긴 기록은 고칠 수 없습니다.');
+      C.toast('사후관리 기록을 남겼습니다(고칠 수 없음).');
     });
   }
 

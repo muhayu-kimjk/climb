@@ -4,7 +4,7 @@
  * 관련 요구사항: REQ-FLOW-12, REQ-DOC-06, REQ-REV-06
  * 하는 일
  *   1. 결재 기록(approval_history) 중 내가 한 일(승인, 반려, 승인 취소)을 모음
- *      (슈퍼관리자, 관리자는 모든 사람의 기록을 처리한 사람 칸과 함께)
+ *      (최고관리자, 관리자는 모든 사람의 기록을 처리한 사람 칸과 함께)
  *   2. 검색, 한 일, 단계, 지금 상태로 거르기. 최근 것부터
  *   3. 한 쪽에 20건씩 쪽 나누기
  * ===================================================================== */
@@ -17,7 +17,7 @@
   const PAGE_SIZE = 20;
 
   const seeAll = me.role === 'SUPER' || me.role === 'ADMIN';
-  if (!seeAll && D.PROCESS_ROLES.indexOf(me.role) < 0) {
+  if (!seeAll && !C.hasRole(me, D.PROCESS_ROLES)) {
     $('#notice').innerHTML = '<div class="notice" role="status"><p class="notice-title">' + C.icon('alert') + '검토 완료는 단계를 처리하는 역할만 씁니다</p>' +
       '<p>지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다.</p></div>';
     $('#list').hidden = true;
@@ -38,7 +38,7 @@
   function options(first, pairs) {
     return '<option value="">' + esc(first) + '</option>' + pairs.map(function (p) { return '<option value="' + p[0] + '">' + esc(p[1]) + '</option>'; }).join('');
   }
-  // 한 일: ⑥⑧⑨⑩의 승인은 "완료"로 함께 셈. 체결본 등록(⑦, 영업)은 슈퍼관리자, 관리자 보기에서만 나옴
+  // 한 일: ⑥⑧⑨⑩의 승인은 "완료"로 함께 셈. 체결본 등록(⑦, 영업)은 최고관리자, 관리자 보기에서만 나옴
   $('#f-action').innerHTML = options('전체', [['APPROVE', '승인, 완료'], ['REJECT', '반려'], ['CANCEL', '승인 취소'], ['RETURN', '다시 등록 요청'], ['REGISTER', '체결본 등록']]);
   $('#f-step').innerHTML = options('전체 단계', D.REVIEW_GROUPS.concat(D.POST_GROUPS).reduce(function (a, g) { return a.concat(g); }, []).map(function (code) { return [code, C.stepLabel(code)]; }));
   $('#f-status').innerHTML = options('전체 상태', Object.keys(D.STATUS).filter(function (k) { return k !== 'DRAFT'; }).map(function (k) { return [k, D.STATUS[k].label]; }));

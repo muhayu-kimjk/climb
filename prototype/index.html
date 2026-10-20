@@ -36,7 +36,7 @@
   <!-- 헤더 + 메인 메뉴 (common.js가 그림) -->
   <header id="site-header"></header>
 
-  <main id="main" class="page">
+  <main id="main" class="page" tabindex="-1">
     <div class="inner">
       <!-- 개요 화면은 큰 제목 없이 인사말로 시작 (REQ-DASH-13). 제목은 화면낭독기용으로만 둠 -->
       <div class="page-head">
@@ -53,6 +53,8 @@
         <section class="panel" id="progress" aria-labelledby="progress-title"></section>
         <!-- 내가 검토할 계약: 결재 역할에게만 보임 (REQ-DASH-03, 05) -->
         <section class="panel" id="my-reviews" aria-labelledby="my-reviews-title" hidden></section>
+        <!-- 점검할 일: 정보보호 담당자, 리더와 최고관리자에게만 (REQ-DASH-16, REQ-SEC-05, 06) -->
+        <section class="panel" id="audit" aria-labelledby="audit-title" hidden></section>
         <!-- 만료 임박 (REQ-DASH-07) -->
         <section class="panel" id="expiring" aria-labelledby="expiring-title"></section>
       </div>

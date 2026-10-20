@@ -48,7 +48,7 @@
   function addMonths(d, m) { return new Date(d.getFullYear(), d.getMonth() + m, d.getDate()); }
   function iso(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 
-  /* ---------- 1. 영업만 쓸 수 있음 (REQ-AUTH-04, 4.1). 슈퍼관리자는 모든 화면을 볼 수 있음 (v0.16) ---------- */
+  /* ---------- 1. 영업만 쓸 수 있음 (REQ-AUTH-04, 4.1). 최고관리자는 모든 화면을 볼 수 있음 (v0.16) ---------- */
   if (me.role !== 'SALES' && me.role !== 'SUPER') {
     $('#notice').innerHTML = noticeHtml('', '계약 등록은 영업만 할 수 있습니다',
       '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 화면 맨 위 검은 띠에서 영업 역할로 바꾸면 계약 등록 화면을 볼 수 있습니다.', '');
@@ -90,7 +90,8 @@
     $('#f-bizno').readOnly = !isNew;
     $('#f-counterparty').value = cu ? cu.name : '';
     $('#f-bizno').value = cu ? cu.bizNo : '';
-    $('#f-counterparty').placeholder = isNew ? '사업자등록증의 상호' : '거래처를 먼저 고르세요';
+    // 지시문은 예시 글자에 두지 않고 거래처 칸 도움말에 둠 (KRDS, v0.28)
+    $('#f-counterparty').placeholder = isNew ? '예: 사업자등록증의 상호' : '';
     $('#customer-help').textContent = isNew
       ? '기안하면 이 상호와 사업자등록번호로 거래처 목록에 함께 등록됩니다. 같은 사업자등록번호는 두 번 등록할 수 없습니다.'
       : '거래처 목록에서 고릅니다. 상호와 사업자등록번호는 목록에서 채워집니다.';
@@ -120,7 +121,7 @@
     const rej = source.rejection; // 결재 기록에서 계산한 반려 정보 (common.js buildReview)
     setTitle('보완 후 재기안');
     $('#notice').innerHTML = noticeHtml('', (round - 1) + '차 기안이 반려되었습니다',
-      '<strong>' + esc(C.roleLabel(rej.role)) + ' 반려 (' + C.fmtDate(rej.at) + ')</strong><br>' + esc(source.rejectReason) +
+      '<strong>' + esc(C.roleShort(rej.role)) + ' 반려 (' + C.fmtDate(rej.at) + ')</strong><br>' + esc(source.rejectReason) +
       '<br>내용을 보완해 ' + round + '차로 기안합니다. ' + (round - 1) + '차 기안 내용과 반려 사유는 그대로 남습니다.', '');
   } else if (source && source.status === 'DRAFT') {
     setTitle('새 계약 등록 (이어서 작성)');
@@ -282,23 +283,23 @@
     else if (pc.q2 === 'NO' && pc.q3 === 'YES') sales = ['skip', '할인율 한도 이내'];
     else if (pc.q3 === 'NO') sales = ['go', '할인율 한도를 넘김'];
     else sales = ['wait', '금액 계산을 기다림'];
-    // ③ 영업 검토는 기안자 팀의 리더 (리더 본인 계약은 영업 담당 임원, v0.26 재무 문서 반영)
+    // ③ 영업 검토는 기안자 유닛의 리더 (리더 본인 계약은 영업 임원, v0.26 재무 문서 반영)
     const req = { requesterId: (source && source.requesterId) || me.id };
     const name = function (code) { return C.userName(C.stepUserNow(code, req)); };
     return [
       { stage: '2단계 계약 검토 (② 다음 ③, 그 다음 ④와 ⑤ 동시)', items: [
-        { no: '②', name: '체크리스트 검토', who: '세일즈어드민', state: 'go', reason: '어떤 경우에도 생략하지 않음' }, // REQ-CHK-02
-        { no: '③', name: '영업 검토', who: '팀 리더 ' + name('S03'), state: sales[0], reason: sales[1] }, // 가격 예외 승인, 법무보다 먼저 (v0.20)
+        { no: '②', name: '체크리스트 검토', who: '영업지원', state: 'go', reason: '어떤 경우에도 생략하지 않음' }, // REQ-CHK-02
+        { no: '③', name: '영업 검토', who: '영업 리더 ' + name('S03'), state: sales[0], reason: sales[1] }, // 가격 예외 승인, 법무보다 먼저 (v0.20)
         { no: '④', name: '법무 검토', who: '법무 ' + name('S04'), state: legal[0], reason: legal[1] },
-        { no: '⑤', name: '개인정보 검토', who: '개인정보 담당 ' + name('S05'), state: privacy[0], reason: privacy[1] },
+        { no: '⑤', name: '개인정보 검토', who: '정보보호 담당자 ' + name('S05'), state: privacy[0], reason: privacy[1] },
       ] },
       { stage: '3단계 계약 체결', items: [
         { no: '⑥', name: '인장 날인 검토', who: '총무', state: 'go', reason: '기초 정보 확인 후 인장 날인' },
         { no: '⑦', name: '상대방 서명, 체결본 등록', who: '영업 (나)', state: 'go', reason: '서명은 시스템 밖에서' },
-        { no: '⑧', name: '체결본 확인', who: '세일즈어드민', state: 'go', reason: '승인된 내용과 같은지 확인' },
+        { no: '⑧', name: '체결본 확인', who: '영업지원', state: 'go', reason: '승인된 내용과 같은지 확인' },
       ] },
       { stage: '4단계 운영 검토', items: [
-        { no: '⑨', name: '운영 적용', who: 'CEM', state: 'go', reason: '라이선스나 도메인 열기' },
+        { no: '⑨', name: '운영 적용', who: '고객지원', state: 'go', reason: '라이선스나 도메인 열기' },
         { no: '⑩', name: '재무 확인', who: '재무 ' + name('S10'), state: 'go', reason: '회계 인식 (결재선에는 없음)' },
       ] },
       { stage: '5단계 계약 완료', items: [
@@ -419,7 +420,7 @@
   function renderFiles(key) {
     $('#' + key + '-list').innerHTML = files[key].map(function (f, i) {
       return '<li><span><span class="file-name">' + esc(f.name) + '</span><span class="file-size">' + fmtSize(f.size) + '</span></span>' +
-        '<button type="button" class="btn-text" data-file="' + key + '" data-i="' + i + '">삭제</button></li>';
+        '<button type="button" class="btn-text" data-file="' + key + '" data-i="' + i + '" aria-label="' + esc(f.name) + ' 삭제">삭제</button></li>';
     }).join('');
   }
   function addFiles(key, list) {
@@ -449,20 +450,16 @@
   function setError(name, msg, focusEl) {
     const box = fieldBox(name);
     if (!box) return null;
-    box.classList.add('is-invalid');
-    const err = box.querySelector(':scope > .field-error');
-    if (err) { err.hidden = false; err.innerHTML = C.icon('alert', 'sm') + '<span>' + esc(msg) + '</span>'; }
+    C.setFieldError(box, msg); // 오류 표시와 aria-invalid (KRDS, v0.28)
     return focusEl || box.querySelector('input:not([type=hidden]), select, textarea');
   }
   function clearError(el) {
     const box = el && el.closest && el.closest('[data-field], .product-item');
     if (!box || !box.classList.contains('is-invalid')) return;
-    box.classList.remove('is-invalid');
-    const err = box.querySelector(':scope > .field-error');
-    if (err) err.hidden = true;
+    C.setFieldError(box, '');
   }
   function clearAllErrors() {
-    $$('.is-invalid', form).forEach(function (b) { b.classList.remove('is-invalid'); });
+    $$('.is-invalid', form).forEach(function (b) { C.setFieldError(b, ''); });
     $$('.field-error', form).forEach(function (e) { e.hidden = true; });
   }
 
@@ -550,7 +547,7 @@
 
   /* ---------- 7. 임시 저장, 기안 ---------- */
   $('#btn-save').addEventListener('click', function () {
-    C.toast('임시 저장했습니다. 임시 저장한 계약은 나만 볼 수 있습니다. (프로토타입이라 실제로 저장되지는 않습니다)');
+    C.toast('임시 저장했고, 나만 볼 수 있습니다(시안이라 실제로 저장되지는 않음).');
   });
 
   function newNumber() {
@@ -584,7 +581,7 @@
       '<dl class="confirm-list">' + rows.map(function (r) { return '<div><dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd></div>'; }).join('') + '</dl>';
     lastFocus = document.activeElement;
     modal.hidden = false;
-    modal.querySelector('[data-act="confirm"]').focus();
+    C.focusModal(modal); // 제목에 포커스 (KRDS 모달, v0.28)
   }
   function closeModal() { modal.hidden = true; if (lastFocus) lastFocus.focus(); }
   modal.addEventListener('click', function (e) {
@@ -616,7 +613,7 @@
     $('#error-summary').hidden = true;
     $('#notice').innerHTML = noticeHtml('success', '기안했습니다',
       '계약번호 <strong>' + esc(no) + '</strong> (' + round + '차 기안, 프로토타입 예시 번호)<br>' +
-      '다음 단계: ② 체크리스트 검토 (세일즈어드민). 진행 상황은 개요의 계약 진행 현황에서 볼 수 있습니다.<br>' +
+      '다음 단계: ② 체크리스트 검토 (영업지원). 진행 상황은 개요의 계약 진행 현황에서 볼 수 있습니다.<br>' +
       '프로토타입이라 실제로 저장되지는 않습니다.',
       '<a class="btn btn--primary btn--md" href="index.html">개요로 가기</a><a class="btn btn--tertiary btn--md" href="new-contract.html">새 계약 하나 더 등록</a>');
     window.scrollTo(0, 0);

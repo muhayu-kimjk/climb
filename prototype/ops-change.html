@@ -21,7 +21,7 @@
   - 계약서는 그대로 두고 계약 기간을 바꾸거나(연장, 단축) 수량을 추가 충전할 때 쓰는 가벼운 기안입니다.
     번호는 원계약에 묶인 -C01. (기획자 결정 v0.26: 재무 문서의 "본 계약 체결 이후 수정에 관한 절차" 반영, REQ-CHG-06~11)
   - 한 번에 한 가지만 변경합니다(재무 문서 원칙). 계약서 내용이 바뀌면 변경 기안(-A, 전체 결재)을 씁니다.
-  - 결재: [③ 영업 검토: 기간이 2개월 넘게 바뀌거나 무상 충전이 50건을 넘을 때만] → ⑨ 운영 변경(기간 변경, CK 충전은 CEM, HR 충전은 재무기획) → 끝
+  - 결재: [③ 영업 검토: 기간이 2개월 넘게 바뀌거나 무상 충전이 50건을 넘을 때만] → ⑨ 운영 변경(기간 변경, CK 충전은 고객지원, HR 충전은 재무) → 끝
   - 변경 사유는 CRM 영업활동에 적고 그 링크를 남깁니다(재무 문서).
   - 들어오는 곳: 계약 상세(SCR-42)의 "운영 변경 기안". 주소: ops-change.html?origin=원계약 번호
   - 프로토타입: 기안한 운영 변경은 이 브라우저에만 저장됩니다(시연 띠의 "시연 기록 지우기"로 되돌림).
@@ -33,8 +33,10 @@
   <div class="sheet">
   <header id="site-header"></header>
 
-  <main id="main" class="page">
+  <main id="main" class="page" tabindex="-1">
     <div class="inner">
+      <!-- 브레드크럼: 메뉴에 없는 상세 화면만 (KRDS, 기획자 결정 v0.28) -->
+      <nav class="breadcrumb" id="breadcrumb" aria-label="브레드크럼" hidden></nav>
       <div class="page-head page-head--sub">
         <h1 class="page-title">운영 변경 기안</h1>
       </div>

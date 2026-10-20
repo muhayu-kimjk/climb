@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------
  * 관련 요구사항: REQ-FLOW-13(업무 흐름 5단계), REQ-UI-14(메뉴 줄 오른쪽 끝 이용 안내)
  * 하는 일
- *   1. 역할별 할 일 표에서 지금 내 역할의 줄을 강조 (슈퍼관리자는 강조 없음)
+ *   1. 역할별 할 일 표에서 지금 내 역할의 줄을 강조 (최고관리자는 강조 없음)
  *   2. 독촉 기준 일수를 결재선 규칙(SCR-52)의 지금 값으로 채움
  *   3. 자주 묻는 것: 펼침 화살표, 인쇄할 때는 모두 펼쳐 매뉴얼 한 부로
  * ===================================================================== */
@@ -16,7 +16,8 @@
   const row = document.querySelector('tr[data-role="' + me.role + '"]');
   if (row && me.role !== 'SUPER') {
     row.classList.add('is-me');
-    row.querySelector('td').insertAdjacentHTML('beforeend', '<span class="cell-meta">내 역할</span>');
+    // 등급 칸에 표시 (분야 칸은 여러 줄이 함께 씀, v0.29)
+    (row.querySelector('.role-name') || row.querySelector('td')).insertAdjacentHTML('beforeend', '<span class="cell-meta">내 역할</span>');
   }
 
   // 2. 독촉 기준 일수

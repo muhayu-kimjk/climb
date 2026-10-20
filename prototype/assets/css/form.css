@@ -36,7 +36,8 @@
   border: 1px solid var(--border-gray); border-radius: var(--radius-md); background: var(--surface-white);
   font-size: var(--fs-body-medium); color: var(--text-basic);
 }
-.input::placeholder, .textarea::placeholder { color: var(--text-disabled); }
+/* 예시 글자: 흰 바탕 4.5:1 이상이 되게 Dark Gray (KRDS 텍스트 입력, v0.28. 예전 Gray는 3.2:1) */
+.input::placeholder, .textarea::placeholder { color: var(--text-subtle); }
 .input:hover, .select:hover, .textarea:hover { border-color: var(--text-subtle); }
 .input:focus-visible, .select:focus-visible, .textarea:focus-visible { border-color: var(--mh-blue); box-shadow: var(--focus-ring); border-radius: var(--radius-md); }
 .input[readonly] { background: var(--surface-gray-subtler); border-color: var(--border-gray-light); color: var(--text-subtle); }
@@ -46,7 +47,10 @@
   padding-right: 4.4rem; appearance: none; cursor: pointer;
   background: var(--surface-white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23021821' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 1.4rem center / 2rem;
 }
-.is-invalid .input, .is-invalid .select, .is-invalid .textarea, .is-invalid .file-drop { border-color: var(--status-danger-fill); }
+/* 오류: 테두리를 2px로 보이게(안쪽 그림자 1px를 더해 칸 크기는 그대로) (KRDS 텍스트 입력 오류 상태, v0.28) */
+.is-invalid .input, .is-invalid .select, .is-invalid .textarea, .is-invalid .file-drop {
+  border-color: var(--status-danger-fill); box-shadow: inset 0 0 0 1px var(--status-danger-fill);
+}
 
 /* 숫자 + 단위(원, 일) */
 .input-unit { position: relative; }
@@ -82,6 +86,9 @@
 .file-drop.is-dragover { border-color: var(--mh-dark-green); background: var(--surface-primary-subtler); }
 .file-drop p { margin-bottom: 1.2rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
 .file-drop input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+/* 키보드로 숨은 파일 칸에 오면 "파일 선택" 버튼에 포커스 링을 보여 줌 (KRDS 파일 업로드, v0.28) */
+.file-drop:has(input[type="file"]:focus-visible) .btn { box-shadow: var(--focus-ring); }
+.file-limits { display: block; margin-top: 0.4rem; font-size: var(--fs-body-xsmall); }
 .file-list > li {
   display: flex; align-items: center; justify-content: space-between; gap: 1.2rem; margin-top: 0.8rem; padding: 1.2rem 1.6rem;
   border: 1px solid var(--border-gray-light); border-radius: var(--radius-md); font-size: var(--fs-body-small);

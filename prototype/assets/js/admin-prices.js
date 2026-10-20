@@ -7,7 +7,7 @@
  *   2. 바꾸기, 제품 추가: 적용 시작일(오늘 이후), 품의 문서 링크(필수, https), 품의 번호(선택), 변경 사유(필수)
  *      기존 줄은 고치지 않고 새 줄을 더함. 이미 기안한 계약은 기안할 때의 기준을 씀
  *   3. 바뀐 이력: 모든 줄(지난 기준, 적용 중, 예정)
- * 볼 수 있는 사람: 영업, 세일즈어드민, 관리자(바꾸기는 관리자만). 슈퍼관리자는 모두
+ * 볼 수 있는 사람: 영업, 영업지원, 관리자(바꾸기는 관리자만). 최고관리자는 모두
  * 프로토타입: 품의 문서 링크는 열리지 않음. 바꾼 내용은 이 브라우저에만 저장(시연 기록)
  * ===================================================================== */
 (function () {
@@ -16,13 +16,13 @@
   const me = C.init();
   const esc = C.esc;
   const $ = function (s) { return document.querySelector(s); };
-  if (!C.gate(me, ['ADMIN', 'SALES', 'SALES_ADMIN'], '가격 기준은 영업, 세일즈어드민, 관리자만 볼 수 있습니다',
+  if (!C.gate(me, ['ADMIN', 'SALES', 'SALES_ADMIN'], '가격 기준은 영업, 영업지원, 관리자만 볼 수 있습니다',
     '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 가격 기준은 열람을 제한하는 정보입니다(REQ-SCOPE-02).')) return;
   const canEdit = me.role === 'ADMIN' || me.role === 'SUPER';
   if (!canEdit) {
     $('#btn-add').hidden = true;
     $('#th-action').hidden = true;
-    $('#intro-sub').textContent = '영업과 세일즈어드민은 볼 수만 있습니다. 가격 기준은 사내 품의 결재로 승인받은 뒤 관리자가 바꿉니다.';
+    $('#intro-sub').textContent = '영업과 영업지원은 볼 수만 있습니다. 가격 기준은 사내 품의 결재로 승인받은 뒤 관리자가 바꿉니다.';
   }
 
   function val(f, n) { return (f.elements[n].value || '').trim(); }
@@ -164,7 +164,7 @@
 
   $('#content').addEventListener('click', function (e) {
     const doc = e.target.closest('[data-doc]');
-    if (doc) { e.preventDefault(); C.toast('품의 문서(' + doc.getAttribute('data-doc') + ')는 사내 품의 시스템에서 열립니다. 시안에서는 열리지 않습니다.'); return; }
+    if (doc) { e.preventDefault(); C.toast('품의 문서(' + doc.getAttribute('data-doc') + ')는 사내 품의 시스템에서 열립니다(시안에서는 안내만).'); return; }
     const b = e.target.closest('button');
     if (!b) return;
     if (b.id === 'btn-add') openAdd();

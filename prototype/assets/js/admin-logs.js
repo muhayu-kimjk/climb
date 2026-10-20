@@ -2,7 +2,7 @@
  * SCR-57 접속 기록 점검 화면 로직 (admin-logs.js)
  * ---------------------------------------------------------------------
  * 관련 요구사항: REQ-SEC-05(분기 권한 검토), REQ-SEC-06(기록 보관, 매월 점검, 이상 행위 즉시 알림), REQ-AUTH-13(접속 기록)
- * 쓰는 사람: 정보보호팀(개인정보 담당). 관리자가 자기 작업 기록을 스스로 점검하지 않도록 관리자는 볼 수 없음 (기획자 결정 v0.25)
+ * 쓰는 사람: 정보보호 담당자. 관리자가 자기 작업 기록을 스스로 점검하지 않도록 관리자는 볼 수 없음 (기획자 결정 v0.25)
  * 하는 일
  *   1. 이상 행위 알림: 확인 전인 알림에 확인 결과와 조치를 남김
  *   2. 매월 기록 점검: CLIMB을 쓰기 시작한 달부터 지난달까지. [가정] 기한은 다음 달 말일
@@ -18,9 +18,9 @@
   const me = C.init();
   const esc = C.esc;
   const $ = function (s) { return document.querySelector(s); };
-  if (!C.gate(me, ['PRIVACY'], '접속 기록 점검은 정보보호팀(개인정보 담당)이 합니다',
+  if (!C.gate(me, ['PRIVACY'], '접속 기록 점검은 정보보호 담당자가 합니다',
     '관리자가 자기 작업 기록을 스스로 점검하지 않도록 관리자도 이 화면을 볼 수 없습니다(지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다). ' +
-    '화면 맨 위 검은 띠에서 개인정보 담당이나 슈퍼관리자로 바꾸면 볼 수 있습니다.')) return;
+    '화면 맨 위 검은 띠에서 정보보호 담당자나 최고관리자로 바꾸면 볼 수 있습니다.')) return;
 
   const PAGE_SIZE = 20;
   const START_MONTH = '2026-09'; // CLIMB을 쓰기 시작한 달 (ACCOUNTS 등록일 기준)
@@ -29,6 +29,9 @@
   function lastDay(y, m) { return y + '-' + pad(m) + '-' + pad(new Date(y, m, 0).getDate()); } // m: 1~12
   function monthLabel(ym) { return ym.slice(0, 4) + '년 ' + Number(ym.slice(5, 7)) + '월'; }
   const THIS_MONTH = D.TODAY.slice(0, 7);
+
+  // 이 화면을 연 것도 접속 기록에 남음 (REQ-ADM-18). 시연에서는 화면을 열 때마다 한 줄
+  const OPENED = C.nowStamp();
 
   /* ---------- 접속 기록 만들기 (시연용) ---------- */
   const ACTS = { LOGIN: '로그인', LOGOUT: '로그아웃', VIEW: '열람', SUBMIT: '기안', APPROVE: '결재', DOWNLOAD: '내려받기', NOTE: '사후관리 기록', ADMIN: '설정 변경', AUDIT: '점검 기록' };
@@ -53,6 +56,7 @@
     D.ADMIN_LOG.forEach(function (e) {
       push(e.at, e.by, e.area === 'AUDIT' ? 'AUDIT' : 'ADMIN', (AREA[e.area] ? AREA[e.area] + ': ' : '') + e.target);
     });
+    push(OPENED, me.id, 'VIEW', '접속 기록 점검 화면');
     D.PRICE_ROWS.forEach(function (r) { push(r.at, r.by, 'ADMIN', '가격 기준: ' + r.name + ' (' + C.fmtDate(r.validFrom) + '부터)'); });
     // 이상 행위 알림이 생긴 접속 (가상의 기록)
     D.SEC_ALERTS.forEach(function (al) {
@@ -196,7 +200,7 @@
     const idle = acc.filter(function (a) { return a.status === 'ACTIVE' && a.lastLoginAt && C.daysBetween(new Date(a.lastLoginAt.slice(0, 10)), new Date(D.TODAY)) > 90; });
     return '<ul class="summary-list">' +
       '<li>계정 ' + acc.length + '개: 사용 중 ' + count('ACTIVE') + ', 첫 접속 전 ' + count('INVITED') + ', 사용 중지 ' + count('SUSPENDED') + '</li>' +
-      '<li>관리자 권한(관리자, 슈퍼관리자) ' + admins.length + '명: ' + esc(admins.map(function (a) { return a.name; }).join(', ')) + '</li>' +
+      '<li>관리자 권한(관리자, 최고관리자) ' + admins.length + '명: ' + esc(admins.map(function (a) { return a.name; }).join(', ')) + '</li>' +
       '<li>' + (last ? '지난 검토(' + C.fmtDate(last.at) + ') 뒤' : C.fmtDate(since) + '부터') + ' 권한을 바꾼 기록 ' + changes.length + '건: ' +
         (noReason ? '사유 없는 기록 ' + noReason + '건' : '모두 사유가 있음') + ' (사용자 권한 관리의 권한 변경 이력)</li>' +
       '<li>사용 중지 계정 ' + stopped.length + '개' + (stopped.length ? ': ' + esc(stopped.map(function (a) { return a.name; }).join(', ')) : '') + '</li>' +

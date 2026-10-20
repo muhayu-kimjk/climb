@@ -31,7 +31,7 @@
   <div class="sheet">
   <header id="site-header"></header>
 
-  <main id="main" class="page">
+  <main id="main" class="page" tabindex="-1">
     <div class="inner">
       <!-- 경로(브레드크럼)는 두지 않음: 메뉴에서 지금 위치(계약 등록)가 표시되므로 (v0.15) -->
       <div class="page-head page-head--sub">
@@ -92,7 +92,7 @@
           <div class="field-row">
             <div class="field" data-field="counterparty">
               <label class="field-label" for="f-counterparty">거래처 상호<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
-              <input class="input" id="f-counterparty" name="counterparty" type="text" placeholder="거래처를 먼저 고르세요" readonly>
+              <input class="input" id="f-counterparty" name="counterparty" type="text" readonly>
               <p class="field-error" hidden></p>
             </div>
             <div class="field" data-field="bizNo">
@@ -183,7 +183,7 @@
               <label class="choice"><input type="radio" name="personalData" value="YES">있음</label>
               <label class="choice"><input type="radio" name="personalData" value="NO">없음</label>
             </div>
-            <p class="field-help">있음이면 결재선에 개인정보 담당이 자동으로 들어갑니다.</p>
+            <p class="field-help">있음이면 결재선에 정보보호 담당자가 자동으로 들어갑니다.</p>
             <p class="field-error" hidden></p>
           </fieldset>
 
@@ -196,7 +196,7 @@
         <!-- ============ 2. 금액과 제품 (CPQ, 3.4) ============ -->
         <section class="panel" aria-labelledby="sec-amount">
           <h2 class="section-title" id="sec-amount"><span class="num">2</span>금액과 제품</h2>
-          <p class="section-desc">제품마다 계약 금액을 넣으면 표준 단가와 비교해 할인율이 자동으로 계산됩니다. 가격 기준은 영업, 세일즈어드민, 관리자만 볼 수 있습니다.</p>
+          <p class="section-desc">제품마다 계약 금액을 넣으면 표준 단가와 비교해 할인율이 자동으로 계산됩니다. 가격 기준은 영업, 영업지원, 관리자만 볼 수 있습니다.</p>
 
           <div class="field" data-field="products">
             <p class="field-label" id="products-label">제품별 금액<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></p>
@@ -246,7 +246,7 @@
         <!-- ============ 3. 체크리스트 (3.5) ============ -->
         <section class="panel" aria-labelledby="sec-check">
           <h2 class="section-title" id="sec-check"><span class="num">3</span>체크리스트</h2>
-          <p class="section-desc">1~3번 답에 따라 결재선이 정해집니다. 1~3번이 "아니오"이거나 4번이 "예"이면 비고를 꼭 적습니다. 체크리스트 검토(세일즈어드민)는 어떤 경우에도 생략되지 않습니다.</p>
+          <p class="section-desc">1~3번 답에 따라 결재선이 정해집니다. 1~3번이 "아니오"이거나 4번이 "예"이면 비고를 꼭 적습니다. 체크리스트 검토(영업지원)는 어떤 경우에도 생략되지 않습니다.</p>
 
           <fieldset class="field check-q" data-field="standard">
             <legend class="field-label">1. 표준계약서를 사용하나요?<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
@@ -314,7 +314,7 @@
           <div class="field" data-field="draftFile">
             <p class="field-label" id="draft-label">계약서 초안<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></p>
             <div class="file-drop" data-target="draft">
-              <p>파일을 여기에 끌어다 놓거나, 파일 선택 버튼을 누르세요.</p>
+              <p>파일을 여기에 끌어다 놓거나, 파일 선택 버튼을 누르세요.<span class="file-limits">PDF, Word(doc, docx), 한글(hwp, hwpx), 한 파일 50MB 이하, 여러 개 가능</span></p>
               <label class="btn btn--tertiary" for="f-draft">파일 선택</label>
               <input type="file" id="f-draft" aria-labelledby="draft-label" multiple>
             </div>
@@ -328,7 +328,7 @@
           <div class="field" data-field="diffFile" id="diff-field" hidden>
             <p class="field-label" id="diff-label">조항 대비표<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></p>
             <div class="file-drop" data-target="diff">
-              <p>표준계약서를 바꿨으면 바꾼 조항마다 표준 문구와 바꾼 문구를 나란히 적은 대비표를 올립니다. ④ 법무 검토가 이것을 보고 판단합니다.</p>
+              <p>표준계약서를 바꿨으면 바꾼 조항마다 표준 문구와 바꾼 문구를 나란히 적은 대비표를 올립니다. ④ 법무 검토가 이것을 보고 판단합니다.<span class="file-limits">PDF, Word(doc, docx), 한글(hwp, hwpx), 한 파일 50MB 이하, 한 개</span></p>
               <label class="btn btn--tertiary" for="f-diff">파일 선택</label>
               <input type="file" id="f-diff" aria-labelledby="diff-label">
             </div>
@@ -339,7 +339,7 @@
           <div class="field">
             <p class="field-label" id="quote-label">최종 견적서 <span class="opt">(선택)</span></p>
             <div class="file-drop" data-target="quote">
-              <p>고객에게 낸 최종 견적서가 있으면 첨부합니다.</p>
+              <p>고객에게 낸 최종 견적서가 있으면 첨부합니다.<span class="file-limits">PDF, Word(doc, docx), 한글(hwp, hwpx), 한 파일 50MB 이하, 한 개</span></p>
               <label class="btn btn--tertiary" for="f-quote">파일 선택</label>
               <input type="file" id="f-quote" aria-labelledby="quote-label">
             </div>

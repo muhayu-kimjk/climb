@@ -19,8 +19,8 @@
   SCR-21 검토 대기 (docs/02_화면목록.md)
   - 내 차례인 결재 단계 목록. 오래 기다린 순서로, 한 단계에 5일 이상 머문 건은 강조합니다. (REQ-DASH-05, REQ-REV-01)
   - ④ 법무와 ⑤ 개인정보는 동시에 차례가 될 수 있습니다. (REQ-STEP-04)
-  - 승인 뒤 ⑥ 인장 날인(총무)과 ⑧ 체결본 확인(세일즈어드민) 차례도 여기에 모읍니다. (REQ-SIGN-07, v0.23)
-  - 슈퍼관리자와 관리자는 모든 담당자의 차례를 담당자 칸과 함께 봅니다.
+  - 승인 뒤 ⑥ 인장 날인(총무)과 ⑧ 체결본 확인(영업지원) 차례도 여기에 모읍니다. (REQ-SIGN-07, v0.23)
+  - 최고관리자와 관리자는 모든 담당자의 차례를 담당자 칸과 함께 봅니다.
   - 거르기, 쪽 나누기는 assets/js/review-queue.js가 처리합니다.
 ====================================================================== -->
 <body data-page="SCR-21">
@@ -30,7 +30,7 @@
   <div class="sheet">
   <header id="site-header"></header>
 
-  <main id="main" class="page">
+  <main id="main" class="page" tabindex="-1">
     <div class="inner">
       <div class="page-head page-head--sub">
         <h1 class="page-title">검토 대기</h1>

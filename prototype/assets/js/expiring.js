@@ -27,7 +27,7 @@
     d.setDate(d.getDate() - b.noticeDays);
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
-  // 갱신이나 해지 기안을 할 수 있는 사람: 영업 대표 본인 (슈퍼관리자는 시연용으로)
+  // 갱신이나 해지 기안을 할 수 있는 사람: 영업 대표 본인 (최고관리자는 시연용으로)
   function canDraft(b) { return b.root.requesterId === me.id || me.role === 'SUPER'; }
 
   function render() {

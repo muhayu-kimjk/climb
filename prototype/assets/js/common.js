@@ -14,7 +14,8 @@ window.CLIMB = (function () {
   /* ---------- 메뉴 구조 (docs/02_화면목록.md 1. 메뉴 구조, REQ-UI-14) ----------
    * 개요 → 계약 등록 → 계약 현황 → 보관함 (관리자 메뉴는 관리자에게만 맨 뒤에)
    * roles: 이 메뉴(또는 하위 메뉴)가 보이는 역할. 없으면 전체에게 보임.
-   *        슈퍼관리자(SUPER)는 roles와 상관없이 모든 메뉴를 봅니다. (v0.16)
+   *        최고관리자(SUPER)는 roles와 상관없이 모든 메뉴를 봅니다. (v0.16)
+   *        리더와 임원(영업지원 리더, 정보보호 리더, 고객지원 리더, 재무 리더, 재무 임원)은 그 분야 담당자의 메뉴를 함께 봅니다(ROLE_BASE, v0.29)
    * scr  : 화면 ID. href가 없으면 아직 시안을 만들지 않은 화면입니다. */
   const MENU = [
     { label: '개요', scr: 'SCR-01', href: 'index.html' },
@@ -26,12 +27,12 @@ window.CLIMB = (function () {
     // 계약 현황: 검토와 체결이 진행 중인 계약 (REQ-FLOW-03~05)
     { label: '계약 현황', children: [
       { label: '전체 진행 현황', scr: 'SCR-20', href: 'progress.html' },
-      // 검토 대기: ②~⑤ 결재 역할과 ⑥ 총무, ⑧ 세일즈어드민의 차례 (v0.23)
+      // 검토 대기: ②~⑤ 결재 역할과 ⑥ 총무, ⑧ 영업지원의 차례 (v0.23)
       { label: '검토 대기', scr: 'SCR-21', href: 'review-queue.html', roles: D.APPROVER_ROLES.concat(['GA']) },
       { label: '검토 완료', scr: 'SCR-22', href: 'review-done.html', roles: D.PROCESS_ROLES },
       // 체결 대기: 영업이 내 계약의 체결 진행(⑥~⑧)을 보고 ⑦ 체결본을 올림 (REQ-SIGN-07)
       { label: '체결 대기', scr: 'SCR-31', href: 'signing.html', roles: ['SALES'] },
-      // 운영 검토 대기: ⑨ CEM 운영 적용, ⑩ 재무 확인 (REQ-SIGN-08)
+      // 운영 검토 대기: ⑨ 고객지원 운영 적용, ⑩ 재무 확인 (REQ-SIGN-08)
       { label: '운영 검토 대기', scr: 'SCR-34', href: 'ops-queue.html', roles: ['CEM', 'FINANCE'] },
     ] },
     // 보관함: 반려, 승인, 체결된 모든 계약을 묶음마다 (REQ-FLOW-15~16, REQ-ARC-01)
@@ -40,8 +41,8 @@ window.CLIMB = (function () {
       { label: '전체 계약', scr: 'SCR-41', href: 'contracts.html' },
       { label: '만료 예정 계약', scr: 'SCR-43', href: 'expiring.html' },
     ] },
-    // 관리자 메뉴는 관리자(와 슈퍼관리자)에게만 보임 (REQ-AUTH-02)
-    //   접속 기록 점검(SCR-57)만 정보보호팀(개인정보 담당)이 씀. 관리자가 자기 작업 기록을 스스로 점검하지 않게
+    // 관리자 메뉴는 관리자(와 최고관리자)에게만 보임 (REQ-AUTH-02)
+    //   접속 기록 점검(SCR-57)만 정보보호 담당자와 리더가 씀. 관리자가 자기 작업 기록을 스스로 점검하지 않게
     //   관리자에게는 보이지 않음 (REQ-SEC-05, 06, 기획자 결정 v0.25)
     { label: '관리자', roles: ['ADMIN', 'PRIVACY'], children: [
       { label: '사용자 권한 관리', scr: 'SCR-51', href: 'admin-users.html', roles: ['ADMIN'] },
@@ -107,7 +108,7 @@ window.CLIMB = (function () {
       const saved = localStorage.getItem(ROLE_KEY);
       if (saved && D.ROLES[saved]) return saved;
     } catch (e) { /* 저장소를 못 쓰는 환경이면 기본 역할 사용 */ }
-    return 'SUPER'; // 기본은 슈퍼관리자: 화면을 슈퍼관리자 기준으로 먼저 만듦 (v0.16)
+    return 'SUPER'; // 기본은 최고관리자: 화면을 최고관리자 기준으로 먼저 만듦 (v0.16)
   }
   function saveRole(role) {
     try { localStorage.setItem(ROLE_KEY, role); } catch (e) { /* 무시 */ }
@@ -115,7 +116,12 @@ window.CLIMB = (function () {
   function currentUser() {
     const role = getRole();
     const id = D.DEMO_PERSONA[role];
-    return Object.assign({ id: id }, D.USERS[id], { role: role });
+    // base: 메뉴와 화면을 정할 때 쓰는 역할. 리더와 임원은 그 분야 담당자의 화면을 함께 씀 (v0.29)
+    return Object.assign({ id: id }, D.USERS[id], { role: role, base: D.ROLE_BASE[role] || role });
+  }
+  // 이 사람이 그 역할(또는 그 역할의 화면을 함께 쓰는 리더, 임원)인지
+  function hasRole(user, roles) {
+    return roles.indexOf(user.role) > -1 || roles.indexOf(user.base) > -1;
   }
 
   /* ---------- 날짜·금액 표시 ---------- */
@@ -150,6 +156,8 @@ window.CLIMB = (function () {
 
   /* ---------- 계약·결재 관련 ---------- */
   function roleLabel(role) { return D.ROLES[role] || role; }
+  // 결재란과 현재 진행 칸에 쓰는 짧은 이름: 담당자는 분야 이름만("영업", "법무"), 리더와 임원은 등급까지("영업 리더")
+  function roleShort(role) { return D.ROLE_SHORT[role] || role; }
   function userName(id) { return D.USERS[id] ? D.USERS[id].name : '-'; }
   // 서비스 이름: 계약명은 따로 두지 않고 고객사와 서비스로 계약을 구분 (v0.12)
   //   codes: ['CK', 'HR'] 같은 서비스 코드 목록 → "카피킬러, HR 서비스"
@@ -183,11 +191,11 @@ window.CLIMB = (function () {
   // 단계가 속한 업무 단계: 2 계약 검토, 3 계약 체결, 4 운영 검토
   function phaseOf(code) { return isReviewStep(code) ? 2 : ['S06', 'S07', 'S08'].indexOf(code) > -1 ? 3 : 4; }
   // 짧은 결재: 해지 기안(-T)과 갱신 검토의 "그대로 자동갱신"(-R) (REQ-ARC-06, 07)
-  //   ③ 부서장 → ④ 법무 → ⑨ 운영(종료, 기간 연장) → ⑩ 재무. ②, ⑤와 ⑥~⑧(날인, 체결본)은 없음
+  //   ③ 영업 리더 → ④ 법무 → ⑨ 운영(종료, 기간 연장) → ⑩ 재무. ②, ⑤와 ⑥~⑧(날인, 체결본)은 없음
   function isShort(c) { return c.kind === 'TERMINATE' || c.renewMode === 'AUTO'; }
   /* 운영 변경(-C): 계약서는 그대로 두고 계약 기간을 바꾸거나 수량을 추가 충전 (REQ-CHG-06~11, 재무 문서 반영 v0.26)
    *   [③ 영업 검토: 기간이 2개월 넘게 바뀌거나 무상 충전이 50건을 넘을 때만] → ⑨ 운영 변경 → 끝
-   *   ⑨는 기간 변경과 CK 충전은 CEM, HR 충전은 재무기획(수불부, 안정화까지). ②, ④~⑧, ⑩은 없음
+   *   ⑨는 기간 변경과 CK 충전은 고객지원, HR 충전은 재무(수불부, 안정화까지). ②, ④~⑧, ⑩은 없음
    *   한 번에 한 가지 변경만 (재무 문서 원칙). 계약서가 바뀌는 변경은 변경 계약(-A)으로 전체 결재 */
   function isChange(c) { return c.kind === 'CHANGE'; }
   function isoDate(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
@@ -221,7 +229,7 @@ window.CLIMB = (function () {
     if (isShort(c)) {
       const what = c.kind === 'TERMINATE' ? '해지 기안' : '갱신 검토';
       return {
-        S02: [false, what + '은 체크리스트 검토 없음'], S03: [true, '부서장 승인'],
+        S02: [false, what + '은 체크리스트 검토 없음'], S03: [true, '영업 리더 승인'],
         S04: [true, '법무 승인'], S05: [false, what + '은 개인정보 검토 없음'],
       };
     }
@@ -239,10 +247,11 @@ window.CLIMB = (function () {
     };
   }
   /* 단계 담당자 (REQ-AUTH-06, 재무 문서 반영 v0.26)
-   *   ③ 영업 검토: 기안자 팀의 리더(TEAM_LEADERS). 리더 본인이 기안한 계약은 영업 담당 임원(STEP_ASSIGNEE.S03)
-   *   ⑦ 체결본 등록: 기안한 영업 / ⑨: 운영 변경의 HR 충전은 재무기획(⑩ 담당자)
-   *   직무 분리: 기안자가 ②, ⑧의 담당자(세일즈어드민)이면 재무 담당자가 대신 검토 (panda 시나리오 10)
+   *   ③ 영업 검토: 기안자 유닛의 영업 리더(TEAM_LEADERS). 리더 본인이 기안한 계약은 영업 임원(STEP_ASSIGNEE.S03)
+   *   ⑦ 체결본 등록: 기안한 영업 담당자 / ⑨: 운영 변경의 HR 충전은 재무(⑩ 담당자)
+   *   직무 분리: 기안자가 ②, ⑧의 담당자(영업지원)이면 재무 담당자가 대신 검토 (panda 시나리오 10)
    *   at: 그 단계가 차례가 된 일시. 그 뒤에 담당자를 바꿔도 이미 차례인 단계는 그대로 (v0.25) */
+  // 기안자의 유닛(조직). ③ 영업 리더를 찾을 때 씀 (v0.29: 영업1~3팀 → 비즈니스1~3유닛)
   function teamOf(userId) { return (D.USERS[userId] || {}).dept || ''; }
   function leaderAt(team, at) {
     let id = D.TEAM_LEADERS[team] || null;
@@ -260,7 +269,7 @@ window.CLIMB = (function () {
     if ((code === 'S02' || code === 'S08') && id === c.requesterId) return assigneeAt('S10', at);
     return id;
   }
-  // 결재란에 보이는 역할: 그 사람이 단계의 역할을 가졌으면 그 역할, 아니면 그 사람의 첫 역할(예: 대신 검토하는 재무)
+  // 결재란에 보이는 역할: 그 사람이 단계의 역할을 가졌으면 그 역할, 아니면 그 사람의 첫 역할(예: 대신 검토하는 재무, 담당자로 지정된 리더)
   function roleFor(userId, code) {
     const want = D.STEPS[code].role;
     const a = D.ACCOUNTS.filter(function (x) { return x.id === userId; })[0];
@@ -294,9 +303,10 @@ window.CLIMB = (function () {
   }
   // 차례일 때 현재 진행 칸에 쓰는 말 (해지와 자동갱신의 ⑨는 운영 종료, 기간 연장)
   function stepIng(c, code) {
-    if (code === 'S09' && c.kind === 'TERMINATE') return 'CEM 운영 종료 중';
-    if (code === 'S09' && c.renewMode === 'AUTO') return 'CEM 기간 연장 중';
-    if (code === 'S09' && isChange(c)) return (/^HR_/.test(c.changeType) ? '재무기획' : 'CEM') + ' 운영 변경 중';
+    // 누가 하는지는 결재란에 있으므로 하는 일만 씀 (v0.29: CEM 대신 고객지원으로 부르면서 줄임)
+    if (code === 'S09' && c.kind === 'TERMINATE') return '운영 종료 중';
+    if (code === 'S09' && c.renewMode === 'AUTO') return '기간 연장 중';
+    if (code === 'S09' && isChange(c)) return /^HR_/.test(c.changeType) ? '수불부 반영 중' : '운영 변경 중';
     return D.STEPS[code].ing;
   }
   // 'YYYY-MM-DD'에 n일을 더함
@@ -362,7 +372,7 @@ window.CLIMB = (function () {
         userId: userId,
         state: skipSign || skipFin ? 'SKIPPED' : !review || route[code][0] ? 'WAITING' : 'SKIPPED',
         reason: review ? route[code][1] : skipSign ? noSign
-          : skipFin ? (/^HR_/.test(c.changeType) ? '재무기획이 ⑨에서 반영' : '운영 변경은 재무 확인 없음') : '',
+          : skipFin ? (/^HR_/.test(c.changeType) ? '재무가 ⑨에서 반영' : '운영 변경은 재무 확인 없음') : '',
         arrivedAt: null, decidedAt: null, decidedBy: null, onBehalfOf: null, delegationId: null, comment: '', fileName: null,
       };
     });
@@ -469,7 +479,7 @@ window.CLIMB = (function () {
     return Math.max.apply(null, list.map(function (s) { return s.arrivedAt ? daysSince(s.arrivedAt) : 0; }));
   }
   // 이 사람이 지금 처리할 수 있는 단계인지: 담당자 본인, 대리 지정 기간 안의 대신할 사람(REQ-REV-08)
-  //   슈퍼관리자는 시연용으로 담당자 대신 처리할 수 있음 (프로토타입 전용)
+  //   최고관리자는 시연용으로 담당자 대신 처리할 수 있음 (프로토타입 전용)
   //   직무 분리: 기안자는 자기 계약의 결재 단계를 처리하지 않음(⑦ 체결본 등록 빼고, v0.26)
   function canAct(c, s, user) {
     if (s.step !== 'S07' && c.requesterId === user.id) return false;
@@ -487,7 +497,8 @@ window.CLIMB = (function () {
 
   /* 열람 권한 (REQ-AUTH-03, REQ-AUTH-09 [가정])
    * - 열람 제한이 없는 계약: 모든 사용자 열람 가능
-   * - 열람 제한 계약: 요청자 본인, 결재선과 단계 담당자(생략된 단계 제외. 총무, 세일즈어드민, CEM, 재무 포함), 관리자만 열람 가능
+   * - 열람 제한 계약: 요청자 본인, 결재선과 단계 담당자(생략된 단계 제외. 총무, 영업지원, 고객지원, 재무 포함), 관리자만 열람 가능
+   *   관찰자와 재무 리더, 재무 임원은 열람 제한 계약을 볼 수 없음(재무는 아래 회계 영향 건만) [가정 v0.29]
    * ※ 실제 시스템에서는 반드시 서버에서 판단해야 합니다. 화면에서 가리는 것만으로는 보안이 되지 않습니다. */
   function canView(c, user) {
     // 작성 중(임시 저장) 계약은 작성자 본인만 봅니다. [가정]
@@ -495,8 +506,8 @@ window.CLIMB = (function () {
     if (!c.restricted) return true;
     if (user.role === 'ADMIN' || user.role === 'SUPER') return true;
     if (c.requesterId === user.id) return true;
-    // 체크리스트 4번이 예면 재무도 볼 수 있음 (REQ-CHK-08)
-    if (user.role === 'FINANCE' && c.checklist && c.checklist.accounting === 'YES') return true;
+    // 체크리스트 4번이 예면 재무(담당자, 리더, 임원)도 볼 수 있음 (REQ-CHK-08)
+    if (user.base === 'FINANCE' && c.checklist && c.checklist.accounting === 'YES') return true;
     return routedSteps(c).some(function (a) { return a.userId === user.id; });
   }
 
@@ -535,7 +546,7 @@ window.CLIMB = (function () {
   function progressText(c) {
     if (c.status === 'DRAFT') return '임시 저장 (' + fmtDate(c.savedAt) + ')';
     if (c.status === 'REJECTED') {
-      return (phaseOf(c.rejection.step) === 2 ? stepDots(c) : '') + esc(roleLabel(c.rejection.role)) + ' 반려 (' + fmtDate(c.rejection.at) + ')';
+      return (phaseOf(c.rejection.step) === 2 ? stepDots(c) : '') + esc(roleShort(c.rejection.role)) + ' 반려 (' + fmtDate(c.rejection.at) + ')';
     }
     // 보완 중: 어느 단계에서 보완을 요청했는지와 일수 (REQ-REV-11)
     if (c.status === 'SUPPLEMENT' && c.supplement) {
@@ -778,7 +789,7 @@ window.CLIMB = (function () {
       return d.absentId === absentId && d.delegateId === delegateId && delegationState(d) === 'ACTIVE';
     })[0] || null;
   }
-  // 이 사람이 지금 맡은 결재 담당: [{ key, label }] (예: ② 체크리스트 검토, ③ 영업 검토(영업1팀 리더))
+  // 이 사람이 지금 맡은 결재 담당: [{ key, label }] (예: ② 체크리스트 검토, ③ 영업 검토(비즈니스1유닛 리더))
   function duties(userId) {
     const out = [];
     ['S02', 'S04', 'S05', 'S06', 'S08', 'S09', 'S10'].forEach(function (code) {
@@ -792,6 +803,17 @@ window.CLIMB = (function () {
   }
   // 내가 처리할 차례인지: 담당자 본인이거나, 그 담당자의 대리로 지정된 기간 안
   function isMyStep(s, user) { return s.userId === user.id || !!activeDelegation(s.userId, user.id); }
+  // 이 역할 목록으로 그 단계 역할을 맡을 수 있는지: 그 역할이거나 그 분야의 리더(영업지원, 정보보호, 고객지원 리더) [가정 v0.29]
+  //   결재선 규칙에서 담당자와 대신할 사람을 고를 때, 사용자 권한에서 역할을 뺄 수 있는지 볼 때 씀
+  function canTake(roles, role) {
+    return roles.indexOf(role) > -1 || roles.some(function (r) { return D.STEP_LEADS.indexOf(r) > -1 && D.ROLE_BASE[r] === role; });
+  }
+  // 리더가 보는 차례 목록: 그 분야 담당자의 차례 모두(처리는 담당자나 대리로 지정된 사람만) [가정 v0.29]
+  //   예: 고객지원 리더는 ⑨, 재무 리더와 재무 임원은 ⑩(과 운영 변경의 HR 충전 ⑨)
+  function isLead(user) { return user.role !== user.base; }
+  function areaQueue(user, steps) {
+    return pendingQueue(user, true, steps).filter(function (x) { return (D.ROLE_BASE[x.s.role] || x.s.role) === user.base; });
+  }
   loadDemo('admin').forEach(function (e) { D.ADMIN_LOG.push(e); applyAdmin(e); });
   // 저장해 둔 시연 기록을 예시 데이터에 더한 뒤, 모든 계약의 결재 상태를 계산
   loadDemoActions().forEach(function (a) {
@@ -886,10 +908,13 @@ window.CLIMB = (function () {
   function renderDemoBar(user) {
     const el = document.getElementById('demo-bar');
     if (!el) return;
-    const options = Object.keys(D.ROLES).map(function (r) {
-      const u = D.USERS[D.DEMO_PERSONA[r]];
-      return '<option value="' + r + '"' + (r === user.role ? ' selected' : '') + '>' +
-        esc(D.ROLES[r]) + ' (' + esc(u.name) + ')</option>';
+    // 역할 2단계: 분야마다 묶어 보여 줌 (v0.29)
+    const options = D.ROLE_AREAS.map(function (g) {
+      return '<optgroup label="' + esc(g.name) + '">' + Object.keys(g.roles).map(function (r) {
+        const u = D.USERS[D.DEMO_PERSONA[r]];
+        return '<option value="' + r + '"' + (r === user.role ? ' selected' : '') + '>' +
+          esc(D.ROLES[r]) + ' (' + esc(u.name) + ')</option>';
+      }).join('') + '</optgroup>';
     }).join('');
     el.className = 'demo-bar';
     el.setAttribute('role', 'region');
@@ -916,10 +941,13 @@ window.CLIMB = (function () {
     });
   }
 
+  // 메뉴에 없는 화면은 어느 메뉴 아래인지 (현재 메뉴 표시, KRDS 메인 메뉴: 지금 위치를 분명히) v0.28
+  const MENU_PARENT = { 'SCR-23': 'SCR-20', 'SCR-42': 'SCR-41', 'SCR-13': 'SCR-41', 'SCR-14': 'SCR-41', 'SCR-44': 'SCR-43' };
   function renderHeader(user, pageId) {
     const el = document.getElementById('site-header');
     if (!el) return;
-    const allowed = function (m) { return user.role === 'SUPER' || !m.roles || m.roles.indexOf(user.role) > -1; };
+    pageId = MENU_PARENT[pageId] || pageId;
+    const allowed = function (m) { return user.role === 'SUPER' || !m.roles || hasRole(user, m.roles); };
     // 메뉴와 하위 메뉴를 역할에 맞게 거름. 하위 메뉴가 하나도 안 남으면 그 메뉴도 감춤
     const menu = MENU.filter(allowed).map(function (m) {
       return m.children ? Object.assign({}, m, { children: m.children.filter(allowed) }) : m;
@@ -933,7 +961,7 @@ window.CLIMB = (function () {
         return '<li class="gnb-item"><a class="gnb-link' + cur + '" href="' + m.href + '"' + aria + '>' + esc(m.label) + '</a></li>';
       }
       const sub = m.children.map(function (c) {
-        return '<li><a ' + (c.href ? 'href="' + c.href + '"' : todoAttrs(c.label, c.scr)) + '>' + esc(c.label) + '</a></li>';
+        return '<li><a ' + (c.href ? 'href="' + c.href + '"' : todoAttrs(c.label, c.scr)) + (c.scr === pageId ? ' aria-current="page"' : '') + '>' + esc(c.label) + '</a></li>';
       }).join('');
       return '<li class="gnb-item">' +
         '<button type="button" class="gnb-link' + cur + '" aria-expanded="false" aria-controls="gnb-sub-' + i + '">' +
@@ -945,7 +973,7 @@ window.CLIMB = (function () {
 
     /* 헤더 구성 (REQ-UI-13)
      *   1줄: [CLIMB | 무하유 계약 관리 플랫폼]
-     *   2줄: [MUHAYU Contract Lifecycle Management Base]     [영업 이도윤님 | (아이콘)로그아웃]
+     *   2줄: [MUHAYU Contract Lifecycle Management Base]     [비즈니스1유닛 이도윤님 | (아이콘)로그아웃]
      * 오른쪽 한 줄은 왼쪽 둘째 줄과 글자 밑선(baseline)을 맞추고, 오른쪽 끝은 본문 오른쪽 끝에 맞춥니다. (v0.15)
      * 화면 알림(종 모양, 알림 숫자)은 두지 않습니다. 알림은 이메일로 보냅니다. (REQ-ENV-09) */
     el.className = 'site-header';
@@ -954,14 +982,15 @@ window.CLIMB = (function () {
         // 헤더 첫 줄: [심볼] CLIMB (v0.22, 한글 이름은 푸터에만)
         '<a class="brand-title" href="index.html" title="개요로 이동">' + brandTitleHtml({ mark: true, ko: false }) + '</a>' +
         '<div class="user-line">' +
-          // 역할 배지를 이름 앞에 둠: [영업] 이도윤님 | 로그아웃 (v0.15)
-          badge('line', roleLabel(user.role)) + '<span class="user-name">' + esc(user.name) + '님</span>' +
+          // 이름 앞에 조직명: 비즈니스1유닛 이도윤님 | 로그아웃 (v0.29 기획자 결정. 예전에는 역할 배지)
+          //   역할은 본인이 알고 관리자만 알면 되므로 헤더에 두지 않고 사용자 권한 관리에서 봄
+          '<span class="user-org">' + esc(user.dept || '') + '</span><span class="user-name">' + esc(user.name) + '님</span>' +
           '<span class="util-divider" aria-hidden="true"></span>' +
           '<a class="util-link logout-link" href="login.html">' + icon('logout', 'sm') + '로그아웃</a>' +
         '</div>' +
         '<span class="brand-en">' + esc(D.BRAND.en) + '</span>' +
         // 인쇄할 때만 보이는 출력 정보 (REQ-UI-11). 실제 시스템은 출력하는 순간의 날짜와 시각을 씁니다.
-        '<p class="print-meta">' + meta(['출력일 ' + fmtDate(D.TODAY), '출력자 ' + esc(user.name) + '님 (' + esc(roleLabel(user.role)) + ')']) + '</p>' +
+        '<p class="print-meta">' + meta(['출력일 ' + fmtDate(D.TODAY), '출력자 ' + esc(user.name) + '님 (' + esc(user.dept || '') + ')']) + '</p>' +
       '</div></div>' +
       '<nav class="gnb" aria-label="주 메뉴"><div class="inner">' +
         '<ul class="gnb-list">' + menuHtml + '</ul>' +
@@ -980,7 +1009,13 @@ window.CLIMB = (function () {
       });
     });
     document.addEventListener('click', function (e) { if (!e.target.closest('.gnb-item')) closeMenus(); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenus(); });
+    // Esc: 열린 하위 메뉴를 닫고 그 메뉴 버튼으로 포커스를 돌려줌 (KRDS 메인 메뉴)
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      const open = el.querySelector('.gnb-item.is-open');
+      closeMenus();
+      if (open) open.querySelector('button').focus();
+    });
     function closeMenus() {
       el.querySelectorAll('.gnb-item.is-open').forEach(function (item) {
         item.classList.remove('is-open');
@@ -1015,7 +1050,8 @@ window.CLIMB = (function () {
 
   /* ---------- 안내 메시지 ---------- */
   let toastTimer = null;
-  function toast(msg) {
+  //   KRDS 토스트: 한 문장, 안내는 2~3초, 주의는 3~4초 (v0.28). warn이 참이면 3.5초
+  function toast(msg, warn) {
     let el = document.getElementById('toast');
     if (!el) {
       el = document.createElement('div');
@@ -1025,9 +1061,12 @@ window.CLIMB = (function () {
       document.body.appendChild(el);
     }
     el.textContent = msg;
+    // 결재 문서의 처리 막대처럼 아래에 붙는 막대가 있으면 그 위에 띄움
+    const bar = document.querySelector('.action-bar:not([hidden])');
+    el.style.bottom = bar ? (bar.getBoundingClientRect().height + 16) + 'px' : '';
     el.classList.add('is-show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { el.classList.remove('is-show'); }, 2800);
+    toastTimer = setTimeout(function () { el.classList.remove('is-show'); }, warn ? 3500 : 2600);
   }
   // 아직 만들지 않은 화면 링크를 누르면 안내 (프로토타입 전용)
   document.addEventListener('click', function (e) {
@@ -1037,6 +1076,70 @@ window.CLIMB = (function () {
     const scr = a.getAttribute('data-scr');
     toast('‘' + a.getAttribute('data-todo') + '’' + (scr ? ' 화면(' + scr + ')' : ' 화면') + '은 아직 시안을 만들기 전입니다.');
   });
+
+  /* ---------- 확인 창 공통 (KRDS 모달, v0.28) ----------
+   * Tab: 열린 창 안에서만 돌게 함(모든 화면의 확인 창에 같이 적용)
+   * focusModal: 창을 열면 제목에 포커스. Enter를 바로 눌러 기안이나 반려가 되지 않게 함 */
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Tab') return;
+    const open = Array.prototype.filter.call(document.querySelectorAll('.modal-backdrop'), function (m) { return !m.hidden; }).pop();
+    if (!open) return;
+    const items = Array.prototype.filter.call(open.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex="-1"].modal-title'),
+      function (x) { return x.offsetParent !== null; });
+    if (!items.length) return;
+    const first = items[0], last = items[items.length - 1];
+    if (!open.contains(document.activeElement)) { e.preventDefault(); first.focus(); return; }
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+  function focusModal(modal) {
+    const t = modal.querySelector('.modal-title');
+    if (!t) return;
+    t.setAttribute('tabindex', '-1');
+    t.focus();
+  }
+
+  /* ---------- 입력 칸과 도움말, 오류 연결 (KWCAG, KRDS 텍스트 입력, v0.28) ----------
+   * wireFields: .field 안의 입력 칸에 도움말과 오류 문장의 id를 aria-describedby로 이어 화면낭독기가 함께 읽게 함
+   * setFieldError: 오류 표시 + 입력 칸에 aria-invalid. 각 화면의 오류 표시는 이 함수를 씀 */
+  let fieldSeq = 0;
+  function wireFields(root) {
+    (root || document).querySelectorAll('.field, fieldset.field').forEach(function (f) {
+      const control = f.querySelector('input:not([type=hidden]):not([type=radio]):not([type=checkbox]), select, textarea');
+      const targets = control ? [control] : Array.prototype.slice.call(f.querySelectorAll('input[type=radio], input[type=checkbox]'));
+      if (!targets.length) return;
+      const ids = [];
+      f.querySelectorAll(':scope > .field-help, :scope > .field-error, :scope > .input-unit ~ .field-help').forEach(function (h) {
+        if (!h.id) h.id = 'fd-' + (++fieldSeq);
+        if (ids.indexOf(h.id) < 0) ids.push(h.id);
+      });
+      if (!ids.length) return;
+      // 라디오, 체크 묶음은 묶음(fieldset)에 설명을 이음
+      (control ? targets : [f]).forEach(function (t) { t.setAttribute('aria-describedby', ids.join(' ')); });
+    });
+  }
+  function setFieldError(box, msg) {
+    if (!box) return;
+    box.classList.toggle('is-invalid', !!msg);
+    const err = box.querySelector(':scope > .field-error') || box.querySelector('.field-error');
+    if (err) { err.innerHTML = msg ? icon('alert', 'sm') + esc(msg) : ''; err.hidden = !msg; }
+    box.querySelectorAll('input:not([type=hidden]), select, textarea').forEach(function (c) {
+      if (msg) c.setAttribute('aria-invalid', 'true'); else c.removeAttribute('aria-invalid');
+    });
+  }
+
+  /* ---------- 브레드크럼 (KRDS, 메뉴에 없는 상세 화면만, v0.28) ----------
+   * items: [[이름, 주소]]. 마지막은 지금 화면(주소 없음). 맨 앞은 늘 개요 */
+  function breadcrumb(items) {
+    const el = document.getElementById('breadcrumb');
+    if (!el) return;
+    const list = [['개요', 'index.html']].concat(items);
+    el.innerHTML = '<ol>' + list.map(function (it, i) {
+      const last = i === list.length - 1;
+      return '<li>' + (last ? '<span aria-current="page">' + esc(it[0]) + '</span>' : '<a href="' + it[1] + '">' + esc(it[0]) + '</a>') + '</li>';
+    }).join('') + '</ol>';
+    el.hidden = false;
+  }
 
   /* ---------- 쪽 번호 (KRDS 페이지네이션) ----------
    * 목록 화면이 함께 씀. 버튼마다 data-page가 있어 화면 스크립트가 눌린 쪽 번호를 읽습니다.
@@ -1049,7 +1152,14 @@ window.CLIMB = (function () {
         (opts.aria ? ' aria-label="' + opts.aria + '"' : '') + '>' + label + '</button>';
     };
     let html = btn(icon('chevronLeft', 'sm') + '<span>이전</span>', page - 1, { cls: ' page-prev', disabled: page === 1, aria: '이전 쪽' });
-    for (let i = 1; i <= pages; i++) html += btn(String(i), i, { cls: i === page ? ' is-current' : '', current: i === page, aria: i + '쪽' });
+    // 쪽이 7개를 넘으면 처음, 끝, 지금 쪽 앞뒤 2쪽만 보이고 사이는 줄임표 (KRDS 페이지네이션, v0.28)
+    const show = function (i) { return pages <= 7 || i === 1 || i === pages || Math.abs(i - page) <= 2; };
+    let gap = false;
+    for (let i = 1; i <= pages; i++) {
+      if (!show(i)) { if (!gap) { html += '<span class="page-gap" aria-hidden="true">…</span>'; gap = true; } continue; }
+      gap = false;
+      html += btn(String(i), i, { cls: i === page ? ' is-current' : '', current: i === page, aria: i + '쪽' });
+    }
     html += btn('<span>다음</span>' + icon('chevronRight', 'sm'), page + 1, { cls: ' page-next', disabled: page === pages, aria: '다음 쪽' });
     const range = total ? (from + 1) + '~' + (from + shown) + '번째' : '해당 없음';
     return '<div class="page-btns">' + html + '</div>' +
@@ -1058,13 +1168,13 @@ window.CLIMB = (function () {
 
 
   /* ---------- 관리자 화면 공통 부품 ----------
-   * gate: 쓸 수 없는 역할이면 안내만 보이고 본문(#content)을 감춤 (REQ-ADM-01). 슈퍼관리자는 모두 봄(REQ-AUTH-14)
+   * gate: 쓸 수 없는 역할이면 안내만 보이고 본문(#content)을 감춤 (REQ-ADM-01). 최고관리자는 모두 봄(REQ-AUTH-14)
    * fieldHtml: 입력 칸 하나(이름표, 입력칸, 도움말, 오류) / formModal: 입력 창(KRDS 모달)
    * adminHistoryHtml: 화면 아래 변경 이력 표(일시, 대상, 바뀐 내용, 사유, 바꾼 사람) */
   function gate(user, roles, title, msg) {
-    if (user.role === 'SUPER' || roles.indexOf(user.role) > -1) return true;
+    if (user.role === 'SUPER' || hasRole(user, roles)) return true;
     document.getElementById('notice').innerHTML = '<div class="notice" role="status"><p class="notice-title">' + icon('alert') + esc(title) + '</p>' +
-      '<p>' + (msg || '지금은 ' + esc(roleLabel(user.role)) + ' 역할로 보고 있습니다. 화면 맨 위 검은 띠에서 관리자나 슈퍼관리자로 바꾸면 볼 수 있습니다.') + '</p></div>';
+      '<p>' + (msg || '지금은 ' + esc(roleLabel(user.role)) + ' 역할로 보고 있습니다. 화면 맨 위 검은 띠에서 관리자나 최고관리자로 바꾸면 볼 수 있습니다.') + '</p></div>';
     const body = document.getElementById('content');
     if (body) body.hidden = true;
     return false;
@@ -1120,9 +1230,7 @@ window.CLIMB = (function () {
       let first = null;
       form.querySelectorAll('[data-field]').forEach(function (f) {
         const msg = errs[f.getAttribute('data-field')];
-        f.classList.toggle('is-invalid', !!msg);
-        const box = f.querySelector('.field-error');
-        if (box) { box.innerHTML = msg ? icon('alert', 'sm') + esc(msg) : ''; box.hidden = !msg; }
+        setFieldError(f, msg);
         if (msg && !first) first = f.querySelector('input, select, textarea');
       });
       if (first) { first.focus(); return; }
@@ -1130,6 +1238,7 @@ window.CLIMB = (function () {
       opt.done(form);
     });
     el.hidden = false;
+    wireFields(form);
     if (opt.open) opt.open(form);
     const f0 = form.querySelector('input:not([readonly]):not([disabled]), select:not([disabled]), textarea');
     (f0 || el.querySelector('[data-act="close"]')).focus();
@@ -1172,7 +1281,12 @@ window.CLIMB = (function () {
     btn.hidden = true;
     btn.innerHTML = icon('arrowUp') + '<span class="to-top-label">맨 위로</span>';
     document.body.appendChild(btn);
-    const toggle = function () { btn.hidden = window.scrollY < 400; };
+    // 결재 문서처럼 아래에 붙는 처리 막대가 있으면 그 위로 올려 승인 버튼을 가리지 않게 함 (KRDS: 플로팅 버튼은 하단 막대를 가리지 않음)
+    const toggle = function () {
+      btn.hidden = window.scrollY < 400;
+      const bar = document.querySelector('.action-bar:not([hidden])');
+      btn.style.bottom = bar ? (bar.getBoundingClientRect().height + 16) + 'px' : '';
+    };
     window.addEventListener('scroll', toggle, { passive: true });
     toggle();
     btn.addEventListener('click', function () {
@@ -1196,6 +1310,7 @@ window.CLIMB = (function () {
     renderFooter();
     renderWatermark(user);
     renderTopButton();
+    wireFields(document);
     // 앞 화면에서 남긴 안내가 있으면 한 번 보여 줌
     try {
       const msg = sessionStorage.getItem('climb.flash');
@@ -1207,7 +1322,7 @@ window.CLIMB = (function () {
   return {
     init: init, getRole: getRole, saveRole: saveRole, currentUser: currentUser,
     daysSince: daysSince, daysUntil: daysUntil, fmtDate: fmtDate, fmtDateTime: fmtDateTime, fmtToday: fmtToday, fmtKRW: fmtKRW,
-    roleLabel: roleLabel, userName: userName, serviceLabel: serviceLabel, stepLabel: stepLabel,
+    roleLabel: roleLabel, roleShort: roleShort, hasRole: hasRole, userName: userName, serviceLabel: serviceLabel, stepLabel: stepLabel,
     currentStep: currentStep, pendingSteps: pendingSteps, routedSteps: routedSteps, stepPosition: stepPosition, waitDays: waitDays,
     stepDots: stepDots, progressText: progressText, actionLabel: actionLabel, opsChecks: opsChecks, isReviewStep: isReviewStep, routedReview: routedReview,
     isShort: isShort, opsChecksFor: opsChecksFor, stepIng: stepIng, kindLabel: kindLabel,
@@ -1219,10 +1334,11 @@ window.CLIMB = (function () {
     securityNotice: SECURITY_NOTICE, addDays: addDays, daysBetween: daysBetween,
     // 관리자 설정 (SCR-51~57)
     adminSave: adminSave, adminLog: adminLog, assigneeAt: assigneeAt, assigneeOf: assigneeOf, delegationState: delegationState,
-    activeDelegation: activeDelegation, isMyStep: isMyStep, codeList: codeList, typeLabel: typeLabel,
+    activeDelegation: activeDelegation, isMyStep: isMyStep, canTake: canTake, isLead: isLead, areaQueue: areaQueue, codeList: codeList, typeLabel: typeLabel,
     // 기안자 기준 지금 담당자 이름 (결재선 미리 보기): C.stepUserNow('S03', { requesterId: 'u_sales1' })
     stepUserNow: function (code, c) { return stepUser(code, c, '9999'); },
     isChange: isChange, changeSales: changeSales, monthsLater: monthsLater, teamOf: teamOf, leaderAt: leaderAt, duties: duties,
     gate: gate, fieldHtml: fieldHtml, formModal: formModal, adminHistoryHtml: adminHistoryHtml,
+    focusModal: focusModal, wireFields: wireFields, setFieldError: setFieldError, breadcrumb: breadcrumb,
   };
 })();

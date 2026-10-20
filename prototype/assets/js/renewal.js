@@ -4,7 +4,7 @@
  * 관련 요구사항: REQ-FLOW-20, REQ-ARC-07
  * 하는 일
  *   1. 주소의 원계약 번호로 묶음을 찾고 갱신 검토를 할 수 있는지 확인
- *      (자동갱신이고 지금 유효한 계약이 계약 완료, 영업 대표 본인(시연용 슈퍼관리자 포함), 진행 중인 갱신이나 해지 없음)
+ *      (자동갱신이고 지금 유효한 계약이 계약 완료, 영업 대표 본인(시연용 최고관리자 포함), 진행 중인 갱신이나 해지 없음)
  *   2. 세 갈래: 그대로 자동갱신(짧은 기안) / 조건을 바꿔 갱신(계약 등록으로) / 해지(해지 기안으로)
  *   3. 그대로 자동갱신은 새 계약 기간(영업이 입력, 시작일은 지금 종료일 다음 날로 미리 채움)과 이유를 받아
  *      -R 번호로 저장하고 결재 문서로 이동 (v0.25 기획자 결정: 기간은 따로 입력)
@@ -25,6 +25,7 @@
   const found = D.CONTRACTS.find(function (c) { return c.id === origin; });
   const b = found ? C.bundleOf(C.rootOf(found)) : null;
   const back = b ? 'contract.html?id=' + encodeURIComponent(b.id) : 'expiring.html';
+  C.breadcrumb([['보관함', 'contracts.html'], ['만료 예정 계약', 'expiring.html'], ['갱신 검토']]);
   if (!b || !C.canView(b.root, me)) {
     $('#notice').innerHTML = notice('갱신할 계약을 찾을 수 없습니다', '계약 상세나 만료 예정 계약에서 "갱신 검토"를 눌러 들어와 주세요.');
     return;
@@ -61,9 +62,9 @@
   $('#btn-cancel').href = back;
 
   const route = [
-    { no: '③', name: '영업 검토', who: '팀 리더 ' + C.userName(C.stepUserNow('S03', root)), reason: '그대로 연장이 영업상 맞는지 승인' },
+    { no: '③', name: '영업 검토', who: '영업 리더 ' + C.userName(C.stepUserNow('S03', root)), reason: '그대로 연장이 영업상 맞는지 승인' },
     { no: '④', name: '법무 검토', who: '법무 ' + C.userName(C.stepUserNow('S04', root)), reason: '연장 조건과 법적 위험 검토' },
-    { no: '⑨', name: '운영 적용 (기간 연장)', who: 'CEM ' + C.userName(C.stepUserNow('S09', root)), reason: '라이선스나 도메인 기간 연장' },
+    { no: '⑨', name: '운영 적용 (기간 연장)', who: '고객지원 ' + C.userName(C.stepUserNow('S09', root)), reason: '라이선스나 도메인 기간 연장' },
     { no: '⑩', name: '재무 확인', who: '재무 ' + C.userName(C.stepUserNow('S10', root)), reason: '연장된 기간의 매출 인식 확인' },
   ];
   $('#route').innerHTML = '<ol class="route-list">' + route.map(function (it) {
@@ -108,9 +109,7 @@
     let first = null;
     Object.keys(msgs).forEach(function (k) {
       const field = document.querySelector('[data-field="' + k + '"]');
-      field.classList.toggle('is-invalid', !!msgs[k]);
-      field.querySelector('.field-error').innerHTML = msgs[k] ? C.icon('alert', 'sm') + esc(msgs[k]) : '';
-      field.querySelector('.field-error').hidden = !msgs[k];
+      C.setFieldError(field, msgs[k]); // 오류 표시와 aria-invalid (KRDS, v0.28)
       if (msgs[k] && !first) first = field.querySelector('input, textarea');
     });
     if (first) { first.focus(); return; }
@@ -119,7 +118,7 @@
       '<div><dt>갱신 번호</dt><dd>' + esc(newId) + '</dd></div>' +
       '<div><dt>새 계약 기간</dt><dd>' + C.fmtDate(start) + ' ~ ' + C.fmtDate(end) + '</dd></div></dl>';
     modal.hidden = false;
-    modal.querySelector('[data-act="confirm"]').focus();
+    C.focusModal(modal); // 제목에 포커스 (KRDS 모달, v0.28)
   });
   modal.addEventListener('click', function (e) {
     if (e.target === modal || e.target.closest('[data-act="close"]')) modal.hidden = true;

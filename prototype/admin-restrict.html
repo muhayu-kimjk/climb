@@ -18,7 +18,7 @@
 </head>
 <!-- =====================================================================
   SCR-53 열람 제한 관리 (docs/02_화면목록.md)
-  - 관리자와 슈퍼관리자가 계약의 열람 제한을 걸거나 풉니다. (REQ-AUTH-07~10)
+  - 관리자와 최고관리자가 계약의 열람 제한을 걸거나 풉니다. (REQ-AUTH-07~10)
   - 열람 제한 계약은 요청자, 그 계약의 담당자(결재선과 단계 담당자), 관리자만 봅니다(REQ-AUTH-09).
   - 걸 때와 풀 때 사유가 필수이고, 영업이 등록할 때 건 것과 함께 변경 이력에 남습니다(REQ-AUTH-10).
   - 동작은 assets/js/admin-restrict.js
@@ -30,7 +30,7 @@
   <div class="sheet">
   <header id="site-header"></header>
 
-  <main id="main" class="page">
+  <main id="main" class="page" tabindex="-1">
     <div class="inner">
       <div class="page-head page-head--sub">
         <h1 class="page-title">열람 제한 관리</h1>

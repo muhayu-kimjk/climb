@@ -19,7 +19,7 @@
   SCR-12 내 등록 목록 (docs/02_화면목록.md)
   - 내가 등록한 모든 계약(작성 중, 검토 중, 반려, 체결 대기, 운영 검토, 계약 완료, 변경, 갱신, 해지 기안). (REQ-ARC-04)
   - 할 일: 작성 중 → 이어서 작성, 삭제(REQ-FLOW-31) / 반려 → 보완 후 재기안 / ⑦ 내 차례 → 체결본 등록
-  - 슈퍼관리자와 관리자는 모든 영업의 목록을 영업 대표 칸과 함께 봅니다.
+  - 최고관리자와 관리자는 모든 영업의 목록을 영업 대표 칸과 함께 봅니다.
   - 거르기, 쪽 나누기, 임시 저장 삭제 확인 창은 assets/js/my-contracts.js가 처리합니다.
 ====================================================================== -->
 <body data-page="SCR-12">
@@ -29,7 +29,7 @@
   <div class="sheet">
   <header id="site-header"></header>
 
-  <main id="main" class="page">
+  <main id="main" class="page" tabindex="-1">
     <div class="inner">
       <div class="page-head page-head--sub">
         <h1 class="page-title">내 등록 목록</h1>

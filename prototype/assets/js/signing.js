@@ -4,7 +4,7 @@
  * 관련 요구사항: REQ-FLOW-04~05, REQ-SIGN-07, REQ-ENV-10
  * 하는 일
  *   1. 계약 검토가 끝나 체결 중인 계약(⑥ 인장 날인, ⑦ 체결본 등록, ⑧ 체결본 확인)을 모음
- *      영업은 내가 기안한 계약만, 슈퍼관리자와 관리자는 모든 계약을 영업 대표 칸과 함께
+ *      영업은 내가 기안한 계약만, 최고관리자와 관리자는 모든 계약을 영업 대표 칸과 함께
  *   2. 검색, 지금 단계, 승인 후 14일 이상으로 거르기. 오래된 승인부터
  *   3. 한 쪽에 20건씩 쪽 나누기
  * ===================================================================== */
@@ -77,7 +77,7 @@
       const st = x.s ? D.STEPS[x.s.step] : null;
       const stepCell = st
         ? esc(st.no + ' ' + st.ing) + (x.s.step === 'S07' && x.s.userId === me.id ? ' ' + C.badge('progress', '내 차례') : '') +
-          '<span class="cell-meta">' + esc(C.roleLabel(x.s.role)) + ' ' + esc(C.userName(x.s.userId)) + '</span>'
+          '<span class="cell-meta">' + esc(C.roleShort(x.s.role)) + ' ' + esc(C.userName(x.s.userId)) + '</span>'
         : '-';
       return '<tr>' +
         '<td>' + cust + '</td>' +

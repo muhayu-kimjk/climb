@@ -19,7 +19,7 @@
 <!-- =====================================================================
   SCR-13 해지 기안 (docs/02_화면목록.md)
   - 계약 기간 중 해지도 기안해 결재를 받습니다(REQ-FLOW-29). 번호는 원계약에 묶인 -T01.
-  - 결재: ③ 부서장 → ④ 법무 → ⑨ CEM 운영 종료 → ⑩ 재무 확인(환불, 위약금, 매출 조정) (기획자 결정, REQ-ARC-06)
+  - 결재: ③ 영업 리더 → ④ 법무 → ⑨ 고객지원 운영 종료 → ⑩ 재무 확인(환불, 위약금, 매출 조정) (기획자 결정, REQ-ARC-06)
     ⑩이 끝나면 원계약이 "해지" 상태가 됩니다.
   - 들어오는 곳: 계약 상세(SCR-42), 만료 예정(SCR-43)의 "해지 기안". 주소: terminate.html?origin=원계약 번호
   - 프로토타입: 기안한 해지는 이 브라우저에만 저장됩니다(시연 띠의 "시연 기록 지우기"로 되돌림).
@@ -31,14 +31,16 @@
   <div class="sheet">
   <header id="site-header"></header>
 
-  <main id="main" class="page">
+  <main id="main" class="page" tabindex="-1">
     <div class="inner">
+      <!-- 브레드크럼: 메뉴에 없는 상세 화면만 (KRDS, 기획자 결정 v0.28) -->
+      <nav class="breadcrumb" id="breadcrumb" aria-label="브레드크럼" hidden></nav>
       <div class="page-head page-head--sub">
         <h1 class="page-title">해지 기안</h1>
       </div>
       <div class="page-intro">
-        <p>계약 기간 중에 계약을 끝내려면 해지를 기안해 부서장과 법무의 승인을 받습니다.</p>
-        <p class="sub"><span class="req" aria-hidden="true">*</span> 표시는 꼭 입력해야 하는 항목입니다. 승인 뒤 CEM이 운영을 종료하고 재무가 확인하면 해지가 끝납니다.</p>
+        <p>계약 기간 중에 계약을 끝내려면 해지를 기안해 영업 리더와 법무의 승인을 받습니다.</p>
+        <p class="sub"><span class="req" aria-hidden="true">*</span> 표시는 꼭 입력해야 하는 항목입니다. 승인 뒤 고객지원이 운영을 종료하고 재무가 확인하면 해지가 끝납니다.</p>
       </div>
 
       <div id="notice"></div>
@@ -80,7 +82,7 @@
 
         <section class="panel" aria-labelledby="sec-route">
           <h2 class="section-title" id="sec-route"><span class="num">3</span>결재선</h2>
-          <p class="section-desc">해지는 체크리스트 없이 부서장과 법무가 결재하고, 날인과 체결본 등록은 거치지 않습니다.</p>
+          <p class="section-desc">해지는 체크리스트 없이 영업 리더와 법무가 결재하고, 날인과 체결본 등록은 거치지 않습니다.</p>
           <div id="route"></div>
         </section>
 

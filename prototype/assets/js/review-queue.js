@@ -3,8 +3,8 @@
  * ---------------------------------------------------------------------
  * 관련 요구사항: REQ-DASH-05, REQ-STEP-04, REQ-REV-01, REQ-SIGN-07
  * 하는 일
- *   1. 내 차례인 단계를 모음: ②~⑤ 계약 검토와 ⑥ 인장 날인(총무), ⑧ 체결본 확인(세일즈어드민) (v0.23)
- *      (슈퍼관리자, 관리자는 모든 담당자 것을 담당자 칸과 함께)
+ *   1. 내 차례인 단계를 모음: ②~⑤ 계약 검토와 ⑥ 인장 날인(총무), ⑧ 체결본 확인(영업지원) (v0.23)
+ *      (최고관리자, 관리자는 모든 담당자 것을, 영업지원 리더와 정보보호 리더는 그 분야 담당자 것을 담당자 칸과 함께. v0.29)
  *   2. 검색, 단계, 서비스, 대기 기간으로 거르기. 오래 기다린 순서로 정렬
  *   3. 한 쪽에 20건씩 쪽 나누기 (화면이 A4 2장을 넘지 않게)
  * ===================================================================== */
@@ -19,16 +19,19 @@
   const QUEUE_STEPS = ['S02', 'S03', 'S04', 'S05', 'S06', 'S08']; // ⑦은 체결 대기, ⑨⑩은 운영 검토 대기에서
 
   const seeAll = me.role === 'SUPER' || me.role === 'ADMIN';
-  if (!seeAll && D.APPROVER_ROLES.concat(['GA']).indexOf(me.role) < 0) {
+  const lead = !seeAll && C.isLead(me);
+  const showWho = seeAll || lead; // 담당자 칸을 보이는지
+  if (!seeAll && !C.hasRole(me, D.APPROVER_ROLES.concat(['GA']))) {
     $('#notice').innerHTML = '<div class="notice" role="status"><p class="notice-title">' + C.icon('alert') + '검토 대기는 결재 역할과 총무가 씁니다</p>' +
       '<p>지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 진행 상황은 계약 현황 > 전체 진행 현황에서 볼 수 있습니다.</p></div>';
     $('#list').hidden = true;
     return;
   }
   if (seeAll) $('#intro').textContent = '모든 담당자의 차례인 결재입니다(' + C.roleLabel(me.role) + ' 보기). 오래 기다린 순서로 보여 줍니다.';
+  if (lead) $('#intro').textContent = C.roleLabel(me.base) + '의 차례를 모두 봅니다(' + C.roleLabel(me.role) + ' 보기). 처리는 담당자나 대리로 지정된 사람이 합니다.';
 
   // 내 차례 목록. 같은 계약에서 동시에 차례인 다른 단계도 알려 줌(④와 ⑤)
-  const all = C.pendingQueue(me, seeAll, QUEUE_STEPS).map(function (x) {
+  const all = (lead ? C.areaQueue(me, QUEUE_STEPS) : C.pendingQueue(me, seeAll, QUEUE_STEPS)).map(function (x) {
     return { c: x.c, s: x.s, wait: C.waitDays(x.c, x.s) };
   }).sort(function (a, b) { return b.wait - a.wait; });
 
@@ -40,7 +43,7 @@
   $('#f-service').innerHTML = options('전체 서비스', Object.keys(D.SERVICES).map(function (k) { return [k, D.SERVICES[k]]; }));
 
   $('#thead').innerHTML = '<tr><th scope="col" class="col-customer">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col">단계</th>' +
-    (seeAll ? '<th scope="col">담당자</th>' : '') + '<th scope="col">요청자</th><th scope="col">기안일</th><th scope="col" class="num">대기</th></tr>';
+    (showWho ? '<th scope="col">담당자</th>' : '') + '<th scope="col">요청자</th><th scope="col">기안일</th><th scope="col" class="num">대기</th></tr>';
 
   let page = 1;
   function filtered() {
@@ -63,7 +66,7 @@
     const rows = list.slice(from, from + PAGE_SIZE);
     const long = list.filter(function (x) { return x.wait >= LONG; }).length;
     $('#list-count').innerHTML = C.meta(['<strong>' + (list.length !== all.length ? '검색 결과 ' : '전체 ') + list.length + '건</strong>', LONG + '일 이상 ' + long + '건']);
-    const cols = seeAll ? 7 : 6;
+    const cols = showWho ? 7 : 6;
     $('#rows').innerHTML = rows.length ? rows.map(function (x) {
       const service = esc(C.serviceLabel(x.c.services));
       // 같은 계약에서 동시에 차례인 다른 단계 (④와 ⑤)
@@ -75,8 +78,8 @@
         '<td class="col-service">' + service + '</td>' +
         '<td class="nowrap">' + esc(C.stepLabel(x.s.step)) + (together ? '<span class="cell-meta">동시: ' + esc(together) + '</span>' : '') +
           // 대리 지정으로 내 차례가 된 건 (REQ-REV-08)
-          (!seeAll && x.s.userId !== me.id ? '<span class="cell-meta">' + esc(C.userName(x.s.userId)) + '님 대신 (대리 지정)</span>' : '') + '</td>' +
-        (seeAll ? '<td class="nowrap">' + esc(C.userName(x.s.userId)) + '</td>' : '') +
+          (!showWho && x.s.userId !== me.id ? '<span class="cell-meta">' + esc(C.userName(x.s.userId)) + '님 대신 (대리 지정)</span>' : '') + '</td>' +
+        (showWho ? '<td class="nowrap">' + esc(C.userName(x.s.userId)) + '</td>' : '') +
         '<td class="nowrap">' + esc(C.userName(x.c.requesterId)) + '</td>' +
         '<td class="nowrap num-left">' + C.fmtDate(x.c.requestedAt) + '</td>' +
         '<td class="num"><span' + (x.wait >= LONG ? ' class="wait-long"' : '') + '>' + x.wait + '일</span></td>' +

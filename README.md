@@ -12,7 +12,7 @@ MUHAYU Contract Lifecycle Management Base. 계약 등록, 계약 검토, 계약 
    ```
 
 2. 브라우저에서 http://localhost:8730 을 엽니다. (첫 화면: 로그인)
-3. 화면 맨 위 검은 띠의 **시연용 역할 전환**으로 역할(슈퍼관리자, 관리자, 영업, 부서장, 법무 등)을 바꿔 가며 볼 수 있습니다.
+3. 화면 맨 위 검은 띠의 **시연용 역할 전환**으로 역할(최고관리자, 관리자, 영업 담당자, 영업 리더, 법무 담당자 등. 분야와 등급으로 묶여 있음)을 바꿔 가며 볼 수 있습니다.
 
 메뉴에 있는 모든 화면과 이용 안내(메뉴 줄 오른쪽 끝)가 만들어져 있습니다.
 
@@ -49,7 +49,7 @@ Projects/CLM
    ├─ review-done.html     SCR-22 검토 완료
    ├─ review.html          SCR-23 검토 상세 (결재 문서, ?id=계약번호. ⑥~⑩ 체결과 운영 검토도 여기서)
    ├─ signing.html         SCR-31 체결 대기 (영업)
-   ├─ ops-queue.html       SCR-34 운영 검토 대기 (CEM, 재무)
+   ├─ ops-queue.html       SCR-34 운영 검토 대기 (고객지원, 재무)
    ├─ contracts.html       SCR-41 전체 계약 (보관함, 묶음마다 한 줄)
    ├─ contract.html        SCR-42 계약 상세 (묶음 한 장, ?id=묶음 번호)
    ├─ expiring.html        SCR-43 만료 예정 계약
@@ -60,7 +60,7 @@ Projects/CLM
    ├─ admin-prices.html    SCR-54 가격 기준 관리 (적용 시작일, 품의 문서, 이력)
    ├─ admin-customers.html SCR-55 거래처 관리 (고치기, 합치기)
    ├─ admin-codes.html     SCR-56 코드 관리
-   ├─ admin-logs.html      SCR-57 접속 기록 점검 (정보보호팀, 슈퍼관리자)
+   ├─ admin-logs.html      SCR-57 접속 기록 점검 (정보보호 담당자와 리더, 최고관리자)
    ├─ help.html            SCR-90 이용 안내
    └─ assets/
       ├─ css/tokens.css    색, 글자, 크기 값 (회사 컬러는 여기만 바꾸면 됨)
