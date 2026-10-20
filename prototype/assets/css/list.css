@@ -32,7 +32,7 @@
 .tbl-scroll .tbl tbody tr:last-child td { border-bottom: 0; }
 .empty-row { padding: 3.2rem 1.6rem !important; text-align: center; color: var(--text-subtle); }
 .num-left { font-variant-numeric: tabular-nums; }
-/* 칸 아래 보조 줄 (예: 계약번호, "④와 동시") */
+/* 칸 아래 보조 줄 (예: 계약번호, "동시: ⑤") */
 .cell-meta { display: block; margin-top: 0.2rem; font-size: var(--fs-body-xsmall); font-weight: 400; color: var(--text-subtle); }
 .cell-meta .icon { vertical-align: -0.2rem; }
 /* 전체 진행 현황: 현재 진행 칸에 자리를 더 줌 (서비스 칸은 좁게) */

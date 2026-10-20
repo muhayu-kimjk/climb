@@ -255,11 +255,11 @@
     else sales = ['wait', '금액 계산을 기다림'];
     const head = D.USERS.u_head;
     return [
-      { stage: '2단계 계약 검토 (② 다음 ③과 ④ 동시, 그 다음 ⑤)', items: [
+      { stage: '2단계 계약 검토 (② 다음 ③, 그 다음 ④와 ⑤ 동시)', items: [
         { no: '②', name: '체크리스트 검토', who: '세일즈어드민', state: 'go', reason: '어떤 경우에도 생략하지 않음' }, // REQ-CHK-02
-        { no: '③', name: '법무 검토', who: '법무 ' + D.USERS.u_legal.name, state: legal[0], reason: legal[1] },
-        { no: '④', name: '개인정보 검토', who: '개인정보 담당 ' + D.USERS.u_privacy.name, state: privacy[0], reason: privacy[1] },
-        { no: '⑤', name: '영업 검토', who: '부서장 ' + head.name, state: sales[0], reason: sales[1] },
+        { no: '③', name: '영업 검토', who: '부서장 ' + head.name, state: sales[0], reason: sales[1] }, // 가격 예외 승인, 법무보다 먼저 (v0.20)
+        { no: '④', name: '법무 검토', who: '법무 ' + D.USERS.u_legal.name, state: legal[0], reason: legal[1] },
+        { no: '⑤', name: '개인정보 검토', who: '개인정보 담당 ' + D.USERS.u_privacy.name, state: privacy[0], reason: privacy[1] },
       ] },
       { stage: '3단계 계약 체결', items: [
         { no: '⑥', name: '인장 날인 검토', who: '총무', state: 'go', reason: '기초 정보 확인 후 인장 날인' },
@@ -313,7 +313,7 @@
     renderYearly();
     // 체크리스트
     const q1 = val('standard');
-    $('#q1-result').textContent = q1 === 'YES' ? '③ 법무 검토를 생략합니다.' : q1 === 'NO' ? '③ 법무 검토를 거칩니다.' : '';
+    $('#q1-result').textContent = q1 === 'YES' ? '④ 법무 검토를 생략합니다.' : q1 === 'NO' ? '④ 법무 검토를 거칩니다.' : '';
     const pc = priceCheck(rows);
     $('#q2-answer').innerHTML = answerHtml(pc.q2);
     $('#q2-detail').textContent = pc.d2;

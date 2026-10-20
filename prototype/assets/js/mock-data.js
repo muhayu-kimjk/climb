@@ -40,7 +40,7 @@ window.CLIMB_DATA = (function () {
     FINANCE: '재무',
   };
 
-  // 2단계 계약 검토의 결재 역할: ② 세일즈어드민, ③ 법무, ④ 개인정보 담당, ⑤ 부서장(리더 본인 건은 영업 담당 임원)
+  // 2단계 계약 검토의 결재 역할: ② 세일즈어드민, ③ 부서장(리더 본인 건은 영업 담당 임원), ④ 법무, ⑤ 개인정보 담당
   // 재무는 결재선에 들어가지 않고 체결 뒤 회계 인식만 확인합니다. (C-15 확정, REQ-FLOW-26)
   const APPROVER_ROLES = ['SALES_ADMIN', 'LEGAL', 'PRIVACY', 'HEAD', 'EXEC'];
 
@@ -119,9 +119,9 @@ window.CLIMB_DATA = (function () {
   const STEPS = {
     S01: { no: '①', name: '계약 등록과 기안', short: '기안', role: 'SALES' },
     S02: { no: '②', name: '체크리스트 검토', short: '체크리스트', role: 'SALES_ADMIN' },
-    S03: { no: '③', name: '법무 검토', short: '법무', role: 'LEGAL' },
-    S04: { no: '④', name: '개인정보 검토', short: '개인정보', role: 'PRIVACY' },
-    S05: { no: '⑤', name: '영업 검토', short: '영업', role: 'HEAD' },
+    S03: { no: '③', name: '영업 검토', short: '영업', role: 'HEAD' },
+    S04: { no: '④', name: '법무 검토', short: '법무', role: 'LEGAL' },
+    S05: { no: '⑤', name: '개인정보 검토', short: '개인정보', role: 'PRIVACY' },
     S06: { no: '⑥', name: '인장 날인 검토', short: '인장', role: 'GA' },
     S07: { no: '⑦', name: '상대방 서명, 체결본 등록', short: '체결본', role: 'SALES' },
     S08: { no: '⑧', name: '체결본 확인', short: '체결본 확인', role: 'SALES_ADMIN' },
@@ -129,11 +129,12 @@ window.CLIMB_DATA = (function () {
     S10: { no: '⑩', name: '재무 확인', short: '재무', role: 'FINANCE' },
     S11: { no: '⑪', name: '계약 완료', short: '완료', role: null },
   };
-  // 2단계 계약 검토의 순서: ② 다음 ③과 ④를 동시에, 둘 다 끝나면 ⑤ (REQ-STEP-04)
-  const REVIEW_GROUPS = [['S02'], ['S03', 'S04'], ['S05']];
+  // 2단계 계약 검토의 순서: ② 다음 ③ 영업 검토(가격 예외 승인), 그 다음 ④와 ⑤를 동시에 (REQ-STEP-04, v0.20에서 바뀜)
+  //   할인은 법무 검토보다 먼저 확정합니다(사전 승인 원칙, 요구사항 정의서 3.6.1)
+  const REVIEW_GROUPS = [['S02'], ['S03'], ['S04', 'S05']];
   // 단계별 담당자 [가정]. 실제 시스템에서는 관리자가 결재선 규칙(SCR-52)에서 지정합니다. (REQ-AUTH-06)
   const STEP_ASSIGNEE = {
-    S02: 'u_sadmin', S03: 'u_legal', S04: 'u_privacy', S05: 'u_head',
+    S02: 'u_sadmin', S03: 'u_head', S04: 'u_legal', S05: 'u_privacy',
     S06: 'u_ga', S08: 'u_sadmin', S09: 'u_cem', S10: 'u_finance',
   };
   // 결재 단계 처리 상태 (데이터 정의서 CODE-APPROVAL-STATE)
@@ -185,7 +186,7 @@ window.CLIMB_DATA = (function () {
 
     /* ----- 검토 중 (IN_REVIEW) ----- */
     {
-      // ④ 개인정보 검토가 오래 머문 예시 (11일째)
+      // ⑤ 개인정보 검토가 오래 머문 예시 (11일째)
       id: 'CT-2026-0402', counterparty: '미래로병원', services: ['HR'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 36000000, requesterId: 'u_sales2', requestedAt: '2026-10-08 14:10', restricted: false, personalData: true,
       status: 'IN_REVIEW',
@@ -195,7 +196,8 @@ window.CLIMB_DATA = (function () {
       history: [ev('S02', 'APPROVE', '2026-10-08 16:20')],
     },
     {
-      // 모든 검토를 거치는 예시(경우 6). ③④가 끝나 ⑤ 영업 검토 차례 (5일째)
+      // 모든 검토를 거치는 예시(경우 6). ③ 영업 검토 승인 뒤 ④ 법무와 ⑤ 개인정보를 동시에 검토하는 중.
+      // ⑤는 끝났고 ④ 법무 검토 차례 (7일째)
       id: 'CT-2026-0405', counterparty: '하늘연구원', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 220000000, requesterId: 'u_sales2', requestedAt: '2026-10-10 10:05', restricted: false, personalData: true,
       status: 'IN_REVIEW',
@@ -204,12 +206,12 @@ window.CLIMB_DATA = (function () {
       memo: '대형 연구기관 첫 계약입니다. 할인율이 한도를 넘어 영업 검토가 필요합니다.',
       history: [
         ev('S02', 'APPROVE', '2026-10-10 15:00'),
-        ev('S04', 'APPROVE', '2026-10-13 10:05', '개인정보 처리위탁 조항 확인'),
-        ev('S03', 'APPROVE', '2026-10-14 11:30', '보안 서약 조항은 표준 문안으로 수정 반영됨'),
+        ev('S03', 'APPROVE', '2026-10-12 10:20', '3년 계약과 연구기관 레퍼런스 확보를 고려해 할인 승인'),
+        ev('S05', 'APPROVE', '2026-10-13 10:05', '개인정보 처리위탁 조항 확인'),
       ],
     },
     {
-      // ③ 법무와 ④ 개인정보가 동시에 차례인 예시. ② 승인은 아직 취소 가능
+      // ④ 법무와 ⑤ 개인정보가 동시에 차례인 예시(할인율 한도 이내라 ③ 영업 검토 생략). ② 승인은 아직 취소 가능
       id: 'CT-2026-0412', counterparty: '한빛대학교', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 48000000, requesterId: 'u_sales1', requestedAt: '2026-10-14 10:00', restricted: false, personalData: true,
       status: 'IN_REVIEW',
@@ -219,7 +221,7 @@ window.CLIMB_DATA = (function () {
       history: [ev('S02', 'APPROVE', '2026-10-15 09:40')],
     },
     {
-      // 승인 취소 기록이 남은 예시: ② 승인 → 취소 → 다시 승인
+      // 승인 취소 기록이 남은 예시: ② 승인 → 취소 → 다시 승인. 지금 ③ 영업 검토 차례
       id: 'CT-2026-0418', counterparty: '누리교육재단', services: ['CK'], type: 'SaaS 이용계약', kind: 'AMEND',
       parentId: 'CT-2026-0105',
       amount: 12000000, requesterId: 'u_sales2', requestedAt: '2026-10-16 09:00', restricted: false, personalData: false,
@@ -243,7 +245,7 @@ window.CLIMB_DATA = (function () {
       history: [],
     },
     {
-      // 금액이 없는 비밀유지계약 예시: ⑤ 영업 검토 생략(해당 없음)
+      // 금액이 없는 비밀유지계약 예시: ③ 영업 검토 생략(해당 없음)
       id: 'CT-2026-0427', counterparty: '단비소프트', services: ['HR'], type: '비밀유지계약(NDA)', kind: 'NEW',
       amount: 0, requesterId: 'u_sales1', requestedAt: '2026-10-18 10:30', restricted: false, personalData: false,
       status: 'IN_REVIEW',
@@ -261,7 +263,7 @@ window.CLIMB_DATA = (function () {
       checklist: { standard: 'NO', standardNote: '고객 요청으로 손해배상 한도 조항 수정', price: 'YES', cap: 'YES' },
       history: [
         ev('S02', 'APPROVE', '2026-10-07 10:00'),
-        ev('S03', 'REJECT', '2026-10-10 15:30', '손해배상 한도 조항이 표준계약서 기준을 벗어납니다. 수정 후 다시 요청해 주세요.'),
+        ev('S04', 'REJECT', '2026-10-10 15:30', '손해배상 한도 조항이 표준계약서 기준을 벗어납니다. 수정 후 다시 요청해 주세요.'),
       ],
       // 보완 후 재기안 때 계약 등록 화면(SCR-11)에 미리 채울 값
       form: {

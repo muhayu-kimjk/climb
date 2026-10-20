@@ -153,7 +153,7 @@
         '<tr><th scope="row" class="box-rowhead">일시</th>' + when + '</tr>' +
       '</tbody>';
     const routed = C.routedSteps(c).map(function (s) { return D.STEPS[s.step].no; }).join(', ');
-    $('#box-desc').textContent = '거치는 단계: ' + routed + '. ② 다음 ③과 ④는 동시에 검토하고, 둘 다 끝나면 ⑤를 검토합니다. 생략한 단계는 체크리스트 답에 따른 것입니다.';
+    $('#box-desc').textContent = '거치는 단계: ' + routed + '. ② 다음 ③을 검토하고, 그 다음 ④와 ⑤를 동시에 검토합니다. 생략한 단계는 체크리스트 답에 따른 것입니다.';
   }
 
   /* ---------- 4. 기본 정보, 금액, 체크리스트, 첨부, 결재 기록 ---------- */
@@ -206,9 +206,9 @@
     const ck = c.checklist || {};
     const route = C.reviewRoute(c);
     const q = [
-      ['1. 표준계약서를 사용했나요?', ck.standard, ck.standardNote || (f.checklist && f.checklist.standardNote), 'S03'],
-      ['2. 표준단가표를 적용했나요? (자동 계산)', ck.price, ck.priceNote, 'S05'],
-      ['3. 할인율 한도를 지켰나요? (자동 계산)', ck.cap, ck.capNote, 'S05'],
+      ['1. 표준계약서를 사용했나요?', ck.standard, ck.standardNote || (f.checklist && f.checklist.standardNote), 'S04'],
+      ['2. 표준단가표를 적용했나요? (자동 계산)', ck.price, ck.priceNote, 'S03'],
+      ['3. 할인율 한도를 지켰나요? (자동 계산)', ck.cap, ck.capNote, 'S03'],
     ];
     $('#checklist').innerHTML = '<ul class="doc-checks">' + q.map(function (x, i) {
       const r = route[x[3]];
@@ -216,7 +216,7 @@
       return '<li><p class="check-q-text">' + esc(x[0]) + ' ' + answer(x[1]) + '</p>' +
         '<p class="check-note">비고: ' + (x[2] ? esc(x[2]) : '없음') + '</p>' + effect + '</li>';
     }).join('') + '</ul>' +
-    '<p class="check-effect">④ 개인정보 검토 ' + (route.S04[0] ? '거침' : '생략') + ': ' + esc(route.S04[1]) + '</p>';
+    '<p class="check-effect">' + esc(D.STEPS.S05.no + ' ' + D.STEPS.S05.name) + ' ' + (route.S05[0] ? '거침' : '생략') + ': ' + esc(route.S05[1]) + '</p>';
   }
 
   function renderFiles() {
@@ -250,7 +250,7 @@
     if (!actionable.length && !cancelable.length) { bar.hidden = true; return; }
     let html = '';
     if (actionable.length) {
-      // 슈퍼관리자는 ③④처럼 동시에 차례인 단계 중 하나를 골라 대신 처리 (프로토타입 전용)
+      // 슈퍼관리자는 ④⑤처럼 동시에 차례인 단계 중 하나를 골라 대신 처리 (프로토타입 전용)
       const pick = actionable.length > 1
         ? '<label class="act-pick">처리할 단계 <select class="select" id="act-step">' + actionable.map(function (s) {
             return '<option value="' + s.step + '">' + esc(C.stepLabel(s.step)) + ' (' + esc(C.userName(s.userId)) + '님)</option>';

@@ -148,7 +148,7 @@
     const el = document.getElementById('my-reviews');
     if (!isApprover) return;
     el.hidden = false;
-    // 내 차례인 단계 (③④처럼 동시에 차례인 단계 중 내 것)
+    // 내 차례인 단계 (④⑤처럼 동시에 차례인 단계 중 내 것)
     const mine = function (c) { return C.pendingSteps(c).filter(function (s) { return s.userId === me.id; })[0]; };
     const rows = myActions.slice().sort(function (a, b) { return C.waitDays(b, mine(b)) - C.waitDays(a, mine(a)); });
     const head = panelHead('my-reviews-title', '내가 검토할 계약', rows.length + '건', '검토 대기 전체 보기', 'SCR-21', 'review-queue.html');

@@ -148,7 +148,7 @@ window.CLIMB = (function () {
   /* ---------- 결재 흐름 계산 (요구사항 정의서 3.5, REQ-STEP-04, REQ-DOC-06) ----------
    * 결재 기록(history)을 시간 순서대로 다시 적용해 단계마다 지금 상태(approvals)와 계약 상태를 만듭니다.
    *   - 결재선: 체크리스트 답과 개인정보 처리 여부로만 정함. 금액 기준 없음 (REQ-CHK-05)
-   *   - 순서: ② → ③과 ④ 동시 → ⑤. 앞 묶음이 모두 승인되어야 다음 묶음이 차례가 됨
+   *   - 순서: ② → ③ 영업 → ④ 법무와 ⑤ 개인정보 동시 (v0.20). 앞 묶음이 모두 승인되어야 다음 묶음이 차례가 됨
    *   - 반려: 어느 단계든 반려하면 계약은 반려 상태
    *   - 승인 취소: 그 단계는 다시 차례가 되고, 뒤 묶음은 다시 대기가 됨 (기록은 지우지 않음)
    * 실제 시스템에서는 이 규칙을 서버가 지켜야 합니다. 화면에서만 막으면 우회할 수 있습니다. */
@@ -166,9 +166,9 @@ window.CLIMB = (function () {
     else sales = [false, '표준단가표를 적용함'];
     return {
       S02: [true, '어떤 경우에도 생략하지 않음'],
-      S03: ck.standard === 'NO' ? [true, '표준계약서를 바꿈'] : [false, '표준계약서를 그대로 씀'],
-      S04: c.personalData ? [true, '개인정보를 처리함'] : [false, '개인정보 처리 없음'],
-      S05: sales,
+      S03: sales,
+      S04: ck.standard === 'NO' ? [true, '표준계약서를 바꿈'] : [false, '표준계약서를 그대로 씀'],
+      S05: c.personalData ? [true, '개인정보를 처리함'] : [false, '개인정보 처리 없음'],
     };
   }
   // 이미 검토가 끝난 계약의 결재 기록을 승인일에 맞춰 만듦 (시연용 예시 데이터)
@@ -312,7 +312,7 @@ window.CLIMB = (function () {
     if (c.status === 'REJECTED') {
       return stepDots(c) + esc(roleLabel(c.rejection.role)) + ' 반려 (' + fmtDate(c.rejection.at) + ')';
     }
-    // 검토 중: 지금 차례인 단계 이름. ③④는 동시에 차례일 수 있음 (예: 법무, 개인정보 검토 중)
+    // 검토 중: 지금 차례인 단계 이름. ④⑤는 동시에 차례일 수 있음 (예: 법무, 개인정보 검토 중)
     if (c.status === 'IN_REVIEW') {
       const names = pendingSteps(c).map(function (s) { return D.STEPS[s.step].short; }).join(', ');
       return stepDots(c) + esc(names) + ' 검토 중 (' + waitDays(c) + '일째)';

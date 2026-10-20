@@ -25,7 +25,7 @@
   }
   if (seeAll) $('#intro').textContent = '모든 담당자의 차례인 결재입니다(' + C.roleLabel(me.role) + ' 보기). 오래 기다린 순서로 보여 줍니다.';
 
-  // 내 차례 목록. 같은 계약에서 동시에 차례인 다른 단계도 알려 줌(③과 ④)
+  // 내 차례 목록. 같은 계약에서 동시에 차례인 다른 단계도 알려 줌(④와 ⑤)
   const all = C.pendingQueue(me, seeAll).map(function (x) {
     return { c: x.c, s: x.s, wait: C.waitDays(x.c, x.s) };
   }).sort(function (a, b) { return b.wait - a.wait; });
@@ -64,7 +64,7 @@
     const cols = seeAll ? 7 : 6;
     $('#rows').innerHTML = rows.length ? rows.map(function (x) {
       const service = esc(C.serviceLabel(x.c.services));
-      // 같은 계약에서 동시에 차례인 다른 단계 (③과 ④)
+      // 같은 계약에서 동시에 차례인 다른 단계 (④와 ⑤)
       const together = C.pendingSteps(x.c).filter(function (o) { return o.step !== x.s.step; })
         .map(function (o) { return D.STEPS[o.step].no; }).join(', ');
       return '<tr>' +
