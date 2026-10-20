@@ -1,2 +1,4 @@
 __pycache__/
 *.pyc
+# Obsidian 설정 폴더 (기획자가 docs를 Obsidian으로 열 때 생김, 개인 설정이라 저장소에 넣지 않음)
+.obsidian/

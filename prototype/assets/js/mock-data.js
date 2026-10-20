@@ -54,7 +54,7 @@ window.CLIMB_DATA = (function () {
     u_privacy: { name: '한서연', dept: '정보보호팀', role: 'PRIVACY' },
     u_finance: { name: '오현우', dept: '재무팀', role: 'FINANCE' },
     u_admin: { name: '윤재민', dept: '경영지원팀', role: 'ADMIN' },
-    u_super: { name: '서지안', dept: '컴플라이언스팀', role: 'SUPER' },
+    u_super: { name: '원지안', dept: '컴플라이언스팀', role: 'SUPER' },
     u_exec: { name: '문태호', dept: '경영진', role: 'EXEC' },
     u_sadmin: { name: '배수아', dept: '세일즈어드민팀', role: 'SALES_ADMIN' },
     u_ga: { name: '노은채', dept: '경영지원팀', role: 'GA' },
@@ -311,7 +311,7 @@ window.CLIMB_DATA = (function () {
   };
   const ACCOUNTS = [
     // [이메일(계정), 이름, 부서, 역할, 상태, 등록일, 최초 접속일시, 최종 로그인일시, 최종 로그아웃일시, 권한 변경일]
-    ['jian.seo@muhayu.com', '서지안', '컴플라이언스팀', ['SUPER'], 'ACTIVE', '2026-09-01', '2026-09-03 10:12', '2026-10-15 12:17', '2026-10-15 19:18', '2026-09-01'],
+    ['jian.won@muhayu.com', '원지안', '컴플라이언스팀', ['SUPER'], 'ACTIVE', '2026-09-01', '2026-09-03 10:12', '2026-10-15 12:17', '2026-10-15 19:18', '2026-09-01'],
     ['jaemin.yoon@muhayu.com', '윤재민', '경영지원팀', ['ADMIN'], 'ACTIVE', '2026-09-01', '2026-09-03 11:03', '2026-10-13 12:28', '2026-10-13 19:45', '2026-09-01'],
     ['eunchae.noh@muhayu.com', '노은채', '경영지원팀', ['GA'], 'ACTIVE', '2026-09-18', '2026-09-20 10:03', '2026-10-16 12:14', '2026-10-16 17:19', '2026-09-18'],
     ['seoyun.tak@muhayu.com', '탁서윤', '경영지원팀', ['GA'], 'ACTIVE', '2026-09-06', '2026-09-09 14:03', '2026-10-13 13:17', '2026-10-13 21:28', '2026-09-06'],
