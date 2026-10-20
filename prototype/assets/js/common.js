@@ -161,8 +161,8 @@ window.CLIMB = (function () {
     const ck = c.checklist || {};
     let sales;
     if (ck.price === 'NA') sales = [false, '금액이 없는 계약'];
-    else if (ck.price === 'NO' && ck.cap === 'NO') sales = [true, '할인율 캡을 넘김'];
-    else if (ck.price === 'NO') sales = [false, '할인율 캡 이내'];
+    else if (ck.price === 'NO' && ck.cap === 'NO') sales = [true, '할인율 한도를 넘김'];
+    else if (ck.price === 'NO') sales = [false, '할인율 한도 이내'];
     else sales = [false, '표준단가표를 적용함'];
     return {
       S02: [true, '어떤 경우에도 생략하지 않음'],

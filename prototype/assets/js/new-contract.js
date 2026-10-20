@@ -206,7 +206,7 @@
 
   /* ---------- 4. 체크리스트 2, 3번 자동 계산 (REQ-CHK-04) ----------
    * 2번(표준단가표 적용): 모든 제품이 표준 단가 그대로면 예, 하나라도 할인이 있으면 아니오
-   * 3번(할인율 캡 준수): 모든 제품의 할인율이 그 제품의 캡 이하이면 예
+   * 3번(할인율 한도 준수): 모든 제품의 할인율이 그 제품의 한도 이하이면 예
    * 금액이 없는 비밀유지계약(NDA)은 해당 없음 → 영업 검토 생략 */
   function priceCheck(rows) {
     if (!rows.length) {
@@ -226,8 +226,8 @@
         ? discounted.map(function (r) { return r.product.name + ' ' + pct(r.discount) + ' 할인'; }).join(', ')
         : '모든 제품이 표준 단가 그대로입니다.',
       d3: over.length
-        ? over.map(function (r) { return r.product.name + ' 할인율 ' + pct(r.discount) + ', 캡 ' + pct(r.cap) + ' 초과'; }).join(', ')
-        : (discounted.length ? '할인한 제품 모두 캡 이내입니다.' : '할인이 없습니다.'),
+        ? over.map(function (r) { return r.product.name + ' 할인율 ' + pct(r.discount) + ', 한도 ' + pct(r.cap) + ' 초과'; }).join(', ')
+        : (discounted.length ? '할인한 제품 모두 한도 이내입니다.' : '할인이 없습니다.'),
     };
   }
   function answerHtml(v) {
@@ -250,8 +250,8 @@
     let sales;
     if (pc.q2 === 'NA') sales = ['skip', '금액이 없는 계약'];
     else if (pc.q2 === 'YES') sales = ['skip', '표준단가표를 적용함'];
-    else if (pc.q2 === 'NO' && pc.q3 === 'YES') sales = ['skip', '할인율 캡 이내'];
-    else if (pc.q3 === 'NO') sales = ['go', '할인율 캡을 넘김'];
+    else if (pc.q2 === 'NO' && pc.q3 === 'YES') sales = ['skip', '할인율 한도 이내'];
+    else if (pc.q3 === 'NO') sales = ['go', '할인율 한도를 넘김'];
     else sales = ['wait', '금액 계산을 기다림'];
     const head = D.USERS.u_head;
     return [
@@ -301,11 +301,11 @@
       const badge = r.li.querySelector('.price-badge');
       if (!r.product) { info.textContent = '제품을 고르면 표준 단가가 나옵니다.'; badge.innerHTML = ''; return; }
       info.textContent = '표준 단가 ' + won(r.product.listPrice) + ' (' + r.product.unit + ')' + (r.qty ? ' x ' + r.qty + ' = ' + won(r.std) : '') +
-        ', 할인율 캡 ' + pct(r.cap);
+        ', 할인율 한도 ' + pct(r.cap);
       if (r.amount == null || r.discount == null) badge.innerHTML = '<span class="badge badge--line">금액 입력 대기</span>';
       else if (r.discount === 0) badge.innerHTML = '<span class="badge badge--success">표준 단가</span>';
-      else if (r.discount > r.cap + 1e-9) badge.innerHTML = '<span class="badge badge--danger">할인 ' + pct(r.discount) + ', 캡 초과</span>';
-      else badge.innerHTML = '<span class="badge badge--progress">할인 ' + pct(r.discount) + ', 캡 이내</span>';
+      else if (r.discount > r.cap + 1e-9) badge.innerHTML = '<span class="badge badge--danger">' + pct(r.discount) + ' 할인, 한도 초과</span>';
+      else badge.innerHTML = '<span class="badge badge--progress">' + pct(r.discount) + ' 할인, 한도 이내</span>';
     });
     // 총액
     const total = totalAmount();
@@ -482,7 +482,7 @@
     need(!!val('standard'), 'standard', '체크리스트 1번에 답하세요.');
     if (val('standard') === 'NO') need(!!val('standardNote'), 'standardNote', '1번이 "아니오"이면 비고에 바꾼 조항과 이유를 적으세요.');
     if (current.pc.q2 === 'NO') need(!!val('priceNote'), 'priceNote', '2번이 "아니오"이면 비고에 표준 단가와 다르게 정한 이유를 적으세요.');
-    if (current.pc.q3 === 'NO') need(!!val('capNote'), 'capNote', '3번이 "아니오"이면 비고에 캡을 넘긴 영업적 사유를 적으세요.');
+    if (current.pc.q3 === 'NO') need(!!val('capNote'), 'capNote', '3번이 "아니오"이면 비고에 할인율 한도를 넘긴 영업적 사유를 적으세요.');
 
     need(files.draft.length > 0, 'draftFile', '계약서 초안을 첨부하세요.', $('#f-draft'));
     return errors;

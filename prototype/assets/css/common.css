@@ -33,7 +33,9 @@ body {
 h1, h2, h3, h4, p, ul, ol, dl, dd, figure { margin: 0; }
 ul, ol { padding: 0; list-style: none; }
 a { color: inherit; text-decoration: none; }
-button, select, input { font: inherit; color: inherit; }
+/* 입력 칸도 본문 글꼴(Noto Sans KR)을 쓰게 함. 브라우저는 입력 칸, 특히 여러 줄 입력(textarea)에
+ * 기본으로 고정폭 글꼴(Windows에서는 굴림체)을 쓰므로 빠짐없이 물려받게 지정 (REQ-UI-02) */
+button, select, input, textarea, optgroup { font: inherit; color: inherit; }
 button { background: none; border: 0; padding: 0; cursor: pointer; }
 table { border-collapse: collapse; width: 100%; }
 svg { flex-shrink: 0; }
@@ -239,6 +241,9 @@ a.brand-title:hover { color: var(--text-primary); }
 .btn--secondary { background: var(--button-secondary-fill); border-color: var(--button-secondary-border); color: var(--button-secondary-text); font-weight: 700; }
 .btn--secondary:hover { background: var(--button-secondary-fill-hover); }
 .btn--tertiary { background: var(--surface-white); border-color: var(--border-gray); color: var(--text-basic); }
+/* 경고 버튼: 반려, 승인 취소처럼 신중해야 하는 일 (초록 대신 진한 핑크, REQ-UI-09) */
+.btn--danger { background: var(--button-danger-fill); color: var(--button-danger-text); font-weight: 700; }
+.btn--danger:hover, .btn--danger:active { background: var(--button-danger-fill-hover); }
 .btn--tertiary:hover { background: var(--surface-gray-subtler); }
 
 /* ---------- 8. 표 (KRDS 표) ---------- */
@@ -254,7 +259,10 @@ a.brand-title:hover { color: var(--text-primary); }
 .tbl .col-main { min-width: 22rem; }
 /* 대시보드처럼 폭이 좁은 영역에 쓰는 촘촘한 표 */
 .tbl--compact th, .tbl--compact td { padding-left: 1.2rem; padding-right: 1.2rem; }
+/* 정렬 규칙 (REQ-UI-16): 제목행은 모두 가운데. 내용은 글자면 왼쪽, 숫자(금액, 수량, 일수, 차수, 할인율)는 무조건 오른쪽.
+ * 날짜와 일시는 자릿수가 같아 왼쪽에 둠(num-left) */
 .tbl .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tbl thead th, .tbl thead th.num { text-align: center; }
 .tbl .center { text-align: center; }
 .tbl .nowrap { white-space: nowrap; }
 .tbl tr.is-alert td { background: var(--status-danger-row); }

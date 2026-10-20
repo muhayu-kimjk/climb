@@ -102,10 +102,10 @@ window.CLIMB_DATA = (function () {
    * 서비스는 계약에 넣은 제품(가격 기준의 service)에서 정해집니다. 서비스 이름과 목록은 기획자 확인 필요 */
   const SERVICES = { CK: '카피킬러', HR: 'HR 서비스' };
 
-  /* ---------- 가격 기준: 표준단가표와 할인율 캡 (REQ-SCOPE-02, REQ-CHK-04) ----------
+  /* ---------- 가격 기준: 표준단가표와 할인율 한도(cap) (REQ-SCOPE-02, REQ-CHK-04) ----------
    * 시연용 가상 값입니다. 실제 단가가 아닙니다.
    * 실제 시스템에서는 관리자가 "가격 기준 관리"(SCR-54)에서 관리하고, 영업, 세일즈어드민, 관리자만 볼 수 있습니다.
-   * service: 제품이 속한 서비스(SERVICES) / listPrice: 표준 단가(원, 부가세 별도) / discountCap: 할인율 캡(이 비율까지 할인 가능) */
+   * service: 제품이 속한 서비스(SERVICES) / listPrice: 표준 단가(원, 부가세 별도) / discountCap: 할인율 한도(이 비율까지 할인 가능) */
   const PRICE_BOOK = [
     { code: 'CK-ORG', service: 'CK', name: 'CK 기관 라이선스', unit: '기관, 1년', listPrice: 12000000, discountCap: 0.20 },
     { code: 'CK-USER', service: 'CK', name: 'CK 추가 이용자', unit: '100명, 1년', listPrice: 1500000, discountCap: 0.15 },
@@ -178,7 +178,7 @@ window.CLIMB_DATA = (function () {
       form: {
         bizNo: '214-82-10457', method: 'DIRECT', settlement: 'LUMP',
         startDate: '2027-01-01', endDate: '2027-12-31', autoRenew: 'NO',
-        products: [{ code: 'HR-BASE', qty: 1, amount: 7200000 }], // 표준 960만 원에서 25% 할인 → 캡 20% 초과 예시
+        products: [{ code: 'HR-BASE', qty: 1, amount: 7200000 }], // 표준 960만 원에서 25% 할인 → 한도 20% 초과 예시
         checklist: { standard: 'YES', standardNote: '' },
       },
     },
@@ -201,7 +201,7 @@ window.CLIMB_DATA = (function () {
       status: 'IN_REVIEW',
       checklist: { standard: 'NO', standardNote: '연구기관 보안 서약 조항 추가', price: 'NO', priceNote: '10개 기관 일괄 계약', cap: 'NO', capNote: '3년 계약 조건으로 기관 라이선스 25% 할인 요청' },
       products: [{ code: 'CK-ORG', qty: 10, amount: 90000000 }, { code: 'CK-USER', qty: 50, amount: 70000000 }, { code: 'CK-API', qty: 10, amount: 60000000 }],
-      memo: '대형 연구기관 첫 계약입니다. 할인율이 캡을 넘어 영업 검토가 필요합니다.',
+      memo: '대형 연구기관 첫 계약입니다. 할인율이 한도를 넘어 영업 검토가 필요합니다.',
       history: [
         ev('S02', 'APPROVE', '2026-10-10 15:00'),
         ev('S04', 'APPROVE', '2026-10-13 10:05', '개인정보 처리위탁 조항 확인'),
@@ -224,7 +224,7 @@ window.CLIMB_DATA = (function () {
       parentId: 'CT-2026-0105',
       amount: 12000000, requesterId: 'u_sales2', requestedAt: '2026-10-16 09:00', restricted: false, personalData: false,
       status: 'IN_REVIEW',
-      checklist: { standard: 'NO', standardNote: '변경 계약서(이용자 추가)', price: 'NO', priceNote: '기존 계약 할인율 유지', cap: 'NO', capNote: '추가 이용자 20% 할인(캡 15%), 기존 계약 조건 유지 요청' },
+      checklist: { standard: 'NO', standardNote: '변경 계약서(이용자 추가)', price: 'NO', priceNote: '기존 계약 할인율 유지', cap: 'NO', capNote: '추가 이용자 20% 할인(한도 15%), 기존 계약 조건 유지 요청' },
       products: [{ code: 'CK-USER', qty: 10, amount: 12000000 }],
       history: [
         ev('S02', 'APPROVE', '2026-10-16 09:10'),

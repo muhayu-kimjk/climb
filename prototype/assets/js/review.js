@@ -45,6 +45,7 @@
   const PRICE = {};
   D.PRICE_BOOK.forEach(function (p) { PRICE[p.code] = p; });
   function num(n) { return Number(n || 0).toLocaleString('ko-KR'); }
+  function won(n) { return num(n) + '원'; } // 돈은 반드시 원을 붙임 (REQ-UI-17)
   function pct(r) { return Math.round(r * 1000) / 10 + '%'; }
   function addDays(iso, days) {
     const p = iso.split('-').map(Number);
@@ -179,18 +180,19 @@
     const rows = productRows();
     if (!rows.length) { $('#amount').innerHTML = '<p class="empty">금액이 없는 계약입니다(비밀유지계약 등).</p>'; return; }
     const total = rows.reduce(function (a, r) { return a + r.amount; }, 0);
+    const stdTotal = rows.reduce(function (a, r) { return a + r.std; }, 0);
+    // 할인율 칸은 "표준 단가" 또는 "N% 할인"만 보여 줌. 할인율 한도 값과 한도 초과 여부는 이 표에 두지 않음
+    // (한도를 지켰는지는 체크리스트 3번에서 봄). 금액에는 원을 붙임 (REQ-UI-17)
     $('#amount').innerHTML =
       '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
         '<caption class="sr-only">제품별 금액: 제품, 수량, 표준 금액, 계약 금액, 할인율</caption>' +
-        '<thead><tr><th scope="col">제품</th><th scope="col" class="num">수량</th><th scope="col" class="num">표준 금액</th><th scope="col" class="num">계약 금액</th><th scope="col">할인율</th></tr></thead>' +
+        '<thead><tr><th scope="col">제품</th><th scope="col" class="num">수량</th><th scope="col" class="num">표준 금액</th><th scope="col" class="num">계약 금액</th><th scope="col" class="num">할인율</th></tr></thead>' +
         '<tbody>' + rows.map(function (r) {
-          const over = r.discount > r.product.discountCap + 1e-9;
-          const tag = r.discount === 0 ? C.badge('success', '표준 단가')
-            : C.badge(over ? 'danger' : 'progress', pct(r.discount) + (over ? ', 캡 초과' : ', 캡 이내'));
-          return '<tr><td>' + esc(r.product.name) + '</td><td class="num">' + num(r.qty) + '</td><td class="num">' + num(r.std) + '</td>' +
-            '<td class="num">' + num(r.amount) + '</td><td class="nowrap">' + tag + ' <span class="cap-note">캡 ' + pct(r.product.discountCap) + '</span></td></tr>';
+          return '<tr><td>' + esc(r.product.name) + '</td><td class="num">' + num(r.qty) + '</td><td class="num">' + won(r.std) + '</td>' +
+            '<td class="num">' + won(r.amount) + '</td><td class="num">' + (r.discount === 0 ? '표준 단가' : pct(r.discount) + ' 할인') + '</td></tr>';
         }).join('') + '</tbody>' +
-        '<tfoot><tr><th scope="row">계약 금액 총액 (부가세 별도)</th><td></td><td></td><td class="num total">' + num(total) + '</td><td>' + esc(C.fmtKRW(total)) + '</td></tr></tfoot>' +
+        '<tfoot><tr><th scope="row">총액 (부가세 별도)</th><td></td><td class="num total">' + won(stdTotal) + '</td>' +
+          '<td class="num total">' + won(total) + '<span class="total-read">' + esc(C.fmtKRW(total)) + '</span></td><td></td></tr></tfoot>' +
       '</table></div>';
   }
 
@@ -206,7 +208,7 @@
     const q = [
       ['1. 표준계약서를 사용했나요?', ck.standard, ck.standardNote || (f.checklist && f.checklist.standardNote), 'S03'],
       ['2. 표준단가표를 적용했나요? (자동 계산)', ck.price, ck.priceNote, 'S05'],
-      ['3. 할인율 캡을 지켰나요? (자동 계산)', ck.cap, ck.capNote, 'S05'],
+      ['3. 할인율 한도를 지켰나요? (자동 계산)', ck.cap, ck.capNote, 'S05'],
     ];
     $('#checklist').innerHTML = '<ul class="doc-checks">' + q.map(function (x, i) {
       const r = route[x[3]];
@@ -236,7 +238,7 @@
       '<tbody>' + rows.map(function (h) {
         const a = D.APPROVAL_ACTIONS[h.action];
         const who = esc(C.userName(h.actorId)) + '님' + (h.onBehalfOf ? ' <span class="behalf">(' + esc(C.userName(h.onBehalfOf)) + '님 대신, 시연)</span>' : '');
-        return '<tr><td class="nowrap num-left">' + C.fmtDateTime(h.at) + '</td><td class="nowrap">' + (h.round || 1) + '차</td>' +
+        return '<tr><td class="nowrap num-left">' + C.fmtDateTime(h.at) + '</td><td class="num">' + (h.round || 1) + '차</td>' +
           '<td class="nowrap">' + esc(D.STEPS[h.step].no + ' ' + D.STEPS[h.step].short) + '</td>' +
           '<td class="nowrap">' + C.badge(a.tone, a.label) + '</td><td class="nowrap">' + who + '</td><td>' + (h.comment ? esc(h.comment) : '-') + '</td></tr>';
       }).join('') + '</tbody>';
@@ -272,25 +274,27 @@
   const modal = $('#act-modal');
   let pending = null;
   let lastFocus = null;
+  // 확인 창 문구: 누르면 어떻게 되는지만 안내. 반려와 승인 취소는 신중하라는 뜻으로 경고(핑크) 버튼
   const TEXT = {
-    APPROVE: { title: '승인할까요?', label: '의견 (선택)', btn: '승인', required: false },
-    REJECT: { title: '반려할까요?', label: '반려 사유 (필수)', btn: '반려', required: true },
-    CANCEL: { title: '승인을 취소할까요?', label: '취소 사유 (필수)', btn: '승인 취소', required: true },
+    APPROVE: { title: '승인할까요?', label: '의견 (선택)', btn: '승인', required: false, tone: 'primary',
+      desc: '승인하면 다음 단계로 넘어갑니다.' },
+    REJECT: { title: '반려할까요?', label: '반려 사유 (필수)', btn: '반려', required: true, tone: 'danger',
+      desc: '반려하면 기안자에게 돌아가고, 기안자가 보완해 다음 차수로 다시 기안합니다.' },
+    CANCEL: { title: '승인을 취소할까요?', label: '취소 사유 (필수)', btn: '승인 취소', required: true, tone: 'danger',
+      desc: '취소하면 이 단계는 다시 내 차례가 되고, 승인과 취소 기록은 모두 남습니다.' },
   };
   function openModal(action, stepCode) {
     const s = c.approvals.find(function (x) { return x.step === stepCode; });
     const t = TEXT[action];
     pending = { action: action, step: s };
     $('#act-title').textContent = t.title;
-    $('#act-desc').textContent = c.counterparty + ', ' + C.stepLabel(s.step) +
-      (action === 'REJECT' ? '. 반려하면 기안자에게 돌아가고, 보완해 다음 차수로 다시 기안합니다.' :
-       action === 'CANCEL' ? '. 취소하면 이 단계는 다시 차례가 되고, 승인과 취소 기록은 모두 남습니다.' :
-       '. 승인하면 다음 단계로 넘어갑니다.');
+    $('#act-desc').textContent = t.desc;
     $('#act-label').textContent = t.label;
     $('#act-comment').value = '';
     $('#act-error').hidden = true;
     $('#act-field').classList.remove('is-invalid');
     $('#act-confirm').textContent = t.btn;
+    $('#act-confirm').className = 'btn btn--' + t.tone + ' btn--md';
     lastFocus = document.activeElement;
     modal.hidden = false;
     $('#act-comment').focus();

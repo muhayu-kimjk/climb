@@ -191,7 +191,7 @@
       // 열람 제한 계약은 고객사, 서비스, 담당자를 가림 (REQ-AUTH-09)
       const owner = C.canView(c, me) ? esc(C.userName(c.requesterId)) : '-';
       return '<tr>' +
-        '<td class="nowrap">' + dday + '</td>' +
+        '<td class="num">' + dday + '</td>' + // 숫자라 오른쪽 정렬 (REQ-UI-16)
         customerCells(c) +
         // 휴대폰에서는 담당자 칸을 감추고 만료일 아래 작은 글자로 보여줌 (REQ-ENV-08)
         '<td class="nowrap">' + C.fmtDate(c.endDate) + (C.canView(c, me) ? '<span class="cell-sub">담당 ' + owner + '</span>' : '') + '</td>' +
