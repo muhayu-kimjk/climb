@@ -1279,11 +1279,14 @@ window.CLIMB = (function () {
     btn.type = 'button';
     btn.className = 'to-top';
     btn.hidden = true;
-    btn.innerHTML = icon('arrowUp') + '<span class="to-top-label">맨 위로</span>';
+    // 화살표만 보이고, 화면낭독기와 마우스를 올렸을 때는 "맨 위로" (기획자 요청 v0.30)
+    btn.title = '맨 위로';
+    btn.innerHTML = icon('arrowUp') + '<span class="sr-only">맨 위로</span>';
     document.body.appendChild(btn);
     // 결재 문서처럼 아래에 붙는 처리 막대가 있으면 그 위로 올려 승인 버튼을 가리지 않게 함 (KRDS: 플로팅 버튼은 하단 막대를 가리지 않음)
     const toggle = function () {
-      btn.hidden = window.scrollY < 400;
+      // 맨 위에서 조금만 내려도 나타남 (기획자 요청 v0.30, 예전에는 400px)
+      btn.hidden = window.scrollY < 10;
       const bar = document.querySelector('.action-bar:not([hidden])');
       btn.style.bottom = bar ? (bar.getBoundingClientRect().height + 16) + 'px' : '';
     };

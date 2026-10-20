@@ -583,18 +583,18 @@ a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: under
 /* 표와 정보 칸 안의 링크(품의 문서, CRM 영업활동 등): 시안에서는 누르면 안내만 */
 .doc-link { color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; overflow-wrap: anywhere; }
 
-/* KRDS 맨 위로 이동(플로팅 버튼, REQ-UI-20): 화면을 내리면 오른쪽 아래에 나타남. 누르는 영역 56px
- * 넓은 화면은 A4 종이 틀 바깥 오른쪽, 좁은 화면은 화면 오른쪽 아래. 모달(300)보다 아래, 본문보다 위 */
+/* KRDS 맨 위로 이동(플로팅 버튼, REQ-UI-20): 화면을 조금만 내려도 오른쪽 아래에 나타남. 누르는 영역 56px
+ * 넓은 화면은 A4 종이 틀 바깥 오른쪽, 좁은 화면(휴대폰)은 화면 오른쪽 아래(오른쪽 16px, 아래 24px). 모달(300)보다 아래, 본문보다 위
+ * (v0.30 기획자 요청) 글자 없이 화살표만, 둥근 원 대신 큰 버튼(btn--lg)과 같은 곡률의 네모 */
 .to-top {
   position: fixed; right: max(1.6rem, calc((100vw - 210mm) / 2 - 7.2rem)); bottom: 2.4rem; z-index: 200;
-  display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1rem;
-  width: 5.6rem; height: 5.6rem; border: 1px solid var(--border-gray); border-radius: 50%;
-  background: var(--surface-white); box-shadow: var(--shadow-1); color: var(--text-basic);
-  font-size: 1.1rem; font-weight: 700; line-height: 1.2; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 5.6rem; height: 5.6rem; border: 1px solid var(--border-gray); border-radius: var(--radius-lg);
+  background: var(--surface-white); box-shadow: var(--shadow-1); color: var(--text-basic); cursor: pointer;
 }
 .to-top[hidden] { display: none; }
-.to-top .icon { width: 2rem; height: 2rem; }
+.to-top .icon { width: 2.4rem; height: 2.4rem; }
 .to-top:hover { background: var(--surface-gray-subtler); color: var(--text-bolder); }
-.to-top:focus-visible { box-shadow: var(--focus-ring); }
+.to-top:focus-visible { box-shadow: var(--focus-ring); border-radius: var(--radius-lg); }
 #main:focus { outline: none; }
 @media print { .to-top { display: none !important; } }
