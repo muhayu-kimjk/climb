@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 브라우저 탭 제목: CLIMB (REQ-NAME-02) -->
+  <title>CLIMB</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/common.css">
+  <link rel="stylesheet" href="assets/css/form.css">
+  <link rel="stylesheet" href="assets/css/list.css">
+</head>
+<!-- =====================================================================
+  SCR-43 만료 예정 계약 (docs/02_화면목록.md)
+  - 지금 유효한 계약이 90일 안에 끝나는 묶음 (REQ-FLOW-07, REQ-ARC-05). 만료일이 가까운 순서.
+  - 자동갱신 계약은 해지 통지 기한(만료 며칠 전까지 알려야 하는지)을 함께 보여 줍니다.
+  - 할 일: 자동갱신이면 "갱신 검토"(REQ-FLOW-20, REQ-ARC-07), 아니면 "갱신 기안", 그리고 "해지 기안"(REQ-ARC-06).
+    진행 중인 갱신, 해지가 있으면 그 상태를 보여 줍니다.
+  - 영업은 내가 맡은 계약, 그 외 역할은 모든 계약을 봅니다. 기안 버튼은 영업 대표 본인(과 시연용 슈퍼관리자)에게만.
+  - 만료 이메일은 D-60, D-30에 영업 대표에게 갑니다(REQ-ENV-10).
+====================================================================== -->
+<body data-page="SCR-43">
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <div id="demo-bar"></div>
+
+  <div class="sheet">
+  <header id="site-header"></header>
+
+  <main id="main" class="page">
+    <div class="inner">
+      <div class="page-head page-head--sub">
+        <h1 class="page-title">만료 예정 계약</h1>
+      </div>
+      <div class="page-intro">
+        <p id="intro">90일 안에 끝나는 계약입니다. 만료일이 가까운 순서로 보여 줍니다.</p>
+        <p class="sub">자동갱신 계약은 갱신 검토로, 그 밖의 계약은 갱신 기안이나 해지 기안으로 정리합니다. 만료 60일 전과 30일 전에 영업 대표에게 이메일을 보냅니다.</p>
+      </div>
+
+      <section id="list" aria-labelledby="list-title">
+        <h2 class="sr-only" id="list-title">만료 예정 계약 목록</h2>
+        <form class="filter-bar" id="filter" role="search" aria-label="만료 예정 계약 거르기">
+          <div class="field">
+            <label class="field-label field-label--sm" for="f-q">검색</label>
+            <input class="input" id="f-q" type="search" placeholder="고객사 또는 계약번호" autocomplete="off">
+          </div>
+          <div class="field">
+            <label class="field-label field-label--sm" for="f-days">남은 기간</label>
+            <select class="select" id="f-days">
+              <option value="90">90일 이내</option>
+              <option value="60">60일 이내</option>
+              <option value="30">30일 이내</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label field-label--sm" for="f-auto">자동갱신</label>
+            <select class="select" id="f-auto">
+              <option value="">전체</option>
+              <option value="YES">있음</option>
+              <option value="NO">없음</option>
+            </select>
+          </div>
+          <button type="reset" class="btn btn--tertiary btn--md filter-reset">초기화</button>
+        </form>
+
+        <div class="list-head"><p class="list-count" id="list-count" aria-live="polite"></p></div>
+        <div class="tbl-scroll">
+          <table class="tbl tbl--compact">
+            <caption class="sr-only">만료 예정 계약: 남은 일자, 고객사, 만료일, 자동갱신, 진행 중인 일, 담당자, 할 일</caption>
+            <thead>
+              <tr>
+                <th scope="col">남은 일자</th>
+                <th scope="col" class="col-customer">고객사</th>
+                <th scope="col">만료일</th>
+                <th scope="col">자동갱신</th>
+                <th scope="col">진행 중인 일</th>
+                <th scope="col" class="col-owner">담당자</th>
+                <th scope="col">할 일</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+  </div><!-- /.sheet -->
+
+  <script src="assets/js/mock-data.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/expiring.js"></script>
+</body>
+</html>

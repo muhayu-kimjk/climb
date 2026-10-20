@@ -31,9 +31,8 @@
   const byStatus = function (list, s) { return list.filter(function (c) { return c.status === s; }); };
   const inReview = byStatus(all, 'IN_REVIEW');
   const active = byStatus(all, 'ACTIVE');
-  const expiring = active
-    .filter(function (c) { const d = C.daysUntil(c.endDate); return d >= 0 && d <= 90; })
-    .sort(function (a, b) { return a.endDate.localeCompare(b.endDate); });
+  // 만료 임박: 계약 묶음의 지금 유효한 계약 기준 (그대로 연장한 갱신이 있으면 그 기간, common.js expiringBundles)
+  const expiring = C.expiringBundles(90).map(function (b) { return Object.assign({}, b.root, { endDate: b.end }); });
   const restricted = all.filter(function (c) { return c.restricted && c.status !== 'DRAFT'; });
   const myActions = C.myActions(me);
 
@@ -51,9 +50,11 @@
       return '<td><span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span></td><td class="col-service">-</td>';
     }
     // 작성 중인 계약은 계약 등록 화면(SCR-11)에서 이어서 작성, 그 밖에는 결재 문서 화면(검토 상세, SCR-23)
-    const link = c.status === 'DRAFT'
-      ? '<a class="cell-title" href="new-contract.html?id=' + encodeURIComponent(c.draftKey) + '">' + esc(c.counterparty) + '</a>'
-      : '<a class="cell-title" href="review.html?id=' + encodeURIComponent(c.id) + '">' + esc(c.counterparty) + '</a>';
+    // 계약 완료, 만료, 해지된 계약은 계약 상세(묶음, SCR-42)로 (v0.24)
+    const href = c.status === 'DRAFT' ? 'new-contract.html?id=' + encodeURIComponent(c.draftKey)
+      : ['ACTIVE', 'EXPIRED', 'TERMINATED'].indexOf(c.status) > -1 ? 'contract.html?id=' + encodeURIComponent(C.rootOf(c))
+      : 'review.html?id=' + encodeURIComponent(c.id);
+    const link = '<a class="cell-title" href="' + href + '">' + esc(c.counterparty) + '</a>';
     const service = esc(C.serviceLabel(c.services));
     return '<td>' + link + '<span class="cell-sub">' + service + '</span></td><td class="col-service">' + service + '</td>';
   }
@@ -96,17 +97,20 @@
    * 건수가 있는 단계는 초록 원, 없는 단계는 회색 원입니다.
    * 단계마다 단계 번호, 단계 이름, 건수만 보여 주고 아래 작은 설명 글은 두지 않습니다. (v0.14) */
   const STEPS = [
-    { label: '계약 등록', statuses: ['DRAFT'], target: '내 등록 목록', scr: 'SCR-12' },
+    { label: '계약 등록', statuses: ['DRAFT'], target: '내 등록 목록', scr: 'SCR-12', href: 'my-contracts.html' },
     { label: '계약 검토', statuses: ['IN_REVIEW', 'REJECTED'], target: '전체 진행 현황', scr: 'SCR-20', href: 'progress.html?status=REVIEW' },
     // 계약 체결: 영업은 체결 대기 화면, 그 외는 전체 진행 현황(체결 대기로 거름)
     { label: '계약 체결', statuses: ['APPROVED'], target: '체결 대기', scr: 'SCR-31', href: isSales ? 'signing.html' : 'progress.html?status=APPROVED' },
     { label: '운영 검토', statuses: ['OPS_REVIEW'], target: '전체 진행 현황', scr: 'SCR-20', href: 'progress.html?status=OPS_REVIEW' },
-    { label: '계약 완료', statuses: ['ACTIVE'], target: '보관함 전체 계약', scr: 'SCR-41' },
+    // 계약 완료는 묶음마다 셈(그대로 연장한 갱신을 따로 세지 않음)
+    { label: '계약 완료', statuses: ['ACTIVE'], target: '보관함 전체 계약', scr: 'SCR-41', href: 'contracts.html', bundles: true },
   ];
 
   function renderProgress() {
     const stepsHtml = STEPS.map(function (s, i) {
-      const list = scope.filter(function (c) { return s.statuses.indexOf(c.status) > -1; });
+      const list = s.bundles
+        ? C.bundles().filter(function (b) { return b.status === 'ACTIVE' && (!isSales || b.root.requesterId === me.id); })
+        : scope.filter(function (c) { return s.statuses.indexOf(c.status) > -1; });
       const unknown = i === 0 && !isSales; // 작성 중 계약은 작성자 본인만 셀 수 있음
       const count = unknown ? '-' : list.length;
       const cls = !unknown && list.length ? ' class="is-on"' : '';
@@ -184,7 +188,7 @@
    * 표로 보여 줍니다: 남은 일자, 고객사, 서비스, 만료일, 담당자 (v0.14)
    * 고객사, 서비스 칸 너비는 진행 상세 표와 같게 맞춤 */
   function renderExpiring() {
-    const head = panelHead('expiring-title', '만료 임박', null, '전체 보기', 'SCR-43') +
+    const head = panelHead('expiring-title', '만료 임박', null, '전체 보기', 'SCR-43', 'expiring.html') +
       '<p class="panel-desc">90일 이내에 만료되는 계약입니다.</p>';
     if (!expiring.length) {
       document.getElementById('expiring').innerHTML = head + '<p class="empty">90일 이내에 만료되는 계약이 없습니다.</p>';

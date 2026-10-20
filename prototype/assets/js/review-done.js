@@ -76,7 +76,7 @@
         '<td><a class="cell-title" href="review.html?id=' + encodeURIComponent(x.c.id) + '">' + esc(x.c.counterparty) + '</a>' +
           '<span class="cell-meta">' + esc(x.c.id) + ', ' + esc(C.serviceLabel(x.c.services)) + ', ' + (x.h.round || 1) + '차</span></td>' +
         '<td class="nowrap">' + esc(D.STEPS[x.h.step].no + ' ' + D.STEPS[x.h.step].short) + '</td>' +
-        '<td class="nowrap">' + C.badge(a.tone, C.actionLabel(x.h)) + '</td>' +
+        '<td class="nowrap">' + C.badge(a.tone, C.actionLabel(x.h, x.c)) + '</td>' +
         (seeAll ? '<td class="nowrap">' + esc(C.userName(x.h.actorId)) + (x.h.onBehalfOf ? '<span class="cell-meta">' + esc(C.userName(x.h.onBehalfOf)) + '님 대신</span>' : '') + '</td>' : '') +
         '<td>' + (x.h.comment ? esc(x.h.comment) : '-') + '</td>' +
         '<td class="nowrap">' + C.statusBadge(x.c) + '</td>' +

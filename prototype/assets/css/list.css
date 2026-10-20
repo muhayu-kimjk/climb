@@ -35,6 +35,9 @@
 /* 칸 아래 보조 줄 (예: 계약번호, "동시: ⑤") */
 .cell-meta { display: block; margin-top: 0.2rem; font-size: var(--fs-body-xsmall); font-weight: 400; color: var(--text-subtle); }
 .cell-meta .icon { vertical-align: -0.2rem; }
+/* 표 줄 안의 할 일 버튼 (만료 예정의 갱신 검토, 해지 기안, 내 등록 목록의 이어서 작성 등) */
+.row-actions { display: inline-flex; flex-wrap: wrap; gap: 0.6rem; }
+@media print { .row-actions { display: none; } }
 /* 전체 진행 현황: 현재 진행 칸에 자리를 더 줌 (서비스 칸은 좁게) */
 .tbl--progress .col-customer { width: 22%; }
 .tbl--progress .col-service { width: 14%; }

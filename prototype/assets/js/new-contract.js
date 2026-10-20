@@ -74,8 +74,8 @@
   $('#settlement-choices').innerHTML = Object.keys(D.SETTLEMENTS).map(function (k) {
     return '<label class="choice"><input type="radio" name="settlement" value="' + k + '">' + esc(D.SETTLEMENTS[k]) + '</label>';
   }).join('');
-  // 원계약 후보: 보관함의 계약 완료 계약 중 볼 수 있는 것
-  const origins = D.CONTRACTS.filter(function (c) { return c.status === 'ACTIVE' && C.canView(c, me); });
+  // 원계약 후보: 보관함의 계약 완료 묶음(원계약 번호) 중 볼 수 있는 것
+  const origins = D.CONTRACTS.filter(function (c) { return c.status === 'ACTIVE' && !c.parentId && C.canView(c, me); });
   $('#f-origin').innerHTML = '<option value="">고르세요</option>' + origins.map(function (c) {
     return '<option value="' + esc(c.id) + '">' + esc(c.id + ' ' + c.counterparty + ' (' + C.serviceLabel(c.services) + ')') + '</option>';
   }).join('');
@@ -364,8 +364,7 @@
     const kind = val('kind');
     const origin = $('#f-origin').value;
     if (kind === 'NEW' || !origin) return null;
-    const children = D.CONTRACTS.filter(function (c) { return c.parentId === origin && c.kind === kind; }).length;
-    return origin + '-' + (kind === 'AMEND' ? 'A' : 'R') + String(children + 1).padStart(2, '0');
+    return C.nextChildId(origin, kind); // 예: CT-2026-0105-A02 (common.js)
   }
   function onOriginChange() {
     const help = $('#origin-help');
@@ -609,6 +608,13 @@
     $('#f-memo').value = f.memo || '';
     (f.products || []).forEach(function (p) { addProduct(p); });
     if (source.status === 'REJECTED') { files.draft.push({ name: source.counterparty + ' 계약서 1차 기안본.docx', size: 84000 }); renderFiles('draft'); }
+  }
+  // 계약 상세, 만료 예정에서 "변경 기안", "갱신 기안"으로 들어오면 구분과 원계약을 미리 고름
+  //   new-contract.html?kind=AMEND&origin=CT-2026-0105 (REQ-ARC-02, 05)
+  const pre = new URLSearchParams(location.search);
+  if (!source && ['AMEND', 'RENEW'].indexOf(pre.get('kind')) > -1) {
+    setRadio('kind', pre.get('kind'));
+    if (origins.some(function (c) { return c.id === pre.get('origin'); })) $('#f-origin').value = pre.get('origin');
   }
   if (!$$('#product-list > li').length) addProduct();
   onKindChange();

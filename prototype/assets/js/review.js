@@ -53,17 +53,22 @@
     const d = new Date(p[0], p[1] - 1, p[2] + days);
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
-  const seq = Number(String(c.id).replace(/\D/g, '').slice(-4)) || 1;
+  // 해지 기안과 갱신 검토(짧은 결재)는 원계약을 기준으로 보여 줌 (REQ-ARC-06, 07)
+  const short = C.isShort(c);
+  const isTerm = c.kind === 'TERMINATE';
+  const rootId = C.rootOf(c);
+  const parent = c.parentId ? D.CONTRACTS.find(function (x) { return x.id === c.parentId; }) : null;
+  const seq = Number(String(rootId).replace(/\D/g, '').slice(-4)) || 1;
   const reqDate = (c.requestedAt || '').slice(0, 10);
-  const startDate = c.startDate || f.startDate || addDays(reqDate, 14);
-  const endDate = c.endDate || f.endDate || addDays(addDays(startDate, 365), -1);
+  const startDate = c.startDate || f.startDate || (parent && C.startOf(parent)) || addDays(reqDate, 14);
+  const endDate = c.endDate || f.endDate || (parent && C.endOf(parent)) || addDays(addDays(startDate, 365), -1);
   const detail = {
     bizNo: f.bizNo || (100 + seq % 800) + '-' + (81 + seq % 9) + '-' + String(10000 + (seq * 37) % 89999).padStart(5, '0'),
     method: f.method || (c.type === '리셀러 계약' ? 'RESELLER' : 'DIRECT'),
     settlement: f.settlement || 'LUMP',
     contractDate: f.contractDate || reqDate,
     startDate: startDate, endDate: endDate,
-    autoRenew: f.autoRenew || 'NO', noticeDays: f.noticeDays,
+    autoRenew: c.autoRenew || f.autoRenew || 'NO', noticeDays: c.noticeDays || f.noticeDays,
     memo: c.memo || f.memo || '',
   };
   // 제품 줄: 예시 데이터에 없으면 서비스별 기본 제품을 표준 단가 그대로 넣은 줄을 만듦
@@ -85,8 +90,10 @@
   }
   // 첨부 파일 (데이터 정의서 attachment). 예시 이름은 고객사 이름으로 만듦
   function files() {
-    const list = [{ kind: 'DRAFT_DOC', name: c.counterparty + '_계약서_초안_' + (c.round || 1) + '차.docx', size: 84000 + seq * 13 }];
-    if (c.amount) list.push({ kind: 'QUOTE', name: c.counterparty + '_최종견적서.pdf', size: 212000 + seq * 7 });
+    // 해지 기안과 갱신 검토는 계약서 초안 없이 기안할 때 올린 서류(해지 관련 서류)만
+    const list = short ? (c.files || []).map(function (x, i) { return { kind: x.kind, name: x.name, size: 320000 + i * 1000 }; })
+      : [{ kind: 'DRAFT_DOC', name: c.counterparty + '_계약서_초안_' + (c.round || 1) + '차.docx', size: 84000 + seq * 13 }];
+    if (c.amount && !short) list.push({ kind: 'QUOTE', name: c.counterparty + '_최종견적서.pdf', size: 212000 + seq * 7 });
     // 체결본: ⑦에서 올린 파일. 다시 등록 요청으로 다시 올려도 앞 파일은 지우지 않고 남김 (REQ-FLOW-22)
     (c.history || []).filter(function (h) { return h.action === 'REGISTER' && (h.round || 1) === (c.round || 1); }).forEach(function (h, i) {
       list.push({ kind: 'SIGNED', name: h.fileName || c.counterparty + '_체결본.pdf', size: 1840000 + seq * 11 + i * 3000, at: h.at });
@@ -96,9 +103,11 @@
 
   /* ---------- 2. 머리와 안내 ---------- */
   const round = c.round || 1;
-  const kindText = D.KINDS[c.kind] + (c.parentId ? ' (원계약 ' + c.parentId + ')' : '');
+  const kindText = C.kindLabel(c) + (c.parentId ? ' (원계약 ' + c.parentId + ')' : '');
   $('#doc-title').textContent = c.counterparty;
-  $('#doc-meta').innerHTML = C.meta([esc(c.id), esc(C.serviceLabel(c.services)), esc(kindText), round + '차 기안', C.statusBadge(c)]);
+  // 계약 묶음 보기: 원계약과 변경, 갱신, 해지를 한 장에서 (SCR-42, REQ-ARC-02)
+  $('#doc-meta').innerHTML = C.meta([esc(c.id), esc(C.serviceLabel(c.services)), esc(kindText), round + '차 기안', C.statusBadge(c),
+    '<a href="contract.html?id=' + encodeURIComponent(rootId) + '">계약 묶음 보기</a>']);
 
   const actionable = (c.approvals || []).filter(function (s) { return C.canAct(c, s, me); });
   const cancelable = (c.approvals || []).filter(function (s) { return C.canCancel(c, s, me); });
@@ -110,8 +119,12 @@
     S06: '계약서 실물의 고객사명, 체결 제품, 계약 금액, 계약 기간이 이 문서와 같은지 확인한 뒤 날인하고, 화면 아래에서 날인 완료로 처리해 주세요. 인장 사용 기록은 기존 구글 폼에 남깁니다.',
     S07: '상대방 서명을 받은 뒤 화면 아래에서 체결본(PDF나 스캔 이미지, 50MB 이하)을 올려 주세요. 올린 체결본은 고치거나 지울 수 없습니다.',
     S08: '첨부 파일의 체결본이 승인된 내용과 같은지 확인해 주세요. 같으면 확인 완료, 오탈자나 스캔 문제면 다시 등록 요청, 계약 내용이 다르면 반려합니다.',
-    S09: '서비스에 계약을 적용한 뒤(라이선스나 도메인 열기, 계약 정보 설정) 화면 아래에서 운영 적용 완료로 처리해 주세요.',
-    S10: '계약 금액과 체크리스트 4번(회계에 영향을 주는 특수 조건)을 확인한 뒤 재무 확인 완료를 눌러 주세요. 필요하면 메모를 남깁니다.',
+    S09: isTerm ? '해지일에 맞춰 라이선스나 도메인을 닫고 계약 종료일을 설정한 뒤 화면 아래에서 운영 종료 완료로 처리해 주세요.'
+      : c.renewMode === 'AUTO' ? '라이선스나 도메인 기간을 새 계약 기간에 맞춰 연장한 뒤 화면 아래에서 기간 연장 완료로 처리해 주세요.'
+      : '서비스에 계약을 적용한 뒤(라이선스나 도메인 열기, 계약 정보 설정) 화면 아래에서 운영 적용 완료로 처리해 주세요.',
+    S10: isTerm ? '환불, 위약금, 매출 조정을 확인한 뒤 재무 확인 완료를 눌러 주세요. 필요하면 메모를 남깁니다.'
+      : c.renewMode === 'AUTO' ? '연장된 기간의 매출 인식을 확인한 뒤 재무 확인 완료를 눌러 주세요. 필요하면 메모를 남깁니다.'
+      : '계약 금액과 체크리스트 4번(회계에 영향을 주는 특수 조건)을 확인한 뒤 재무 확인 완료를 눌러 주세요. 필요하면 메모를 남깁니다.',
   };
   function renderNotice() {
     let html = '';
@@ -134,6 +147,11 @@
       html = notice('success', c.status === 'APPROVED' ? '계약 검토가 끝나 체결 중입니다' : '체결이 끝나 운영 검토 중입니다',
         (c.status === 'APPROVED' ? C.fmtDateTime(c.approvedAt) + '에 계약 검토가 끝났습니다. ' : C.fmtDateTime(c.signedAt) + '에 체결본을 등록했습니다. ') +
         (cur ? '지금 차례: ' + esc(C.stepLabel(cur.step)) + ' (' + esc(C.userName(cur.userId)) + '님)' : '') + ret);
+    } else if (c.status === 'TERMINATED') {
+      // 해지 기안이 끝났거나(해지 기안 문서), 해지된 원계약
+      html = isTerm
+        ? notice('success', '해지 완료', (c.completedAt ? C.fmtDateTime(c.completedAt) + '에 재무 확인까지 끝나 ' : '') + '원계약(' + esc(c.parentId) + ')이 해지 상태가 되었습니다. 해지일: ' + C.fmtDate(c.terminateDate))
+        : notice('', '해지된 계약입니다', '해지일 ' + C.fmtDate(c.terminateDate) + '. 해지 기안은 계약 묶음에서 볼 수 있습니다.');
     } else if (c.status === 'ACTIVE') {
       html = notice('success', '계약 완료',
         (c.completedAt ? C.fmtDateTime(c.completedAt) + '에 재무 확인까지 끝나 보관함에 들어갔습니다. ' : '') + '계약 기간: ' + C.fmtDate(detail.startDate) + ' ~ ' + C.fmtDate(detail.endDate));
@@ -182,8 +200,10 @@
     $('#approval-box-post').innerHTML = '<caption class="sr-only">결재란 계약 체결과 운영 검토: 단계마다 담당자, 결과, 일시</caption>' +
       boxHtml(steps.filter(function (s) { return s.phase > 2; }), false);
     const routed = C.routedReview(c).map(function (s) { return D.STEPS[s.step].no; }).join(', ');
-    $('#box-desc').textContent = '거치는 단계: ' + routed + '. ② 다음 ③을 검토하고, 그 다음 ④와 ⑤를 동시에 검토합니다. 생략한 단계는 체크리스트 답에 따른 것입니다. ' +
-      '승인 뒤에는 ⑥ 인장 날인부터 ⑩ 재무 확인까지 하나씩 차례로 거칩니다.';
+    $('#box-desc').textContent = short
+      ? (isTerm ? '해지 기안' : '갱신 검토') + '은 ③ 부서장, ④ 법무가 승인한 뒤 ⑨ CEM ' + (isTerm ? '운영 종료' : '기간 연장') + ', ⑩ 재무 확인을 거칩니다. 체크리스트, 날인, 체결본은 없습니다.'
+      : '거치는 단계: ' + routed + '. ② 다음 ③을 검토하고, 그 다음 ④와 ⑤를 동시에 검토합니다. 생략한 단계는 체크리스트 답에 따른 것입니다. ' +
+        '승인 뒤에는 ⑥ 인장 날인부터 ⑩ 재무 확인까지 하나씩 차례로 거칩니다.';
   }
 
   /* ---------- 4. 기본 정보, 금액, 체크리스트, 첨부, 결재 기록 ---------- */
@@ -207,6 +227,24 @@
   }
 
   function renderAmount() {
+    if (short) {
+      // 해지 내용, 갱신 내용 (REQ-ARC-06, 07)
+      const dd = function (label, value) { return '<div><dt>' + esc(label) + '</dt><dd>' + value + '</dd></div>'; };
+      $('#amount-title').innerHTML = '<span class="num">2</span>' + (isTerm ? '해지 내용' : '갱신 내용');
+      $('#amount').innerHTML = '<dl class="info-grid">' + (isTerm ? [
+        dd('원계약', '<a href="contract.html?id=' + encodeURIComponent(rootId) + '">' + esc(c.parentId) + '</a>'),
+        dd('해지일', C.fmtDate(c.terminateDate)),
+        dd('해지 사유', esc(c.reason || '-')),
+        dd('환불과 위약금', esc(c.refundNote || '없음')),
+      ] : [
+        dd('원계약', '<a href="contract.html?id=' + encodeURIComponent(rootId) + '">' + esc(c.parentId) + '</a>'),
+        dd('검토 결과', '그대로 자동갱신 (금액과 조건 그대로)'),
+        dd('새 계약 기간', C.fmtDate(c.startDate) + ' ~ ' + C.fmtDate(c.endDate)),
+        dd('계약 금액', c.amount ? won(c.amount) + ' (부가세 별도)' : '금액 없음'),
+        dd('그대로 연장하는 이유', esc(c.reason || '-')),
+      ]).join('') + '</dl>';
+      return;
+    }
     const rows = productRows();
     if (!rows.length) { $('#amount').innerHTML = '<p class="empty">금액이 없는 계약입니다(비밀유지계약 등).</p>'; return; }
     const total = rows.reduce(function (a, r) { return a + r.amount; }, 0);
@@ -233,6 +271,10 @@
     return C.badge('line', '-');
   }
   function renderChecklist() {
+    if (short) {
+      $('#checklist').innerHTML = '<p class="empty">' + (isTerm ? '해지 기안' : '갱신 검토') + '은 체크리스트 없이 ③ 부서장과 ④ 법무가 결재합니다.</p>';
+      return;
+    }
     const ck = c.checklist || {};
     const route = C.reviewRoute(c);
     const q = [
@@ -280,7 +322,7 @@
         const note = (h.comment ? esc(h.comment) : '') + (h.fileName ? (h.comment ? '<br>' : '') + '<span class="behalf">파일: ' + esc(h.fileName) + '</span>' : '');
         return '<tr><td class="nowrap num-left">' + C.fmtDateTime(h.at) + '</td><td class="num">' + (h.round || 1) + '차</td>' +
           '<td class="nowrap">' + esc(D.STEPS[h.step].no + ' ' + D.STEPS[h.step].short) + '</td>' +
-          '<td class="nowrap">' + C.badge(a.tone, C.actionLabel(h)) + '</td><td class="nowrap">' + who + '</td><td>' + (note || '-') + '</td></tr>';
+          '<td class="nowrap">' + C.badge(a.tone, C.actionLabel(h, c)) + '</td><td class="nowrap">' + who + '</td><td>' + (note || '-') + '</td></tr>';
       }).join('') + '</tbody>';
   }
 
@@ -290,7 +332,10 @@
    *   ⑨: 운영 적용 완료 / ⑩: 재무 확인 완료 (⑨⑩에는 반려가 없음 [가정]) */
   const STEP_ACTIONS = { S06: ['REJECT', 'APPROVE'], S07: ['REGISTER'], S08: ['REJECT', 'RETURN', 'APPROVE'], S09: ['APPROVE'], S10: ['APPROVE'] };
   function actionsOf(code) { return C.isReviewStep(code) ? ['REJECT', 'APPROVE'] : STEP_ACTIONS[code]; }
+  // ⑨ 버튼 이름: 해지는 운영 종료, 그대로 연장은 기간 연장
+  const S09_BTN = isTerm ? '운영 종료 완료' : c.renewMode === 'AUTO' ? '기간 연장 완료' : D.STEPS.S09.doneAction;
   function buttonLabel(action, code) {
+    if (action === 'APPROVE' && code === 'S09') return S09_BTN;
     if (action === 'APPROVE') return C.isReviewStep(code) ? '승인' : D.STEPS[code].doneAction;
     return D.APPROVAL_ACTIONS[action].label;
   }
@@ -346,8 +391,8 @@
     if (C.isReviewStep(code)) return { title: '승인할까요?', label: '의견 (선택)', btn: '승인', required: false, tone: 'primary',
       desc: '승인하면 다음 단계로 넘어갑니다.' };
     const acc = c.checklist && c.checklist.accounting === 'YES';
-    // 금액이 없는 비밀유지계약은 운영에 적용할 것이 없으므로 그 사실만 확인 [가정]
-    const ops = c.type === '비밀유지계약(NDA)' ? ['운영에 적용할 내용 없음(비밀유지계약)'] : C.opsChecks(c.services);
+    // ⑨ 확인 항목: 계약, 해지, 그대로 연장마다 다름 (common.js opsChecksFor)
+    const ops = C.opsChecksFor(c);
     return {
       S06: { title: '날인 완료로 처리할까요?', label: '메모 (선택)', btn: '날인 완료', required: false, tone: 'primary',
         desc: '처리하면 영업이 상대방 서명을 받아 체결본을 올릴 차례가 됩니다. 인장 사용 기록은 기존 구글 폼에 따로 남겨 주세요.',
@@ -355,12 +400,15 @@
       S08: { title: '체결본 확인을 완료할까요?', label: '메모 (선택)', btn: '확인 완료', required: false, tone: 'primary',
         desc: '완료하면 운영 검토로 넘어가 CEM이 운영에 적용할 차례가 됩니다.',
         legend: '확인한 내용 (모두 확인)', checks: ['체결본이 승인된 계약 내용과 같음', '양쪽 서명과 날인이 모두 있음'] },
-      S09: { title: '운영 적용을 완료할까요?', label: '메모 (선택)', btn: '운영 적용 완료', required: false, tone: 'primary',
-        desc: '완료하면 재무 확인 차례가 됩니다.', legend: '서비스에 적용한 항목 (모두 확인)', checks: ops },
+      S09: { title: isTerm ? '운영 종료를 완료할까요?' : c.renewMode === 'AUTO' ? '기간 연장을 완료할까요?' : '운영 적용을 완료할까요?',
+        label: '메모 (선택)', btn: S09_BTN, required: false, tone: 'primary',
+        desc: '완료하면 재무 확인 차례가 됩니다.', legend: '서비스에 한 일 (모두 확인)', checks: ops },
       S10: { title: '재무 확인을 완료할까요?', label: '메모 (선택)', btn: '재무 확인 완료', required: false, tone: 'primary',
-        desc: '완료하면 계약 완료로 보관함에 들어갑니다. ' + (acc
-          ? '체크리스트 4번 회계 영향 조건: ' + (c.checklist.accountingNote || '비고 없음')
-          : '체크리스트 4번 회계 영향 조건은 없습니다.') },
+        desc: isTerm ? '완료하면 해지가 끝나 원계약이 해지 상태가 됩니다. 환불과 위약금: ' + (c.refundNote || '없음')
+          : c.renewMode === 'AUTO' ? '완료하면 갱신이 끝나 새 계약 기간(' + C.fmtDate(c.startDate) + ' ~ ' + C.fmtDate(c.endDate) + ')이 적용됩니다.'
+          : '완료하면 계약 완료로 보관함에 들어갑니다. ' + (acc
+            ? '체크리스트 4번 회계 영향 조건: ' + (c.checklist.accountingNote || '비고 없음')
+            : '체크리스트 4번 회계 영향 조건은 없습니다.') },
     }[code];
   }
   function openModal(action, stepCode) {
@@ -443,7 +491,8 @@
     const now = C.pendingSteps(c).map(function (x) { return C.stepLabel(x.step) + ' (' + C.userName(x.userId) + '님)'; }).join(', ');
     let next = '';
     if (pending.action !== 'REJECT' && pending.action !== 'CANCEL') {
-      next = c.status === 'ACTIVE' ? ' 계약 완료로 보관함에 들어갔습니다.'
+      next = c.status === 'TERMINATED' ? ' 해지가 끝나 원계약이 해지 상태가 되었습니다.'
+        : c.status === 'ACTIVE' ? (c.renewMode === 'AUTO' ? ' 갱신이 끝나 새 계약 기간이 적용되었습니다.' : ' 계약 완료로 보관함에 들어갔습니다.')
         : c.status === 'APPROVED' && C.isReviewStep(s.step) ? ' 계약 검토가 모두 끝나 체결 대기가 되었습니다. 다음 차례: ' + now
         : now ? ' 다음 차례: ' + now : '';
     }

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 브라우저 탭 제목: CLIMB (REQ-NAME-02) -->
+  <title>CLIMB</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/common.css">
+  <link rel="stylesheet" href="assets/css/form.css">
+  <link rel="stylesheet" href="assets/css/new-contract.css">
+  <link rel="stylesheet" href="assets/css/review.css">
+</head>
+<!-- =====================================================================
+  SCR-13 해지 기안 (docs/02_화면목록.md)
+  - 계약 기간 중 해지도 기안해 결재를 받습니다(REQ-FLOW-29). 번호는 원계약에 묶인 -T01.
+  - 결재: ③ 부서장 → ④ 법무 → ⑨ CEM 운영 종료 → ⑩ 재무 확인(환불, 위약금, 매출 조정) (기획자 결정, REQ-ARC-06)
+    ⑩이 끝나면 원계약이 "해지" 상태가 됩니다.
+  - 들어오는 곳: 계약 상세(SCR-42), 만료 예정(SCR-43)의 "해지 기안". 주소: terminate.html?origin=원계약 번호
+  - 프로토타입: 기안한 해지는 이 브라우저에만 저장됩니다(시연 띠의 "시연 기록 지우기"로 되돌림).
+====================================================================== -->
+<body data-page="SCR-13">
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <div id="demo-bar"></div>
+
+  <div class="sheet">
+  <header id="site-header"></header>
+
+  <main id="main" class="page">
+    <div class="inner">
+      <div class="page-head page-head--sub">
+        <h1 class="page-title">해지 기안</h1>
+      </div>
+      <div class="page-intro">
+        <p>계약 기간 중에 계약을 끝내려면 해지를 기안해 부서장과 법무의 승인을 받습니다.</p>
+        <p class="sub"><span class="req" aria-hidden="true">*</span> 표시는 꼭 입력해야 하는 항목입니다. 승인 뒤 CEM이 운영을 종료하고 재무가 확인하면 해지가 끝납니다.</p>
+      </div>
+
+      <div id="notice"></div>
+      <div class="error-summary" id="error-summary" role="alert" tabindex="-1" hidden></div>
+
+      <form id="form" class="form-stack" novalidate hidden>
+        <section class="panel" aria-labelledby="sec-origin">
+          <h2 class="section-title" id="sec-origin"><span class="num">1</span>해지할 계약</h2>
+          <dl class="info-grid" id="origin"></dl>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-what">
+          <h2 class="section-title" id="sec-what"><span class="num">2</span>해지 내용</h2>
+          <p class="section-desc" id="number-help"></p>
+          <div class="field" data-field="date">
+            <label class="field-label" for="f-date">해지일<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+            <p class="field-help" id="date-help"></p>
+            <input class="input" id="f-date" type="date">
+            <p class="field-error" hidden></p>
+          </div>
+          <div class="field" data-field="reason">
+            <label class="field-label" for="f-reason">해지 사유<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+            <textarea class="textarea" id="f-reason" placeholder="예: 고객 사정으로 합의 해지"></textarea>
+            <p class="field-error" hidden></p>
+          </div>
+          <div class="field" data-field="refund">
+            <label class="field-label" for="f-refund">환불과 위약금</label>
+            <p class="field-help">남은 기간 이용료 환불, 위약금 등. ⑩ 재무 확인에서 재무가 봅니다.</p>
+            <textarea class="textarea textarea--sm" id="f-refund" placeholder="예: 남은 기간 이용료는 환불하지 않음"></textarea>
+          </div>
+          <div class="field act-file" data-field="file">
+            <label class="field-label" for="f-file">해지 관련 서류</label>
+            <input type="file" id="f-file" accept=".pdf,.doc,.docx,.hwp,.hwpx,.jpg,.jpeg,.png">
+            <p class="field-help">해지 합의서나 해지 통지서 등. PDF, Word, 한글, JPG, PNG, 50MB 이하. 프로토타입은 파일 이름만 남깁니다.
+              <button type="button" class="btn-text" id="demo-file">예시 파일 고르기 (시연)</button></p>
+            <p class="act-file-name" id="file-name" aria-live="polite"></p>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-route">
+          <h2 class="section-title" id="sec-route"><span class="num">3</span>결재선</h2>
+          <p class="section-desc">해지는 체크리스트 없이 부서장과 법무가 결재하고, 날인과 체결본 등록은 거치지 않습니다.</p>
+          <div id="route"></div>
+        </section>
+
+        <div class="form-actions">
+          <a class="btn btn--tertiary btn--md" id="btn-cancel" href="#">취소</a>
+          <button type="submit" class="btn btn--primary btn--md">기안하기</button>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+  </div><!-- /.sheet -->
+
+  <!-- 기안 확인 창 -->
+  <div class="modal-backdrop" id="confirm-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <h2 class="modal-title" id="confirm-title">해지를 기안할까요?</h2>
+      <div class="modal-body" id="confirm-body"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn--tertiary btn--md" data-act="close">닫기</button>
+        <button type="button" class="btn btn--danger btn--md" data-act="confirm">기안하기</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/js/mock-data.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/terminate.js"></script>
+</body>
+</html>

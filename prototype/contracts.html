@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 브라우저 탭 제목: CLIMB (REQ-NAME-02) -->
+  <title>CLIMB</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/common.css">
+  <link rel="stylesheet" href="assets/css/form.css">
+  <link rel="stylesheet" href="assets/css/list.css">
+</head>
+<!-- =====================================================================
+  SCR-41 전체 계약 (docs/02_화면목록.md)
+  - 보관함: 반려, 진행 중, 계약 완료, 만료, 해지를 포함한 모든 계약을 묶음마다 한 줄로 (REQ-FLOW-15, REQ-ARC-01)
+    묶음 = 원계약 + 변경(-A) + 갱신(-R) + 해지(-T) (REQ-FLOW-18, 3.3 방식 C)
+  - 작성 중(임시 저장)은 나오지 않습니다. 열람 제한 계약은 볼 수 없는 사람에게 가립니다(REQ-AUTH-09).
+  - 고객사를 누르면 계약 상세(SCR-42)가 열립니다. 거르기, 쪽 나누기는 assets/js/contracts.js가 처리합니다.
+====================================================================== -->
+<body data-page="SCR-41">
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <div id="demo-bar"></div>
+
+  <div class="sheet">
+  <header id="site-header"></header>
+
+  <main id="main" class="page">
+    <div class="inner">
+      <div class="page-head page-head--sub">
+        <h1 class="page-title">전체 계약</h1>
+      </div>
+      <div class="page-intro">
+        <p>지금까지의 모든 계약입니다. 원계약과 그 변경, 갱신, 해지를 한 줄로 묶어 보여 줍니다.</p>
+        <p class="sub">계약 기간은 지금 유효한 계약(가장 나중에 끝난 갱신, 없으면 원계약) 기준입니다. 고객사를 누르면 계약 상세가 열립니다.</p>
+      </div>
+
+      <section id="list" aria-labelledby="list-title">
+        <h2 class="sr-only" id="list-title">전체 계약 목록</h2>
+        <form class="filter-bar" id="filter" role="search" aria-label="전체 계약 거르기">
+          <div class="field">
+            <label class="field-label field-label--sm" for="f-q">검색</label>
+            <input class="input" id="f-q" type="search" placeholder="고객사 또는 계약번호" autocomplete="off">
+          </div>
+          <div class="field">
+            <label class="field-label field-label--sm" for="f-status">상태</label>
+            <select class="select" id="f-status"></select>
+          </div>
+          <div class="field">
+            <label class="field-label field-label--sm" for="f-service">서비스</label>
+            <select class="select" id="f-service"></select>
+          </div>
+          <div class="field">
+            <label class="field-label field-label--sm" for="f-owner">영업 대표</label>
+            <select class="select" id="f-owner"></select>
+          </div>
+          <button type="reset" class="btn btn--tertiary btn--md filter-reset">초기화</button>
+        </form>
+
+        <div class="list-head"><p class="list-count" id="list-count" aria-live="polite"></p></div>
+        <div class="tbl-scroll">
+          <table class="tbl tbl--compact tbl--progress">
+            <caption class="sr-only">전체 계약: 고객사, 서비스, 상태, 계약 기간, 변경과 갱신, 영업 대표</caption>
+            <thead>
+              <tr>
+                <th scope="col" class="col-customer">고객사</th>
+                <th scope="col" class="col-service">서비스</th>
+                <th scope="col">상태</th>
+                <th scope="col">계약 기간</th>
+                <th scope="col">변경과 갱신</th>
+                <th scope="col">영업 대표</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <nav class="pagination" id="pagination" aria-label="전체 계약 쪽 이동"></nav>
+      </section>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+  </div><!-- /.sheet -->
+
+  <script src="assets/js/mock-data.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/contracts.js"></script>
+</body>
+</html>

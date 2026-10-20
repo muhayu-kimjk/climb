@@ -90,7 +90,8 @@ window.CLIMB_DATA = (function () {
   };
 
   // 계약 구분 (REQ-FLOW-08~09: 갱신, 변경은 원계약(parentId)과 연결)
-  const KINDS = { NEW: '신규', AMEND: '변경', RENEW: '갱신' };
+  // 해지(TERMINATE)는 원계약을 기간 중에 끝내는 기안 (REQ-FLOW-29, 번호 끝 -T01)
+  const KINDS = { NEW: '신규', AMEND: '변경', RENEW: '갱신', TERMINATE: '해지' };
 
   /* ---------- 계약 등록(SCR-11) 선택지 (요구사항 정의서 3.4) ---------- */
   const CONTRACT_TYPES = ['SaaS 이용계약', '비밀유지계약(NDA)', '리셀러 계약', '개인정보 처리위탁 계약', '기타'];
@@ -168,6 +169,12 @@ window.CLIMB_DATA = (function () {
     CK: ['라이선스 열기', '계약번호 설정', '계약 기간 설정', '계약 금액 설정'],
     HR: ['도메인 열기', '계약 기간 설정'],
   };
+  // 해지할 때 ⑨에서 CEM이 하는 일 (REQ-SIGN-09) [가정]
+  const OPS_CHECKS_END = { CK: ['라이선스 닫기', '계약 종료일 설정'], HR: ['도메인 닫기', '계약 종료일 설정'] };
+  // 자동갱신(그대로 연장)할 때 ⑨에서 CEM이 하는 일 (REQ-ARC-07) [가정]
+  const OPS_CHECKS_EXTEND = { CK: ['라이선스 기간 연장'], HR: ['도메인 기간 연장'] };
+  // 사후관리 기록 종류 (데이터 정의서 CODE-AFTERCARE-TYPE)
+  const AFTERCARE_TYPES = { CONTACT_CHANGE: '담당자 변경', ISSUE: '특이사항' };
   // 첨부 파일 종류 (데이터 정의서 CODE-FILE-KIND)
   const FILE_KINDS = { DRAFT_DOC: '계약서 초안', QUOTE: '최종 견적서', SIGNED: '체결본', TERMINATE_DOC: '해지 관련 서류' };
 
@@ -239,7 +246,7 @@ window.CLIMB_DATA = (function () {
     },
     {
       // 승인 취소 기록이 남은 예시: ② 승인 → 취소 → 다시 승인. 지금 ③ 영업 검토 차례
-      id: 'CT-2026-0418', counterparty: '누리교육재단', services: ['CK'], type: 'SaaS 이용계약', kind: 'AMEND',
+      id: 'CT-2026-0105-A01', counterparty: '누리교육재단', services: ['CK'], type: 'SaaS 이용계약', kind: 'AMEND',
       parentId: 'CT-2026-0105',
       amount: 12000000, requesterId: 'u_sales2', requestedAt: '2026-10-16 09:00', restricted: false, personalData: false,
       status: 'IN_REVIEW',
@@ -340,10 +347,17 @@ window.CLIMB_DATA = (function () {
 
     /* ----- 계약 완료 (ACTIVE): 보관함 ----- */
     {
+      // 자동갱신 계약, 만료 26일 전인데 갱신 검토를 아직 하지 않은 예시 (해지 통지 기한 60일은 이미 지남)
       id: 'CT-2025-0871', counterparty: '한결대학교', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 54000000, requesterId: 'u_sales1', requestedAt: '2025-11-03 10:00', restricted: false, personalData: true,
       status: 'ACTIVE', approvedAt: '2025-11-07 15:00', autoHistory: true, startDate: '2025-11-15', endDate: '2026-11-14',
+      autoRenew: 'YES', noticeDays: 60,
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
+      // 사후관리 기록 (데이터 정의서 aftercare_note). 고객 담당자 이름과 연락처는 적지 않음 (REQ-SEC-09)
+      notes: [
+        { type: 'CONTACT_CHANGE', at: '2026-03-10 10:20', by: 'u_sales1', content: '고객 담당자 변경 (CRM 반영함)' },
+        { type: 'ISSUE', at: '2026-06-02 15:40', by: 'u_legal', content: '고객이 개인정보 처리위탁 조항 재확인을 요청함. 기존 조항으로 충분하다고 회신' },
+      ],
     },
     {
       // 열람 제한 + 만료 임박 예시
@@ -359,9 +373,11 @@ window.CLIMB_DATA = (function () {
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
     },
     {
+      // 자동갱신 계약. 갱신 검토(그대로 연장)를 기안해 ④ 법무 차례인 예시는 아래 CT-2026-0011-R01
       id: 'CT-2026-0011', counterparty: '온새미로대학교', services: ['CK', 'HR'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 72000000, requesterId: 'u_sales1', requestedAt: '2025-12-22 10:00', restricted: false, personalData: true,
       status: 'ACTIVE', approvedAt: '2025-12-29 15:00', autoHistory: true, startDate: '2026-01-10', endDate: '2027-01-09',
+      autoRenew: 'YES', noticeDays: 30,
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
     },
     {
@@ -375,6 +391,24 @@ window.CLIMB_DATA = (function () {
       amount: 42000000, requesterId: 'u_sales1', requestedAt: '2026-04-13 10:00', restricted: false, personalData: true,
       status: 'ACTIVE', approvedAt: '2026-04-20 15:00', autoHistory: true, startDate: '2026-05-01', endDate: '2027-04-30',
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
+      notes: [{ type: 'ISSUE', at: '2026-08-20 11:00', by: 'u_sales1', content: '병원 정보보호팀 감사로 접속 기록 사본을 요청받아 CEM이 제공함' }],
+    },
+    /* ----- 갱신 검토와 해지 기안 (짧은 결재: ③ 부서장 → ④ 법무 → ⑨ 운영 → ⑩ 재무, REQ-ARC-06, 07) ----- */
+    {
+      // 갱신 검토 "그대로 자동갱신" 예시: ③ 부서장 승인, ④ 법무 차례
+      id: 'CT-2026-0011-R01', parentId: 'CT-2026-0011', counterparty: '온새미로대학교', services: ['CK', 'HR'], type: 'SaaS 이용계약',
+      kind: 'RENEW', renewMode: 'AUTO', amount: 72000000, requesterId: 'u_sales1', requestedAt: '2026-10-15 10:00',
+      restricted: false, personalData: true, status: 'IN_REVIEW', startDate: '2027-01-10', endDate: '2028-01-09',
+      autoRenew: 'YES', noticeDays: 30, reason: '이용 규모와 조건이 같아 기존 조건 그대로 1년 연장',
+      history: [ev('S03', 'APPROVE', '2026-10-16 09:30', '조건 그대로 연장에 동의')],
+    },
+    {
+      // 해지 기안 예시: ③ 부서장, ④ 법무 승인 뒤 ⑨ CEM 운영 종료 차례
+      id: 'CT-2026-0150-T01', parentId: 'CT-2026-0150', counterparty: '가온테크', services: ['CK'], type: '리셀러 계약',
+      kind: 'TERMINATE', amount: 0, requesterId: 'u_sales2', requestedAt: '2026-10-05 10:00', restricted: false, personalData: false,
+      status: 'OPS_REVIEW', approvedAt: '2026-10-08 15:00', autoHistory: true, postAt: 'S09',
+      terminateDate: '2026-11-30', reason: '총판의 최소 구매 약정 미이행으로 합의 해지',
+      refundNote: '남은 기간 이용료는 환불하지 않고 위약금도 없음(해지 합의서 3조)',
     },
     {
       id: 'CT-2026-0301', counterparty: '해랑출판', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
@@ -465,5 +499,5 @@ window.CLIMB_DATA = (function () {
     };
   });
 
-  return { TODAY, BRAND, ROLES, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, CONTRACT_TYPES, METHODS, SETTLEMENTS, PRICE_BOOK, STEPS, REVIEW_GROUPS, POST_GROUPS, PROCESS_ROLES, STEP_ASSIGNEE, APPROVAL_STATE, APPROVAL_ACTIONS, SEAL_CHECKS, OPS_CHECKS, FILE_KINDS, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS };
+  return { TODAY, BRAND, ROLES, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, CONTRACT_TYPES, METHODS, SETTLEMENTS, PRICE_BOOK, STEPS, REVIEW_GROUPS, POST_GROUPS, PROCESS_ROLES, STEP_ASSIGNEE, APPROVAL_STATE, APPROVAL_ACTIONS, SEAL_CHECKS, OPS_CHECKS, OPS_CHECKS_END, OPS_CHECKS_EXTEND, AFTERCARE_TYPES, FILE_KINDS, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS };
 })();

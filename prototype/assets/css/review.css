@@ -68,6 +68,19 @@ p.check-effect { margin-top: 1.2rem; }
 .history td { vertical-align: baseline; }
 .behalf { font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
 
+/* ---------- 계약 상세(SCR-42): 할 일 버튼, 지금 유효한 차수 표시, 사후관리 기록 입력 (REQ-ARC-02, 03) ---------- */
+.bundle-actions { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-top: 1.6rem; }
+.tbl tr.is-current td { background: var(--surface-secondary-subtler); }
+.doc-files .empty { padding: 1rem 0; border: 0; color: var(--text-subtle); }
+.note-form { margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border-gray-light); }
+.note-form .field + .field { margin-top: 1.6rem; }
+.note-actions { display: flex; justify-content: flex-end; margin-top: 1.2rem; }
+
+/* ---------- 해지 기안(SCR-13), 갱신 검토(SCR-44) (REQ-ARC-06, 07) ---------- */
+.choice-col { display: flex; flex-direction: column; gap: 0.2rem; }
+.go-text { margin-top: 1.6rem; font-size: var(--fs-body-medium); color: var(--text-basic); }
+#keep-box, #go-box { margin-top: 1.6rem; }
+
 /* ---------- 처리 막대 (REQ-ENV-06): 화면 아래에 붙음 ---------- */
 .action-bar {
   position: sticky; bottom: 0; z-index: 10; margin-top: 2.4rem; padding: 1.6rem 2rem;
@@ -98,7 +111,7 @@ p.check-effect { margin-top: 1.2rem; }
 }
 
 @media print {
-  .action-bar, .file-acts { display: none !important; }
+  .action-bar, .file-acts, .bundle-actions, .note-form { display: none !important; }
   .approval-box { min-width: 0; font-size: 8pt; }
   .box-subtitle { margin: 3mm 0 1.5mm; font-size: 9pt; }
   .approval-box-wrap { overflow: visible; }

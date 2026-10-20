@@ -21,7 +21,7 @@ window.CLIMB = (function () {
     // 계약 등록: 내용 작성과 기안 (REQ-FLOW-14)
     { label: '계약 등록', roles: ['SALES'], children: [
       { label: '새 계약 등록', scr: 'SCR-11', href: 'new-contract.html' },
-      { label: '내 등록 목록', scr: 'SCR-12' },
+      { label: '내 등록 목록', scr: 'SCR-12', href: 'my-contracts.html' },
     ] },
     // 계약 현황: 검토와 체결이 진행 중인 계약 (REQ-FLOW-03~05)
     { label: '계약 현황', children: [
@@ -34,10 +34,11 @@ window.CLIMB = (function () {
       // 운영 검토 대기: ⑨ CEM 운영 적용, ⑩ 재무 확인 (REQ-SIGN-08)
       { label: '운영 검토 대기', scr: 'SCR-34', href: 'ops-queue.html', roles: ['CEM', 'FINANCE'] },
     ] },
-    // 보관함: 반려, 승인, 체결된 모든 계약 (REQ-FLOW-15~16)
+    // 보관함: 반려, 승인, 체결된 모든 계약을 묶음마다 (REQ-FLOW-15~16, REQ-ARC-01)
+    //   계약 상세(SCR-42), 해지 기안(SCR-13), 갱신 검토(SCR-44)는 메뉴 없이 계약 상세, 만료 예정에서 들어감
     { label: '보관함', children: [
-      { label: '전체 계약', scr: 'SCR-41' },
-      { label: '만료 예정 계약', scr: 'SCR-43' },
+      { label: '전체 계약', scr: 'SCR-41', href: 'contracts.html' },
+      { label: '만료 예정 계약', scr: 'SCR-43', href: 'expiring.html' },
     ] },
     // 관리자 메뉴는 관리자(와 슈퍼관리자)에게만 보임 (REQ-AUTH-02)
     { label: '관리자', roles: ['ADMIN'], children: [
@@ -174,8 +175,18 @@ window.CLIMB = (function () {
   function isReviewStep(code) { return REVIEW_ORDER.indexOf(code) > -1; }
   // 단계가 속한 업무 단계: 2 계약 검토, 3 계약 체결, 4 운영 검토
   function phaseOf(code) { return isReviewStep(code) ? 2 : ['S06', 'S07', 'S08'].indexOf(code) > -1 ? 3 : 4; }
-  // [거치는지, 까닭] (2단계 계약 검토만. 3, 4단계는 생략하는 단계가 없음)
+  // 짧은 결재: 해지 기안(-T)과 갱신 검토의 "그대로 자동갱신"(-R) (REQ-ARC-06, 07)
+  //   ③ 부서장 → ④ 법무 → ⑨ 운영(종료, 기간 연장) → ⑩ 재무. ②, ⑤와 ⑥~⑧(날인, 체결본)은 없음
+  function isShort(c) { return c.kind === 'TERMINATE' || c.renewMode === 'AUTO'; }
+  // [거치는지, 까닭] (2단계 계약 검토만. 3, 4단계는 짧은 결재가 아니면 생략하는 단계가 없음)
   function reviewRoute(c) {
+    if (isShort(c)) {
+      const what = c.kind === 'TERMINATE' ? '해지 기안' : '갱신 검토';
+      return {
+        S02: [false, what + '은 체크리스트 검토 없음'], S03: [true, '부서장 승인'],
+        S04: [true, '법무 승인'], S05: [false, what + '은 개인정보 검토 없음'],
+      };
+    }
     const ck = c.checklist || {};
     let sales;
     if (ck.price === 'NA') sales = [false, '금액이 없는 계약'];
@@ -190,11 +201,27 @@ window.CLIMB = (function () {
     };
   }
   // ⑨ 운영 적용 확인 항목: 계약의 서비스마다 (서비스가 둘 이상이면 서비스 이름을 앞에 붙임)
-  function opsChecks(services) {
+  //   table: 해지는 OPS_CHECKS_END(닫기), 그대로 자동갱신은 OPS_CHECKS_EXTEND(기간 연장)
+  function opsChecks(services, table) {
     const list = services || [];
     return list.reduce(function (out, s) {
-      return out.concat((D.OPS_CHECKS[s] || []).map(function (t) { return (list.length > 1 ? (D.SERVICES[s] || s) + ' ' : '') + t; }));
+      return out.concat(((table || D.OPS_CHECKS)[s] || []).map(function (t) { return (list.length > 1 ? (D.SERVICES[s] || s) + ' ' : '') + t; }));
     }, []);
+  }
+  // 이 계약의 ⑨ 확인 항목. 금액이 없는 비밀유지계약은 운영에 적용할 것이 없으므로 그 사실만 확인 [가정]
+  function opsChecksFor(c) {
+    if (c.kind === 'TERMINATE') return opsChecks(c.services, D.OPS_CHECKS_END);
+    if (c.renewMode === 'AUTO') return opsChecks(c.services, D.OPS_CHECKS_EXTEND);
+    if (c.type === '비밀유지계약(NDA)') return ['운영에 적용할 내용 없음(비밀유지계약)'];
+    return opsChecks(c.services);
+  }
+  // 계약 구분 이름. 갱신 검토의 "그대로 자동갱신"은 따로 표시 (REQ-ARC-07)
+  function kindLabel(c) { return c.kind === 'RENEW' && c.renewMode === 'AUTO' ? '갱신(그대로 연장)' : D.KINDS[c.kind] || '-'; }
+  // 차례일 때 현재 진행 칸에 쓰는 말 (해지와 자동갱신의 ⑨는 운영 종료, 기간 연장)
+  function stepIng(c, code) {
+    if (code === 'S09' && c.kind === 'TERMINATE') return 'CEM 운영 종료 중';
+    if (code === 'S09' && c.renewMode === 'AUTO') return 'CEM 기간 연장 중';
+    return D.STEPS[code].ing;
   }
   // 'YYYY-MM-DD'에 n일을 더함
   function addDays(iso, n) {
@@ -225,10 +252,11 @@ window.CLIMB = (function () {
       { step: 'S06', action: 'APPROVE', at: d06 + ' 10:00', comment: '확인: ' + D.SEAL_CHECKS.join(', '), actorId: D.STEP_ASSIGNEE.S06 },
       { step: 'S07', action: 'REGISTER', at: d07 + ' 14:00', comment: '', actorId: c.requesterId, fileName: c.counterparty + '_체결본.pdf' },
       { step: 'S08', action: 'APPROVE', at: d08 + ' 11:00', comment: '', actorId: D.STEP_ASSIGNEE.S08 },
-      { step: 'S09', action: 'APPROVE', at: d09 + ' 15:00', comment: '확인: ' + opsChecks(c.services).join(', '), actorId: D.STEP_ASSIGNEE.S09 },
+      { step: 'S09', action: 'APPROVE', at: d09 + ' 15:00', comment: '확인: ' + opsChecksFor(c).join(', '), actorId: D.STEP_ASSIGNEE.S09 },
       { step: 'S10', action: 'APPROVE', at: d10 + ' 16:00', comment: '', actorId: D.STEP_ASSIGNEE.S10 },
-    ];
-    const stop = c.postAt ? POST_ORDER.indexOf(c.postAt) : POST_ORDER.length;
+    ].filter(function (h) { return !isShort(c) || h.step === 'S09' || h.step === 'S10'; }); // 짧은 결재는 ⑨, ⑩만
+    const order = post.map(function (h) { return h.step; });
+    const stop = c.postAt ? order.indexOf(c.postAt) : order.length;
     post.slice(0, stop).forEach(function (h) { h.round = round; list.push(h); });
     return list.concat(c.extraHistory || []);
   }
@@ -239,13 +267,18 @@ window.CLIMB = (function () {
     c.history = (c.history || []).slice().sort(function (a, b) { return a.at.localeCompare(b.at); });
     const round = c.round || 1;
     const route = reviewRoute(c);
+    const short = isShort(c);
+    const noSign = c.kind === 'TERMINATE' ? '해지는 날인과 체결본 없음' : '그대로 연장은 날인과 체결본 없음';
     const steps = REVIEW_ORDER.concat(POST_ORDER).map(function (code) {
       const review = isReviewStep(code);
+      // 짧은 결재는 ⑥~⑧을 거치지 않음 [가정]
+      const skipSign = short && ['S06', 'S07', 'S08'].indexOf(code) > -1;
       return {
         step: code, role: D.STEPS[code].role, phase: phaseOf(code),
         // ⑦ 체결본 등록은 기안한 영업이 함
         userId: code === 'S07' ? c.requesterId : D.STEP_ASSIGNEE[code],
-        state: !review || route[code][0] ? 'WAITING' : 'SKIPPED', reason: review ? route[code][1] : '',
+        state: skipSign ? 'SKIPPED' : !review || route[code][0] ? 'WAITING' : 'SKIPPED',
+        reason: review ? route[code][1] : skipSign ? noSign : '',
         arrivedAt: null, decidedAt: null, decidedBy: null, onBehalfOf: null, comment: '', fileName: null,
       };
     });
@@ -287,8 +320,12 @@ window.CLIMB = (function () {
     const review = steps.filter(function (s) { return s.phase === 2; });
     const reviewDone = !rejection && review.every(function (x) { return x.state === 'DONE' || x.state === 'SKIPPED'; });
     const done = function (code) { return by[code].state === 'DONE'; };
-    if (['IN_REVIEW', 'REJECTED', 'APPROVED', 'OPS_REVIEW', 'ACTIVE'].indexOf(c.status) > -1) {
-      c.status = rejection ? 'REJECTED' : !reviewDone ? 'IN_REVIEW' : done('S10') ? 'ACTIVE' : done('S08') ? 'OPS_REVIEW' : 'APPROVED';
+    const fin = function (code) { return by[code].state === 'DONE' || by[code].state === 'SKIPPED'; };
+    // 다시 계산하는 상태 (해지 기안 자신은 끝나면 "해지"가 되므로 함께)
+    const live = ['IN_REVIEW', 'REJECTED', 'APPROVED', 'OPS_REVIEW', 'ACTIVE'].concat(c.kind === 'TERMINATE' ? ['TERMINATED'] : []);
+    if (live.indexOf(c.status) > -1) {
+      c.status = rejection ? 'REJECTED' : !reviewDone ? 'IN_REVIEW'
+        : done('S10') ? (c.kind === 'TERMINATE' ? 'TERMINATED' : 'ACTIVE') : fin('S08') ? 'OPS_REVIEW' : 'APPROVED';
       // 승인일: 2단계 마지막 검토가 승인된 때
       c.approvedAt = reviewDone ? review.reduce(function (m, x) { return x.decidedAt && x.decidedAt > m ? x.decidedAt : m; }, '') : null;
     }
@@ -390,17 +427,23 @@ window.CLIMB = (function () {
     // 체결 대기(⑥ 인장 날인, ⑦ 체결본 등록, ⑧ 체결본 확인)와 운영 검토(⑨ 운영 적용, ⑩ 재무 확인)
     if (c.status === 'APPROVED' || c.status === 'OPS_REVIEW') {
       const p = currentStep(c);
-      const label = p ? D.STEPS[p.step].no + ' ' + D.STEPS[p.step].ing : D.STATUS[c.status].label;
-      return esc(label) + (c.status === 'APPROVED'
+      const label = p ? D.STEPS[p.step].no + ' ' + stepIng(c, p.step) : D.STATUS[c.status].label;
+      // 짧은 결재(해지, 그대로 연장)는 체결본이 없으므로 승인 후 일수로
+      return esc(label) + (c.status === 'APPROVED' || !c.signedAt
         ? ' (승인 후 ' + daysSince(c.approvedAt) + '일)'
         : ' (체결 후 ' + daysSince(c.signedAt) + '일)');
     }
     if (c.status === 'ACTIVE') return '계약 완료 (만료 ' + fmtDate(c.endDate) + ')';
+    if (c.status === 'TERMINATED') return '해지 (해지일 ' + fmtDate(c.terminateDate) + ')';
+    if (c.status === 'EXPIRED') return '만료 (' + fmtDate(c.endDate) + ')';
     return '-';
   }
   // 결재 기록의 "한 일" 이름: ⑥⑧⑨⑩의 승인은 단계에 맞는 말로 (예: 날인 완료)
-  function actionLabel(h) {
+  //   c를 주면 해지와 그대로 연장의 ⑨를 운영 종료 완료, 기간 연장 완료로
+  function actionLabel(h, c) {
     const st = D.STEPS[h.step];
+    if (h.action === 'APPROVE' && h.step === 'S09' && c && c.kind === 'TERMINATE') return '운영 종료 완료';
+    if (h.action === 'APPROVE' && h.step === 'S09' && c && c.renewMode === 'AUTO') return '기간 연장 완료';
     return h.action === 'APPROVE' && st && st.doneAction ? st.doneAction : D.APPROVAL_ACTIONS[h.action].label;
   }
 
@@ -432,14 +475,109 @@ window.CLIMB = (function () {
     saveDemoActions(list);
     c.history.push(entry);
     buildReview(c);
+    applyBundleEffects(); // 해지 기안이 끝나면 원계약을 해지 상태로
     return entry;
   }
+  // 시연으로 만든 계약(해지 기안, 갱신 검토), 사후관리 기록, 지운 임시 저장 (프로토타입 전용, REQ-ARC-04~07)
+  const DEMO_KEYS = { contracts: 'climb.demoContracts', notes: 'climb.demoNotes', deleted: 'climb.demoDeleted' };
+  function loadDemo(key) { try { return JSON.parse(localStorage.getItem(DEMO_KEYS[key]) || '[]'); } catch (e) { return []; } }
+  function pushDemo(key, item) {
+    const list = loadDemo(key);
+    list.push(item);
+    try { localStorage.setItem(DEMO_KEYS[key], JSON.stringify(list)); } catch (e) { /* 저장소를 못 쓰면 이 화면에서만 반영 */ }
+  }
+  function demoCount() { return loadDemoActions().length + loadDemo('contracts').length + loadDemo('notes').length + loadDemo('deleted').length; }
+  // 새 계약 기록 저장 (해지 기안, 갱신 검토). 실제 시스템에서는 서버에 저장
+  function saveDemoContract(c) {
+    pushDemo('contracts', c);
+    D.CONTRACTS.push(c);
+    buildReview(c);
+    applyBundleEffects();
+  }
+  // 사후관리 기록 남기기 (REQ-FLOW-06, 19): 수정, 삭제 없이 덧붙이기만
+  function addNote(c, note) {
+    const entry = Object.assign({ contractId: c.id, at: nowStamp() }, note);
+    pushDemo('notes', entry);
+    c.notes = (c.notes || []).concat([entry]);
+    return entry;
+  }
+  // 임시 저장 지우기 (REQ-FLOW-31): 기안 전 작성자만
+  function deleteDraft(c) {
+    pushDemo('deleted', c.draftKey);
+    const i = D.CONTRACTS.indexOf(c);
+    if (i > -1) D.CONTRACTS.splice(i, 1);
+  }
+  loadDemo('contracts').forEach(function (c) { if (!D.CONTRACTS.some(function (x) { return x.id === c.id; })) D.CONTRACTS.push(c); });
+  loadDemo('notes').forEach(function (n) {
+    const c = D.CONTRACTS.find(function (x) { return x.id === n.contractId; });
+    if (c) c.notes = (c.notes || []).concat([n]);
+  });
+  loadDemo('deleted').forEach(function (key) {
+    const i = D.CONTRACTS.findIndex(function (x) { return x.draftKey === key; });
+    if (i > -1) D.CONTRACTS.splice(i, 1);
+  });
   // 저장해 둔 시연 기록을 예시 데이터에 더한 뒤, 모든 계약의 결재 상태를 계산
   loadDemoActions().forEach(function (a) {
     const c = D.CONTRACTS.find(function (x) { return x.id === a.contractId; });
     if (c) { c.history = c.history || []; c.history.push(a); }
   });
   D.CONTRACTS.forEach(buildReview);
+
+  /* ---------- 계약 묶음 (REQ-FLOW-18, 3.3 방식 C, REQ-ARC-01~03) ----------
+   * 원계약 번호가 묶음 번호입니다. 변경(-A), 갱신(-R), 해지(-T)는 parentId로 원계약에 연결됩니다.
+   *   - 지금 유효한 계약: 끝난(계약 완료, 만료) 갱신 중 가장 나중 것, 없으면 원계약
+   *   - 해지 기안이 끝나면(⑩ 재무 확인) 원계약이 "해지" 상태가 됨 (REQ-FLOW-29) */
+  function rootOf(c) { return c.parentId || c.id; }
+  function startOf(c) { return c.startDate || (c.form && c.form.startDate) || ''; }
+  function endOf(c) { return c.endDate || (c.form && c.form.endDate) || ''; }
+  function applyBundleEffects() {
+    D.CONTRACTS.forEach(function (t) {
+      if (t.kind !== 'TERMINATE' || t.status !== 'TERMINATED') return;
+      const r = D.CONTRACTS.find(function (x) { return x.id === t.parentId; });
+      if (r) { r.status = 'TERMINATED'; r.terminatedAt = t.completedAt; r.terminateDate = t.terminateDate; }
+    });
+  }
+  applyBundleEffects();
+  const CHILD_LETTER = { AMEND: 'A', RENEW: 'R', TERMINATE: 'T' };
+  // 다음 차수 번호: CT-2026-0105 → CT-2026-0105-A02
+  function nextChildId(rootId, kind) {
+    const n = D.CONTRACTS.filter(function (c) { return c.parentId === rootId && c.kind === kind; }).length;
+    return rootId + '-' + CHILD_LETTER[kind] + String(n + 1).padStart(2, '0');
+  }
+  function bundleOf(rootId) {
+    const items = D.CONTRACTS.filter(function (c) { return c.id && rootOf(c) === rootId; })
+      .sort(function (a, b) { return (a.requestedAt || '').localeCompare(b.requestedAt || ''); });
+    const root = items.find(function (c) { return c.id === rootId; });
+    if (!root) return null;
+    const renewals = items.filter(function (c) { return c.kind === 'RENEW' && ['ACTIVE', 'EXPIRED'].indexOf(c.status) > -1; });
+    const current = renewals.length ? renewals[renewals.length - 1] : root;
+    const done = ['ACTIVE', 'EXPIRED', 'TERMINATED'];
+    // 원계약이 아직 진행 중이면 원계약 상태, 끝났으면 지금 유효한 계약의 상태(해지면 해지)
+    const status = done.indexOf(root.status) < 0 ? root.status : root.status === 'TERMINATED' ? 'TERMINATED' : current.status;
+    // 진행 중인 변경, 갱신, 갱신 검토, 해지 기안
+    const open = items.filter(function (c) { return c !== root && WORKING.concat(['REJECTED']).indexOf(c.status) > -1; });
+    return {
+      id: rootId, root: root, items: items, current: current, status: status, open: open,
+      start: startOf(current), end: endOf(current),
+      autoRenew: current.autoRenew || root.autoRenew || 'NO', noticeDays: current.noticeDays || root.noticeDays || null,
+      count: function (kind) { return items.filter(function (c) { return c.kind === kind; }).length; },
+    };
+  }
+  // 모든 묶음 (작성 중은 빼고). 보관함 전체 계약(SCR-41)과 개요가 씀
+  function bundles() {
+    const roots = D.CONTRACTS.filter(function (c) { return c.id && !c.parentId; });
+    // 원계약이 이 시스템 밖(도입 전)이라 없는 변경 계약도 자기 묶음으로 보여 줌
+    const orphans = D.CONTRACTS.filter(function (c) { return c.parentId && !D.CONTRACTS.some(function (x) { return x.id === c.parentId; }); });
+    return roots.concat(orphans).map(function (c) { return bundleOf(c.id); }).filter(Boolean);
+  }
+  // 만료 예정: 지금 유효한 계약이 계약 완료이고 days일 안에 끝나는 묶음 (REQ-FLOW-07, REQ-DASH-07)
+  function expiringBundles(days) {
+    return bundles().filter(function (b) {
+      if (b.status !== 'ACTIVE' || !b.end) return false;
+      const d = daysUntil(b.end);
+      return d >= 0 && d <= days;
+    }).sort(function (a, b) { return a.end.localeCompare(b.end); });
+  }
 
   // 다음 화면에서 한 번 보여 줄 안내 (예: 승인한 뒤 목록으로 돌아갔을 때)
   function flash(msg) { try { sessionStorage.setItem('climb.flash', msg); } catch (e) { /* 무시 */ } }
@@ -481,7 +619,7 @@ window.CLIMB = (function () {
         '<select id="demo-role" class="demo-select" autocomplete="off">' + options + '</select>' +
         '<span>역할에 따라 메뉴와 개요 화면 구성이 바뀝니다. 실제 시스템에는 없는 영역입니다.</span>' +
         // 화면에서 승인, 반려, 승인 취소를 해 봤다면 처음 예시 상태로 되돌리는 버튼
-        (loadDemoActions().length ? '<button type="button" class="demo-reset" id="demo-reset">시연 기록 지우기 (' + loadDemoActions().length + '건)</button>' : '') +
+        (demoCount() ? '<button type="button" class="demo-reset" id="demo-reset">시연 기록 지우기 (' + demoCount() + '건)</button>' : '') +
       '</div>';
     el.querySelector('#demo-role').addEventListener('change', function (e) {
       saveRole(e.target.value);
@@ -490,6 +628,7 @@ window.CLIMB = (function () {
     const reset = el.querySelector('#demo-reset');
     if (reset) reset.addEventListener('click', function () {
       saveDemoActions([]);
+      Object.keys(DEMO_KEYS).forEach(function (k) { try { localStorage.removeItem(DEMO_KEYS[k]); } catch (e) { /* 무시 */ } });
       flash('시연 기록을 지우고 처음 예시 상태로 돌아갔습니다.');
       location.reload();
     });
@@ -676,6 +815,9 @@ window.CLIMB = (function () {
     roleLabel: roleLabel, userName: userName, serviceLabel: serviceLabel, stepLabel: stepLabel,
     currentStep: currentStep, pendingSteps: pendingSteps, routedSteps: routedSteps, stepPosition: stepPosition, waitDays: waitDays,
     stepDots: stepDots, progressText: progressText, actionLabel: actionLabel, opsChecks: opsChecks, isReviewStep: isReviewStep, routedReview: routedReview,
+    isShort: isShort, opsChecksFor: opsChecksFor, stepIng: stepIng, kindLabel: kindLabel,
+    rootOf: rootOf, bundleOf: bundleOf, bundles: bundles, expiringBundles: expiringBundles, nextChildId: nextChildId, startOf: startOf, endOf: endOf,
+    saveDemoContract: saveDemoContract, addNote: addNote, deleteDraft: deleteDraft, nowStamp: nowStamp,
     reviewRoute: reviewRoute, canAct: canAct, canCancel: canCancel, pendingQueue: pendingQueue, recordAction: recordAction, flash: flash, pagerHtml: pagerHtml,
     canView: canView, myActions: myActions,
     esc: esc, badge: badge, statusBadge: statusBadge, todoAttrs: todoAttrs, icon: icon, brandText: brandText, meta: meta, toast: toast,

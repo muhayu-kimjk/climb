@@ -40,13 +40,19 @@ Projects/CLM
 └─ prototype/              화면 시안
    ├─ login.html           SCR-00 로그인
    ├─ index.html           SCR-01 개요 (대시보드)
-   ├─ new-contract.html    SCR-11 새 계약 등록 (?id= 로 이어서 작성, 보완 후 재기안)
+   ├─ new-contract.html    SCR-11 새 계약 등록 (?id= 로 이어서 작성, 보완 후 재기안, ?kind=&origin= 으로 변경, 갱신)
+   ├─ my-contracts.html    SCR-12 내 등록 목록 (영업)
+   ├─ terminate.html       SCR-13 해지 기안 (?origin=원계약 번호)
    ├─ progress.html        SCR-20 전체 진행 현황
    ├─ review-queue.html    SCR-21 검토 대기
    ├─ review-done.html     SCR-22 검토 완료
    ├─ review.html          SCR-23 검토 상세 (결재 문서, ?id=계약번호. ⑥~⑩ 체결과 운영 검토도 여기서)
    ├─ signing.html         SCR-31 체결 대기 (영업)
    ├─ ops-queue.html       SCR-34 운영 검토 대기 (CEM, 재무)
+   ├─ contracts.html       SCR-41 전체 계약 (보관함, 묶음마다 한 줄)
+   ├─ contract.html        SCR-42 계약 상세 (묶음 한 장, ?id=묶음 번호)
+   ├─ expiring.html        SCR-43 만료 예정 계약
+   ├─ renewal.html         SCR-44 갱신 검토 (자동갱신, ?origin=원계약 번호)
    ├─ admin-users.html     SCR-51 사용자 권한 관리 (관리자, 슈퍼관리자)
    └─ assets/
       ├─ css/tokens.css    색, 글자, 크기 값 (회사 컬러는 여기만 바꾸면 됨)
@@ -68,6 +74,12 @@ Projects/CLM
       ├─ js/review.js      검토 상세 화면 로직 (승인, 반려, 승인 취소, ⑥~⑩ 처리)
       ├─ js/signing.js     체결 대기 화면 로직
       ├─ js/ops-queue.js   운영 검토 대기 화면 로직
+      ├─ js/my-contracts.js 내 등록 목록 화면 로직 (임시 저장 삭제)
+      ├─ js/contracts.js   전체 계약 화면 로직
+      ├─ js/contract.js    계약 상세 화면 로직 (사후관리 기록 남기기)
+      ├─ js/expiring.js    만료 예정 계약 화면 로직
+      ├─ js/terminate.js   해지 기안 화면 로직
+      ├─ js/renewal.js     갱신 검토 화면 로직
       └─ img/favicon.svg   브라우저 탭 아이콘 (무하유 심볼 Black 원본. favicon.png는 SVG를 못 읽는 브라우저용)
 ```
 

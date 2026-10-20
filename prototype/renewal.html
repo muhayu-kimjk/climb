@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 브라우저 탭 제목: CLIMB (REQ-NAME-02) -->
+  <title>CLIMB</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/common.css">
+  <link rel="stylesheet" href="assets/css/form.css">
+  <link rel="stylesheet" href="assets/css/new-contract.css">
+  <link rel="stylesheet" href="assets/css/review.css">
+</head>
+<!-- =====================================================================
+  SCR-44 갱신 검토 (docs/02_화면목록.md)
+  - 자동갱신 계약은 만료 90일 전에 갱신 검토를 합니다(REQ-FLOW-20). 검토 없이 저절로 연장되는 것을 막는 통제.
+  - 세 갈래 중 하나를 고릅니다(기획자 결정, REQ-ARC-07):
+    그대로 자동갱신 → 짧은 기안(③ 부서장 → ④ 법무 → ⑨ CEM 기간 연장 → ⑩ 재무 확인), 끝나면 기간만 늘어난 갱신 기록(-R01)
+    조건을 바꿔 갱신 → 계약 등록 화면에서 갱신 계약을 기안(체크리스트에 따라 결재)
+    해지 → 해지 기안 화면(SCR-13)
+  - 들어오는 곳: 계약 상세, 만료 예정의 "갱신 검토". 주소: renewal.html?origin=원계약 번호
+====================================================================== -->
+<body data-page="SCR-44">
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <div id="demo-bar"></div>
+
+  <div class="sheet">
+  <header id="site-header"></header>
+
+  <main id="main" class="page">
+    <div class="inner">
+      <div class="page-head page-head--sub">
+        <h1 class="page-title">갱신 검토</h1>
+      </div>
+      <div class="page-intro">
+        <p>자동갱신 계약이 저절로 연장되기 전에 그대로 연장할지, 조건을 바꿀지, 해지할지 정합니다.</p>
+        <p class="sub"><span class="req" aria-hidden="true">*</span> 표시는 꼭 입력해야 하는 항목입니다.</p>
+      </div>
+
+      <div id="notice"></div>
+
+      <form id="form" class="form-stack" novalidate hidden>
+        <section class="panel" aria-labelledby="sec-origin">
+          <h2 class="section-title" id="sec-origin"><span class="num">1</span>갱신할 계약</h2>
+          <dl class="info-grid" id="origin"></dl>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-choice">
+          <h2 class="section-title" id="sec-choice"><span class="num">2</span>검토 결과</h2>
+          <fieldset class="field" data-field="choice">
+            <legend class="field-label">어떻게 할까요?<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
+            <div class="choice-col">
+              <label class="choice"><input type="radio" name="choice" value="KEEP" checked>그대로 자동갱신 (기간만 1년 연장)</label>
+              <label class="choice"><input type="radio" name="choice" value="CHANGE">조건을 바꿔 갱신</label>
+              <label class="choice"><input type="radio" name="choice" value="END">해지</label>
+            </div>
+          </fieldset>
+
+          <!-- 그대로 자동갱신: 짧은 기안 -->
+          <div id="keep-box">
+            <p class="field-help" id="keep-help"></p>
+            <div class="field" data-field="reason">
+              <label class="field-label" for="f-reason">그대로 연장하는 이유<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+              <textarea class="textarea" id="f-reason" placeholder="예: 이용 규모와 조건이 같아 기존 조건 그대로 1년 연장"></textarea>
+              <p class="field-error" hidden></p>
+            </div>
+          </div>
+          <!-- 조건 변경, 해지: 다른 화면으로 -->
+          <div id="go-box" hidden><p class="go-text" id="go-text"></p></div>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-route" id="route-panel">
+          <h2 class="section-title" id="sec-route"><span class="num">3</span>결재선</h2>
+          <p class="section-desc">그대로 연장은 체크리스트 없이 부서장과 법무가 결재하고, 날인과 체결본 등록은 거치지 않습니다.</p>
+          <div id="route"></div>
+        </section>
+
+        <div class="form-actions">
+          <a class="btn btn--tertiary btn--md" id="btn-cancel" href="#">취소</a>
+          <button type="submit" class="btn btn--primary btn--md" id="btn-submit">갱신 검토 기안</button>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+  </div><!-- /.sheet -->
+
+  <!-- 기안 확인 창 -->
+  <div class="modal-backdrop" id="confirm-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <h2 class="modal-title" id="confirm-title">그대로 자동갱신을 기안할까요?</h2>
+      <div class="modal-body" id="confirm-body"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn--tertiary btn--md" data-act="close">닫기</button>
+        <button type="button" class="btn btn--primary btn--md" data-act="confirm">기안하기</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/js/mock-data.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/renewal.js"></script>
+</body>
+</html>
