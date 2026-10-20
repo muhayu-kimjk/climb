@@ -1,9 +1,10 @@
 /* =====================================================================
  * SCR-21 검토 대기 화면 로직 (review-queue.js)
  * ---------------------------------------------------------------------
- * 관련 요구사항: REQ-DASH-05, REQ-STEP-04, REQ-REV-01
+ * 관련 요구사항: REQ-DASH-05, REQ-STEP-04, REQ-REV-01, REQ-SIGN-07
  * 하는 일
- *   1. 내 차례인 결재 단계를 모음(슈퍼관리자, 관리자는 모든 담당자 것을 담당자 칸과 함께)
+ *   1. 내 차례인 단계를 모음: ②~⑤ 계약 검토와 ⑥ 인장 날인(총무), ⑧ 체결본 확인(세일즈어드민) (v0.23)
+ *      (슈퍼관리자, 관리자는 모든 담당자 것을 담당자 칸과 함께)
  *   2. 검색, 단계, 서비스, 대기 기간으로 거르기. 오래 기다린 순서로 정렬
  *   3. 한 쪽에 20건씩 쪽 나누기 (화면이 A4 2장을 넘지 않게)
  * ===================================================================== */
@@ -15,10 +16,11 @@
   const $ = function (s) { return document.querySelector(s); };
   const PAGE_SIZE = 20;
   const LONG = D.ALERT_RULES.approvalDelayDays;
+  const QUEUE_STEPS = ['S02', 'S03', 'S04', 'S05', 'S06', 'S08']; // ⑦은 체결 대기, ⑨⑩은 운영 검토 대기에서
 
   const seeAll = me.role === 'SUPER' || me.role === 'ADMIN';
-  if (!seeAll && D.APPROVER_ROLES.indexOf(me.role) < 0) {
-    $('#notice').innerHTML = '<div class="notice" role="status"><p class="notice-title">' + C.icon('alert') + '검토 대기는 결재 역할만 씁니다</p>' +
+  if (!seeAll && D.APPROVER_ROLES.concat(['GA']).indexOf(me.role) < 0) {
+    $('#notice').innerHTML = '<div class="notice" role="status"><p class="notice-title">' + C.icon('alert') + '검토 대기는 결재 역할과 총무가 씁니다</p>' +
       '<p>지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 진행 상황은 계약 현황 > 전체 진행 현황에서 볼 수 있습니다.</p></div>';
     $('#list').hidden = true;
     return;
@@ -26,7 +28,7 @@
   if (seeAll) $('#intro').textContent = '모든 담당자의 차례인 결재입니다(' + C.roleLabel(me.role) + ' 보기). 오래 기다린 순서로 보여 줍니다.';
 
   // 내 차례 목록. 같은 계약에서 동시에 차례인 다른 단계도 알려 줌(④와 ⑤)
-  const all = C.pendingQueue(me, seeAll).map(function (x) {
+  const all = C.pendingQueue(me, seeAll, QUEUE_STEPS).map(function (x) {
     return { c: x.c, s: x.s, wait: C.waitDays(x.c, x.s) };
   }).sort(function (a, b) { return b.wait - a.wait; });
 
@@ -34,7 +36,7 @@
   function options(first, pairs) {
     return '<option value="">' + esc(first) + '</option>' + pairs.map(function (p) { return '<option value="' + p[0] + '">' + esc(p[1]) + '</option>'; }).join('');
   }
-  $('#f-step').innerHTML = options('전체 단계', D.REVIEW_GROUPS.reduce(function (a, g) { return a.concat(g); }, []).map(function (code) { return [code, C.stepLabel(code)]; }));
+  $('#f-step').innerHTML = options('전체 단계', QUEUE_STEPS.map(function (code) { return [code, C.stepLabel(code)]; }));
   $('#f-service').innerHTML = options('전체 서비스', Object.keys(D.SERVICES).map(function (k) { return [k, D.SERVICES[k]]; }));
 
   $('#thead').innerHTML = '<tr><th scope="col" class="col-customer">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col">단계</th>' +

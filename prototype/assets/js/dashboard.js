@@ -21,6 +21,9 @@
   const R = D.ALERT_RULES;
 
   const isApprover = D.APPROVER_ROLES.indexOf(me.role) > -1;
+  // 단계를 처리하는 역할(결재 역할 + 총무, CEM, 재무). 결재 역할이 아니면 "검토" 대신 "처리"라고 씀 (v0.23)
+  const isProcessor = D.PROCESS_ROLES.indexOf(me.role) > -1;
+  const doWord = isApprover ? '검토할' : '처리할';
   const isSales = me.role === 'SALES';
 
   /* ---------- 집계 ---------- */
@@ -72,10 +75,10 @@
     // 이름 뒤 '님'은 붙여 씁니다. (REQ-UI-08 표기 규칙)
     const name = '<strong>' + esc(me.name) + '님</strong>, ';
     let msg;
-    if (isApprover) {
+    if (isProcessor) {
       msg = myActions.length
-        ? name + '지금 검토할 계약이 <strong class="em">' + myActions.length + '건</strong> 있습니다.'
-        : name + '지금 검토할 계약이 없습니다.';
+        ? name + '지금 ' + doWord + ' 계약이 <strong class="em">' + myActions.length + '건</strong> 있습니다.'
+        : name + '지금 ' + doWord + ' 계약이 없습니다.';
     } else if (isSales) {
       msg = myActions.length
         ? name + '처리가 필요한 내 계약이 <strong class="em">' + myActions.length + '건</strong> 있습니다.'
@@ -95,7 +98,8 @@
   const STEPS = [
     { label: '계약 등록', statuses: ['DRAFT'], target: '내 등록 목록', scr: 'SCR-12' },
     { label: '계약 검토', statuses: ['IN_REVIEW', 'REJECTED'], target: '전체 진행 현황', scr: 'SCR-20', href: 'progress.html?status=REVIEW' },
-    { label: '계약 체결', statuses: ['APPROVED'], target: '체결 대기', scr: 'SCR-31' },
+    // 계약 체결: 영업은 체결 대기 화면, 그 외는 전체 진행 현황(체결 대기로 거름)
+    { label: '계약 체결', statuses: ['APPROVED'], target: '체결 대기', scr: 'SCR-31', href: isSales ? 'signing.html' : 'progress.html?status=APPROVED' },
     { label: '운영 검토', statuses: ['OPS_REVIEW'], target: '전체 진행 현황', scr: 'SCR-20', href: 'progress.html?status=OPS_REVIEW' },
     { label: '계약 완료', statuses: ['ACTIVE'], target: '보관함 전체 계약', scr: 'SCR-41' },
   ];
@@ -146,16 +150,19 @@
   /* ---------- 3. 내가 검토할 계약 (결재 역할, REQ-DASH-03, 05) ---------- */
   function renderMyReviews() {
     const el = document.getElementById('my-reviews');
-    if (!isApprover) return;
+    if (!isProcessor) return;
     el.hidden = false;
     // 내 차례인 단계 (④⑤처럼 동시에 차례인 단계 중 내 것)
     const mine = function (c) { return C.pendingSteps(c).filter(function (s) { return s.userId === me.id; })[0]; };
     const rows = myActions.slice().sort(function (a, b) { return C.waitDays(b, mine(b)) - C.waitDays(a, mine(a)); });
-    const head = panelHead('my-reviews-title', '내가 검토할 계약', rows.length + '건', '검토 대기 전체 보기', 'SCR-21', 'review-queue.html');
+    // CEM과 재무는 운영 검토 대기로, 그 외는 검토 대기로
+    const ops = me.role === 'CEM' || me.role === 'FINANCE';
+    const head = panelHead('my-reviews-title', '내가 ' + doWord + ' 계약', rows.length + '건',
+      ops ? '운영 검토 대기 전체 보기' : '검토 대기 전체 보기', ops ? 'SCR-34' : 'SCR-21', ops ? 'ops-queue.html' : 'review-queue.html');
     if (!rows.length) { el.innerHTML = head + '<p class="empty">지금 검토할 계약이 없습니다.</p>'; return; }
     el.innerHTML = head +
       '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
-        '<caption class="sr-only">내가 검토할 계약: 고객사, 서비스, 요청자, 대기 일수, 내 단계</caption>' +
+        '<caption class="sr-only">내가 ' + doWord + ' 계약: 고객사, 서비스, 요청자, 대기 일수, 내 단계</caption>' +
         '<thead><tr><th scope="col" class="col-customer">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col">요청자</th><th scope="col" class="num">대기</th><th scope="col">내 단계</th></tr></thead>' +
         '<tbody>' + rows.map(function (c) {
           const s = mine(c);
@@ -167,7 +174,7 @@
             '<td class="col-service">' + esc(C.serviceLabel(c.services)) + '</td>' +
             '<td class="nowrap">' + esc(C.userName(c.requesterId)) + '</td>' +
             '<td class="num"><span' + (wait >= R.approvalDelayDays ? ' class="wait-long"' : '') + '>' + wait + '일</span></td>' +
-            '<td class="nowrap col-steps">' + stepDots(c) + esc(C.stepLabel(s.step)) + '</td>' +
+            '<td class="nowrap col-steps">' + (C.isReviewStep(s.step) ? stepDots(c) : '') + esc(C.stepLabel(s.step)) + '</td>' +
           '</tr>';
         }).join('') + '</tbody>' +
       '</table></div>';

@@ -23,6 +23,16 @@
 .approval-box .box-when { font-size: var(--fs-body-xsmall); color: var(--text-subtle); font-variant-numeric: tabular-nums; }
 .approval-box .is-skipped { color: var(--text-disabled); background: var(--surface-gray-subtler); }
 .approval-box .is-skipped strong { color: var(--text-disabled); }
+/* 결재란 둘째 표(계약 체결과 운영 검토)의 제목 (REQ-SIGN-02) */
+.box-subtitle { margin: 2rem 0 0.8rem; font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
+
+/* 확인 창 안의 확인 항목(⑥ 실물 대조, ⑧ 같음 확인, ⑨ 운영 적용)과 체결본 파일(⑦) (REQ-SIGN-03~05) */
+.act-checks, .act-file { margin-top: 1.6rem; }
+.act-checks legend { margin-bottom: 0.4rem; }
+.act-checks .choice { display: flex; min-height: 4rem; }
+.act-file input[type="file"] { display: block; max-width: 100%; font-size: var(--fs-body-small); }
+.act-file .field-help { margin-top: 0.6rem; }
+.act-file-name { margin-top: 0.4rem; font-size: var(--fs-body-small); font-weight: 700; color: var(--text-basic); }
 
 /* ---------- 기본 정보: 이름표와 값 두 쌍씩 ---------- */
 .info-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--border-gray-light); }
@@ -90,6 +100,7 @@ p.check-effect { margin-top: 1.2rem; }
 @media print {
   .action-bar, .file-acts { display: none !important; }
   .approval-box { min-width: 0; font-size: 8pt; }
+  .box-subtitle { margin: 3mm 0 1.5mm; font-size: 9pt; }
   .approval-box-wrap { overflow: visible; }
   .doc-stack { gap: 4mm; }
   .doc-stack .panel { break-inside: avoid; }

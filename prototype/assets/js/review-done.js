@@ -17,8 +17,8 @@
   const PAGE_SIZE = 20;
 
   const seeAll = me.role === 'SUPER' || me.role === 'ADMIN';
-  if (!seeAll && D.APPROVER_ROLES.indexOf(me.role) < 0) {
-    $('#notice').innerHTML = '<div class="notice" role="status"><p class="notice-title">' + C.icon('alert') + '검토 완료는 결재 역할만 씁니다</p>' +
+  if (!seeAll && D.PROCESS_ROLES.indexOf(me.role) < 0) {
+    $('#notice').innerHTML = '<div class="notice" role="status"><p class="notice-title">' + C.icon('alert') + '검토 완료는 단계를 처리하는 역할만 씁니다</p>' +
       '<p>지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다.</p></div>';
     $('#list').hidden = true;
     return;
@@ -38,8 +38,9 @@
   function options(first, pairs) {
     return '<option value="">' + esc(first) + '</option>' + pairs.map(function (p) { return '<option value="' + p[0] + '">' + esc(p[1]) + '</option>'; }).join('');
   }
-  $('#f-action').innerHTML = options('전체', ['APPROVE', 'REJECT', 'CANCEL'].map(function (k) { return [k, D.APPROVAL_ACTIONS[k].label]; }));
-  $('#f-step').innerHTML = options('전체 단계', D.REVIEW_GROUPS.reduce(function (a, g) { return a.concat(g); }, []).map(function (code) { return [code, C.stepLabel(code)]; }));
+  // 한 일: ⑥⑧⑨⑩의 승인은 "완료"로 함께 셈. 체결본 등록(⑦, 영업)은 슈퍼관리자, 관리자 보기에서만 나옴
+  $('#f-action').innerHTML = options('전체', [['APPROVE', '승인, 완료'], ['REJECT', '반려'], ['CANCEL', '승인 취소'], ['RETURN', '다시 등록 요청'], ['REGISTER', '체결본 등록']]);
+  $('#f-step').innerHTML = options('전체 단계', D.REVIEW_GROUPS.concat(D.POST_GROUPS).reduce(function (a, g) { return a.concat(g); }, []).map(function (code) { return [code, C.stepLabel(code)]; }));
   $('#f-status').innerHTML = options('전체 상태', Object.keys(D.STATUS).filter(function (k) { return k !== 'DRAFT'; }).map(function (k) { return [k, D.STATUS[k].label]; }));
 
   $('#thead').innerHTML = '<tr><th scope="col">처리일시</th><th scope="col" class="col-customer">고객사</th><th scope="col">단계</th><th scope="col">한 일</th>' +
@@ -66,7 +67,7 @@
     const rows = list.slice(from, from + PAGE_SIZE);
     const count = function (a) { return list.filter(function (x) { return x.h.action === a; }).length; };
     $('#list-count').innerHTML = C.meta(['<strong>' + (list.length !== all.length ? '검색 결과 ' : '전체 ') + list.length + '건</strong>',
-      '승인 ' + count('APPROVE') + '건', '반려 ' + count('REJECT') + '건', '승인 취소 ' + count('CANCEL') + '건']);
+      '승인, 완료 ' + count('APPROVE') + '건', '반려 ' + count('REJECT') + '건', '승인 취소 ' + count('CANCEL') + '건', '다시 등록 요청 ' + count('RETURN') + '건']);
     const cols = seeAll ? 7 : 6;
     $('#rows').innerHTML = rows.length ? rows.map(function (x) {
       const a = D.APPROVAL_ACTIONS[x.h.action];
@@ -75,7 +76,7 @@
         '<td><a class="cell-title" href="review.html?id=' + encodeURIComponent(x.c.id) + '">' + esc(x.c.counterparty) + '</a>' +
           '<span class="cell-meta">' + esc(x.c.id) + ', ' + esc(C.serviceLabel(x.c.services)) + ', ' + (x.h.round || 1) + '차</span></td>' +
         '<td class="nowrap">' + esc(D.STEPS[x.h.step].no + ' ' + D.STEPS[x.h.step].short) + '</td>' +
-        '<td class="nowrap">' + C.badge(a.tone, a.label) + '</td>' +
+        '<td class="nowrap">' + C.badge(a.tone, C.actionLabel(x.h)) + '</td>' +
         (seeAll ? '<td class="nowrap">' + esc(C.userName(x.h.actorId)) + (x.h.onBehalfOf ? '<span class="cell-meta">' + esc(C.userName(x.h.onBehalfOf)) + '님 대신</span>' : '') + '</td>' : '') +
         '<td>' + (x.h.comment ? esc(x.h.comment) : '-') + '</td>' +
         '<td class="nowrap">' + C.statusBadge(x.c) + '</td>' +

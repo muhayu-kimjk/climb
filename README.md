@@ -44,7 +44,9 @@ Projects/CLM
    ├─ progress.html        SCR-20 전체 진행 현황
    ├─ review-queue.html    SCR-21 검토 대기
    ├─ review-done.html     SCR-22 검토 완료
-   ├─ review.html          SCR-23 검토 상세 (결재 문서, ?id=계약번호)
+   ├─ review.html          SCR-23 검토 상세 (결재 문서, ?id=계약번호. ⑥~⑩ 체결과 운영 검토도 여기서)
+   ├─ signing.html         SCR-31 체결 대기 (영업)
+   ├─ ops-queue.html       SCR-34 운영 검토 대기 (CEM, 재무)
    ├─ admin-users.html     SCR-51 사용자 권한 관리 (관리자, 슈퍼관리자)
    └─ assets/
       ├─ css/tokens.css    색, 글자, 크기 값 (회사 컬러는 여기만 바꾸면 됨)
@@ -63,7 +65,9 @@ Projects/CLM
       ├─ js/progress.js    전체 진행 현황 화면 로직
       ├─ js/review-queue.js 검토 대기 화면 로직
       ├─ js/review-done.js 검토 완료 화면 로직
-      ├─ js/review.js      검토 상세 화면 로직 (승인, 반려, 승인 취소)
+      ├─ js/review.js      검토 상세 화면 로직 (승인, 반려, 승인 취소, ⑥~⑩ 처리)
+      ├─ js/signing.js     체결 대기 화면 로직
+      ├─ js/ops-queue.js   운영 검토 대기 화면 로직
       └─ img/favicon.svg   브라우저 탭 아이콘 (무하유 심볼 Black 원본. favicon.png는 SVG를 못 읽는 브라우저용)
 ```
 

@@ -1,11 +1,12 @@
 /* =====================================================================
- * SCR-23 검토 상세 화면 로직 (review.js)
+ * SCR-23 검토 상세(계약 결재 문서) 화면 로직 (review.js)
  * ---------------------------------------------------------------------
- * 관련 요구사항: REQ-DOC-01, 02, 06, 07, REQ-STEP-04, REQ-FLOW-12, REQ-ENV-06, REQ-AUTH-09, 15, REQ-REV-02~05
+ * 관련 요구사항: REQ-DOC-01, 02, 06, 07, REQ-STEP-04, REQ-FLOW-12, REQ-ENV-06, REQ-AUTH-09, 15, REQ-REV-02~05, REQ-SIGN-01~06
  * 하는 일
  *   1. 주소의 계약번호로 계약을 찾고, 볼 수 있는 사람인지 확인
- *   2. 결재란, 기본 정보, 금액과 제품, 체크리스트, 첨부, 결재 기록을 결재 문서처럼 그리기
- *   3. 내 차례면 처리 막대에서 승인(의견 선택), 반려(사유 필수), 내가 승인한 단계는 승인 취소
+ *   2. 결재란(②~⑤, ⑥~⑩), 기본 정보, 금액과 제품, 체크리스트, 첨부(체결본 포함), 결재 기록을 결재 문서처럼 그리기
+ *   3. 내 차례면 처리 막대에서 단계에 맞는 일: 승인과 반려(②~⑤), 날인 완료(⑥), 체결본 등록(⑦),
+ *      확인 완료와 다시 등록 요청과 반려(⑧), 운영 적용 완료(⑨), 재무 확인 완료(⑩). 내가 승인한 ②~⑤는 승인 취소
  * 결재 상태 계산(누가 차례인지, 반려와 승인 완료)은 common.js(buildReview)가 결재 기록으로 합니다.
  * 프로토타입: 계약 상세 값 중 예시 데이터에 없는 것(사업자등록번호, 제품 줄 등)은 이 파일에서 만들어 보여 줍니다.
  * ===================================================================== */
@@ -86,6 +87,10 @@
   function files() {
     const list = [{ kind: 'DRAFT_DOC', name: c.counterparty + '_계약서_초안_' + (c.round || 1) + '차.docx', size: 84000 + seq * 13 }];
     if (c.amount) list.push({ kind: 'QUOTE', name: c.counterparty + '_최종견적서.pdf', size: 212000 + seq * 7 });
+    // 체결본: ⑦에서 올린 파일. 다시 등록 요청으로 다시 올려도 앞 파일은 지우지 않고 남김 (REQ-FLOW-22)
+    (c.history || []).filter(function (h) { return h.action === 'REGISTER' && (h.round || 1) === (c.round || 1); }).forEach(function (h, i) {
+      list.push({ kind: 'SIGNED', name: h.fileName || c.counterparty + '_체결본.pdf', size: 1840000 + seq * 11 + i * 3000, at: h.at });
+    });
     return list;
   }
 
@@ -99,43 +104,62 @@
   const cancelable = (c.approvals || []).filter(function (s) { return C.canCancel(c, s, me); });
   const isMine = function (s) { return s.userId === me.id; };
 
+  // 내 차례일 때 할 일 안내 (단계마다)
+  const TODO = {
+    review: '계약 내용과 체크리스트, 첨부 파일을 확인한 뒤 화면 아래에서 승인하거나 반려해 주세요. 승인 의견은 적지 않아도 되고, 반려할 때는 사유를 꼭 적습니다.',
+    S06: '계약서 실물의 고객사명, 체결 제품, 계약 금액, 계약 기간이 이 문서와 같은지 확인한 뒤 날인하고, 화면 아래에서 날인 완료로 처리해 주세요. 인장 사용 기록은 기존 구글 폼에 남깁니다.',
+    S07: '상대방 서명을 받은 뒤 화면 아래에서 체결본(PDF나 스캔 이미지, 50MB 이하)을 올려 주세요. 올린 체결본은 고치거나 지울 수 없습니다.',
+    S08: '첨부 파일의 체결본이 승인된 내용과 같은지 확인해 주세요. 같으면 확인 완료, 오탈자나 스캔 문제면 다시 등록 요청, 계약 내용이 다르면 반려합니다.',
+    S09: '서비스에 계약을 적용한 뒤(라이선스나 도메인 열기, 계약 정보 설정) 화면 아래에서 운영 적용 완료로 처리해 주세요.',
+    S10: '계약 금액과 체크리스트 4번(회계에 영향을 주는 특수 조건)을 확인한 뒤 재무 확인 완료를 눌러 주세요. 필요하면 메모를 남깁니다.',
+  };
   function renderNotice() {
     let html = '';
     const mineNow = actionable.filter(isMine);
+    const cur = C.currentStep(c);
+    // ⑧에서 다시 등록을 요청받아 ⑦이 다시 차례일 때 그 사유
+    const ret = c.lastReturn && cur && cur.step === 'S07'
+      ? '<br><strong>다시 등록 요청 (' + esc(C.userName(c.lastReturn.by)) + '님, ' + C.fmtDateTime(c.lastReturn.at) + ')</strong>: ' + esc(c.lastReturn.reason) : '';
     if (mineNow.length) {
       const s = mineNow[0];
-      html = notice('', C.stepLabel(s.step) + ' 차례입니다 (' + C.waitDays(c, s) + '일째)',
-        '계약 내용과 체크리스트, 첨부 파일을 확인한 뒤 화면 아래에서 승인하거나 반려해 주세요. 승인 의견은 적지 않아도 되고, 반려할 때는 사유를 꼭 적습니다.');
+      html = notice('', C.stepLabel(s.step) + ' 차례입니다 (' + C.waitDays(c, s) + '일째)', esc(TODO[C.isReviewStep(s.step) ? 'review' : s.step]) + ret);
     } else if (c.status === 'REJECTED') {
       html = notice('', C.stepLabel(c.rejection.step) + '에서 반려되었습니다',
         '<strong>' + esc(C.userName(c.rejection.by)) + '님 (' + C.fmtDateTime(c.rejection.at) + ')</strong><br>' + esc(c.rejection.reason) +
         '<br>기안자가 보완해 ' + (round + 1) + '차로 다시 기안합니다.');
-    } else if (c.status === 'APPROVED') {
-      html = notice('success', '계약 검토가 끝났습니다',
-        C.fmtDateTime(c.approvedAt) + '에 마지막 검토가 승인되어 체결 대기 중입니다. 다음은 ⑥ 인장 날인 검토입니다.');
-    } else if (c.status === 'IN_REVIEW' && actionable.length && me.role === 'SUPER') {
+    } else if (actionable.length && me.role === 'SUPER') {
       html = notice('', '시연: 담당자 대신 처리해 볼 수 있습니다',
-        '슈퍼관리자는 모든 결재 문서를 볼 수 있고, 프로토타입에서는 담당자 대신 승인이나 반려를 눌러 볼 수 있습니다. 실제 시스템에서는 담당자 본인만 처리합니다(대리 결재는 미정).');
+        '슈퍼관리자는 모든 결재 문서를 볼 수 있고, 프로토타입에서는 담당자 대신 각 단계를 처리해 볼 수 있습니다. 실제 시스템에서는 담당자 본인만 처리합니다(대리 결재는 미정).' + ret);
+    } else if (c.status === 'APPROVED' || c.status === 'OPS_REVIEW') {
+      html = notice('success', c.status === 'APPROVED' ? '계약 검토가 끝나 체결 중입니다' : '체결이 끝나 운영 검토 중입니다',
+        (c.status === 'APPROVED' ? C.fmtDateTime(c.approvedAt) + '에 계약 검토가 끝났습니다. ' : C.fmtDateTime(c.signedAt) + '에 체결본을 등록했습니다. ') +
+        (cur ? '지금 차례: ' + esc(C.stepLabel(cur.step)) + ' (' + esc(C.userName(cur.userId)) + '님)' : '') + ret);
+    } else if (c.status === 'ACTIVE') {
+      html = notice('success', '계약 완료',
+        (c.completedAt ? C.fmtDateTime(c.completedAt) + '에 재무 확인까지 끝나 보관함에 들어갔습니다. ' : '') + '계약 기간: ' + C.fmtDate(detail.startDate) + ' ~ ' + C.fmtDate(detail.endDate));
     }
     $('#notice').innerHTML = html;
   }
 
-  /* ---------- 3. 결재란 (REQ-DOC-02) ----------
-   * 칸: ① 기안 + 계약 검토 단계 ②~⑤. 생략한 단계도 칸을 두어 왜 생략했는지 보이게 함 */
-  function renderBox() {
-    const steps = c.approvals || [];
-    const head = '<th scope="col">' + esc(D.STEPS.S01.no + ' ' + D.STEPS.S01.short) + '</th>' +
+  /* ---------- 3. 결재란 (REQ-DOC-02, REQ-SIGN-02) ----------
+   * 첫 표: ① 기안 + 계약 검토 단계 ②~⑤. 생략한 단계도 칸을 두어 왜 생략했는지 보이게 함
+   * 둘째 표: 계약 체결(⑥ 인장, ⑦ 체결본, ⑧ 체결본 확인)과 운영 검토(⑨ 운영, ⑩ 재무). 생략 없음 */
+  function boxHtml(steps, withDraft) {
+    const skip = function (s) { return s.state === 'SKIPPED' ? ' class="is-skipped"' : ''; };
+    const head = (withDraft ? '<th scope="col">' + esc(D.STEPS.S01.no + ' ' + D.STEPS.S01.short) + '</th>' : '') +
       steps.map(function (s) { return '<th scope="col">' + esc(D.STEPS[s.step].no + ' ' + D.STEPS[s.step].short) + '</th>'; }).join('');
-    const who = '<td>' + esc(C.roleLabel('SALES')) + '<br><strong>' + esc(C.userName(c.requesterId)) + '</strong></td>' +
+    const who = (withDraft ? '<td>' + esc(C.roleLabel('SALES')) + '<br><strong>' + esc(C.userName(c.requesterId)) + '</strong></td>' : '') +
       steps.map(function (s) {
-        return '<td' + (s.state === 'SKIPPED' ? ' class="is-skipped"' : '') + '>' + esc(C.roleLabel(s.role)) + '<br><strong>' + esc(C.userName(s.userId)) + '</strong></td>';
+        return '<td' + skip(s) + '>' + esc(C.roleLabel(s.role)) + '<br><strong>' + esc(C.userName(s.userId)) + '</strong></td>';
       }).join('');
-    const result = '<td>' + C.badge('line', '기안') + '</td>' +
+    const result = (withDraft ? '<td>' + C.badge('line', '기안') + '</td>' : '') +
       steps.map(function (s) {
         const st = D.APPROVAL_STATE[s.state];
-        return '<td' + (s.state === 'SKIPPED' ? ' class="is-skipped"' : '') + '>' + C.badge(st.tone, st.label) + '</td>';
+        // ⑥~⑩이 끝나면 "승인" 대신 날인, 등록, 확인, 적용으로 표시
+        const label = s.state === 'DONE' && D.STEPS[s.step].done ? D.STEPS[s.step].done : st.label;
+        return '<td' + skip(s) + '>' + C.badge(st.tone, label) + '</td>';
       }).join('');
-    const when = '<td class="box-when">' + C.fmtDateTime(c.requestedAt) + '</td>' +
+    const when = (withDraft ? '<td class="box-when">' + C.fmtDateTime(c.requestedAt) + '</td>' : '') +
       steps.map(function (s) {
         let t;
         if (s.state === 'DONE' || s.state === 'REJECTED') t = C.fmtDateTime(s.decidedAt) + (s.onBehalfOf ? '<br>' + esc(C.userName(s.decidedBy)) + '님 대신' : '');
@@ -144,16 +168,22 @@
         else t = '-';
         return '<td class="box-when' + (s.state === 'SKIPPED' ? ' is-skipped' : '') + '">' + t + '</td>';
       }).join('');
-    $('#approval-box').innerHTML =
-      '<caption class="sr-only">결재란: 단계마다 담당자, 결과, 일시</caption>' +
-      '<thead><tr><th scope="row" class="box-rowhead">단계</th>' + head + '</tr></thead>' +
+    return '<thead><tr><th scope="row" class="box-rowhead">단계</th>' + head + '</tr></thead>' +
       '<tbody>' +
         '<tr><th scope="row" class="box-rowhead">담당</th>' + who + '</tr>' +
         '<tr><th scope="row" class="box-rowhead">결과</th>' + result + '</tr>' +
         '<tr><th scope="row" class="box-rowhead">일시</th>' + when + '</tr>' +
       '</tbody>';
-    const routed = C.routedSteps(c).map(function (s) { return D.STEPS[s.step].no; }).join(', ');
-    $('#box-desc').textContent = '거치는 단계: ' + routed + '. ② 다음 ③을 검토하고, 그 다음 ④와 ⑤를 동시에 검토합니다. 생략한 단계는 체크리스트 답에 따른 것입니다.';
+  }
+  function renderBox() {
+    const steps = c.approvals || [];
+    $('#approval-box').innerHTML = '<caption class="sr-only">결재란 계약 검토: 단계마다 담당자, 결과, 일시</caption>' +
+      boxHtml(steps.filter(function (s) { return s.phase === 2; }), true);
+    $('#approval-box-post').innerHTML = '<caption class="sr-only">결재란 계약 체결과 운영 검토: 단계마다 담당자, 결과, 일시</caption>' +
+      boxHtml(steps.filter(function (s) { return s.phase > 2; }), false);
+    const routed = C.routedReview(c).map(function (s) { return D.STEPS[s.step].no; }).join(', ');
+    $('#box-desc').textContent = '거치는 단계: ' + routed + '. ② 다음 ③을 검토하고, 그 다음 ④와 ⑤를 동시에 검토합니다. 생략한 단계는 체크리스트 답에 따른 것입니다. ' +
+      '승인 뒤에는 ⑥ 인장 날인부터 ⑩ 재무 확인까지 하나씩 차례로 거칩니다.';
   }
 
   /* ---------- 4. 기본 정보, 금액, 체크리스트, 첨부, 결재 기록 ---------- */
@@ -230,7 +260,7 @@
     const fmtSize = function (b) { return b >= 1048576 ? (b / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(b / 1024)) + 'KB'; };
     $('#files').innerHTML = files().map(function (x) {
       return '<li><span class="file-info">' + C.badge('line', D.FILE_KINDS[x.kind]) + ' <span class="file-name">' + esc(x.name) + '</span>' +
-        '<span class="file-size">' + fmtSize(x.size) + ', ' + round + '차 기안</span></span>' +
+        '<span class="file-size">' + fmtSize(x.size) + ', ' + (x.at ? C.fmtDateTime(x.at) + ' 등록' : round + '차 기안') + '</span></span>' +
         '<span class="file-acts"><button type="button" class="btn-text" data-file="preview">미리보기</button>' +
         '<button type="button" class="btn-text file-dl" data-file="pdf">PDF 내려받기</button>' +
         (canOriginal ? '<button type="button" class="btn-text file-dl" data-file="original">원본 내려받기</button>' : '') + '</span></li>';
@@ -246,13 +276,30 @@
       '<tbody>' + rows.map(function (h) {
         const a = D.APPROVAL_ACTIONS[h.action];
         const who = esc(C.userName(h.actorId)) + '님' + (h.onBehalfOf ? ' <span class="behalf">(' + esc(C.userName(h.onBehalfOf)) + '님 대신, 시연)</span>' : '');
+        // 체결본 등록은 올린 파일 이름도 함께
+        const note = (h.comment ? esc(h.comment) : '') + (h.fileName ? (h.comment ? '<br>' : '') + '<span class="behalf">파일: ' + esc(h.fileName) + '</span>' : '');
         return '<tr><td class="nowrap num-left">' + C.fmtDateTime(h.at) + '</td><td class="num">' + (h.round || 1) + '차</td>' +
           '<td class="nowrap">' + esc(D.STEPS[h.step].no + ' ' + D.STEPS[h.step].short) + '</td>' +
-          '<td class="nowrap">' + C.badge(a.tone, a.label) + '</td><td class="nowrap">' + who + '</td><td>' + (h.comment ? esc(h.comment) : '-') + '</td></tr>';
+          '<td class="nowrap">' + C.badge(a.tone, C.actionLabel(h)) + '</td><td class="nowrap">' + who + '</td><td>' + (note || '-') + '</td></tr>';
       }).join('') + '</tbody>';
   }
 
-  /* ---------- 5. 처리 막대와 확인 창 ---------- */
+  /* ---------- 5. 처리 막대와 확인 창 (REQ-REV-04, REQ-SIGN-03~06) ----------
+   * 단계마다 누를 수 있는 일
+   *   ②~⑤: 반려, 승인 / ⑥: 반려, 날인 완료 / ⑦: 체결본 등록 / ⑧: 반려, 다시 등록 요청, 확인 완료
+   *   ⑨: 운영 적용 완료 / ⑩: 재무 확인 완료 (⑨⑩에는 반려가 없음 [가정]) */
+  const STEP_ACTIONS = { S06: ['REJECT', 'APPROVE'], S07: ['REGISTER'], S08: ['REJECT', 'RETURN', 'APPROVE'], S09: ['APPROVE'], S10: ['APPROVE'] };
+  function actionsOf(code) { return C.isReviewStep(code) ? ['REJECT', 'APPROVE'] : STEP_ACTIONS[code]; }
+  function buttonLabel(action, code) {
+    if (action === 'APPROVE') return C.isReviewStep(code) ? '승인' : D.STEPS[code].doneAction;
+    return D.APPROVAL_ACTIONS[action].label;
+  }
+  const BTN_CLASS = { APPROVE: 'btn--primary', REGISTER: 'btn--primary', REJECT: 'btn--tertiary btn-reject', RETURN: 'btn--tertiary' };
+  function buttonsHtml(code) {
+    return actionsOf(code).map(function (a) {
+      return '<button type="button" class="btn ' + BTN_CLASS[a] + ' btn--md" data-open="' + a + '" data-step="' + code + '">' + esc(buttonLabel(a, code)) + '</button>';
+    }).join('');
+  }
   function renderActions() {
     const bar = $('#action-bar');
     if (!actionable.length && !cancelable.length) { bar.hidden = true; return; }
@@ -265,9 +312,7 @@
           }).join('') + '</select></label>'
         : '<p class="act-target"><strong>' + esc(C.stepLabel(actionable[0].step)) + '</strong>' +
           (isMine(actionable[0]) ? '' : ' <span class="behalf">' + esc(C.userName(actionable[0].userId)) + '님 대신 (시연)</span>') + '</p>';
-      html += '<div class="act-row">' + pick +
-        '<div class="act-btns"><button type="button" class="btn btn--tertiary btn--md btn-reject" data-open="REJECT">반려</button>' +
-        '<button type="button" class="btn btn--primary btn--md" data-open="APPROVE">승인</button></div></div>';
+      html += '<div class="act-row">' + pick + '<div class="act-btns" id="act-btns">' + buttonsHtml(actionable[0].step) + '</div></div>';
     }
     if (cancelable.length) {
       html += '<div class="act-row act-row--cancel">' + cancelable.map(function (s) {
@@ -277,75 +322,153 @@
     }
     bar.innerHTML = html;
     bar.hidden = false;
+    const sel = $('#act-step');
+    if (sel) sel.addEventListener('change', function () { $('#act-btns').innerHTML = buttonsHtml(sel.value); });
   }
 
   const modal = $('#act-modal');
   let pending = null;
   let lastFocus = null;
+  let fileName = '';
   // 확인 창 문구: 누르면 어떻게 되는지만 안내. 반려와 승인 취소는 신중하라는 뜻으로 경고(핑크) 버튼
-  const TEXT = {
-    APPROVE: { title: '승인할까요?', label: '의견 (선택)', btn: '승인', required: false, tone: 'primary',
-      desc: '승인하면 다음 단계로 넘어갑니다.' },
-    REJECT: { title: '반려할까요?', label: '반려 사유 (필수)', btn: '반려', required: true, tone: 'danger',
-      desc: '반려하면 기안자에게 돌아가고, 기안자가 보완해 다음 차수로 다시 기안합니다.' },
-    CANCEL: { title: '승인을 취소할까요?', label: '취소 사유 (필수)', btn: '승인 취소', required: true, tone: 'danger',
-      desc: '취소하면 이 단계는 다시 내 차례가 되고, 승인과 취소 기록은 모두 남습니다.' },
-  };
+  //   checks: 모두 확인해야 처리되는 항목(결재 기록에 "확인: ..."으로 남음) / file: 체결본 파일을 받음
+  function modalText(action, code) {
+    if (action === 'CANCEL') return { title: '승인을 취소할까요?', label: '취소 사유 (필수)', btn: '승인 취소', required: true, tone: 'danger',
+      desc: '취소하면 이 단계는 다시 내 차례가 되고, 승인과 취소 기록은 모두 남습니다.' };
+    if (action === 'REJECT') return { title: '반려할까요?', label: '반려 사유 (필수)', btn: '반려', required: true, tone: 'danger',
+      desc: code === 'S08' ? '계약 내용이 승인본과 다를 때 씁니다. 반려하면 기안자에게 돌아가고, 기안자가 보완해 다음 차수로 다시 기안해 결재를 처음부터 받습니다.'
+        : code === 'S06' ? '계약서 실물이 이 문서와 다를 때 씁니다. 반려하면 기안자에게 돌아가고, 기안자가 보완해 다음 차수로 다시 기안합니다.'
+        : '반려하면 기안자에게 돌아가고, 기안자가 보완해 다음 차수로 다시 기안합니다.' };
+    if (action === 'RETURN') return { title: '체결본을 다시 올려 달라고 할까요?', label: '요청 사유 (필수)', btn: '다시 등록 요청', required: true, tone: 'secondary',
+      desc: '오탈자나 스캔 문제처럼 계약 내용은 같을 때 씁니다. 영업이 체결본을 다시 올리면 다시 확인합니다.' };
+    if (action === 'REGISTER') return { title: '체결본을 등록할까요?', label: '메모 (선택)', btn: '체결본 등록', required: false, tone: 'primary', file: true,
+      desc: '등록하면 세일즈어드민이 승인된 내용과 같은지 확인합니다. 등록한 체결본은 고치거나 지울 수 없습니다.' };
+    if (C.isReviewStep(code)) return { title: '승인할까요?', label: '의견 (선택)', btn: '승인', required: false, tone: 'primary',
+      desc: '승인하면 다음 단계로 넘어갑니다.' };
+    const acc = c.checklist && c.checklist.accounting === 'YES';
+    // 금액이 없는 비밀유지계약은 운영에 적용할 것이 없으므로 그 사실만 확인 [가정]
+    const ops = c.type === '비밀유지계약(NDA)' ? ['운영에 적용할 내용 없음(비밀유지계약)'] : C.opsChecks(c.services);
+    return {
+      S06: { title: '날인 완료로 처리할까요?', label: '메모 (선택)', btn: '날인 완료', required: false, tone: 'primary',
+        desc: '처리하면 영업이 상대방 서명을 받아 체결본을 올릴 차례가 됩니다. 인장 사용 기록은 기존 구글 폼에 따로 남겨 주세요.',
+        legend: '계약서 실물과 같은지 확인한 항목 (모두 확인)', checks: D.SEAL_CHECKS },
+      S08: { title: '체결본 확인을 완료할까요?', label: '메모 (선택)', btn: '확인 완료', required: false, tone: 'primary',
+        desc: '완료하면 운영 검토로 넘어가 CEM이 운영에 적용할 차례가 됩니다.',
+        legend: '확인한 내용 (모두 확인)', checks: ['체결본이 승인된 계약 내용과 같음', '양쪽 서명과 날인이 모두 있음'] },
+      S09: { title: '운영 적용을 완료할까요?', label: '메모 (선택)', btn: '운영 적용 완료', required: false, tone: 'primary',
+        desc: '완료하면 재무 확인 차례가 됩니다.', legend: '서비스에 적용한 항목 (모두 확인)', checks: ops },
+      S10: { title: '재무 확인을 완료할까요?', label: '메모 (선택)', btn: '재무 확인 완료', required: false, tone: 'primary',
+        desc: '완료하면 계약 완료로 보관함에 들어갑니다. ' + (acc
+          ? '체크리스트 4번 회계 영향 조건: ' + (c.checklist.accountingNote || '비고 없음')
+          : '체크리스트 4번 회계 영향 조건은 없습니다.') },
+    }[code];
+  }
   function openModal(action, stepCode) {
     const s = c.approvals.find(function (x) { return x.step === stepCode; });
-    const t = TEXT[action];
-    pending = { action: action, step: s };
+    const t = modalText(action, stepCode);
+    pending = { action: action, step: s, t: t };
+    fileName = '';
     $('#act-title').textContent = t.title;
     $('#act-desc').textContent = t.desc;
     $('#act-label').textContent = t.label;
     $('#act-comment').value = '';
     $('#act-error').hidden = true;
     $('#act-field').classList.remove('is-invalid');
+    let extra = '';
+    if (t.checks) {
+      extra += '<fieldset class="field act-checks" id="act-checks"><legend class="field-label">' + esc(t.legend) + '</legend>' +
+        t.checks.map(function (x) { return '<label class="choice"><input type="checkbox" value="' + esc(x) + '">' + esc(x) + '</label>'; }).join('') +
+        '<p class="field-error" id="act-checks-error" hidden></p></fieldset>';
+    }
+    if (t.file) {
+      extra += '<div class="field act-file" id="act-file"><label class="field-label" for="act-file-input">체결본 파일 (필수)</label>' +
+        '<input type="file" id="act-file-input" accept=".pdf,.jpg,.jpeg,.png">' +
+        '<p class="field-help">PDF, JPG, PNG, 50MB 이하. 프로토타입은 파일 이름만 남기고 실제로 올리지 않습니다. ' +
+        '<button type="button" class="btn-text" id="act-demo-file">예시 파일 고르기 (시연)</button></p>' +
+        '<p class="act-file-name" id="act-file-name" aria-live="polite"></p><p class="field-error" id="act-file-error" hidden></p></div>';
+    }
+    $('#act-extra').innerHTML = extra;
     $('#act-confirm').textContent = t.btn;
     $('#act-confirm').className = 'btn btn--' + t.tone + ' btn--md';
     lastFocus = document.activeElement;
     modal.hidden = false;
-    $('#act-comment').focus();
+    (modal.querySelector('#act-extra input') || $('#act-comment')).focus();
   }
+  function setFile(name) {
+    fileName = name;
+    $('#act-file-name').textContent = name ? '고른 파일: ' + name : '';
+    showError('#act-file-error', '#act-file', '');
+  }
+  function showError(errSel, fieldSel, msg) {
+    const err = $(errSel);
+    if (!err) return;
+    err.innerHTML = msg ? C.icon('alert', 'sm') + esc(msg) : '';
+    err.hidden = !msg;
+    $(fieldSel).classList.toggle('is-invalid', !!msg);
+  }
+  modal.addEventListener('change', function (e) {
+    if (e.target.id !== 'act-file-input') return;
+    const f = e.target.files[0];
+    if (f && f.size > 50 * 1048576) { setFile(''); showError('#act-file-error', '#act-file', '50MB 이하 파일만 올릴 수 있습니다.'); return; }
+    setFile(f ? f.name : '');
+  });
   function closeModal() { modal.hidden = true; pending = null; if (lastFocus) lastFocus.focus(); }
+  // 처리했을 때 안내 (다음 화면에 한 번)
+  const DONE_MSG = {
+    APPROVE: '승인했습니다.', REJECT: '반려했습니다. 기안자에게 돌아갑니다.', CANCEL: '승인을 취소했습니다.',
+    REGISTER: '체결본을 등록했습니다.', RETURN: '체결본을 다시 올려 달라고 요청했습니다.',
+    S06: '날인 완료로 처리했습니다.', S08: '완료했습니다.', S09: '완료했습니다.', S10: '완료했습니다.',
+  };
   function confirmAction() {
-    const t = TEXT[pending.action];
-    const comment = $('#act-comment').value.trim();
-    if (t.required && !comment) {
+    const t = pending.t;
+    const memo = $('#act-comment').value.trim();
+    let ok = true;
+    if (t.checks) {
+      const missing = Array.prototype.slice.call(modal.querySelectorAll('#act-checks input')).filter(function (b) { return !b.checked; }).length;
+      showError('#act-checks-error', '#act-checks', missing ? '확인 항목을 모두 확인해 주세요.' : '');
+      if (missing) ok = false;
+    }
+    if (t.file && !fileName) { showError('#act-file-error', '#act-file', '체결본 파일을 고르세요.'); ok = false; }
+    if (t.required && !memo) {
       $('#act-error').innerHTML = C.icon('alert', 'sm') + t.label.replace(' (필수)', '') + '를 적어 주세요.';
       $('#act-error').hidden = false;
       $('#act-field').classList.add('is-invalid');
-      $('#act-comment').focus();
-      return;
+      ok = false;
     }
+    if (!ok) { const bad = modal.querySelector('.is-invalid input, .is-invalid textarea'); if (bad) bad.focus(); return; }
     const s = pending.step;
-    C.recordAction(c, s, pending.action, comment, me);
+    const comment = [t.checks ? '확인: ' + t.checks.join(', ') : '', memo].filter(Boolean).join('. ');
+    C.recordAction(c, s, pending.action, comment, me, t.file ? { fileName: fileName } : null);
     // 다음 차례 안내
+    const now = C.pendingSteps(c).map(function (x) { return C.stepLabel(x.step) + ' (' + C.userName(x.userId) + '님)'; }).join(', ');
     let next = '';
-    if (pending.action === 'APPROVE') {
-      const now = C.pendingSteps(c).map(function (x) { return C.stepLabel(x.step); }).join(', ');
-      next = c.status === 'APPROVED' ? ' 계약 검토가 모두 끝나 체결 대기가 되었습니다.' : now ? ' 다음 차례: ' + now : '';
+    if (pending.action !== 'REJECT' && pending.action !== 'CANCEL') {
+      next = c.status === 'ACTIVE' ? ' 계약 완료로 보관함에 들어갔습니다.'
+        : c.status === 'APPROVED' && C.isReviewStep(s.step) ? ' 계약 검토가 모두 끝나 체결 대기가 되었습니다. 다음 차례: ' + now
+        : now ? ' 다음 차례: ' + now : '';
     }
-    const done = { APPROVE: '승인했습니다.', REJECT: '반려했습니다. 기안자에게 돌아갑니다.', CANCEL: '승인을 취소했습니다.' }[pending.action];
-    C.flash(C.stepLabel(s.step) + ' ' + done + next);
+    const done = pending.action === 'APPROVE' && !C.isReviewStep(s.step) ? DONE_MSG[s.step] : DONE_MSG[pending.action];
+    C.flash(C.stepLabel(s.step) + ': ' + done + next);
     location.reload();
   }
   $('#action-bar').addEventListener('click', function (e) {
     const b = e.target.closest('[data-open]');
     if (!b) return;
-    const sel = $('#act-step');
-    const stepCode = b.getAttribute('data-step') || (sel ? sel.value : actionable[0].step);
-    openModal(b.getAttribute('data-open'), stepCode);
+    openModal(b.getAttribute('data-open'), b.getAttribute('data-step'));
   });
   modal.addEventListener('click', function (e) {
     if (e.target === modal || e.target.closest('[data-act="close"]')) closeModal();
     if (e.target.closest('[data-act="confirm"]')) confirmAction();
+    if (e.target.closest('#act-demo-file')) {
+      const n = (c.history || []).filter(function (h) { return h.action === 'REGISTER'; }).length;
+      setFile(c.counterparty + '_체결본' + (n ? '_' + (n + 1) : '') + '.pdf');
+    }
   });
   document.addEventListener('keydown', function (e) {
     if (modal.hidden) return;
     if (e.key === 'Escape') closeModal();
     if (e.key === 'Tab') { // 확인 창 안에서만 이동
-      const f = Array.prototype.slice.call(modal.querySelectorAll('textarea, button'));
+      const f = Array.prototype.slice.call(modal.querySelectorAll('input, textarea, button'));
       if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
       else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
     }

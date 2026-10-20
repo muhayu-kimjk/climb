@@ -116,22 +116,29 @@ window.CLIMB_DATA = (function () {
 
   /* ---------- 업무 세부 단계 (요구사항 정의서 3.2, 데이터 정의서 CODE-STEP) ----------
    * role: 담당 역할 / short: 짧은 이름(현재 진행 칸, 결재란 머리에 씀) */
+  // done: 끝났을 때 결재란에 쓰는 말(없으면 "승인") / doneAction: 결재 기록의 "한 일"(없으면 "승인")
+  // ing: 그 단계가 차례일 때 현재 진행 칸에 쓰는 말 (3단계 계약 체결, 4단계 운영 검토)
   const STEPS = {
     S01: { no: '①', name: '계약 등록과 기안', short: '기안', role: 'SALES' },
     S02: { no: '②', name: '체크리스트 검토', short: '체크리스트', role: 'SALES_ADMIN' },
     S03: { no: '③', name: '영업 검토', short: '영업', role: 'HEAD' },
     S04: { no: '④', name: '법무 검토', short: '법무', role: 'LEGAL' },
     S05: { no: '⑤', name: '개인정보 검토', short: '개인정보', role: 'PRIVACY' },
-    S06: { no: '⑥', name: '인장 날인 검토', short: '인장', role: 'GA' },
-    S07: { no: '⑦', name: '상대방 서명, 체결본 등록', short: '체결본', role: 'SALES' },
-    S08: { no: '⑧', name: '체결본 확인', short: '체결본 확인', role: 'SALES_ADMIN' },
-    S09: { no: '⑨', name: '운영 적용', short: '운영', role: 'CEM' },
-    S10: { no: '⑩', name: '재무 확인', short: '재무', role: 'FINANCE' },
+    S06: { no: '⑥', name: '인장 날인 검토', short: '인장', role: 'GA', done: '날인', doneAction: '날인 완료', ing: '인장 날인 대기' },
+    S07: { no: '⑦', name: '상대방 서명, 체결본 등록', short: '체결본', role: 'SALES', done: '등록', doneAction: '체결본 등록', ing: '체결본 등록 대기' },
+    S08: { no: '⑧', name: '체결본 확인', short: '체결본 확인', role: 'SALES_ADMIN', done: '확인', doneAction: '확인 완료', ing: '체결본 확인 중' },
+    S09: { no: '⑨', name: '운영 적용', short: '운영', role: 'CEM', done: '적용', doneAction: '운영 적용 완료', ing: 'CEM 운영 적용 중' },
+    S10: { no: '⑩', name: '재무 확인', short: '재무', role: 'FINANCE', done: '확인', doneAction: '재무 확인 완료', ing: '재무 확인 중' },
     S11: { no: '⑪', name: '계약 완료', short: '완료', role: null },
   };
   // 2단계 계약 검토의 순서: ② 다음 ③ 영업 검토(가격 예외 승인), 그 다음 ④와 ⑤를 동시에 (REQ-STEP-04, v0.20에서 바뀜)
   //   할인은 법무 검토보다 먼저 확정합니다(사전 승인 원칙, 요구사항 정의서 3.6.1)
   const REVIEW_GROUPS = [['S02'], ['S03'], ['S04', 'S05']];
+  // 3단계 계약 체결과 4단계 운영 검토의 순서: ⑥ → ⑦ → ⑧ → ⑨ → ⑩, 하나씩 차례로 (REQ-SIGN-01, v0.23)
+  //   ⑨ 운영 적용 다음에 ⑩ 재무 확인 (기획자 결정). 생략하는 단계는 없습니다.
+  const POST_GROUPS = [['S06'], ['S07'], ['S08'], ['S09'], ['S10']];
+  // 단계를 처리하는 역할 (검토 완료 화면과 메뉴에 씀): 결재 역할 + 총무, CEM, 재무
+  const PROCESS_ROLES = ['SALES_ADMIN', 'LEGAL', 'PRIVACY', 'HEAD', 'EXEC', 'GA', 'CEM', 'FINANCE'];
   // 단계별 담당자 [가정]. 실제 시스템에서는 관리자가 결재선 규칙(SCR-52)에서 지정합니다. (REQ-AUTH-06)
   const STEP_ASSIGNEE = {
     S02: 'u_sadmin', S03: 'u_head', S04: 'u_legal', S05: 'u_privacy',
@@ -148,9 +155,18 @@ window.CLIMB_DATA = (function () {
   // 결재에서 한 일 (데이터 정의서 CODE-APPROVAL-ACTION)
   const APPROVAL_ACTIONS = {
     SUBMIT: { label: '기안', tone: 'line' },
-    APPROVE: { label: '승인', tone: 'success' },
+    APPROVE: { label: '승인', tone: 'success' },     // ⑥⑧⑨⑩에서는 STEPS의 doneAction으로 보여 줌
     REJECT: { label: '반려', tone: 'danger' },
     CANCEL: { label: '승인 취소', tone: 'attention' },
+    REGISTER: { label: '체결본 등록', tone: 'progress' }, // ⑦ 영업이 체결본을 올림 (v0.23)
+    RETURN: { label: '다시 등록 요청', tone: 'attention' }, // ⑧ 오탈자, 스캔 문제로 ⑦에 되돌림 (v0.23)
+  };
+  // ⑥ 총무가 날인 전에 계약서 실물과 맞춰 보는 항목 (REQ-FLOW-23, panda p.31)
+  const SEAL_CHECKS = ['고객사명', '체결 제품', '계약 금액', '계약 기간'];
+  // ⑨ CEM이 운영에 적용하는 일. 서비스마다 다릅니다 (REQ-FLOW-25, panda p.35) [가정] 서비스 3단계 목록이 오면 다시 정함
+  const OPS_CHECKS = {
+    CK: ['라이선스 열기', '계약번호 설정', '계약 기간 설정', '계약 금액 설정'],
+    HR: ['도메인 열기', '계약 기간 설정'],
   };
   // 첨부 파일 종류 (데이터 정의서 CODE-FILE-KIND)
   const FILE_KINDS = { DRAFT_DOC: '계약서 초안', QUOTE: '최종 견적서', SIGNED: '체결본', TERMINATE_DOC: '해지 관련 서류' };
@@ -276,40 +292,49 @@ window.CLIMB_DATA = (function () {
       },
     },
 
-    /* ----- 승인 완료, 체결 대기 (APPROVED) ----- */
+    /* ----- 승인 완료, 체결 대기 (APPROVED): 3단계 ⑥ 인장 날인 → ⑦ 체결본 등록 → ⑧ 체결본 확인 -----
+     * postAt: 지금 차례인 단계. 그 앞 단계의 기록은 common.js가 승인일(approvedAt) 뒤 날짜로 만듦(시연용)
+     * signedAt: 체결본을 등록한 날 / extraHistory: 자동으로 만든 기록 뒤에 더하는 기록 */
     {
+      // ⑦ 체결본 등록이 오래 걸리는 예시 (승인 후 14일 이상 강조)
       id: 'CT-2026-0371', counterparty: '바른출판', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 24000000, requesterId: 'u_sales2', requestedAt: '2026-09-15 10:00', restricted: false, personalData: false,
-      status: 'APPROVED', approvedAt: '2026-09-25 16:00', autoHistory: true,
+      status: 'APPROVED', approvedAt: '2026-09-25 16:00', autoHistory: true, postAt: 'S07',
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
     },
     {
+      // ⑧에서 스캔 문제로 "다시 등록 요청" 뒤 영업이 다시 올려 ⑧ 확인 차례인 예시
       id: 'CT-2026-0379', counterparty: '새솔고등학교', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 9600000, requesterId: 'u_sales1', requestedAt: '2026-09-22 10:00', restricted: false, personalData: true,
-      status: 'APPROVED', approvedAt: '2026-10-01 15:00', autoHistory: true,
+      status: 'APPROVED', approvedAt: '2026-10-01 15:00', autoHistory: true, postAt: 'S08', signedAt: '2026-10-08',
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
+      extraHistory: [
+        ev('S08', 'RETURN', '2026-10-09 10:20', '스캔본 3쪽(서명 쪽)이 빠졌습니다. 전체 쪽을 다시 올려 주세요.'),
+        Object.assign(ev('S07', 'REGISTER', '2026-10-16 17:40', '서명 쪽을 포함해 다시 스캔', 'u_sales1'), { fileName: '새솔고등학교_체결본_전체.pdf' }),
+      ],
     },
     {
+      // ⑥ 인장 날인 차례인 예시
       id: 'CT-2026-0409', counterparty: '다온컨설팅', services: ['HR'], type: '비밀유지계약(NDA)', kind: 'NEW',
       amount: 0, requesterId: 'u_sales1', requestedAt: '2026-10-13 10:00', restricted: false, personalData: false,
-      status: 'APPROVED', approvedAt: '2026-10-16 11:00', autoHistory: true,
+      status: 'APPROVED', approvedAt: '2026-10-16 11:00', autoHistory: true, postAt: 'S06',
       checklist: { standard: 'NO', price: 'NA', cap: 'NA' },
     },
 
-    /* ----- 운영 검토 (OPS_REVIEW): 체결본 등록 뒤 ⑨ 운영 적용(CEM), ⑩ 재무 확인 -----
-     * opsStep: 지금 차례인 일 (CEM: 운영 적용, FINANCE: 재무 확인) / signedAt: 체결본을 등록한 날 */
+    /* ----- 운영 검토 (OPS_REVIEW): ⑧ 체결본 확인 뒤 ⑨ 운영 적용(CEM) → ⑩ 재무 확인 ----- */
     {
       id: 'CT-2026-0386', counterparty: '마루중학교', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 13200000, requesterId: 'u_sales1', requestedAt: '2026-09-18 10:00', restricted: false, personalData: false,
-      status: 'OPS_REVIEW', approvedAt: '2026-09-24 15:00', signedAt: '2026-10-14', opsStep: 'CEM', autoHistory: true,
+      status: 'OPS_REVIEW', approvedAt: '2026-09-24 15:00', signedAt: '2026-10-14', postAt: 'S09', autoHistory: true,
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
       startDate: '2026-11-01', endDate: '2027-10-31',
     },
     {
+      // ⑩ 재무 확인 차례. 체크리스트 4번이 "예"라 재무가 특수 조건을 확인해야 하는 예시
       id: 'CT-2026-0362', counterparty: '청람컨설팅', services: ['HR'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 19200000, requesterId: 'u_sales2', requestedAt: '2026-09-08 10:00', restricted: false, personalData: true,
-      status: 'OPS_REVIEW', approvedAt: '2026-09-15 15:00', signedAt: '2026-10-02', opsStep: 'FINANCE', autoHistory: true,
-      checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
+      status: 'OPS_REVIEW', approvedAt: '2026-09-15 15:00', signedAt: '2026-10-02', postAt: 'S10', autoHistory: true,
+      checklist: { standard: 'NO', price: 'YES', cap: 'YES', accounting: 'YES', accountingNote: '첫해 2개월 무상 사용 후 과금 시작' },
       startDate: '2026-10-15', endDate: '2027-10-14',
     },
 
@@ -373,6 +398,7 @@ window.CLIMB_DATA = (function () {
   //   "확인 필요" 상자(v0.12)와 단계 표시기 아래 설명 글(v0.14)은 뺐고, 지금은 대기 일수 강조에만 씁니다.
   const ALERT_RULES = {
     approvalDelayDays: 5,    // 한 결재 단계에 머문 기간: 내가 검토할 계약의 대기 일수 강조 (REQ-DASH-05)
+    signDelayDays: 14,       // 승인 후 체결이 끝나지 않은 기간: 체결 대기 목록 강조, 기안자 독촉 이메일 (REQ-ENV-10)
   };
 
 
@@ -439,5 +465,5 @@ window.CLIMB_DATA = (function () {
     };
   });
 
-  return { TODAY, BRAND, ROLES, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, CONTRACT_TYPES, METHODS, SETTLEMENTS, PRICE_BOOK, STEPS, REVIEW_GROUPS, STEP_ASSIGNEE, APPROVAL_STATE, APPROVAL_ACTIONS, FILE_KINDS, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS };
+  return { TODAY, BRAND, ROLES, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, CONTRACT_TYPES, METHODS, SETTLEMENTS, PRICE_BOOK, STEPS, REVIEW_GROUPS, POST_GROUPS, PROCESS_ROLES, STEP_ASSIGNEE, APPROVAL_STATE, APPROVAL_ACTIONS, SEAL_CHECKS, OPS_CHECKS, FILE_KINDS, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS };
 })();
