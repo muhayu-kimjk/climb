@@ -14,7 +14,7 @@
   const esc = C.esc;
   const $ = function (s) { return document.querySelector(s); };
   const PAGE_SIZE = 20;
-  const OPEN = ['IN_REVIEW', 'REJECTED', 'APPROVED', 'OPS_REVIEW'];
+  const OPEN = ['IN_REVIEW', 'SUPPLEMENT', 'REJECTED', 'APPROVED', 'OPS_REVIEW']; // 보완 중(v0.26)도 진행 중
 
   const all = D.CONTRACTS.filter(function (c) { return OPEN.indexOf(c.status) > -1; })
     .sort(function (a, b) { return a.requestedAt.localeCompare(b.requestedAt); });
@@ -23,7 +23,7 @@
     return '<option value="">' + esc(first) + '</option>' + pairs.map(function (p) { return '<option value="' + p[0] + '">' + esc(p[1]) + '</option>'; }).join('');
   }
   // 상태: REVIEW는 검토 중과 반려를 함께 (개요의 '계약 검토' 단계와 같은 범위)
-  $('#f-status').innerHTML = options('전체 상태', [['REVIEW', '검토 중과 반려']].concat(OPEN.map(function (k) { return [k, D.STATUS[k].label]; })));
+  $('#f-status').innerHTML = options('전체 상태', [['REVIEW', '검토 중, 보완 중, 반려']].concat(OPEN.map(function (k) { return [k, D.STATUS[k].label]; })));
   $('#f-service').innerHTML = options('전체 서비스', Object.keys(D.SERVICES).map(function (k) { return [k, D.SERVICES[k]]; }));
   const owners = all.map(function (c) { return c.requesterId; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
   $('#f-owner').innerHTML = options('전체', owners.map(function (u) { return [u, C.userName(u)]; }));
@@ -38,7 +38,7 @@
       const visible = C.canView(c, me);
       // 볼 수 없는 계약은 고객사 이름으로 찾을 수 없게 함
       if (q && (!visible || (c.counterparty.toLowerCase().indexOf(q) < 0 && String(c.id).toLowerCase().indexOf(q) < 0))) return false;
-      if (status === 'REVIEW' ? ['IN_REVIEW', 'REJECTED'].indexOf(c.status) < 0 : status && c.status !== status) return false;
+      if (status === 'REVIEW' ? ['IN_REVIEW', 'SUPPLEMENT', 'REJECTED'].indexOf(c.status) < 0 : status && c.status !== status) return false;
       if (service && (!visible || (c.services || []).indexOf(service) < 0)) return false;
       if (owner && c.requesterId !== owner) return false;
       return true;

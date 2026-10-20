@@ -77,3 +77,6 @@
   .tbl--history { min-width: 0; }
   .admin-stack { gap: 6mm; }
 }
+
+/* 묶음 안의 작은 제목 (예: 결재선 규칙의 팀별 리더) */
+.panel .box-subtitle { margin: 2.4rem 0 0.8rem; font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }

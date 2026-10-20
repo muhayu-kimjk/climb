@@ -134,7 +134,6 @@
         return '<label class="choice"><input type="checkbox" name="roles" value="' + r + '"' + (selected.indexOf(r) > -1 ? ' checked' : '') + '>' + esc(D.ROLES[r]) + '</label>';
       }).join('') + '</div><p class="field-help">한 사람이 여러 역할을 가질 수 있습니다. 하는 일에 필요한 역할만 줍니다.</p><p class="field-error" hidden></p></fieldset>';
   }
-  const STEP_CODES = ['S02', 'S03', 'S04', 'S05', 'S06', 'S08', 'S09', 'S10'];
   function openAdd() {
     C.formModal({
       title: '사용자를 추가할까요?',
@@ -187,13 +186,11 @@
         const roles = rolesOf(f), status = val(f, 'status');
         const same = val(f, 'dept') === a.dept && status === a.status && roles.join() === a.roles.join();
         // 결재 단계 담당자는 결재선 규칙에서 먼저 담당자를 바꿔야 함
-        const steps = STEP_CODES.filter(function (code) {
-          return C.assigneeOf(code) === a.id && (status === 'SUSPENDED' || roles.indexOf(D.STEPS[code].role) < 0);
-        });
+        const steps = C.duties(a.id).filter(function (x) { return status === 'SUSPENDED' || roles.indexOf(x.role) < 0; });
         // 지금 이 사람 차례인 결재가 남아 있으면 사용 중지 전에 대리 지정으로 넘겨야 함 (차례인 건은 원래 담당자에게 남으므로)
         const covered = D.DELEGATIONS.some(function (d) { return d.absentId === a.id && C.delegationState(d) === 'ACTIVE'; });
         const waiting = status === 'SUSPENDED' && !covered ? C.pendingQueue(me, true).filter(function (x) { return x.s.userId === a.id; }).length : 0;
-        const stepMsg = steps.length ? '이 사람은 ' + steps.map(function (code) { return D.STEPS[code].no + ' ' + D.STEPS[code].name; }).join(', ') +
+        const stepMsg = steps.length ? '이 사람은 ' + steps.map(function (x) { return x.label; }).join(', ') +
           ' 담당자입니다. 먼저 결재선 규칙에서 담당자를 바꾸세요.'
           : waiting ? '지금 이 사람 차례인 결재가 ' + waiting + '건 있습니다. 먼저 결재선 규칙에서 대리 지정으로 다른 사람에게 넘기세요.' : '';
         return {

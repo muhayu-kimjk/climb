@@ -14,7 +14,7 @@
   const esc = C.esc;
   const $ = function (s) { return document.querySelector(s); };
   const PAGE_SIZE = 20;
-  const WORKING = ['IN_REVIEW', 'REJECTED', 'APPROVED', 'OPS_REVIEW'];
+  const WORKING = ['IN_REVIEW', 'SUPPLEMENT', 'REJECTED', 'APPROVED', 'OPS_REVIEW'];
 
   const all = C.bundles().sort(function (a, b) { return (b.root.requestedAt || '').localeCompare(a.root.requestedAt || ''); });
 

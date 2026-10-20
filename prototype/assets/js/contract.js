@@ -55,7 +55,9 @@
   if (b.status === 'ACTIVE' && canDraft) {
     const q = encodeURIComponent(b.id);
     $('#bundle-actions').innerHTML =
+      // 변경 기안: 계약서가 바뀌는 변경(전체 결재) / 운영 변경 기안: 기간 변경이나 추가 충전만 (v0.26 재무 문서 반영)
       '<a class="btn btn--tertiary btn--md" href="new-contract.html?kind=AMEND&origin=' + q + '">변경 기안</a>' +
+      '<a class="btn btn--tertiary btn--md" href="ops-change.html?origin=' + q + '">운영 변경 기안</a>' +
       (blocking ? '' : (b.autoRenew === 'YES'
         ? '<a class="btn btn--secondary btn--md" href="renewal.html?origin=' + q + '">갱신 검토</a>'
         : '<a class="btn btn--secondary btn--md" href="new-contract.html?kind=RENEW&origin=' + q + '">갱신 기안</a>') +

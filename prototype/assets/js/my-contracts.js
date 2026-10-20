@@ -50,7 +50,11 @@
       return '<div class="row-actions"><a class="btn btn--secondary" href="new-contract.html?id=' + encodeURIComponent(c.draftKey) + '">이어서 작성</a>' +
         '<button type="button" class="btn btn--tertiary btn-reject" data-del="' + esc(c.draftKey) + '">삭제</button></div>';
     }
-    if (c.status === 'REJECTED' && c.kind !== 'TERMINATE' && c.renewMode !== 'AUTO') {
+    // 보완 요청을 받은 계약: 결재 문서에서 보완 완료 (REQ-REV-11, v0.26)
+    if (c.status === 'SUPPLEMENT') {
+      return '<div class="row-actions"><a class="btn btn--primary" href="review.html?id=' + encodeURIComponent(c.id) + '">보완하기</a></div>';
+    }
+    if (c.status === 'REJECTED' && c.kind !== 'TERMINATE' && c.renewMode !== 'AUTO' && c.kind !== 'CHANGE') {
       return '<div class="row-actions"><a class="btn btn--secondary" href="new-contract.html?id=' + encodeURIComponent(c.id) + '">보완 후 재기안</a></div>';
     }
     const p = C.currentStep(c);
@@ -80,7 +84,7 @@
     const rows = list.slice(from, from + PAGE_SIZE);
     const count = function (s) { return list.filter(function (c) { return c.status === s; }).length; };
     $('#list-count').innerHTML = C.meta(['<strong>' + (list.length !== all.length ? '검색 결과 ' : '전체 ') + list.length + '건</strong>',
-      '작성 중 ' + count('DRAFT') + '건', '반려 ' + count('REJECTED') + '건', '체결 대기 ' + count('APPROVED') + '건']);
+      '작성 중 ' + count('DRAFT') + '건', '보완 중 ' + count('SUPPLEMENT') + '건', '반려 ' + count('REJECTED') + '건', '체결 대기 ' + count('APPROVED') + '건']);
     const cols = seeAll ? 7 : 6;
     $('#rows').innerHTML = rows.length ? rows.map(function (c) {
       // 작성 중은 계약 등록 화면으로, 그 밖에는 결재 문서로

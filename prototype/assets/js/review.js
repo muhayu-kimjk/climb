@@ -5,8 +5,10 @@
  * 하는 일
  *   1. 주소의 계약번호로 계약을 찾고, 볼 수 있는 사람인지 확인
  *   2. 결재란(②~⑤, ⑥~⑩), 기본 정보, 금액과 제품, 체크리스트, 첨부(체결본 포함), 결재 기록을 결재 문서처럼 그리기
- *   3. 내 차례면 처리 막대에서 단계에 맞는 일: 승인과 반려(②~⑤), 날인 완료(⑥), 체결본 등록(⑦),
+ *   3. 내 차례면 처리 막대에서 단계에 맞는 일: 승인, 보완 요청, 반려(②~⑤), 날인 완료(⑥), 체결본 등록(⑦),
  *      확인 완료와 다시 등록 요청과 반려(⑧), 운영 적용 완료(⑨), 재무 확인 완료(⑩). 내가 승인한 ②~⑤는 승인 취소
+ *   4. 보완 요청을 받은 기안자는 처리 막대에서 보완 완료 (REQ-REV-11, v0.26)
+ *   5. 운영 변경(-C)은 금액과 체크리스트 대신 변경 내용을 보여 줌 (REQ-CHG-06~11, v0.26)
  * 결재 상태 계산(누가 차례인지, 반려와 승인 완료)은 common.js(buildReview)가 결재 기록으로 합니다.
  * 프로토타입: 계약 상세 값 중 예시 데이터에 없는 것(사업자등록번호, 제품 줄 등)은 이 파일에서 만들어 보여 줍니다.
  * ===================================================================== */
@@ -55,6 +57,10 @@
   }
   // 해지 기안과 갱신 검토(짧은 결재)는 원계약을 기준으로 보여 줌 (REQ-ARC-06, 07)
   const short = C.isShort(c);
+  const change = C.isChange(c); // 운영 변경(-C): 기간 변경이나 추가 충전 (v0.26)
+  const hrChange = change && /^HR_/.test(c.changeType);
+  // 표준계약서를 바꾼 계약: 조항 대비표 첨부, ④ 법무 승인 의견 필수 (기획자 결정 v0.27, C-20: flex 품의 대신 CLIMB 안에 남김)
+  const legalNote = !short && !change && !!c.checklist && c.checklist.standard === 'NO';
   const isTerm = c.kind === 'TERMINATE';
   const rootId = C.rootOf(c);
   const parent = c.parentId ? D.CONTRACTS.find(function (x) { return x.id === c.parentId; }) : null;
@@ -63,7 +69,8 @@
   const startDate = c.startDate || f.startDate || (parent && C.startOf(parent)) || addDays(reqDate, 14);
   const endDate = c.endDate || f.endDate || (parent && C.endOf(parent)) || addDays(addDays(startDate, 365), -1);
   const detail = {
-    bizNo: f.bizNo || (100 + seq % 800) + '-' + (81 + seq % 9) + '-' + String(10000 + (seq * 37) % 89999).padStart(5, '0'),
+    // 사업자등록번호: 거래처 목록(SCR-55)에 있으면 그 번호, 없으면 예시 번호
+    bizNo: f.bizNo || (D.CUSTOMERS.filter(function (cu) { return cu.name === c.counterparty; })[0] || {}).bizNo || (100 + seq % 800) + '-' + (81 + seq % 9) + '-' + String(10000 + (seq * 37) % 89999).padStart(5, '0'),
     method: f.method || (c.type === '리셀러 계약' ? 'RESELLER' : 'DIRECT'),
     settlement: f.settlement || 'LUMP',
     contractDate: f.contractDate || reqDate,
@@ -91,8 +98,11 @@
   // 첨부 파일 (데이터 정의서 attachment). 예시 이름은 고객사 이름으로 만듦
   function files() {
     // 해지 기안과 갱신 검토는 계약서 초안 없이 기안할 때 올린 서류(해지 관련 서류)만
+    if (change) return []; // 운영 변경은 첨부 없음(사유는 CRM 영업활동 링크)
     const list = short ? (c.files || []).map(function (x, i) { return { kind: x.kind, name: x.name, size: 320000 + i * 1000 }; })
       : [{ kind: 'DRAFT_DOC', name: c.counterparty + '_계약서_초안_' + (c.round || 1) + '차.docx', size: 84000 + seq * 13 }];
+    // 조항 대비표: 표준계약서를 바꾼 계약 (v0.27, C-20)
+    if (legalNote) list.push({ kind: 'CLAUSE_DIFF', name: c.counterparty + '_조항대비표_' + (c.round || 1) + '차.docx', size: 36000 + seq * 5 });
     if (c.amount && !short) list.push({ kind: 'QUOTE', name: c.counterparty + '_최종견적서.pdf', size: 212000 + seq * 7 });
     // 체결본: ⑦에서 올린 파일. 다시 등록 요청으로 다시 올려도 앞 파일은 지우지 않고 남김 (REQ-FLOW-22)
     (c.history || []).filter(function (h) { return h.action === 'REGISTER' && (h.round || 1) === (c.round || 1); }).forEach(function (h, i) {
@@ -113,6 +123,8 @@
   const cancelable = (c.approvals || []).filter(function (s) { return C.canCancel(c, s, me); });
   // 내 차례: 담당자 본인이거나 대리 지정 기간 안의 대신할 사람 (REQ-REV-08)
   const isMine = function (s) { return C.isMyStep(s, me); };
+  // 보완 요청을 받은 기안자가 보완 완료를 누를 수 있는지 (슈퍼관리자는 시연용으로 대신)
+  const canResubmit = c.status === 'SUPPLEMENT' && !!c.supplement && (me.id === c.requesterId || me.role === 'SUPER');
   // 대리 지정으로 대신 처리하는 단계면 "최민준님 대신 (대리 지정 10.19 ~ 10.23)" 안내
   function behalfText(s) {
     const dl = s.userId !== me.id ? C.activeDelegation(s.userId, me.id) : null;
@@ -121,11 +133,16 @@
 
   // 내 차례일 때 할 일 안내 (단계마다)
   const TODO = {
-    review: '계약 내용과 체크리스트, 첨부 파일을 확인한 뒤 화면 아래에서 승인하거나 반려해 주세요. 승인 의견은 적지 않아도 되고, 반려할 때는 사유를 꼭 적습니다.',
+    review: change
+      ? '변경 내용(종류, 기간이나 수량, 사유, CRM 영업활동)을 확인한 뒤 화면 아래에서 승인, 보완 요청, 반려 중에 골라 주세요. 승인 의견은 적지 않아도 되고, 보완 요청과 반려는 사유를 꼭 적습니다.'
+      : '계약 내용과 체크리스트, 첨부 파일을 확인한 뒤 화면 아래에서 승인, 보완 요청, 반려 중에 골라 주세요. 승인 의견은 적지 않아도 되고, 보완 요청과 반려는 사유를 꼭 적습니다. 보완을 요청하면 기안자가 고친 뒤 이 단계부터 이어서 결재합니다.',
     S06: '계약서 실물의 고객사명, 체결 제품, 계약 금액, 계약 기간이 이 문서와 같은지 확인한 뒤 날인하고, 화면 아래에서 날인 완료로 처리해 주세요. 인장 사용 기록은 기존 구글 폼에 남깁니다.',
     S07: '상대방 서명을 받은 뒤 화면 아래에서 체결본(PDF나 스캔 이미지, 50MB 이하)을 올려 주세요. 올린 체결본은 고치거나 지울 수 없습니다.',
     S08: '첨부 파일의 체결본이 승인된 내용과 같은지 확인해 주세요. 같으면 확인 완료, 오탈자나 스캔 문제면 다시 등록 요청, 계약 내용이 다르면 반려합니다.',
-    S09: isTerm ? '해지일에 맞춰 라이선스나 도메인을 닫고 계약 종료일을 설정한 뒤 화면 아래에서 운영 종료 완료로 처리해 주세요.'
+    S09: change ? (hrChange ? '수불부에 HR 추가 충전 ' + c.changeQty + '건을 반영한 뒤 화면 아래에서 운영 변경 완료로 처리해 주세요.'
+        : c.changeType === 'PERIOD' ? '라이선스나 도메인 기간을 새 종료일(' + C.fmtDate(c.endDate) + ')로 바꾼 뒤 화면 아래에서 운영 변경 완료로 처리해 주세요.'
+        : 'CK 추가 충전 ' + c.changeQty + '건을 반영한 뒤 화면 아래에서 운영 변경 완료로 처리해 주세요.')
+      : isTerm ? '해지일에 맞춰 라이선스나 도메인을 닫고 계약 종료일을 설정한 뒤 화면 아래에서 운영 종료 완료로 처리해 주세요.'
       : c.renewMode === 'AUTO' ? '라이선스나 도메인 기간을 새 계약 기간에 맞춰 연장한 뒤 화면 아래에서 기간 연장 완료로 처리해 주세요.'
       : '서비스에 계약을 적용한 뒤(라이선스나 도메인 열기, 계약 정보 설정) 화면 아래에서 운영 적용 완료로 처리해 주세요.',
     S10: isTerm ? '환불, 위약금, 매출 조정을 확인한 뒤 재무 확인 완료를 눌러 주세요. 필요하면 메모를 남깁니다.'
@@ -143,7 +160,21 @@
       const s = mineNow[0];
       const dl = s.userId !== me.id ? C.activeDelegation(s.userId, me.id) : null;
       const behalf = dl ? '<br><strong>' + behalfText(s) + '</strong>: 처리하면 결재 기록에 대리로 처리한 것과 근거가 남습니다. 근거: ' + esc(dl.reason) : '';
-      html = notice('', C.stepLabel(s.step) + ' 차례입니다 (' + C.waitDays(c, s) + '일째)', esc(TODO[C.isReviewStep(s.step) ? 'review' : s.step]) + behalf + ret);
+      // ④ 법무 + 표준계약서를 바꾼 계약: 승인 의견이 필수라 안내 문장을 따로 (v0.27, C-20)
+      const todo = s.step === 'S04' && legalNote
+        ? '<strong>표준계약서를 바꾼 계약입니다.</strong> 첨부의 조항 대비표와 계약 내용을 확인한 뒤 화면 아래에서 승인, 보완 요청, 반려 중에 골라 주세요. ' +
+          '승인할 때도 바꾼 조항과 받아들인 판단을 의견으로 꼭 적습니다. 이 의견이 품의를 대신해 결재 기록에 남습니다.'
+        : esc(TODO[C.isReviewStep(s.step) ? 'review' : s.step]);
+      html = notice('', C.stepLabel(s.step, c) + ' 차례입니다 (' + C.waitDays(c, s) + '일째)', todo + behalf + ret);
+    } else if (c.status === 'SUPPLEMENT' && c.supplement) {
+      // 보완 요청 (REQ-REV-11): 기안자에게는 할 일, 그 밖에는 진행 안내
+      const sp = c.supplement, no = D.STEPS[sp.step].no;
+      const head = '<strong>' + esc(C.userName(sp.by)) + '님 (' + C.fmtDateTime(sp.at) + ')</strong><br>' + esc(sp.reason) + '<br>';
+      html = canResubmit
+        ? notice('', C.stepLabel(sp.step) + '에서 보완을 요청했습니다', head +
+          '고친 뒤 화면 아래에서 보완 완료를 누르면 ' + no + '부터 이어서 결재합니다. 금액이나 체크리스트 답을 바꾸면 계약 검토를 처음부터 다시 받습니다.' +
+          (me.id === c.requesterId ? '' : ' (시연: 슈퍼관리자가 기안자 대신 처리해 볼 수 있습니다)'))
+        : notice('', C.stepLabel(sp.step) + '에서 보완을 요청해 기안자가 고치는 중입니다', head + '기안자가 고치면 ' + no + '부터 이어서 결재합니다.');
     } else if (c.status === 'REJECTED') {
       html = notice('', C.stepLabel(c.rejection.step) + '에서 반려되었습니다',
         '<strong>' + esc(C.userName(c.rejection.by)) + '님 (' + C.fmtDateTime(c.rejection.at) + ')</strong><br>' + esc(c.rejection.reason) +
@@ -208,7 +239,10 @@
     $('#approval-box-post').innerHTML = '<caption class="sr-only">결재란 계약 체결과 운영 검토: 단계마다 담당자, 결과, 일시</caption>' +
       boxHtml(steps.filter(function (s) { return s.phase > 2; }), false);
     const routed = C.routedReview(c).map(function (s) { return D.STEPS[s.step].no; }).join(', ');
-    $('#box-desc').textContent = short
+    $('#box-desc').textContent = change
+      ? '운영 변경은 ' + (C.changeSales(c)[0] ? '③ 팀 리더가 승인한 뒤 ' : '') + '⑨ ' + (hrChange ? '재무기획' : 'CEM') +
+        '이 반영하면 끝납니다. 체크리스트, 법무, 날인, 체결본, 재무 확인은 없습니다.'
+      : short
       ? (isTerm ? '해지 기안' : '갱신 검토') + '은 ③ 부서장, ④ 법무가 승인한 뒤 ⑨ CEM ' + (isTerm ? '운영 종료' : '기간 연장') + ', ⑩ 재무 확인을 거칩니다. 체크리스트, 날인, 체결본은 없습니다.'
       : '거치는 단계: ' + routed + '. ② 다음 ③을 검토하고, 그 다음 ④와 ⑤를 동시에 검토합니다. 생략한 단계는 체크리스트 답에 따른 것입니다. ' +
         '승인 뒤에는 ⑥ 인장 날인부터 ⑩ 재무 확인까지 하나씩 차례로 거칩니다.';
@@ -235,6 +269,24 @@
   }
 
   function renderAmount() {
+    if (change) {
+      // 변경 내용 (REQ-CHG-06~11): 종류, 기간이나 수량, 사유, CRM 영업활동 링크, 영업 검토를 거치는 까닭
+      const dd = function (label, value) { return '<div><dt>' + esc(label) + '</dt><dd>' + value + '</dd></div>'; };
+      const sales = C.changeSales(c);
+      $('#amount-title').innerHTML = '<span class="num">2</span>변경 내용';
+      $('#amount').innerHTML = '<dl class="info-grid">' + [
+        dd('원계약', '<a href="contract.html?id=' + encodeURIComponent(rootId) + '">' + esc(c.parentId) + '</a>'),
+        dd('변경 종류', esc(D.CHANGE_TYPES[c.changeType])),
+        c.changeType === 'PERIOD'
+          ? dd('계약 기간', C.fmtDate(c.oldEndDate) + ' 종료 → ' + C.fmtDate(c.endDate) + ' 종료')
+          : dd('충전 수량', num(c.changeQty) + '건' + (c.changeAmount ? ', 금액 ' + won(c.changeAmount) + ' (부가세 별도)' : ' (무상)')),
+        dd('변경 사유', esc(c.reason || '-')),
+        dd('CRM 영업활동', c.activityUrl ? '<a href="#" class="doc-link" data-activity>' + esc(c.activityUrl) + '</a>' : '-'),
+        dd('③ 영업 검토', (sales[0] ? '거침: ' : '생략: ') + esc(sales[1])),
+        dd('⑨ 반영', hrChange ? '재무기획(수불부)' : 'CEM'),
+      ].join('') + '</dl>';
+      return;
+    }
     if (short) {
       // 해지 내용, 갱신 내용 (REQ-ARC-06, 07)
       const dd = function (label, value) { return '<div><dt>' + esc(label) + '</dt><dd>' + value + '</dd></div>'; };
@@ -279,6 +331,11 @@
     return C.badge('line', '-');
   }
   function renderChecklist() {
+    if (change) {
+      $('#checklist').innerHTML = '<p class="empty">운영 변경은 체크리스트 대신 변경 종류와 기준(기간 ' + D.CHANGE_RULES.periodMonths +
+        '개월, 무상 충전 ' + D.CHANGE_RULES.freeQty + '건)으로 영업 검토를 정합니다.</p>';
+      return;
+    }
     if (short) {
       $('#checklist').innerHTML = '<p class="empty">' + (isTerm ? '해지 기안' : '갱신 검토') + '은 체크리스트 없이 ③ 부서장과 ④ 법무가 결재합니다.</p>';
       return;
@@ -328,7 +385,8 @@
         // 대신 처리한 기록: 대리 지정이면 "대리 지정"과 근거, 슈퍼관리자 시연이면 "시연"
         const who = esc(C.userName(h.actorId)) + '님' + (h.onBehalfOf ? ' <span class="behalf">(' + esc(C.userName(h.onBehalfOf)) + '님 대신, ' + (h.delegationId ? '대리 지정' : '시연') + ')</span>' : '');
         // 체결본 등록은 올린 파일 이름도 함께
-        const extra = [h.fileName ? '파일: ' + esc(h.fileName) : '', h.basis ? '대리 근거: ' + esc(h.basis) : ''].filter(Boolean);
+        const extra = [h.fileName ? '파일: ' + esc(h.fileName) : '', h.basis ? '대리 근거: ' + esc(h.basis) : '',
+          h.action === 'RESUBMIT' ? (h.restart ? '금액이나 체크리스트 답을 바꿔 계약 검토를 처음부터 다시' : '요청한 단계부터 이어서 결재') : ''].filter(Boolean);
         const note = (h.comment ? esc(h.comment) : '') + (extra.length ? (h.comment ? '<br>' : '') + '<span class="behalf">' + extra.join('<br>') + '</span>' : '');
         return '<tr><td class="nowrap num-left">' + C.fmtDateTime(h.at) + '</td><td class="num">' + (h.round || 1) + '차</td>' +
           '<td class="nowrap">' + esc(D.STEPS[h.step].no + ' ' + D.STEPS[h.step].short) + '</td>' +
@@ -341,15 +399,16 @@
    *   ②~⑤: 반려, 승인 / ⑥: 반려, 날인 완료 / ⑦: 체결본 등록 / ⑧: 반려, 다시 등록 요청, 확인 완료
    *   ⑨: 운영 적용 완료 / ⑩: 재무 확인 완료 (⑨⑩에는 반려가 없음 [가정]) */
   const STEP_ACTIONS = { S06: ['REJECT', 'APPROVE'], S07: ['REGISTER'], S08: ['REJECT', 'RETURN', 'APPROVE'], S09: ['APPROVE'], S10: ['APPROVE'] };
-  function actionsOf(code) { return C.isReviewStep(code) ? ['REJECT', 'APPROVE'] : STEP_ACTIONS[code]; }
+  //   ②~⑤는 보완 요청도 (REQ-REV-11, v0.26 재무 요청 반영: 영업이 잘못 적었을 때 그 단계부터 다시)
+  function actionsOf(code) { return C.isReviewStep(code) ? ['REJECT', 'SUPPLEMENT', 'APPROVE'] : STEP_ACTIONS[code]; }
   // ⑨ 버튼 이름: 해지는 운영 종료, 그대로 연장은 기간 연장
-  const S09_BTN = isTerm ? '운영 종료 완료' : c.renewMode === 'AUTO' ? '기간 연장 완료' : D.STEPS.S09.doneAction;
+  const S09_BTN = change ? '운영 변경 완료' : isTerm ? '운영 종료 완료' : c.renewMode === 'AUTO' ? '기간 연장 완료' : D.STEPS.S09.doneAction;
   function buttonLabel(action, code) {
     if (action === 'APPROVE' && code === 'S09') return S09_BTN;
     if (action === 'APPROVE') return C.isReviewStep(code) ? '승인' : D.STEPS[code].doneAction;
     return D.APPROVAL_ACTIONS[action].label;
   }
-  const BTN_CLASS = { APPROVE: 'btn--primary', REGISTER: 'btn--primary', REJECT: 'btn--tertiary btn-reject', RETURN: 'btn--tertiary' };
+  const BTN_CLASS = { APPROVE: 'btn--primary', REGISTER: 'btn--primary', REJECT: 'btn--tertiary btn-reject', RETURN: 'btn--tertiary', SUPPLEMENT: 'btn--tertiary' };
   function buttonsHtml(code) {
     return actionsOf(code).map(function (a) {
       return '<button type="button" class="btn ' + BTN_CLASS[a] + ' btn--md" data-open="' + a + '" data-step="' + code + '">' + esc(buttonLabel(a, code)) + '</button>';
@@ -357,15 +416,21 @@
   }
   function renderActions() {
     const bar = $('#action-bar');
-    if (!actionable.length && !cancelable.length) { bar.hidden = true; return; }
+    if (!actionable.length && !cancelable.length && !canResubmit) { bar.hidden = true; return; }
     let html = '';
+    if (canResubmit) {
+      // 보완 완료: 기안자(시연에서는 슈퍼관리자도)
+      html += '<div class="act-row"><p class="act-target"><strong>' + esc(C.stepLabel(c.supplement.step)) + ' 보완 요청</strong>' +
+        (me.id === c.requesterId ? '' : ' <span class="behalf">' + esc(C.userName(c.requesterId)) + '님 대신 (시연)</span>') + '</p>' +
+        '<div class="act-btns"><button type="button" class="btn btn--primary btn--md" data-open="RESUBMIT" data-step="S01">보완 완료</button></div></div>';
+    }
     if (actionable.length) {
       // 슈퍼관리자는 ④⑤처럼 동시에 차례인 단계 중 하나를 골라 대신 처리 (프로토타입 전용)
       const pick = actionable.length > 1
         ? '<label class="act-pick">처리할 단계 <select class="select" id="act-step">' + actionable.map(function (s) {
             return '<option value="' + s.step + '">' + esc(C.stepLabel(s.step)) + ' (' + esc(C.userName(s.userId)) + '님)</option>';
           }).join('') + '</select></label>'
-        : '<p class="act-target"><strong>' + esc(C.stepLabel(actionable[0].step)) + '</strong>' +
+        : '<p class="act-target"><strong>' + esc(C.stepLabel(actionable[0].step, c)) + '</strong>' +
           (actionable[0].userId === me.id ? '' : ' <span class="behalf">' + (behalfText(actionable[0]) || esc(C.userName(actionable[0].userId)) + '님 대신 (시연)') + '</span>') + '</p>';
       html += '<div class="act-row">' + pick + '<div class="act-btns" id="act-btns">' + buttonsHtml(actionable[0].step) + '</div></div>';
     }
@@ -394,10 +459,16 @@
       desc: code === 'S08' ? '계약 내용이 승인본과 다를 때 씁니다. 반려하면 기안자에게 돌아가고, 기안자가 보완해 다음 차수로 다시 기안해 결재를 처음부터 받습니다.'
         : code === 'S06' ? '계약서 실물이 이 문서와 다를 때 씁니다. 반려하면 기안자에게 돌아가고, 기안자가 보완해 다음 차수로 다시 기안합니다.'
         : '반려하면 기안자에게 돌아가고, 기안자가 보완해 다음 차수로 다시 기안합니다.' };
+    if (action === 'SUPPLEMENT') return { title: '보완을 요청할까요?', label: '보완할 내용 (필수)', btn: '보완 요청', required: true, tone: 'secondary',
+      desc: '요청하면 기안자에게 돌아갑니다. 기안자가 고치면 이 단계부터 이어서 결재하고, 금액이나 체크리스트 답이 바뀌면 계약 검토를 처음부터 다시 받습니다.' };
+    if (action === 'RESUBMIT') return { title: '보완을 마쳤나요?', label: '고친 내용 (필수)', btn: '보완 완료', required: true, tone: 'primary', restart: true,
+      desc: '보완 완료를 누르면 ' + D.STEPS[c.supplement.step].no + '부터 이어서 결재합니다. 실제 시스템에서는 계약 등록 화면에서 고친 뒤 누릅니다.' };
     if (action === 'RETURN') return { title: '체결본을 다시 올려 달라고 할까요?', label: '요청 사유 (필수)', btn: '다시 등록 요청', required: true, tone: 'secondary',
       desc: '오탈자나 스캔 문제처럼 계약 내용은 같을 때 씁니다. 영업이 체결본을 다시 올리면 다시 확인합니다.' };
     if (action === 'REGISTER') return { title: '체결본을 등록할까요?', label: '메모 (선택)', btn: '체결본 등록', required: false, tone: 'primary', file: true,
       desc: '등록하면 세일즈어드민이 승인된 내용과 같은지 확인합니다. 등록한 체결본은 고치거나 지울 수 없습니다.' };
+    if (code === 'S04' && legalNote) return { title: '승인할까요?', label: '바꾼 조항과 판단 (필수)', btn: '승인', required: true, tone: 'primary',
+      desc: '승인하면 다음 단계로 넘어갑니다. 표준계약서를 바꾼 계약이라 바꾼 조항과 받아들인 판단을 꼭 적습니다(조항 대비표 참고).' };
     if (C.isReviewStep(code)) return { title: '승인할까요?', label: '의견 (선택)', btn: '승인', required: false, tone: 'primary',
       desc: '승인하면 다음 단계로 넘어갑니다.' };
     const acc = c.checklist && c.checklist.accounting === 'YES';
@@ -410,9 +481,10 @@
       S08: { title: '체결본 확인을 완료할까요?', label: '메모 (선택)', btn: '확인 완료', required: false, tone: 'primary',
         desc: '완료하면 운영 검토로 넘어가 CEM이 운영에 적용할 차례가 됩니다.',
         legend: '확인한 내용 (모두 확인)', checks: ['체결본이 승인된 계약 내용과 같음', '양쪽 서명과 날인이 모두 있음'] },
-      S09: { title: isTerm ? '운영 종료를 완료할까요?' : c.renewMode === 'AUTO' ? '기간 연장을 완료할까요?' : '운영 적용을 완료할까요?',
+      S09: { title: change ? '운영 변경을 완료할까요?' : isTerm ? '운영 종료를 완료할까요?' : c.renewMode === 'AUTO' ? '기간 연장을 완료할까요?' : '운영 적용을 완료할까요?',
         label: '메모 (선택)', btn: S09_BTN, required: false, tone: 'primary',
-        desc: '완료하면 재무 확인 차례가 됩니다.', legend: '서비스에 한 일 (모두 확인)', checks: ops },
+        desc: change ? '완료하면 운영 변경이 끝나고 ' + (c.changeType === 'PERIOD' ? '계약 묶음의 계약 기간이 새 종료일로 바뀝니다.' : '충전 내역이 계약 묶음에 남습니다.')
+          : '완료하면 재무 확인 차례가 됩니다.', legend: '서비스에 한 일 (모두 확인)', checks: ops },
       S10: { title: '재무 확인을 완료할까요?', label: '메모 (선택)', btn: '재무 확인 완료', required: false, tone: 'primary',
         desc: isTerm ? '완료하면 해지가 끝나 원계약이 해지 상태가 됩니다. 환불과 위약금: ' + (c.refundNote || '없음')
           : c.renewMode === 'AUTO' ? '완료하면 갱신이 끝나 새 계약 기간(' + C.fmtDate(c.startDate) + ' ~ ' + C.fmtDate(c.endDate) + ')이 적용됩니다.'
@@ -422,7 +494,8 @@
     }[code];
   }
   function openModal(action, stepCode) {
-    const s = c.approvals.find(function (x) { return x.step === stepCode; });
+    // 보완 완료는 결재 단계가 아닌 기안(①)에서 하는 일
+    const s = stepCode === 'S01' ? { step: 'S01', userId: c.requesterId } : c.approvals.find(function (x) { return x.step === stepCode; });
     const t = modalText(action, stepCode);
     pending = { action: action, step: s, t: t };
     fileName = '';
@@ -437,6 +510,9 @@
       extra += '<fieldset class="field act-checks" id="act-checks"><legend class="field-label">' + esc(t.legend) + '</legend>' +
         t.checks.map(function (x) { return '<label class="choice"><input type="checkbox" value="' + esc(x) + '">' + esc(x) + '</label>'; }).join('') +
         '<p class="field-error" id="act-checks-error" hidden></p></fieldset>';
+    }
+    if (t.restart) {
+      extra += '<div class="field"><label class="choice"><input type="checkbox" id="act-restart">금액이나 체크리스트 답을 바꿨습니다 (계약 검토를 ② 체크리스트 검토부터 다시 받습니다)</label></div>';
     }
     if (t.file) {
       extra += '<div class="field act-file" id="act-file"><label class="field-label" for="act-file-input">체결본 파일 (필수)</label>' +
@@ -475,6 +551,7 @@
   const DONE_MSG = {
     APPROVE: '승인했습니다.', REJECT: '반려했습니다. 기안자에게 돌아갑니다.', CANCEL: '승인을 취소했습니다.',
     REGISTER: '체결본을 등록했습니다.', RETURN: '체결본을 다시 올려 달라고 요청했습니다.',
+    SUPPLEMENT: '보완을 요청했습니다. 기안자에게 돌아갑니다.', RESUBMIT: '보완을 마쳤습니다.',
     S06: '날인 완료로 처리했습니다.', S08: '완료했습니다.', S09: '완료했습니다.', S10: '완료했습니다.',
   };
   function confirmAction() {
@@ -488,7 +565,10 @@
     }
     if (t.file && !fileName) { showError('#act-file-error', '#act-file', '체결본 파일을 고르세요.'); ok = false; }
     if (t.required && !memo) {
-      $('#act-error').innerHTML = C.icon('alert', 'sm') + t.label.replace(' (필수)', '') + '를 적어 주세요.';
+      // 받침에 따라 "을"과 "를" (예: 반려 사유를, 보완할 내용을)
+      const word = t.label.replace(' (필수)', '');
+      const code = word.charCodeAt(word.length - 1) - 0xAC00;
+      $('#act-error').innerHTML = C.icon('alert', 'sm') + esc(word) + (code >= 0 && code < 11172 && code % 28 ? '을' : '를') + ' 적어 주세요.';
       $('#act-error').hidden = false;
       $('#act-field').classList.add('is-invalid');
       ok = false;
@@ -496,12 +576,14 @@
     if (!ok) { const bad = modal.querySelector('.is-invalid input, .is-invalid textarea'); if (bad) bad.focus(); return; }
     const s = pending.step;
     const comment = [t.checks ? '확인: ' + t.checks.join(', ') : '', memo].filter(Boolean).join('. ');
-    C.recordAction(c, s, pending.action, comment, me, t.file ? { fileName: fileName } : null);
+    const restart = t.restart && $('#act-restart') && $('#act-restart').checked;
+    C.recordAction(c, s, pending.action, comment, me, t.file ? { fileName: fileName } : restart ? { restart: true } : null);
     // 다음 차례 안내
     const now = C.pendingSteps(c).map(function (x) { return C.stepLabel(x.step) + ' (' + C.userName(x.userId) + '님)'; }).join(', ');
     let next = '';
-    if (pending.action !== 'REJECT' && pending.action !== 'CANCEL') {
-      next = c.status === 'TERMINATED' ? ' 해지가 끝나 원계약이 해지 상태가 되었습니다.'
+    if (pending.action !== 'REJECT' && pending.action !== 'CANCEL' && pending.action !== 'SUPPLEMENT') {
+      next = c.status === 'ACTIVE' && change ? ' 운영 변경이 끝났습니다.'
+        : c.status === 'TERMINATED' ? ' 해지가 끝나 원계약이 해지 상태가 되었습니다.'
         : c.status === 'ACTIVE' ? (c.renewMode === 'AUTO' ? ' 갱신이 끝나 새 계약 기간이 적용되었습니다.' : ' 계약 완료로 보관함에 들어갔습니다.')
         : c.status === 'APPROVED' && C.isReviewStep(s.step) ? ' 계약 검토가 모두 끝나 체결 대기가 되었습니다. 다음 차례: ' + now
         : now ? ' 다음 차례: ' + now : '';
@@ -531,6 +613,11 @@
       if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
       else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
     }
+  });
+  $('#amount').addEventListener('click', function (e) {
+    if (!e.target.closest('[data-activity]')) return;
+    e.preventDefault();
+    C.toast('CRM 영업활동 기록은 기존 CRM에서 열립니다. 시안에서는 열리지 않습니다.');
   });
   // 첨부 미리보기, 내려받기 (프로토타입은 안내만)
   $('#files').addEventListener('click', function (e) {

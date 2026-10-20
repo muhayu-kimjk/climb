@@ -61,10 +61,10 @@
   $('#btn-cancel').href = back;
 
   const route = [
-    { no: '③', name: '영업 검토', who: '부서장 ' + D.USERS.u_head.name, reason: '그대로 연장이 영업상 맞는지 승인' },
-    { no: '④', name: '법무 검토', who: '법무 ' + D.USERS.u_legal.name, reason: '연장 조건과 법적 위험 검토' },
-    { no: '⑨', name: '운영 적용 (기간 연장)', who: 'CEM ' + D.USERS.u_cem.name, reason: '라이선스나 도메인 기간 연장' },
-    { no: '⑩', name: '재무 확인', who: '재무 ' + D.USERS.u_finance.name, reason: '연장된 기간의 매출 인식 확인' },
+    { no: '③', name: '영업 검토', who: '팀 리더 ' + C.userName(C.stepUserNow('S03', root)), reason: '그대로 연장이 영업상 맞는지 승인' },
+    { no: '④', name: '법무 검토', who: '법무 ' + C.userName(C.stepUserNow('S04', root)), reason: '연장 조건과 법적 위험 검토' },
+    { no: '⑨', name: '운영 적용 (기간 연장)', who: 'CEM ' + C.userName(C.stepUserNow('S09', root)), reason: '라이선스나 도메인 기간 연장' },
+    { no: '⑩', name: '재무 확인', who: '재무 ' + C.userName(C.stepUserNow('S10', root)), reason: '연장된 기간의 매출 인식 확인' },
   ];
   $('#route').innerHTML = '<ol class="route-list">' + route.map(function (it) {
     return '<li class="is-go"><span class="route-no" aria-hidden="true">' + it.no + '</span>' +
@@ -132,7 +132,7 @@
       startDate: $('#f-start').value, endDate: $('#f-end').value, autoRenew: 'YES', noticeDays: b.noticeDays, reason: $('#f-reason').value.trim(),
     };
     C.saveDemoContract(rec);
-    C.flash(newId + ' 갱신 검토(그대로 연장)를 기안했습니다. 다음 차례: ③ 영업 검토 (' + D.USERS.u_head.name + '님)');
+    C.flash(newId + ' 갱신 검토(그대로 연장)를 기안했습니다. 다음 차례: ③ 영업 검토 (' + C.userName(C.stepUserNow('S03', root)) + '님)');
     location.href = 'review.html?id=' + encodeURIComponent(newId);
   });
   document.addEventListener('keydown', function (e) { if (!modal.hidden && e.key === 'Escape') modal.hidden = true; });

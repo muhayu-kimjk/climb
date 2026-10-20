@@ -98,7 +98,7 @@
    * 단계마다 단계 번호, 단계 이름, 건수만 보여 주고 아래 작은 설명 글은 두지 않습니다. (v0.14) */
   const STEPS = [
     { label: '계약 등록', statuses: ['DRAFT'], target: '내 등록 목록', scr: 'SCR-12', href: 'my-contracts.html' },
-    { label: '계약 검토', statuses: ['IN_REVIEW', 'REJECTED'], target: '전체 진행 현황', scr: 'SCR-20', href: 'progress.html?status=REVIEW' },
+    { label: '계약 검토', statuses: ['IN_REVIEW', 'SUPPLEMENT', 'REJECTED'], target: '전체 진행 현황', scr: 'SCR-20', href: 'progress.html?status=REVIEW' },
     // 계약 체결: 영업은 체결 대기 화면, 그 외는 전체 진행 현황(체결 대기로 거름)
     { label: '계약 체결', statuses: ['APPROVED'], target: '체결 대기', scr: 'SCR-31', href: isSales ? 'signing.html' : 'progress.html?status=APPROVED' },
     { label: '운영 검토', statuses: ['OPS_REVIEW'], target: '전체 진행 현황', scr: 'SCR-20', href: 'progress.html?status=OPS_REVIEW' },
@@ -124,7 +124,7 @@
     }).join('');
 
     // 진행 상세: 아직 진행 중인 계약(작성 중, 검토 중, 반려, 체결 대기, 운영 검토). 계약 완료는 보관함에서 봄
-    const order = { DRAFT: 0, IN_REVIEW: 1, REJECTED: 1, APPROVED: 2, OPS_REVIEW: 3 };
+    const order = { DRAFT: 0, IN_REVIEW: 1, SUPPLEMENT: 1, REJECTED: 1, APPROVED: 2, OPS_REVIEW: 3 };
     const dateOf = function (c) { return c.requestedAt || c.savedAt; };
     const rows = scope
       .filter(function (c) { return order[c.status] != null; })

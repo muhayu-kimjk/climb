@@ -282,13 +282,15 @@
     else if (pc.q2 === 'NO' && pc.q3 === 'YES') sales = ['skip', '할인율 한도 이내'];
     else if (pc.q3 === 'NO') sales = ['go', '할인율 한도를 넘김'];
     else sales = ['wait', '금액 계산을 기다림'];
-    const head = D.USERS.u_head;
+    // ③ 영업 검토는 기안자 팀의 리더 (리더 본인 계약은 영업 담당 임원, v0.26 재무 문서 반영)
+    const req = { requesterId: (source && source.requesterId) || me.id };
+    const name = function (code) { return C.userName(C.stepUserNow(code, req)); };
     return [
       { stage: '2단계 계약 검토 (② 다음 ③, 그 다음 ④와 ⑤ 동시)', items: [
         { no: '②', name: '체크리스트 검토', who: '세일즈어드민', state: 'go', reason: '어떤 경우에도 생략하지 않음' }, // REQ-CHK-02
-        { no: '③', name: '영업 검토', who: '부서장 ' + head.name, state: sales[0], reason: sales[1] }, // 가격 예외 승인, 법무보다 먼저 (v0.20)
-        { no: '④', name: '법무 검토', who: '법무 ' + D.USERS.u_legal.name, state: legal[0], reason: legal[1] },
-        { no: '⑤', name: '개인정보 검토', who: '개인정보 담당 ' + D.USERS.u_privacy.name, state: privacy[0], reason: privacy[1] },
+        { no: '③', name: '영업 검토', who: '팀 리더 ' + name('S03'), state: sales[0], reason: sales[1] }, // 가격 예외 승인, 법무보다 먼저 (v0.20)
+        { no: '④', name: '법무 검토', who: '법무 ' + name('S04'), state: legal[0], reason: legal[1] },
+        { no: '⑤', name: '개인정보 검토', who: '개인정보 담당 ' + name('S05'), state: privacy[0], reason: privacy[1] },
       ] },
       { stage: '3단계 계약 체결', items: [
         { no: '⑥', name: '인장 날인 검토', who: '총무', state: 'go', reason: '기초 정보 확인 후 인장 날인' },
@@ -297,7 +299,7 @@
       ] },
       { stage: '4단계 운영 검토', items: [
         { no: '⑨', name: '운영 적용', who: 'CEM', state: 'go', reason: '라이선스나 도메인 열기' },
-        { no: '⑩', name: '재무 확인', who: '재무 ' + D.USERS.u_finance.name, state: 'go', reason: '회계 인식 (결재선에는 없음)' },
+        { no: '⑩', name: '재무 확인', who: '재무 ' + name('S10'), state: 'go', reason: '회계 인식 (결재선에는 없음)' },
       ] },
       { stage: '5단계 계약 완료', items: [
         { no: '⑪', name: '계약 완료', who: '보관함', state: 'go', reason: '계약 완료 기록으로 보관' },
@@ -342,7 +344,8 @@
     renderYearly();
     // 체크리스트
     const q1 = val('standard');
-    $('#q1-result').textContent = q1 === 'YES' ? '④ 법무 검토를 생략합니다.' : q1 === 'NO' ? '④ 법무 검토를 거칩니다.' : '';
+    $('#q1-result').textContent = q1 === 'YES' ? '④ 법무 검토를 생략합니다.' : q1 === 'NO' ? '④ 법무 검토를 거칩니다. 첨부에 조항 대비표를 올리세요.' : '';
+    $('#diff-field').hidden = q1 !== 'NO'; // 조항 대비표는 표준계약서를 바꿨을 때만 (v0.27)
     // 4번: 결재선은 그대로, 기안하면 재무에 이메일로 알림 (REQ-CHK-08, REQ-ENV-10)
     const q4 = val('accounting');
     $('#q4-result').textContent = q4 === 'YES' ? '기안하면 재무 ' + D.USERS.u_finance.name + '님에게 이메일로 알립니다. 결재선은 바뀌지 않습니다.' : '';
@@ -411,7 +414,7 @@
   }
 
   /* ---------- 파일 첨부 (KRDS 파일 업로드, 프로토타입은 이름만) ---------- */
-  const files = { draft: [], quote: [] };
+  const files = { draft: [], diff: [], quote: [] }; // diff: 조항 대비표 (표준계약서를 바꾸면 필수, v0.27)
   function fmtSize(b) { return b >= 1048576 ? (b / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(b / 1024)) + 'KB'; }
   function renderFiles(key) {
     $('#' + key + '-list').innerHTML = files[key].map(function (f, i) {
@@ -421,11 +424,12 @@
   }
   function addFiles(key, list) {
     Array.prototype.forEach.call(list, function (f) { files[key].push({ name: f.name, size: f.size }); });
-    if (key === 'quote') files.quote = files.quote.slice(-1);
+    if (key === 'quote' || key === 'diff') files[key] = files[key].slice(-1);
     renderFiles(key);
     if (key === 'draft') clearError($('#f-draft'));
+    if (key === 'diff') clearError($('#f-diff'));
   }
-  [['draft', '#f-draft'], ['quote', '#f-quote']].forEach(function (pair) {
+  [['draft', '#f-draft'], ['diff', '#f-diff'], ['quote', '#f-quote']].forEach(function (pair) {
     $(pair[1]).addEventListener('change', function (e) { addFiles(pair[0], e.target.files); e.target.value = ''; });
   });
   $$('.file-drop').forEach(function (drop) {
@@ -524,6 +528,7 @@
     if (val('accounting') === 'YES') need(!!val('accountingNote'), 'accountingNote', '4번이 "예"이면 비고에 어떤 조건인지 적으세요.');
 
     need(files.draft.length > 0, 'draftFile', '계약서 초안을 첨부하세요.', $('#f-draft'));
+    if (val('standard') === 'NO') need(files.diff.length > 0, 'diffFile', '표준계약서를 바꿨으면 조항 대비표를 첨부하세요.', $('#f-diff'));
     return errors;
   }
 
@@ -642,6 +647,7 @@
     $('#f-memo').value = f.memo || '';
     (f.products || []).forEach(function (p) { addProduct(p); });
     if (source.status === 'REJECTED') { files.draft.push({ name: source.counterparty + ' 계약서 1차 기안본.docx', size: 84000 }); renderFiles('draft'); }
+    if (source.status === 'REJECTED' && f.checklist && f.checklist.standard === 'NO') { files.diff.push({ name: source.counterparty + ' 조항 대비표.docx', size: 36000 }); renderFiles('diff'); }
   }
   // 계약 상세, 만료 예정에서 "변경 기안", "갱신 기안"으로 들어오면 구분과 원계약을 미리 고름
   //   new-contract.html?kind=AMEND&origin=CT-2026-0105 (REQ-ARC-02, 05)

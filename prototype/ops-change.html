@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 브라우저 탭 제목: CLIMB (REQ-NAME-02) -->
+  <title>CLIMB</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/common.css">
+  <link rel="stylesheet" href="assets/css/form.css">
+  <link rel="stylesheet" href="assets/css/new-contract.css">
+  <link rel="stylesheet" href="assets/css/review.css">
+</head>
+<!-- =====================================================================
+  SCR-14 운영 변경 기안 (docs/02_화면목록.md)
+  - 계약서는 그대로 두고 계약 기간을 바꾸거나(연장, 단축) 수량을 추가 충전할 때 쓰는 가벼운 기안입니다.
+    번호는 원계약에 묶인 -C01. (기획자 결정 v0.26: 재무 문서의 "본 계약 체결 이후 수정에 관한 절차" 반영, REQ-CHG-06~11)
+  - 한 번에 한 가지만 변경합니다(재무 문서 원칙). 계약서 내용이 바뀌면 변경 기안(-A, 전체 결재)을 씁니다.
+  - 결재: [③ 영업 검토: 기간이 2개월 넘게 바뀌거나 무상 충전이 50건을 넘을 때만] → ⑨ 운영 변경(기간 변경, CK 충전은 CEM, HR 충전은 재무기획) → 끝
+  - 변경 사유는 CRM 영업활동에 적고 그 링크를 남깁니다(재무 문서).
+  - 들어오는 곳: 계약 상세(SCR-42)의 "운영 변경 기안". 주소: ops-change.html?origin=원계약 번호
+  - 프로토타입: 기안한 운영 변경은 이 브라우저에만 저장됩니다(시연 띠의 "시연 기록 지우기"로 되돌림).
+====================================================================== -->
+<body data-page="SCR-14">
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <div id="demo-bar"></div>
+
+  <div class="sheet">
+  <header id="site-header"></header>
+
+  <main id="main" class="page">
+    <div class="inner">
+      <div class="page-head page-head--sub">
+        <h1 class="page-title">운영 변경 기안</h1>
+      </div>
+      <div class="page-intro">
+        <p>계약서는 그대로 두고 계약 기간을 바꾸거나 수량을 추가 충전할 때 씁니다. 한 번에 한 가지만 바꿉니다.</p>
+        <p class="sub"><span class="req" aria-hidden="true">*</span> 표시는 꼭 입력해야 하는 항목입니다. 계약서 내용이 바뀌는 변경은 계약 상세의 "변경 기안"으로 하세요.</p>
+      </div>
+
+      <div id="notice"></div>
+      <div class="error-summary" id="error-summary" role="alert" tabindex="-1" hidden></div>
+
+      <form id="form" class="form-stack" novalidate hidden>
+        <section class="panel" aria-labelledby="sec-origin">
+          <h2 class="section-title" id="sec-origin"><span class="num">1</span>변경할 계약</h2>
+          <dl class="info-grid" id="origin"></dl>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-what">
+          <h2 class="section-title" id="sec-what"><span class="num">2</span>변경 내용</h2>
+          <p class="section-desc" id="number-help"></p>
+          <fieldset class="field" data-field="type">
+            <legend class="field-label">변경 종류<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
+            <div class="choice-col" id="type-choices"></div>
+            <p class="field-help">계약 기간과 추가 충전을 함께 바꿔야 하면 기안을 따로 올립니다.</p>
+            <p class="field-error" hidden></p>
+          </fieldset>
+
+          <!-- 계약 기간 변경 -->
+          <div id="period-box" hidden>
+            <div class="field" data-field="end">
+              <label class="field-label" for="f-end">새 계약 종료일<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+              <input class="input" id="f-end" type="date">
+              <p class="field-help" id="period-help"></p>
+              <p class="field-error" hidden></p>
+            </div>
+          </div>
+          <!-- 추가 충전 -->
+          <div id="qty-box" hidden>
+            <div class="field-row">
+              <div class="field" data-field="qty">
+                <label class="field-label" for="f-qty">충전 수량<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+                <div class="input-unit"><input class="input" id="f-qty" type="text" inputmode="numeric" placeholder="0"><span class="unit">건</span></div>
+                <p class="field-help" id="qty-help"></p>
+                <p class="field-error" hidden></p>
+              </div>
+              <div class="field" data-field="amount" id="amount-field" hidden>
+                <label class="field-label" for="f-amount">충전 금액<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+                <div class="input-unit"><input class="input" id="f-amount" type="text" inputmode="numeric" placeholder="0"><span class="unit">원</span></div>
+                <p class="field-help">부가세 별도</p>
+                <p class="field-error" hidden></p>
+              </div>
+            </div>
+          </div>
+
+          <div class="field" data-field="reason">
+            <label class="field-label" for="f-reason">변경 사유<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+            <textarea class="textarea textarea--sm" id="f-reason" placeholder="예: 학기 말 검사 집중으로 검사 건수 소진. 다음 학기 증액 전까지 무상 제공"></textarea>
+            <p class="field-error" hidden></p>
+          </div>
+          <div class="field" data-field="activity">
+            <label class="field-label" for="f-activity">CRM 영업활동 링크<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+            <input class="input" id="f-activity" type="url" placeholder="https://" autocomplete="off">
+            <p class="field-help">변경 사유를 CRM 영업활동에 적고 그 주소를 넣습니다.</p>
+            <p class="field-error" hidden></p>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-route">
+          <h2 class="section-title" id="sec-route"><span class="num">3</span>결재선</h2>
+          <p class="section-desc" id="route-desc"></p>
+          <div id="route"></div>
+        </section>
+
+        <div class="form-actions">
+          <a class="btn btn--tertiary btn--md" id="btn-cancel" href="#">취소</a>
+          <button type="submit" class="btn btn--primary btn--md">기안하기</button>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+  </div><!-- /.sheet -->
+
+  <!-- 기안 확인 창 -->
+  <div class="modal-backdrop" id="confirm-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <h2 class="modal-title" id="confirm-title">운영 변경을 기안할까요?</h2>
+      <div class="modal-body" id="confirm-body"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn--tertiary btn--md" data-act="close">닫기</button>
+        <button type="button" class="btn btn--primary btn--md" data-act="confirm">기안하기</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/js/mock-data.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/ops-change.js"></script>
+</body>
+</html>

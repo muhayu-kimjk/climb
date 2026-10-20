@@ -43,6 +43,7 @@ Projects/CLM
    ├─ new-contract.html    SCR-11 새 계약 등록 (?id= 로 이어서 작성, 보완 후 재기안, ?kind=&origin= 으로 변경, 갱신)
    ├─ my-contracts.html    SCR-12 내 등록 목록 (영업)
    ├─ terminate.html       SCR-13 해지 기안 (?origin=원계약 번호)
+   ├─ ops-change.html      SCR-14 운영 변경 기안 (기간 변경, 추가 충전. ?origin=원계약 번호)
    ├─ progress.html        SCR-20 전체 진행 현황
    ├─ review-queue.html    SCR-21 검토 대기
    ├─ review-done.html     SCR-22 검토 완료
@@ -95,6 +96,7 @@ Projects/CLM
       ├─ js/contract.js    계약 상세 화면 로직 (사후관리 기록 남기기)
       ├─ js/expiring.js    만료 예정 계약 화면 로직
       ├─ js/terminate.js   해지 기안 화면 로직
+      ├─ js/ops-change.js  운영 변경 기안 화면 로직
       ├─ js/renewal.js     갱신 검토 화면 로직
       └─ img/favicon.svg   브라우저 탭 아이콘 (무하유 심볼 Black 원본. favicon.png는 SVG를 못 읽는 브라우저용)
 ```

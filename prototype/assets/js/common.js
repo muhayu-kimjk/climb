@@ -65,6 +65,7 @@ window.CLIMB = (function () {
     logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
     help: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
     check: '<circle cx="12" cy="12" r="10"/><path d="m8 12.5 2.8 2.8L16.5 9.5"/>',
+    arrowUp: '<path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>',
   };
   function icon(name, size) {
     const cls = 'icon' + (size ? ' icon--' + size : '');
@@ -156,7 +157,8 @@ window.CLIMB = (function () {
     return (codes || []).map(function (s) { return D.SERVICES[s] || s; }).join(', ') || '-';
   }
   // '② 체크리스트 검토'
-  function stepLabel(code) { const s = D.STEPS[code]; return s ? s.no + ' ' + s.name : code; }
+  // c를 주면 운영 변경의 ⑨는 "운영 변경"으로 (v0.26)
+  function stepLabel(code, c) { const s = D.STEPS[code]; if (c && code === 'S09' && c.kind === 'CHANGE') return s.no + ' 운영 변경'; return s ? s.no + ' ' + s.name : code; }
 
   /* ---------- 결재 흐름 계산 (요구사항 정의서 3.5, REQ-STEP-04, REQ-DOC-06, REQ-SIGN-01~06) ----------
    * 결재 기록(history)을 시간 순서대로 다시 적용해 단계마다 지금 상태(approvals)와 계약 상태를 만듭니다.
@@ -183,8 +185,39 @@ window.CLIMB = (function () {
   // 짧은 결재: 해지 기안(-T)과 갱신 검토의 "그대로 자동갱신"(-R) (REQ-ARC-06, 07)
   //   ③ 부서장 → ④ 법무 → ⑨ 운영(종료, 기간 연장) → ⑩ 재무. ②, ⑤와 ⑥~⑧(날인, 체결본)은 없음
   function isShort(c) { return c.kind === 'TERMINATE' || c.renewMode === 'AUTO'; }
-  // [거치는지, 까닭] (2단계 계약 검토만. 3, 4단계는 짧은 결재가 아니면 생략하는 단계가 없음)
+  /* 운영 변경(-C): 계약서는 그대로 두고 계약 기간을 바꾸거나 수량을 추가 충전 (REQ-CHG-06~11, 재무 문서 반영 v0.26)
+   *   [③ 영업 검토: 기간이 2개월 넘게 바뀌거나 무상 충전이 50건을 넘을 때만] → ⑨ 운영 변경 → 끝
+   *   ⑨는 기간 변경과 CK 충전은 CEM, HR 충전은 재무기획(수불부, 안정화까지). ②, ④~⑧, ⑩은 없음
+   *   한 번에 한 가지 변경만 (재무 문서 원칙). 계약서가 바뀌는 변경은 변경 계약(-A)으로 전체 결재 */
+  function isChange(c) { return c.kind === 'CHANGE'; }
+  function isoDate(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  // n개월 뒤 날짜. 말일이면 그 달의 말일로(6월 30일 + 2개월 = 8월 31일), 없는 날은 그 달 말일로(1월 31일 + 1개월 = 2월 28일)
+  function monthsLater(iso, n) {
+    const d = parseDate(iso);
+    const day = d.getDate(), isLast = day === new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    const last = new Date(d.getFullYear(), d.getMonth() + n + 1, 0).getDate();
+    return isoDate(new Date(d.getFullYear(), d.getMonth() + n, isLast ? last : Math.min(day, last)));
+  }
+  // 운영 변경에 ③ 영업 검토가 필요한지 [거치는지, 까닭]
+  function changeSales(c) {
+    const R = D.CHANGE_RULES;
+    if (c.changeType === 'PERIOD') {
+      const over = c.endDate > monthsLater(c.oldEndDate, R.periodMonths) || c.endDate < monthsLater(c.oldEndDate, -R.periodMonths);
+      return over ? [true, '기간이 ' + R.periodMonths + '개월 넘게 바뀜'] : [false, '기간 변경이 ' + R.periodMonths + '개월 이내'];
+    }
+    if (/_FREE$/.test(c.changeType)) {
+      return c.changeQty > R.freeQty ? [true, '무상 충전이 ' + R.freeQty + '건을 넘음'] : [false, '무상 충전 ' + R.freeQty + '건 이내'];
+    }
+    return [false, '유상 추가 충전은 영업 검토 없음'];
+  }
+  // [거치는지, 까닭] (2단계 계약 검토만. 3, 4단계는 짧은 결재와 운영 변경이 아니면 생략하는 단계가 없음)
   function reviewRoute(c) {
+    if (isChange(c)) {
+      return {
+        S02: [false, '운영 변경은 체크리스트 검토 없음'], S03: changeSales(c),
+        S04: [false, '운영 변경은 법무 검토 없음'], S05: [false, '운영 변경은 개인정보 검토 없음'],
+      };
+    }
     if (isShort(c)) {
       const what = c.kind === 'TERMINATE' ? '해지 기안' : '갱신 검토';
       return {
@@ -205,6 +238,35 @@ window.CLIMB = (function () {
       S05: c.personalData ? [true, '개인정보를 처리함'] : [false, '개인정보 처리 없음'],
     };
   }
+  /* 단계 담당자 (REQ-AUTH-06, 재무 문서 반영 v0.26)
+   *   ③ 영업 검토: 기안자 팀의 리더(TEAM_LEADERS). 리더 본인이 기안한 계약은 영업 담당 임원(STEP_ASSIGNEE.S03)
+   *   ⑦ 체결본 등록: 기안한 영업 / ⑨: 운영 변경의 HR 충전은 재무기획(⑩ 담당자)
+   *   직무 분리: 기안자가 ②, ⑧의 담당자(세일즈어드민)이면 재무 담당자가 대신 검토 (panda 시나리오 10)
+   *   at: 그 단계가 차례가 된 일시. 그 뒤에 담당자를 바꿔도 이미 차례인 단계는 그대로 (v0.25) */
+  function teamOf(userId) { return (D.USERS[userId] || {}).dept || ''; }
+  function leaderAt(team, at) {
+    let id = D.TEAM_LEADERS[team] || null;
+    D.ASSIGNEE_CHANGES.forEach(function (x) { if (x.step === 'S03:' + team && x.at <= at) id = x.to; });
+    return id;
+  }
+  function stepUser(code, c, at) {
+    if (code === 'S07') return c.requesterId;
+    if (code === 'S03') {
+      const lead = leaderAt(teamOf(c.requesterId), at);
+      return lead && lead !== c.requesterId ? lead : assigneeAt('S03', at);
+    }
+    if (code === 'S09' && isChange(c) && /^HR_/.test(c.changeType)) return assigneeAt('S10', at);
+    const id = assigneeAt(code, at);
+    if ((code === 'S02' || code === 'S08') && id === c.requesterId) return assigneeAt('S10', at);
+    return id;
+  }
+  // 결재란에 보이는 역할: 그 사람이 단계의 역할을 가졌으면 그 역할, 아니면 그 사람의 첫 역할(예: 대신 검토하는 재무)
+  function roleFor(userId, code) {
+    const want = D.STEPS[code].role;
+    const a = D.ACCOUNTS.filter(function (x) { return x.id === userId; })[0];
+    const roles = a ? a.roles : [(D.USERS[userId] || {}).role];
+    return roles.indexOf(want) > -1 ? want : roles[0] || want;
+  }
   // ⑨ 운영 적용 확인 항목: 계약의 서비스마다 (서비스가 둘 이상이면 서비스 이름을 앞에 붙임)
   //   table: 해지는 OPS_CHECKS_END(닫기), 그대로 자동갱신은 OPS_CHECKS_EXTEND(기간 연장)
   function opsChecks(services, table) {
@@ -214,18 +276,27 @@ window.CLIMB = (function () {
     }, []);
   }
   // 이 계약의 ⑨ 확인 항목. 금액이 없는 비밀유지계약은 운영에 적용할 것이 없으므로 그 사실만 확인 [가정]
+  //   운영 변경: 기간 변경은 OPS_CHECKS_PERIOD, 추가 충전은 충전 수량
   function opsChecksFor(c) {
+    if (isChange(c)) {
+      if (c.changeType === 'PERIOD') return opsChecks(c.services, D.OPS_CHECKS_PERIOD);
+      return /^CK_/.test(c.changeType) ? ['CK 추가 충전 ' + c.changeQty + '건 반영'] : ['수불부에 HR 추가 충전 ' + c.changeQty + '건 반영'];
+    }
     if (c.kind === 'TERMINATE') return opsChecks(c.services, D.OPS_CHECKS_END);
     if (c.renewMode === 'AUTO') return opsChecks(c.services, D.OPS_CHECKS_EXTEND);
     if (c.type === typeLabel('NDA')) return ['운영에 적용할 내용 없음(비밀유지계약)'];
     return opsChecks(c.services);
   }
   // 계약 구분 이름. 갱신 검토의 "그대로 자동갱신"은 따로 표시 (REQ-ARC-07)
-  function kindLabel(c) { return c.kind === 'RENEW' && c.renewMode === 'AUTO' ? '갱신(그대로 연장)' : D.KINDS[c.kind] || '-'; }
+  function kindLabel(c) {
+    if (isChange(c)) return '운영 변경(' + (D.CHANGE_TYPES[c.changeType] || '-') + ')';
+    return c.kind === 'RENEW' && c.renewMode === 'AUTO' ? '갱신(그대로 연장)' : D.KINDS[c.kind] || '-';
+  }
   // 차례일 때 현재 진행 칸에 쓰는 말 (해지와 자동갱신의 ⑨는 운영 종료, 기간 연장)
   function stepIng(c, code) {
     if (code === 'S09' && c.kind === 'TERMINATE') return 'CEM 운영 종료 중';
     if (code === 'S09' && c.renewMode === 'AUTO') return 'CEM 기간 연장 중';
+    if (code === 'S09' && isChange(c)) return (/^HR_/.test(c.changeType) ? '재무기획' : 'CEM') + ' 운영 변경 중';
     return D.STEPS[code].ing;
   }
   // 'YYYY-MM-DD'에 n일을 더함
@@ -246,7 +317,10 @@ window.CLIMB = (function () {
       const at = code === last ? c.approvedAt
         : code === 'S02' ? c.requestedAt.slice(0, 10) + ' 16:00'
         : c.approvedAt.slice(0, 10) + ' 11:00';
-      return { step: code, action: 'APPROVE', at: at, comment: '', actorId: D.STEP_ASSIGNEE[code], round: round };
+      // ④ 법무: 표준계약서를 바꾼 계약은 승인 의견 필수 (v0.27, C-20). 예시 기록에도 의견을 남김
+      const comment = code === 'S04' && (c.checklist || {}).standard === 'NO'
+        ? '바꾼 조항 확인(조항 대비표 참고): ' + ((c.checklist || {}).standardNote || '고객 요청 조항') + '. 회사 책임 범위가 표준과 같아 승인' : '';
+      return { step: code, action: 'APPROVE', at: at, comment: comment, actorId: stepUser(code, c, at), round: round };
     });
     const d06 = addDays(c.approvedAt, 1);
     const d07 = c.signedAt || addDays(c.approvedAt, 6);
@@ -254,11 +328,11 @@ window.CLIMB = (function () {
     const d09 = addDays(d08, 2);
     const d10 = addDays(d09, 1);
     const post = [
-      { step: 'S06', action: 'APPROVE', at: d06 + ' 10:00', comment: '확인: ' + D.SEAL_CHECKS.join(', '), actorId: D.STEP_ASSIGNEE.S06 },
+      { step: 'S06', action: 'APPROVE', at: d06 + ' 10:00', comment: '확인: ' + D.SEAL_CHECKS.join(', '), actorId: stepUser('S06', c, d06) },
       { step: 'S07', action: 'REGISTER', at: d07 + ' 14:00', comment: '', actorId: c.requesterId, fileName: c.counterparty + '_체결본.pdf' },
-      { step: 'S08', action: 'APPROVE', at: d08 + ' 11:00', comment: '', actorId: D.STEP_ASSIGNEE.S08 },
-      { step: 'S09', action: 'APPROVE', at: d09 + ' 15:00', comment: '확인: ' + opsChecksFor(c).join(', '), actorId: D.STEP_ASSIGNEE.S09 },
-      { step: 'S10', action: 'APPROVE', at: d10 + ' 16:00', comment: '', actorId: D.STEP_ASSIGNEE.S10 },
+      { step: 'S08', action: 'APPROVE', at: d08 + ' 11:00', comment: '', actorId: stepUser('S08', c, d08) },
+      { step: 'S09', action: 'APPROVE', at: d09 + ' 15:00', comment: '확인: ' + opsChecksFor(c).join(', '), actorId: stepUser('S09', c, d09) },
+      { step: 'S10', action: 'APPROVE', at: d10 + ' 16:00', comment: '', actorId: stepUser('S10', c, d10) },
     ].filter(function (h) { return !isShort(c) || h.step === 'S09' || h.step === 'S10'; }); // 짧은 결재는 ⑨, ⑩만
     const order = post.map(function (h) { return h.step; });
     const stop = c.postAt ? order.indexOf(c.postAt) : order.length;
@@ -273,17 +347,22 @@ window.CLIMB = (function () {
     const round = c.round || 1;
     const route = reviewRoute(c);
     const short = isShort(c);
-    const noSign = c.kind === 'TERMINATE' ? '해지는 날인과 체결본 없음' : '그대로 연장은 날인과 체결본 없음';
+    const change = isChange(c);
+    const noSign = change ? '운영 변경은 날인과 체결본 없음' : c.kind === 'TERMINATE' ? '해지는 날인과 체결본 없음' : '그대로 연장은 날인과 체결본 없음';
+    const NOW = '9999'; // 아직 차례가 오지 않은 단계는 지금 담당자
     const steps = REVIEW_ORDER.concat(POST_ORDER).map(function (code) {
       const review = isReviewStep(code);
-      // 짧은 결재는 ⑥~⑧을 거치지 않음 [가정]
-      const skipSign = short && ['S06', 'S07', 'S08'].indexOf(code) > -1;
+      // 짧은 결재와 운영 변경은 ⑥~⑧을 거치지 않음 [가정, C-18 재무 상의 중]. 운영 변경은 ⑩도 없음(재무 문서)
+      const skipSign = (short || change) && ['S06', 'S07', 'S08'].indexOf(code) > -1;
+      const skipFin = change && code === 'S10';
+      const userId = stepUser(code, c, NOW);
       return {
-        step: code, role: D.STEPS[code].role, phase: phaseOf(code),
+        step: code, role: roleFor(userId, code), phase: phaseOf(code),
         // ⑦ 체결본 등록은 기안한 영업이 함. 나머지는 지금 담당자(차례가 되는 때 다시 정함, 아래 recompute)
-        userId: code === 'S07' ? c.requesterId : assigneeOf(code),
-        state: skipSign ? 'SKIPPED' : !review || route[code][0] ? 'WAITING' : 'SKIPPED',
-        reason: review ? route[code][1] : skipSign ? noSign : '',
+        userId: userId,
+        state: skipSign || skipFin ? 'SKIPPED' : !review || route[code][0] ? 'WAITING' : 'SKIPPED',
+        reason: review ? route[code][1] : skipSign ? noSign
+          : skipFin ? (/^HR_/.test(c.changeType) ? '재무기획이 ⑨에서 반영' : '운영 변경은 재무 확인 없음') : '',
         arrivedAt: null, decidedAt: null, decidedBy: null, onBehalfOf: null, delegationId: null, comment: '', fileName: null,
       };
     });
@@ -292,26 +371,45 @@ window.CLIMB = (function () {
     // 앞 묶음이 모두 끝난 묶음까지 차례로 만들고, 그 뒤 묶음은 대기로 되돌림
     //   담당자는 그 단계가 차례가 된 때의 담당자. 결재선 규칙에서 담당자를 바꿔도 이미 차례인 단계는
     //   원래 담당자가 처리하고, 아직 차례가 오지 않은 단계부터 새 담당자에게 감 (기획자 결정 v0.25)
+    //   보완 요청 중(hold)에는 모든 차례를 멈추고 기안자가 보완을 마치면 다시 이어 감 (REQ-REV-11, v0.26)
+    let hold = null;
     function recompute(at) {
-      let blocked = false;
+      let blocked = !!hold;
       ALL_GROUPS.forEach(function (group) {
         const members = group.map(function (code) { return by[code]; }).filter(function (s) { return s.state !== 'SKIPPED'; });
         members.forEach(function (s) {
           if (blocked) {
-            if (s.state === 'PENDING') { s.state = 'WAITING'; s.arrivedAt = null; if (s.step !== 'S07') s.userId = assigneeOf(s.step); }
+            if (s.state === 'PENDING') { s.state = 'WAITING'; s.arrivedAt = null; s.userId = stepUser(s.step, c, NOW); s.role = roleFor(s.userId, s.step); }
           } else if (s.state === 'WAITING') {
             s.state = 'PENDING'; s.arrivedAt = at;
-            if (s.step !== 'S07') s.userId = assigneeAt(s.step, at);
+            s.userId = stepUser(s.step, c, at); s.role = roleFor(s.userId, s.step);
           }
         });
         if (members.some(function (s) { return s.state !== 'DONE'; })) blocked = true;
       });
     }
+    function review0() { return steps.filter(function (x) { return x.phase === 2; }); }
     recompute(c.requestedAt);
-    let rejection = null, lastReturn = null;
+    let rejection = null, lastReturn = null, supplement = null;
     c.history.filter(function (h) { return (h.round || 1) === round; }).forEach(function (h) {
+      // 보완 완료(기안자): 멈춘 결재를 다시 이어 감. 금액이나 체크리스트 답이 바뀌었으면(restart) 계약 검토를 처음부터 다시
+      if (h.action === 'RESUBMIT') {
+        hold = null; supplement = null;
+        if (h.restart) review0().forEach(function (x) {
+          if (x.state === 'DONE') { x.state = 'WAITING'; x.decidedAt = null; x.decidedBy = null; x.onBehalfOf = null; x.delegationId = null; x.comment = ''; }
+        });
+        recompute(h.at);
+        return;
+      }
       const s = by[h.step];
       if (!s) return;
+      if (h.action === 'SUPPLEMENT') {
+        // 보완 요청(②~⑤ 결재자): 기안자에게 돌아가 고친 뒤 이 단계부터 이어서 결재
+        hold = h.step;
+        supplement = { step: h.step, at: h.at, reason: h.comment, by: h.actorId };
+        recompute(h.at);
+        return;
+      }
       if (h.action === 'APPROVE' || h.action === 'REGISTER' || h.action === 'REJECT') {
         s.state = h.action === 'REJECT' ? 'REJECTED' : 'DONE';
         s.decidedAt = h.at; s.decidedBy = h.actorId; s.onBehalfOf = h.onBehalfOf || null; s.delegationId = h.delegationId || null; s.comment = h.comment;
@@ -328,20 +426,25 @@ window.CLIMB = (function () {
       }
       recompute(h.at);
     });
-    const review = steps.filter(function (s) { return s.phase === 2; });
-    const reviewDone = !rejection && review.every(function (x) { return x.state === 'DONE' || x.state === 'SKIPPED'; });
+    const review = review0();
+    const reviewDone = !rejection && !hold && review.every(function (x) { return x.state === 'DONE' || x.state === 'SKIPPED'; });
     const done = function (code) { return by[code].state === 'DONE'; };
     const fin = function (code) { return by[code].state === 'DONE' || by[code].state === 'SKIPPED'; };
+    const lastAt = function (list) { return list.reduce(function (m, x) { return x.decidedAt && x.decidedAt > m ? x.decidedAt : m; }, ''); };
+    const post = steps.filter(function (x) { return x.phase > 2; });
+    // ⑥~⑩이 모두 끝났거나 생략됨 (운영 변경은 ⑩이 생략이라 ⑨에서 끝남)
+    const allPost = post.every(function (x) { return fin(x.step); }) && post.some(function (x) { return done(x.step); });
     // 다시 계산하는 상태 (해지 기안 자신은 끝나면 "해지"가 되므로 함께)
-    const live = ['IN_REVIEW', 'REJECTED', 'APPROVED', 'OPS_REVIEW', 'ACTIVE'].concat(c.kind === 'TERMINATE' ? ['TERMINATED'] : []);
+    const live = ['IN_REVIEW', 'SUPPLEMENT', 'REJECTED', 'APPROVED', 'OPS_REVIEW', 'ACTIVE'].concat(c.kind === 'TERMINATE' ? ['TERMINATED'] : []);
     if (live.indexOf(c.status) > -1) {
-      c.status = rejection ? 'REJECTED' : !reviewDone ? 'IN_REVIEW'
-        : done('S10') ? (c.kind === 'TERMINATE' ? 'TERMINATED' : 'ACTIVE') : fin('S08') ? 'OPS_REVIEW' : 'APPROVED';
-      // 승인일: 2단계 마지막 검토가 승인된 때
-      c.approvedAt = reviewDone ? review.reduce(function (m, x) { return x.decidedAt && x.decidedAt > m ? x.decidedAt : m; }, '') : null;
+      c.status = rejection ? 'REJECTED' : hold ? 'SUPPLEMENT' : !reviewDone ? 'IN_REVIEW'
+        : allPost ? (c.kind === 'TERMINATE' ? 'TERMINATED' : 'ACTIVE') : fin('S08') ? 'OPS_REVIEW' : 'APPROVED';
+      // 승인일: 2단계 마지막 검토가 승인된 때. 검토 단계가 모두 생략된 운영 변경은 기안한 때
+      c.approvedAt = reviewDone ? (lastAt(review) || c.requestedAt) : null;
     }
     c.signedAt = done('S07') ? by.S07.decidedAt : null;        // 체결본을 등록한 때
-    c.completedAt = done('S10') ? by.S10.decidedAt : null;     // 계약 완료(보관함)된 때
+    c.completedAt = allPost ? lastAt(post) : null;             // 계약 완료(보관함)된 때
+    c.supplement = supplement;                                 // 지금 보완 요청 중이면 그 내용
     c.approvals = steps;
     c.rejection = rejection;
     c.lastReturn = lastReturn;
@@ -367,7 +470,9 @@ window.CLIMB = (function () {
   }
   // 이 사람이 지금 처리할 수 있는 단계인지: 담당자 본인, 대리 지정 기간 안의 대신할 사람(REQ-REV-08)
   //   슈퍼관리자는 시연용으로 담당자 대신 처리할 수 있음 (프로토타입 전용)
+  //   직무 분리: 기안자는 자기 계약의 결재 단계를 처리하지 않음(⑦ 체결본 등록 빼고, v0.26)
   function canAct(c, s, user) {
+    if (s.step !== 'S07' && c.requesterId === user.id) return false;
     return WORKING.indexOf(c.status) > -1 && s.state === 'PENDING' && (isMyStep(s, user) || user.role === 'SUPER');
   }
   // 승인 취소: 2단계 계약 검토 단계만. 승인한 본인이, 다음 단계가 아직 아무것도 처리하지 않았을 때만 (REQ-DOC-06)
@@ -413,6 +518,7 @@ window.CLIMB = (function () {
   function myActions(user) {
     return D.CONTRACTS.filter(function (c) {
       if (user.role === 'SALES' && c.requesterId === user.id && c.status === 'REJECTED') return true;
+      if (c.requesterId === user.id && c.status === 'SUPPLEMENT') return true; // 보완 요청을 받은 기안자
       return WORKING.indexOf(c.status) > -1 && pendingSteps(c).some(function (s) { return isMyStep(s, user); });
     });
   }
@@ -431,6 +537,10 @@ window.CLIMB = (function () {
     if (c.status === 'REJECTED') {
       return (phaseOf(c.rejection.step) === 2 ? stepDots(c) : '') + esc(roleLabel(c.rejection.role)) + ' 반려 (' + fmtDate(c.rejection.at) + ')';
     }
+    // 보완 중: 어느 단계에서 보완을 요청했는지와 일수 (REQ-REV-11)
+    if (c.status === 'SUPPLEMENT' && c.supplement) {
+      return stepDots(c) + esc(D.STEPS[c.supplement.step].short) + ' 보완 요청 (' + daysSince(c.supplement.at) + '일째)';
+    }
     // 검토 중: 지금 차례인 단계 이름. ④⑤는 동시에 차례일 수 있음 (예: 법무, 개인정보 검토 중)
     if (c.status === 'IN_REVIEW') {
       const names = pendingSteps(c).map(function (s) { return D.STEPS[s.step].short; }).join(', ');
@@ -441,21 +551,26 @@ window.CLIMB = (function () {
       const p = currentStep(c);
       const label = p ? D.STEPS[p.step].no + ' ' + stepIng(c, p.step) : D.STATUS[c.status].label;
       // 짧은 결재(해지, 그대로 연장)는 체결본이 없으므로 승인 후 일수로
+      // 운영 변경은 체결본이 없으므로 승인 후(영업 검토가 없으면 기안 후) 일수로
+      if (isChange(c)) return esc(label) + (C_SALES(c) ? ' (승인 후 ' : ' (기안 후 ') + daysSince(c.approvedAt) + '일)';
       return esc(label) + (c.status === 'APPROVED' || !c.signedAt
         ? ' (승인 후 ' + daysSince(c.approvedAt) + '일)'
         : ' (체결 후 ' + daysSince(c.signedAt) + '일)');
     }
+    if (c.status === 'ACTIVE' && isChange(c)) return '운영 변경 완료 (' + fmtDate(c.completedAt) + ')';
     if (c.status === 'ACTIVE') return '계약 완료 (만료 ' + fmtDate(c.endDate) + ')';
     if (c.status === 'TERMINATED') return '해지 (해지일 ' + fmtDate(c.terminateDate) + ')';
     if (c.status === 'EXPIRED') return '만료 (' + fmtDate(c.endDate) + ')';
     return '-';
   }
+  function C_SALES(c) { return (c.approvals || []).some(function (a) { return a.step === 'S03' && a.state !== 'SKIPPED'; }); }
   // 결재 기록의 "한 일" 이름: ⑥⑧⑨⑩의 승인은 단계에 맞는 말로 (예: 날인 완료)
   //   c를 주면 해지와 그대로 연장의 ⑨를 운영 종료 완료, 기간 연장 완료로
   function actionLabel(h, c) {
     const st = D.STEPS[h.step];
     if (h.action === 'APPROVE' && h.step === 'S09' && c && c.kind === 'TERMINATE') return '운영 종료 완료';
     if (h.action === 'APPROVE' && h.step === 'S09' && c && c.renewMode === 'AUTO') return '기간 연장 완료';
+    if (h.action === 'APPROVE' && h.step === 'S09' && c && isChange(c)) return '운영 변경 완료';
     return h.action === 'APPROVE' && st && st.doneAction ? st.doneAction : D.APPROVAL_ACTIONS[h.action].label;
   }
 
@@ -663,6 +778,18 @@ window.CLIMB = (function () {
       return d.absentId === absentId && d.delegateId === delegateId && delegationState(d) === 'ACTIVE';
     })[0] || null;
   }
+  // 이 사람이 지금 맡은 결재 담당: [{ key, label }] (예: ② 체크리스트 검토, ③ 영업 검토(영업1팀 리더))
+  function duties(userId) {
+    const out = [];
+    ['S02', 'S04', 'S05', 'S06', 'S08', 'S09', 'S10'].forEach(function (code) {
+      if (assigneeOf(code) === userId) out.push({ key: code, label: D.STEPS[code].no + ' ' + D.STEPS[code].name, role: D.STEPS[code].role });
+    });
+    Object.keys(D.TEAM_LEADERS).forEach(function (team) {
+      if (leaderAt(team, '9999') === userId) out.push({ key: 'S03:' + team, label: D.STEPS.S03.no + ' ' + D.STEPS.S03.name + '(' + team + ' 리더)', role: 'HEAD' });
+    });
+    if (assigneeOf('S03') === userId) out.push({ key: 'S03', label: D.STEPS.S03.no + ' ' + D.STEPS.S03.name + '(리더 본인 계약)', role: 'EXEC' });
+    return out;
+  }
   // 내가 처리할 차례인지: 담당자 본인이거나, 그 담당자의 대리로 지정된 기간 안
   function isMyStep(s, user) { return s.userId === user.id || !!activeDelegation(s.userId, user.id); }
   loadDemo('admin').forEach(function (e) { D.ADMIN_LOG.push(e); applyAdmin(e); });
@@ -688,7 +815,7 @@ window.CLIMB = (function () {
     });
   }
   applyBundleEffects();
-  const CHILD_LETTER = { AMEND: 'A', RENEW: 'R', TERMINATE: 'T' };
+  const CHILD_LETTER = { AMEND: 'A', RENEW: 'R', TERMINATE: 'T', CHANGE: 'C' };
   // 다음 차수 번호: CT-2026-0105 → CT-2026-0105-A02
   function nextChildId(rootId, kind) {
     const n = D.CONTRACTS.filter(function (c) { return c.parentId === rootId && c.kind === kind; }).length;
@@ -705,10 +832,15 @@ window.CLIMB = (function () {
     // 원계약이 아직 진행 중이면 원계약 상태, 끝났으면 지금 유효한 계약의 상태(해지면 해지)
     const status = done.indexOf(root.status) < 0 ? root.status : root.status === 'TERMINATED' ? 'TERMINATED' : current.status;
     // 진행 중인 변경, 갱신, 갱신 검토, 해지 기안
-    const open = items.filter(function (c) { return c !== root && WORKING.concat(['REJECTED']).indexOf(c.status) > -1; });
+    const open = items.filter(function (c) { return c !== root && WORKING.concat(['REJECTED', 'SUPPLEMENT']).indexOf(c.status) > -1; });
+    // 운영 변경(기간 변경)이 끝났으면 그 종료일이 지금 유효한 계약의 종료일 (재무 문서: 끝나면 서비스 기간이 바뀜)
+    const periodDone = items.filter(function (c) {
+      return c.kind === 'CHANGE' && c.changeType === 'PERIOD' && c.status === 'ACTIVE' && (c.requestedAt || '') > (current === root ? '' : current.requestedAt || '');
+    });
+    const lastPeriod = periodDone[periodDone.length - 1];
     return {
       id: rootId, root: root, items: items, current: current, status: status, open: open,
-      start: startOf(current), end: endOf(current),
+      start: startOf(current), end: lastPeriod ? lastPeriod.endDate : endOf(current),
       autoRenew: current.autoRenew || root.autoRenew || 'NO', noticeDays: current.noticeDays || root.noticeDays || null,
       count: function (kind) { return items.filter(function (c) { return c.kind === kind; }).length; },
     };
@@ -1030,6 +1162,30 @@ window.CLIMB = (function () {
     window.addEventListener('beforeprint', draw);
   }
 
+  /* ---------- 맨 위로 이동 (KRDS 플로팅 버튼, REQ-UI-20) ----------
+   * 화면을 한 화면 반쯤(400px) 내리면 오른쪽 아래에 나타나고, 누르면 맨 위로 올라가며 본문(#main) 처음으로 포커스를 옮깁니다.
+   * 넓은 화면에서는 A4 종이 틀 바깥 오른쪽에, 좁은 화면에서는 화면 오른쪽 아래에 둡니다. 인쇄에서는 감춥니다. */
+  function renderTopButton() {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'to-top';
+    btn.hidden = true;
+    btn.innerHTML = icon('arrowUp') + '<span class="to-top-label">맨 위로</span>';
+    document.body.appendChild(btn);
+    const toggle = function () { btn.hidden = window.scrollY < 400; };
+    window.addEventListener('scroll', toggle, { passive: true });
+    toggle();
+    btn.addEventListener('click', function () {
+      const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+      const main = document.getElementById('main');
+      if (main) {
+        if (!main.hasAttribute('tabindex')) main.setAttribute('tabindex', '-1');
+        main.focus({ preventScroll: true });
+      }
+    });
+  }
+
   /* ---------- 화면 시작 ----------
    * 각 HTML의 <body data-page="SCR-xx">를 읽어 공통 영역을 그립니다. */
   function init() {
@@ -1039,6 +1195,7 @@ window.CLIMB = (function () {
     renderHeader(user, pageId);
     renderFooter();
     renderWatermark(user);
+    renderTopButton();
     // 앞 화면에서 남긴 안내가 있으면 한 번 보여 줌
     try {
       const msg = sessionStorage.getItem('climb.flash');
@@ -1063,6 +1220,9 @@ window.CLIMB = (function () {
     // 관리자 설정 (SCR-51~57)
     adminSave: adminSave, adminLog: adminLog, assigneeAt: assigneeAt, assigneeOf: assigneeOf, delegationState: delegationState,
     activeDelegation: activeDelegation, isMyStep: isMyStep, codeList: codeList, typeLabel: typeLabel,
+    // 기안자 기준 지금 담당자 이름 (결재선 미리 보기): C.stepUserNow('S03', { requesterId: 'u_sales1' })
+    stepUserNow: function (code, c) { return stepUser(code, c, '9999'); },
+    isChange: isChange, changeSales: changeSales, monthsLater: monthsLater, teamOf: teamOf, leaderAt: leaderAt, duties: duties,
     gate: gate, fieldHtml: fieldHtml, formModal: formModal, adminHistoryHtml: adminHistoryHtml,
   };
 })();
