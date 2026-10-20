@@ -144,8 +144,9 @@
   const canNote = (root.requesterId === me.id || ['LEGAL', 'ADMIN', 'SUPER'].indexOf(me.role) > -1) &&
     ['ACTIVE', 'EXPIRED', 'TERMINATED'].indexOf(root.status) > -1;
   if (canNote) {
-    $('#note-types').innerHTML = Object.keys(D.AFTERCARE_TYPES).map(function (k, i) {
-      return '<label class="choice"><input type="radio" name="note-type" value="' + k + '"' + (i === 0 ? ' checked' : '') + '>' + esc(D.AFTERCARE_TYPES[k]) + '</label>';
+    // 사후관리 기록 종류: 코드 관리(SCR-56)에서 사용 중인 것만
+    $('#note-types').innerHTML = C.codeList('AFTERCARE').map(function (t, i) {
+      return '<label class="choice"><input type="radio" name="note-type" value="' + t.code + '"' + (i === 0 ? ' checked' : '') + '>' + esc(t.label) + '</label>';
     }).join('');
     $('#note-form').hidden = false;
     $('#note-form').addEventListener('submit', function (e) {

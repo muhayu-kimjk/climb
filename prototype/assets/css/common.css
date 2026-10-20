@@ -148,6 +148,7 @@ a.brand-title:hover { color: var(--text-primary); }
 .gnb-list { display: flex; flex-wrap: wrap; margin-left: -1.6rem; }
 .gnb-aside { display: inline-flex; align-items: center; gap: 0.4rem; font-size: var(--fs-body-small); color: var(--text-subtle); white-space: nowrap; }
 .gnb-aside:hover { color: var(--text-basic); text-decoration: underline; text-underline-offset: 0.3rem; }
+.gnb-aside.is-current { color: var(--text-primary); font-weight: 700; } /* 이용 안내(SCR-90)를 보고 있을 때 */
 .gnb-item { position: relative; }
 .gnb-link {
   position: relative; display: flex; align-items: center; gap: 0.4rem;
@@ -412,13 +413,15 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
 
 /* ---------- 14. 인쇄: A4 세로 문서 (REQ-UI-11) ----------
  * - 용지 A4 세로, 여백은 위, 왼쪽, 오른쪽 10mm (화면의 종이 좌우 여백과 같음), 아래 14mm(쪽 번호 자리)
- * - 쪽 아래에 시스템 이름과 쪽 번호를 찍습니다. (Chrome, Edge 지원)
+ * - 쪽 아래에 시스템 이름, 대외비 문구(REQ-UI-15), 쪽 번호를 찍습니다. (Chrome, Edge 지원)
  * - 메뉴, 버튼, 시연 띠처럼 종이에서 쓸 수 없는 요소는 감추고, 출력일과 출력자를 보여 줍니다.
  * - @page 영역은 CSS 변수를 읽지 못해 색과 글꼴을 직접 적었습니다. (#49595F = --text-subtle) */
 @page {
   size: A4 portrait;
   margin: 10mm 10mm 14mm;
   @bottom-left { content: "CLIMB | 무하유 계약 관리 플랫폼"; font: 8pt "Noto Sans KR", sans-serif; color: #49595F; }
+  /* 대외비 문구: 인쇄할 때는 푸터(보안 안내 문구)가 빠지므로 쪽마다 짧게 찍음 (REQ-UI-15, v0.17 확정) */
+  @bottom-center { content: "대외비: 무단 복제와 외부 제공 금지"; font: 700 8pt "Noto Sans KR", sans-serif; color: #021821; }
   @bottom-right { content: counter(page) " / " counter(pages); font: 8pt "Noto Sans KR", sans-serif; color: #49595F; }
 }
 
@@ -524,6 +527,11 @@ a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: under
 .modal-title { font-size: var(--fs-heading-medium); font-weight: 700; color: var(--text-bolder); }
 .modal-body { margin-top: 1.6rem; font-size: var(--fs-body-medium); color: var(--text-basic); }
 .modal-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 0.8rem; margin-top: 2.8rem; }
+/* 입력 창(관리자 화면 공통 C.formModal): 누르면 어떻게 되는지 한 줄 + 입력 칸 */
+.modal-desc { margin-top: 0.8rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
+.modal-form { margin-top: 2rem; }
+.modal-form .field { margin-bottom: 2rem; }
+.modal-form .field:last-child { margin-bottom: 0; }
 
 /* 휴대폰 화면 (방식 B, 인쇄에는 적용 안 됨): 배치는 같게, 칸이 좁은 곳만 여백을 줄이고 줄바꿈 허용 */
 @media screen and (max-width: 600px) {

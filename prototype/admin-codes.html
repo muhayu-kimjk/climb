@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 브라우저 탭 제목: CLIMB (REQ-NAME-02) -->
+  <title>CLIMB</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/common.css">
+  <link rel="stylesheet" href="assets/css/form.css">
+  <link rel="stylesheet" href="assets/css/list.css">
+  <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<!-- =====================================================================
+  SCR-56 코드 관리 (docs/02_화면목록.md)
+  - 관리자가 관리하는 코드표(부서, 서비스 3단계, 계약 유형, 계약 방식, 정산 방식, 사후관리 기록 종류)를 추가하고 고칩니다.
+    (데이터 정의서 9장의 "관리자 관리" 코드표, REQ-ADM-09, REQ-REG-17)
+  - 코드는 한 번 정하면 바꾸지 않고, 화면 이름만 바꿀 수 있습니다. 쓰지 않는 코드는 지우지 않고 "사용 안 함"으로 돌립니다.
+  - 계약 상태, 결재 단계처럼 업무 흐름과 묶인 "시스템 고정" 코드는 이 화면에 없습니다(개발팀이 바꿈).
+  - 바꿀 때 사유가 필수이고 변경 이력이 남습니다. 동작은 assets/js/admin-codes.js
+====================================================================== -->
+<body data-page="SCR-56">
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <div id="demo-bar"></div>
+
+  <div class="sheet">
+  <header id="site-header"></header>
+
+  <main id="main" class="page">
+    <div class="inner">
+      <div class="page-head page-head--sub">
+        <h1 class="page-title">코드 관리</h1>
+      </div>
+      <div class="page-intro">
+        <p>화면에서 고르는 목록(부서, 서비스, 계약 유형 등)의 값을 관리합니다.</p>
+        <p class="sub">코드는 바꾸지 않고 화면 이름만 바꿉니다. 쓰지 않는 값은 지우지 않고 사용 안 함으로 돌려, 지난 기록의 뜻이 그대로 남게 합니다. 계약 상태, 결재 단계처럼 업무 흐름과 묶인 코드는 개발팀이 바꿉니다.</p>
+      </div>
+
+      <div id="notice"></div>
+
+      <div id="content" class="admin-stack">
+        <section class="panel" aria-labelledby="sec-codes">
+          <div class="panel-head panel-head--act">
+            <h2 class="panel-title" id="sec-codes"><span id="group-name"></span> <span class="badge badge--line" id="group-table"></span></h2>
+            <button type="button" class="btn btn--primary btn--md" id="btn-add">코드 추가</button>
+          </div>
+          <div class="seg" id="groups" role="group" aria-label="코드표 고르기"></div>
+          <p class="panel-desc" id="group-note"></p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="코드 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only" id="caption"></caption>
+              <thead id="thead"></thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-history">
+          <div class="panel-head"><h2 class="panel-title" id="sec-history">변경 이력</h2></div>
+          <p class="panel-desc">모든 코드표를 추가하고 고친 기록입니다. 고치거나 지울 수 없습니다.</p>
+          <div id="history"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+  </div><!-- /.sheet -->
+
+  <script src="assets/js/mock-data.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/admin-codes.js"></script>
+</body>
+</html>

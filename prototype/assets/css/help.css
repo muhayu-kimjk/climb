@@ -1,0 +1,44 @@
+/* =====================================================================
+ * SCR-90 이용 안내 전용 스타일 (help.css)
+ *   - 차례(목차), 단계 표, 역할 표에서 "내 역할" 줄 강조, 자주 묻는 것(펼치기)
+ *   - 인쇄하면 자주 묻는 것을 모두 펼쳐 매뉴얼 한 부로 나옴 (help.js가 인쇄 직전에 펼침)
+ * 관련 요구사항: REQ-FLOW-13, REQ-UI-14
+ * ===================================================================== */
+
+.help-stack { display: flex; flex-direction: column; gap: 2.4rem; }
+.help-toc ol { display: flex; flex-wrap: wrap; gap: 0.4rem 2rem; counter-reset: toc; font-size: var(--fs-body-small); }
+.help-toc li { counter-increment: toc; }
+.help-toc li::before { content: counter(toc) ". "; color: var(--text-primary); font-weight: 700; }
+.help-toc a { color: var(--text-basic); text-decoration: underline; text-underline-offset: 0.3rem; }
+
+.help-stack .tbl td { vertical-align: top; }
+.help-stack .tbl a { color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; }
+.help-stack .tbl tr.is-me td { background: var(--surface-primary-subtler); }
+.help-stack p + p, .help-stack .tbl-scroll + p { margin-top: 1rem; }
+.help-text { font-size: var(--fs-body-small); color: var(--text-basic); }
+.help-list { padding-left: 2rem; list-style: disc; font-size: var(--fs-body-small); color: var(--text-basic); }
+.help-list li + li { margin-top: 0.6rem; }
+.help-list strong { color: var(--text-bolder); }
+
+/* 자주 묻는 것: KRDS 아코디언처럼 눌러서 펼침 */
+.faq { border-top: 1px solid var(--border-gray-light); }
+.faq:last-child { border-bottom: 1px solid var(--border-gray-light); }
+.faq summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 1.2rem; min-height: var(--touch-min); padding: 1.2rem 0.4rem;
+  font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); cursor: pointer; list-style: none;
+}
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary .icon { flex-shrink: 0; transition: transform 0.15s ease; }
+.faq[open] summary .icon { transform: rotate(180deg); }
+.faq summary:focus-visible { box-shadow: var(--focus-ring); }
+.faq-body { padding: 0 0.4rem 1.6rem; font-size: var(--fs-body-small); color: var(--text-basic); }
+
+@media print {
+  .help-toc { display: none; }
+  .faq summary .icon { display: none; }
+  .faq { break-inside: avoid; }
+  .help-stack { gap: 6mm; }
+}
+
+/* 5단계 표: 하는 일 칸에 자리를 더 줌 */
+.help-stack .col-who { width: 18%; }

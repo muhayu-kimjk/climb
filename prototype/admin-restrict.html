@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 브라우저 탭 제목: CLIMB (REQ-NAME-02) -->
+  <title>CLIMB</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/common.css">
+  <link rel="stylesheet" href="assets/css/form.css">
+  <link rel="stylesheet" href="assets/css/list.css">
+  <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<!-- =====================================================================
+  SCR-53 열람 제한 관리 (docs/02_화면목록.md)
+  - 관리자와 슈퍼관리자가 계약의 열람 제한을 걸거나 풉니다. (REQ-AUTH-07~10)
+  - 열람 제한 계약은 요청자, 그 계약의 담당자(결재선과 단계 담당자), 관리자만 봅니다(REQ-AUTH-09).
+  - 걸 때와 풀 때 사유가 필수이고, 영업이 등록할 때 건 것과 함께 변경 이력에 남습니다(REQ-AUTH-10).
+  - 동작은 assets/js/admin-restrict.js
+====================================================================== -->
+<body data-page="SCR-53">
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <div id="demo-bar"></div>
+
+  <div class="sheet">
+  <header id="site-header"></header>
+
+  <main id="main" class="page">
+    <div class="inner">
+      <div class="page-head page-head--sub">
+        <h1 class="page-title">열람 제한 관리</h1>
+      </div>
+      <div class="page-intro">
+        <p>열람 제한 계약은 요청자, 그 계약의 담당자, 관리자만 볼 수 있습니다. 다른 사람에게는 목록에 "열람 제한 계약"으로만 보입니다.</p>
+        <p class="sub">영업이 계약을 등록할 때 건 열람 제한을 관리자가 풀거나, 등록된 계약에 새로 걸 수 있습니다. 걸고 풀 때는 사유를 꼭 적습니다.</p>
+      </div>
+
+      <div id="notice"></div>
+
+      <div id="content" class="admin-stack">
+        <section class="panel" aria-labelledby="sec-list">
+          <div class="panel-head panel-head--act">
+            <h2 class="panel-title" id="sec-list">열람 제한 계약 <span class="badge badge--line" id="count"></span></h2>
+            <button type="button" class="btn btn--primary btn--md" id="btn-add">열람 제한 걸기</button>
+          </div>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="열람 제한 계약 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">열람 제한 계약: 고객사와 계약번호, 서비스, 상태, 영업 대표, 건 때, 관리</caption>
+              <thead><tr><th scope="col">고객사</th><th scope="col">서비스</th><th scope="col">상태</th><th scope="col">영업 대표</th><th scope="col">건 때</th><th scope="col" class="col-action">관리</th></tr></thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-history">
+          <div class="panel-head"><h2 class="panel-title" id="sec-history">변경 이력</h2></div>
+          <p class="panel-desc">영업이 등록할 때 건 것과 관리자가 걸고 푼 기록입니다. 고치거나 지울 수 없습니다.</p>
+          <div id="history"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+  </div><!-- /.sheet -->
+
+  <script src="assets/js/mock-data.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/admin-restrict.js"></script>
+</body>
+</html>

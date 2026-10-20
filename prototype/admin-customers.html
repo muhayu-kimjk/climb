@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 브라우저 탭 제목: CLIMB (REQ-NAME-02) -->
+  <title>CLIMB</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/common.css">
+  <link rel="stylesheet" href="assets/css/form.css">
+  <link rel="stylesheet" href="assets/css/list.css">
+  <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<!-- =====================================================================
+  SCR-55 거래처 관리 (docs/02_화면목록.md)
+  - 계약 등록에서 고르는 거래처 목록(상호, 사업자등록번호)을 관리자가 고치고 합칩니다. (REQ-REG-18, 데이터 정의서 6장, D-01)
+  - 같은 사업자등록번호는 두 번 등록할 수 없습니다. 같은 곳이 다른 이름으로 두 번 등록되면 합칩니다.
+  - 합치면 남길 거래처 하나만 두고, 나머지 거래처의 계약은 남길 거래처로 옮기며, 나머지는 지우지 않고 "합쳐짐"으로 남깁니다.
+  - 고칠 때와 합칠 때 사유가 필수이고 변경 이력이 남습니다. 동작은 assets/js/admin-customers.js
+====================================================================== -->
+<body data-page="SCR-55">
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <div id="demo-bar"></div>
+
+  <div class="sheet">
+  <header id="site-header"></header>
+
+  <main id="main" class="page">
+    <div class="inner">
+      <div class="page-head page-head--sub">
+        <h1 class="page-title">거래처 관리</h1>
+      </div>
+      <div class="page-intro">
+        <p>계약 등록에서 고르는 거래처 목록을 관리합니다. 같은 곳이 두 번 등록되면 합쳐서, 계약 묶음과 만료 집계가 어긋나지 않게 합니다.</p>
+        <p class="sub">거래처는 지우지 않고 사용 안 함으로 돌립니다. 고치거나 합칠 때는 사유를 꼭 적습니다.</p>
+      </div>
+
+      <div id="notice"></div>
+
+      <div id="content" class="admin-stack">
+        <section class="panel" aria-labelledby="sec-list">
+          <div class="panel-head panel-head--act">
+            <h2 class="panel-title" id="sec-list">거래처 목록</h2>
+            <button type="button" class="btn btn--primary btn--md" id="btn-add">거래처 추가</button>
+          </div>
+          <div id="dup"></div>
+
+          <form class="filter-bar filter-bar--two" id="filter" role="search" aria-label="거래처 거르기">
+            <div class="field">
+              <label class="field-label field-label--sm" for="f-q">검색</label>
+              <input class="input" id="f-q" type="search" placeholder="상호 또는 사업자등록번호" autocomplete="off">
+            </div>
+            <div class="field">
+              <label class="field-label field-label--sm" for="f-use">상태</label>
+              <select class="select" id="f-use">
+                <option value="">전체 상태</option>
+                <option value="USE">사용 중</option>
+                <option value="OFF">사용 안 함</option>
+                <option value="MERGED">합쳐짐</option>
+              </select>
+            </div>
+            <button type="reset" class="btn btn--tertiary btn--md filter-reset">초기화</button>
+          </form>
+
+          <div class="list-head">
+            <p class="list-count" id="list-count" aria-live="polite"></p>
+            <button type="button" class="btn btn--secondary btn--md" id="btn-merge" disabled>고른 거래처 합치기</button>
+          </div>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="거래처 목록 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">거래처 목록: 고르기, 상호, 사업자등록번호, 계약 수, 등록, 상태, 관리</caption>
+              <thead><tr><th scope="col" class="col-action"><span class="sr-only">합칠 거래처 고르기</span></th><th scope="col">상호</th><th scope="col">사업자등록번호</th><th scope="col" class="num">계약</th><th scope="col">등록</th><th scope="col">상태</th><th scope="col" class="col-action">관리</th></tr></thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+          <nav class="pagination" id="pagination" aria-label="거래처 목록 쪽 이동"></nav>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-history">
+          <div class="panel-head"><h2 class="panel-title" id="sec-history">변경 이력</h2></div>
+          <p class="panel-desc">관리자가 거래처를 추가하고, 고치고, 합친 기록입니다. 고치거나 지울 수 없습니다.</p>
+          <div id="history"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+  </div><!-- /.sheet -->
+
+  <script src="assets/js/mock-data.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/admin-customers.js"></script>
+</body>
+</html>

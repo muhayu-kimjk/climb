@@ -22,7 +22,7 @@
   const $$ = function (s, root) { return Array.prototype.slice.call((root || document).querySelectorAll(s)); };
 
   const form = $('#contract-form');
-  const NDA = '비밀유지계약(NDA)';
+  const NDA = C.typeLabel('NDA'); // 비밀유지계약(NDA): 코드 관리에서 이름을 바꿔도 같은 유형으로 판단
   const PRICE = {};
   D.PRICE_BOOK.forEach(function (p) { PRICE[p.code] = p; });
 
@@ -68,12 +68,41 @@
   $('#f-owner').value = me.name + '님 (' + me.dept + ')';
   $('#f-type').innerHTML = '<option value="">고르세요</option>' +
     D.CONTRACT_TYPES.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('');
-  $('#method-choices').innerHTML = Object.keys(D.METHODS).map(function (k) {
-    return '<label class="choice"><input type="radio" name="method" value="' + k + '">' + esc(D.METHODS[k]) + '</label>';
+  // 계약 유형, 계약 방식, 정산 방식: 코드 관리(SCR-56)에서 사용 중인 코드만 고름
+  $('#method-choices').innerHTML = C.codeList('METHOD').map(function (c) {
+    return '<label class="choice"><input type="radio" name="method" value="' + c.code + '">' + esc(c.label) + '</label>';
   }).join('');
-  $('#settlement-choices').innerHTML = Object.keys(D.SETTLEMENTS).map(function (k) {
-    return '<label class="choice"><input type="radio" name="settlement" value="' + k + '">' + esc(D.SETTLEMENTS[k]) + '</label>';
+  $('#settlement-choices').innerHTML = C.codeList('SETTLEMENT').map(function (c) {
+    return '<label class="choice"><input type="radio" name="settlement" value="' + c.code + '">' + esc(c.label) + '</label>';
   }).join('');
+  /* 거래처 목록 (REQ-REG-18, D-01): 사용 중인 거래처를 상호 순서로. 맨 끝은 새 거래처 등록
+   * 프로토타입: 새 거래처는 기안할 때 함께 등록되는 것으로 안내만 함. 실제 시스템은 서버가 사업자등록번호 중복을 다시 검사 */
+  const NEW_CUSTOMER = 'NEW';
+  const customers = D.CUSTOMERS.filter(function (cu) { return cu.use; }).sort(function (a, b) { return a.name.localeCompare(b.name, 'ko'); });
+  $('#f-customer').innerHTML = '<option value="">고르세요</option>' + customers.map(function (cu) {
+    return '<option value="' + esc(cu.id) + '">' + esc(cu.name + ' (' + cu.bizNo + ')') + '</option>';
+  }).join('') + '<option value="' + NEW_CUSTOMER + '">목록에 없음: 새 거래처 등록</option>';
+  function findCustomer(id) { return customers.filter(function (cu) { return cu.id === id; })[0] || null; }
+  // 거래처를 고르면 상호와 사업자등록번호를 채우고 잠금. 새 거래처면 비우고 직접 넣게 함
+  function onCustomerChange() {
+    const v = $('#f-customer').value, cu = findCustomer(v), isNew = v === NEW_CUSTOMER;
+    $('#f-counterparty').readOnly = !isNew;
+    $('#f-bizno').readOnly = !isNew;
+    $('#f-counterparty').value = cu ? cu.name : '';
+    $('#f-bizno').value = cu ? cu.bizNo : '';
+    $('#f-counterparty').placeholder = isNew ? '사업자등록증의 상호' : '거래처를 먼저 고르세요';
+    $('#customer-help').textContent = isNew
+      ? '기안하면 이 상호와 사업자등록번호로 거래처 목록에 함께 등록됩니다. 같은 사업자등록번호는 두 번 등록할 수 없습니다.'
+      : '거래처 목록에서 고릅니다. 상호와 사업자등록번호는 목록에서 채워집니다.';
+  }
+  // 상호로 거래처 고르기 (미리 채우기). 목록에 없으면 새 거래처로
+  function pickCustomerByName(name, bizNo) {
+    if (!name) return;
+    const cu = customers.filter(function (x) { return x.name === name; })[0];
+    $('#f-customer').value = cu ? cu.id : NEW_CUSTOMER;
+    onCustomerChange();
+    if (!cu) { $('#f-counterparty').value = name; $('#f-bizno').value = bizNo || ''; }
+  }
   // 원계약 후보: 보관함의 계약 완료 묶음(원계약 번호) 중 볼 수 있는 것
   const origins = D.CONTRACTS.filter(function (c) { return c.status === 'ACTIVE' && !c.parentId && C.canView(c, me); });
   $('#f-origin').innerHTML = '<option value="">고르세요</option>' + origins.map(function (c) {
@@ -342,6 +371,7 @@
     clearError(e.target);
     if (e.target.name === 'kind') onKindChange();
     if (e.target.id === 'f-origin') onOriginChange();
+    if (e.target.id === 'f-customer') onCustomerChange();
     if (e.target.id === 'f-service-diff') $('#service-fields').hidden = !e.target.checked;
     if (e.target.name === 'autoRenew') $('#notice-days-field').hidden = val('autoRenew') !== 'YES';
     refresh();
@@ -375,7 +405,7 @@
     // 원계약을 고르면 거래처와 계약 유형을 미리 채움 (비어 있을 때만). 계약명은 두지 않음 (v0.12)
     const o = D.CONTRACTS.find(function (c) { return c.id === $('#f-origin').value; });
     if (o) {
-      if (!$('#f-counterparty').value) $('#f-counterparty').value = o.counterparty;
+      if (!$('#f-customer').value) pickCustomerByName(o.counterparty);
       if (!$('#f-type').value) $('#f-type').value = o.type;
     }
   }
@@ -443,8 +473,13 @@
     const kind = val('kind');
     need(!!kind, 'kind', '계약 구분을 고르세요.');
     if (kind && kind !== 'NEW') need(!!$('#f-origin').value, 'origin', '원계약을 고르세요.');
-    need(!!val('counterparty'), 'counterparty', '거래처 상호를 입력하세요.');
-    need(/^\d{3}-\d{2}-\d{5}$/.test(val('bizNo')), 'bizNo', '사업자등록번호 10자리를 입력하세요.');
+    need(!!val('customer'), 'customer', '거래처를 고르세요. 목록에 없으면 새 거래처 등록을 고릅니다.');
+    if (val('customer') === NEW_CUSTOMER) {
+      need(!!val('counterparty'), 'counterparty', '거래처 상호를 입력하세요.');
+      const dupCu = D.CUSTOMERS.filter(function (cu) { return cu.bizNo === val('bizNo'); })[0];
+      need(/^\d{3}-\d{2}-\d{5}$/.test(val('bizNo')), 'bizNo', '사업자등록번호 10자리를 입력하세요.');
+      if (/^\d{3}-\d{2}-\d{5}$/.test(val('bizNo'))) need(!dupCu, 'bizNo', '이미 등록된 사업자등록번호입니다(' + (dupCu ? dupCu.name : '') + '). 거래처 목록에서 고르세요.');
+    }
     need(!!val('type'), 'type', '계약 유형을 고르세요.');
     need(!!val('method'), 'method', '계약 방식을 고르세요.');
     need(!!val('contractDate'), 'contractDate', '계약일을 입력하세요.');
@@ -587,8 +622,7 @@
   if (source) {
     const f = source.form || {};
     setRadio('kind', source.kind || 'NEW');
-    $('#f-counterparty').value = source.counterparty || '';
-    $('#f-bizno').value = f.bizNo || '';
+    pickCustomerByName(source.counterparty, f.bizNo);
     $('#f-opportunity').value = f.opportunity || '';
     $('#f-type').value = source.type || '';
     setRadio('method', f.method);

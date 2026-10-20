@@ -41,11 +41,16 @@ window.CLIMB = (function () {
       { label: '만료 예정 계약', scr: 'SCR-43', href: 'expiring.html' },
     ] },
     // 관리자 메뉴는 관리자(와 슈퍼관리자)에게만 보임 (REQ-AUTH-02)
-    { label: '관리자', roles: ['ADMIN'], children: [
-      { label: '사용자 권한 관리', scr: 'SCR-51', href: 'admin-users.html' },
-      { label: '결재선 규칙', scr: 'SCR-52' },
-      { label: '열람 제한 관리', scr: 'SCR-53' },
-      { label: '가격 기준 관리', scr: 'SCR-54' },
+    //   접속 기록 점검(SCR-57)만 정보보호팀(개인정보 담당)이 씀. 관리자가 자기 작업 기록을 스스로 점검하지 않게
+    //   관리자에게는 보이지 않음 (REQ-SEC-05, 06, 기획자 결정 v0.25)
+    { label: '관리자', roles: ['ADMIN', 'PRIVACY'], children: [
+      { label: '사용자 권한 관리', scr: 'SCR-51', href: 'admin-users.html', roles: ['ADMIN'] },
+      { label: '결재선 규칙', scr: 'SCR-52', href: 'admin-rules.html', roles: ['ADMIN'] },
+      { label: '열람 제한 관리', scr: 'SCR-53', href: 'admin-restrict.html', roles: ['ADMIN'] },
+      { label: '가격 기준 관리', scr: 'SCR-54', href: 'admin-prices.html', roles: ['ADMIN'] },
+      { label: '거래처 관리', scr: 'SCR-55', href: 'admin-customers.html', roles: ['ADMIN'] },
+      { label: '코드 관리', scr: 'SCR-56', href: 'admin-codes.html', roles: ['ADMIN'] },
+      { label: '접속 기록 점검', scr: 'SCR-57', href: 'admin-logs.html', roles: ['PRIVACY'] },
     ] },
   ];
 
@@ -212,7 +217,7 @@ window.CLIMB = (function () {
   function opsChecksFor(c) {
     if (c.kind === 'TERMINATE') return opsChecks(c.services, D.OPS_CHECKS_END);
     if (c.renewMode === 'AUTO') return opsChecks(c.services, D.OPS_CHECKS_EXTEND);
-    if (c.type === '비밀유지계약(NDA)') return ['운영에 적용할 내용 없음(비밀유지계약)'];
+    if (c.type === typeLabel('NDA')) return ['운영에 적용할 내용 없음(비밀유지계약)'];
     return opsChecks(c.services);
   }
   // 계약 구분 이름. 갱신 검토의 "그대로 자동갱신"은 따로 표시 (REQ-ARC-07)
@@ -275,23 +280,29 @@ window.CLIMB = (function () {
       const skipSign = short && ['S06', 'S07', 'S08'].indexOf(code) > -1;
       return {
         step: code, role: D.STEPS[code].role, phase: phaseOf(code),
-        // ⑦ 체결본 등록은 기안한 영업이 함
-        userId: code === 'S07' ? c.requesterId : D.STEP_ASSIGNEE[code],
+        // ⑦ 체결본 등록은 기안한 영업이 함. 나머지는 지금 담당자(차례가 되는 때 다시 정함, 아래 recompute)
+        userId: code === 'S07' ? c.requesterId : assigneeOf(code),
         state: skipSign ? 'SKIPPED' : !review || route[code][0] ? 'WAITING' : 'SKIPPED',
         reason: review ? route[code][1] : skipSign ? noSign : '',
-        arrivedAt: null, decidedAt: null, decidedBy: null, onBehalfOf: null, comment: '', fileName: null,
+        arrivedAt: null, decidedAt: null, decidedBy: null, onBehalfOf: null, delegationId: null, comment: '', fileName: null,
       };
     });
     const by = {};
     steps.forEach(function (s) { by[s.step] = s; });
     // 앞 묶음이 모두 끝난 묶음까지 차례로 만들고, 그 뒤 묶음은 대기로 되돌림
+    //   담당자는 그 단계가 차례가 된 때의 담당자. 결재선 규칙에서 담당자를 바꿔도 이미 차례인 단계는
+    //   원래 담당자가 처리하고, 아직 차례가 오지 않은 단계부터 새 담당자에게 감 (기획자 결정 v0.25)
     function recompute(at) {
       let blocked = false;
       ALL_GROUPS.forEach(function (group) {
         const members = group.map(function (code) { return by[code]; }).filter(function (s) { return s.state !== 'SKIPPED'; });
         members.forEach(function (s) {
-          if (blocked) { if (s.state === 'PENDING') { s.state = 'WAITING'; s.arrivedAt = null; } }
-          else if (s.state === 'WAITING') { s.state = 'PENDING'; s.arrivedAt = at; }
+          if (blocked) {
+            if (s.state === 'PENDING') { s.state = 'WAITING'; s.arrivedAt = null; if (s.step !== 'S07') s.userId = assigneeOf(s.step); }
+          } else if (s.state === 'WAITING') {
+            s.state = 'PENDING'; s.arrivedAt = at;
+            if (s.step !== 'S07') s.userId = assigneeAt(s.step, at);
+          }
         });
         if (members.some(function (s) { return s.state !== 'DONE'; })) blocked = true;
       });
@@ -303,11 +314,11 @@ window.CLIMB = (function () {
       if (!s) return;
       if (h.action === 'APPROVE' || h.action === 'REGISTER' || h.action === 'REJECT') {
         s.state = h.action === 'REJECT' ? 'REJECTED' : 'DONE';
-        s.decidedAt = h.at; s.decidedBy = h.actorId; s.onBehalfOf = h.onBehalfOf || null; s.comment = h.comment;
+        s.decidedAt = h.at; s.decidedBy = h.actorId; s.onBehalfOf = h.onBehalfOf || null; s.delegationId = h.delegationId || null; s.comment = h.comment;
         if (h.fileName) s.fileName = h.fileName;
         if (h.action === 'REJECT') rejection = { step: h.step, role: s.role, at: h.at, reason: h.comment, by: h.actorId };
       } else if (h.action === 'CANCEL') {
-        s.state = 'PENDING'; s.decidedAt = null; s.decidedBy = null; s.onBehalfOf = null; s.comment = '';
+        s.state = 'PENDING'; s.decidedAt = null; s.decidedBy = null; s.onBehalfOf = null; s.delegationId = null; s.comment = '';
       } else if (h.action === 'RETURN') {
         // ⑧ 다시 등록 요청: ⑦ 체결본 등록이 다시 차례가 되고 ⑧은 대기로 돌아감
         const s07 = by.S07;
@@ -354,9 +365,10 @@ window.CLIMB = (function () {
     if (!list.length) return 0;
     return Math.max.apply(null, list.map(function (s) { return s.arrivedAt ? daysSince(s.arrivedAt) : 0; }));
   }
-  // 이 사람이 지금 처리할 수 있는 단계인지. 슈퍼관리자는 시연용으로 담당자 대신 처리할 수 있음 (프로토타입 전용)
+  // 이 사람이 지금 처리할 수 있는 단계인지: 담당자 본인, 대리 지정 기간 안의 대신할 사람(REQ-REV-08)
+  //   슈퍼관리자는 시연용으로 담당자 대신 처리할 수 있음 (프로토타입 전용)
   function canAct(c, s, user) {
-    return WORKING.indexOf(c.status) > -1 && s.state === 'PENDING' && (s.userId === user.id || user.role === 'SUPER');
+    return WORKING.indexOf(c.status) > -1 && s.state === 'PENDING' && (isMyStep(s, user) || user.role === 'SUPER');
   }
   // 승인 취소: 2단계 계약 검토 단계만. 승인한 본인이, 다음 단계가 아직 아무것도 처리하지 않았을 때만 (REQ-DOC-06)
   //   ⑥~⑩은 승인 취소가 없고, 잘못은 ⑧ 다시 등록 요청이나 반려로 바로잡음 [가정] (REQ-SIGN-06)
@@ -391,7 +403,7 @@ window.CLIMB = (function () {
       if (WORKING.indexOf(c.status) < 0) return;
       pendingSteps(c).forEach(function (s) {
         if (steps && steps.indexOf(s.step) < 0) return;
-        if (all || s.userId === user.id) out.push({ c: c, s: s });
+        if (all || isMyStep(s, user)) out.push({ c: c, s: s });
       });
     });
     return out;
@@ -401,7 +413,7 @@ window.CLIMB = (function () {
   function myActions(user) {
     return D.CONTRACTS.filter(function (c) {
       if (user.role === 'SALES' && c.requesterId === user.id && c.status === 'REJECTED') return true;
-      return WORKING.indexOf(c.status) > -1 && pendingSteps(c).some(function (s) { return s.userId === user.id; });
+      return WORKING.indexOf(c.status) > -1 && pendingSteps(c).some(function (s) { return isMyStep(s, user); });
     });
   }
 
@@ -465,10 +477,13 @@ window.CLIMB = (function () {
   }
   // 승인(APPROVE), 반려(REJECT), 승인 취소(CANCEL), 체결본 등록(REGISTER), 다시 등록 요청(RETURN)을 기록하고 계약 상태를 다시 계산
   //   extra: 체결본 파일 이름(fileName) 같은 덧붙일 값
+  //   대리 지정으로 대신 처리하면 누구 대신인지(onBehalfOf)와 대리 지정 번호, 근거(basis)를 함께 남김 (REQ-REV-08)
   function recordAction(c, s, action, comment, user, extra) {
+    const dl = s.userId !== user.id ? activeDelegation(s.userId, user.id) : null;
     const entry = Object.assign({
       contractId: c.id, step: s.step, action: action, at: nowStamp(), comment: comment || '',
-      actorId: user.id, onBehalfOf: s.userId !== user.id ? s.userId : null, round: c.round || 1,
+      actorId: user.id, onBehalfOf: s.userId !== user.id ? s.userId : null,
+      delegationId: dl ? dl.id : null, basis: dl ? dl.reason : '', round: c.round || 1,
     }, extra || {});
     const list = loadDemoActions();
     list.push(entry);
@@ -479,14 +494,14 @@ window.CLIMB = (function () {
     return entry;
   }
   // 시연으로 만든 계약(해지 기안, 갱신 검토), 사후관리 기록, 지운 임시 저장 (프로토타입 전용, REQ-ARC-04~07)
-  const DEMO_KEYS = { contracts: 'climb.demoContracts', notes: 'climb.demoNotes', deleted: 'climb.demoDeleted' };
+  const DEMO_KEYS = { contracts: 'climb.demoContracts', notes: 'climb.demoNotes', deleted: 'climb.demoDeleted', admin: 'climb.demoAdmin' };
   function loadDemo(key) { try { return JSON.parse(localStorage.getItem(DEMO_KEYS[key]) || '[]'); } catch (e) { return []; } }
   function pushDemo(key, item) {
     const list = loadDemo(key);
     list.push(item);
     try { localStorage.setItem(DEMO_KEYS[key], JSON.stringify(list)); } catch (e) { /* 저장소를 못 쓰면 이 화면에서만 반영 */ }
   }
-  function demoCount() { return loadDemoActions().length + loadDemo('contracts').length + loadDemo('notes').length + loadDemo('deleted').length; }
+  function demoCount() { return loadDemoActions().length + loadDemo('contracts').length + loadDemo('notes').length + loadDemo('deleted').length + loadDemo('admin').length; }
   // 새 계약 기록 저장 (해지 기안, 갱신 검토). 실제 시스템에서는 서버에 저장
   function saveDemoContract(c) {
     pushDemo('contracts', c);
@@ -516,6 +531,141 @@ window.CLIMB = (function () {
     const i = D.CONTRACTS.findIndex(function (x) { return x.draftKey === key; });
     if (i > -1) D.CONTRACTS.splice(i, 1);
   });
+
+  /* ---------- 관리자 설정 (SCR-51~57, 기획자 결정 v0.25) ----------
+   * 관리자 화면에서 바꾼 것은 변경 이력(D.ADMIN_LOG)에 한 줄씩 남습니다: 누가, 언제, 무엇을, 사유(필수). 고치거나 지우지 않습니다.
+   * 바꾼 내용(op)은 예시 데이터에 바로 반영합니다. 시연으로 바꾼 것은 이 브라우저에만 저장되고 "시연 기록 지우기"로 돌아갑니다.
+   * 실제 시스템에서는 서버가 저장하고 검사합니다. 관리자 기능은 사내망에서만 씁니다(REQ-SEC-04). */
+  function localId(email) { return 'u_' + String(email).split('@')[0].replace(/\./g, '_'); }
+  function findBy(list, key, val) { return list.filter(function (x) { return x[key] === val; })[0] || null; }
+  // 오늘 적용되는 가격 기준을 다시 만듦 (적용 시작일이 오늘 이후인 줄은 예정)
+  function refreshPrices() {
+    const cur = D.currentPrices(D.PRICE_ROWS, D.TODAY);
+    D.PRICE_BOOK.length = 0;
+    cur.forEach(function (r) { D.PRICE_BOOK.push(r); });
+  }
+  // 코드표를 화면이 쓰는 목록에 반영. 이름표는 사용 안 함인 코드도 남겨 지난 기록이 그대로 보이게 함
+  function refreshCodes() {
+    D.CODES.forEach(function (c) {
+      if (c.group === 'SERVICE' && c.level === 1) D.SERVICES[c.code] = c.label;
+      if (c.group === 'METHOD') D.METHODS[c.code] = c.label;
+      if (c.group === 'SETTLEMENT') D.SETTLEMENTS[c.code] = c.label;
+      if (c.group === 'AFTERCARE') D.AFTERCARE_TYPES[c.code] = c.label;
+    });
+    // 계약 유형은 프로토타입이 이름을 그대로 저장하므로 고르는 목록(사용 중인 것)만 다시 만듦
+    D.CONTRACT_TYPES.length = 0;
+    codeList('CONTRACT_TYPE').forEach(function (c) { D.CONTRACT_TYPES.push(c.label); });
+  }
+  // 코드 목록 (all이 아니면 사용 중인 것만). 고르는 칸은 이것을 씀
+  function codeList(group, all) {
+    return D.CODES.filter(function (c) { return c.group === group && (all || c.use); });
+  }
+  // 계약 유형 코드의 화면 이름 (프로토타입은 계약에 유형 이름을 저장하므로 규칙도 이름으로 비교)
+  function typeLabel(code) {
+    const c = D.CODES.filter(function (x) { return x.group === 'CONTRACT_TYPE' && x.code === code; })[0];
+    return c ? c.label : code;
+  }
+  function rename(oldName, newName) {
+    D.CONTRACTS.forEach(function (c) { if (c.counterparty === oldName) c.counterparty = newName; });
+  }
+  function applyAdmin(e) {
+    const op = e.op;
+    if (!op) return;
+    const day = e.at.slice(0, 10);
+    if (op.k === 'ASSIGNEE') D.ASSIGNEE_CHANGES.push({ step: op.step, to: op.to, at: e.at });
+    else if (op.k === 'DELEGATE') D.DELEGATIONS.push(Object.assign({ by: e.by, at: e.at, endedAt: null }, op.d));
+    else if (op.k === 'DELEGATE_END') { const d = findBy(D.DELEGATIONS, 'id', op.id); if (d) d.endedAt = e.at; }
+    else if (op.k === 'ALERT_RULE') D.ALERT_RULES[op.key] = op.to;
+    else if (op.k === 'ACCOUNT_ADD') {
+      const a = Object.assign({ status: 'INVITED', registeredAt: day, firstLoginAt: null, lastLoginAt: null, lastLogoutAt: null, roleChangedAt: day, id: localId(op.a.email) }, op.a);
+      D.ACCOUNTS.push(a);
+      D.USERS[a.id] = { name: a.name, dept: a.dept, role: a.roles[0] };
+    } else if (op.k === 'ACCOUNT_EDIT') {
+      const a = findBy(D.ACCOUNTS, 'email', op.email);
+      if (!a) return;
+      if (op.set.dept) a.dept = op.set.dept;
+      if (op.set.roles) a.roles = op.set.roles;
+      if (op.set.status) a.status = op.set.status;
+      if (op.set.roles || op.set.status) a.roleChangedAt = day; // 권한 변경일: 역할이나 사용 여부를 바꾼 날
+      if (D.USERS[a.id]) { D.USERS[a.id].dept = a.dept; D.USERS[a.id].role = a.roles[0]; }
+    } else if (op.k === 'RESTRICT') {
+      D.CONTRACTS.forEach(function (c) { if (c.id === op.id) c.restricted = op.on; });
+    } else if (op.k === 'PRICE') {
+      D.PRICE_ROWS.push(Object.assign({ by: e.by, at: e.at }, op.row));
+      refreshPrices();
+    } else if (op.k === 'CUSTOMER_ADD') {
+      D.CUSTOMERS.push(Object.assign({ registeredBy: e.by, registeredAt: day, use: true, mergedInto: null }, op.cu));
+    } else if (op.k === 'CUSTOMER_EDIT') {
+      const cu = findBy(D.CUSTOMERS, 'id', op.id);
+      if (!cu) return;
+      if (op.set.name && op.set.name !== cu.name) { rename(cu.name, op.set.name); cu.name = op.set.name; }
+      if (op.set.bizNo) cu.bizNo = op.set.bizNo;
+      if (typeof op.set.use === 'boolean') cu.use = op.set.use;
+    } else if (op.k === 'CUSTOMER_MERGE') {
+      // 합치기: 남길 거래처 하나만 두고 나머지는 사용 안 함 + 합쳐진 곳 표시. 계약은 남길 거래처로 옮김
+      const keep = findBy(D.CUSTOMERS, 'id', op.keep);
+      op.ids.forEach(function (id) {
+        const cu = findBy(D.CUSTOMERS, 'id', id);
+        if (!cu || !keep || cu === keep) return;
+        rename(cu.name, keep.name);
+        cu.use = false; cu.mergedInto = keep.id;
+      });
+    } else if (op.k === 'CODE_ADD') {
+      D.CODES.push(Object.assign({ level: null, parent: null, use: true }, op.c));
+      refreshCodes();
+    } else if (op.k === 'CODE_EDIT') {
+      const c = D.CODES.filter(function (x) { return x.group === op.group && x.code === op.code; })[0];
+      if (!c) return;
+      // 프로토타입은 사용자 부서와 계약 유형을 이름으로 저장하므로 이름을 바꾸면 기록의 이름도 바꿔 보여 줌 (실제 시스템은 코드로 저장)
+      if (op.set.label && op.set.label !== c.label) {
+        const old = c.label;
+        if (op.group === 'DEPT') D.ACCOUNTS.forEach(function (a) { if (a.dept === old) { a.dept = op.set.label; if (D.USERS[a.id]) D.USERS[a.id].dept = op.set.label; } });
+        if (op.group === 'CONTRACT_TYPE') D.CONTRACTS.forEach(function (x) { if (x.type === old) x.type = op.set.label; });
+      }
+      if (op.set.label) c.label = op.set.label;
+      if (typeof op.set.use === 'boolean') c.use = op.set.use;
+      refreshCodes();
+    } else if (op.k === 'LOG_REVIEW') D.LOG_REVIEWS.push(Object.assign({ by: e.by, at: e.at }, op.r));
+    else if (op.k === 'ACCESS_REVIEW') D.ACCESS_REVIEWS.push(Object.assign({ by: e.by, at: e.at }, op.r));
+    else if (op.k === 'ALERT_DONE') {
+      const a = findBy(D.SEC_ALERTS, 'id', op.id);
+      if (a) { a.status = 'DONE'; a.doneBy = e.by; a.doneAt = e.at; a.action = op.action; }
+    }
+  }
+  // 관리자 변경 남기기: area(USER, RULE, RESTRICT, CUSTOMER, CODE, AUDIT), 대상, 바뀐 내용, 사유, 반영할 내용
+  function adminSave(area, target, change, reason, op) {
+    const e = { at: nowStamp(), by: currentUser().id, area: area, target: target, change: change, reason: reason, op: op || null };
+    pushDemo('admin', e);
+    D.ADMIN_LOG.push(e);
+    applyAdmin(e);
+    return e;
+  }
+  // 변경 이력 (areas를 주면 그 영역만), 최근 것부터
+  function adminLog(areas) {
+    return D.ADMIN_LOG.filter(function (e) { return !areas || areas.indexOf(e.area) > -1; })
+      .slice().sort(function (a, b) { return b.at.localeCompare(a.at); });
+  }
+  // 그 시각의 단계 담당자: 처음 설정(STEP_ASSIGNEE)에 그 시각까지 바꾼 이력을 차례로 적용
+  function assigneeAt(code, at) {
+    let id = D.STEP_ASSIGNEE[code];
+    D.ASSIGNEE_CHANGES.forEach(function (x) { if (x.step === code && x.at <= at) id = x.to; });
+    return id;
+  }
+  function assigneeOf(code) { return assigneeAt(code, '9999'); }
+  // 대리 지정의 상태: 예정, 진행 중, 끝남 (날짜 기준, 기간의 처음과 끝 날 모두 포함)
+  function delegationState(d) {
+    if (d.endedAt || D.TODAY > d.to) return 'ENDED';
+    return D.TODAY < d.from ? 'PLANNED' : 'ACTIVE';
+  }
+  // 지금 absentId 대신 delegateId가 처리할 수 있는 대리 지정
+  function activeDelegation(absentId, delegateId) {
+    return D.DELEGATIONS.filter(function (d) {
+      return d.absentId === absentId && d.delegateId === delegateId && delegationState(d) === 'ACTIVE';
+    })[0] || null;
+  }
+  // 내가 처리할 차례인지: 담당자 본인이거나, 그 담당자의 대리로 지정된 기간 안
+  function isMyStep(s, user) { return s.userId === user.id || !!activeDelegation(s.userId, user.id); }
+  loadDemo('admin').forEach(function (e) { D.ADMIN_LOG.push(e); applyAdmin(e); });
   // 저장해 둔 시연 기록을 예시 데이터에 더한 뒤, 모든 계약의 결재 상태를 계산
   loadDemoActions().forEach(function (a) {
     const c = D.CONTRACTS.find(function (x) { return x.id === a.contractId; });
@@ -683,8 +833,8 @@ window.CLIMB = (function () {
       '</div></div>' +
       '<nav class="gnb" aria-label="주 메뉴"><div class="inner">' +
         '<ul class="gnb-list">' + menuHtml + '</ul>' +
-        // 이용 안내: 메뉴 줄 오른쪽 끝 (REQ-UI-14)
-        '<a class="gnb-aside" ' + todoAttrs('이용 안내') + '>' + icon('help', 'sm') + '<span class="gnb-aside-label">이용 안내</span></a>' +
+        // 이용 안내(SCR-90): 메뉴 줄 오른쪽 끝 (REQ-UI-14)
+        '<a class="gnb-aside' + (pageId === 'SCR-90' ? ' is-current" aria-current="page' : '') + '" href="help.html">' + icon('help', 'sm') + '<span class="gnb-aside-label">이용 안내</span></a>' +
       '</div></nav>';
 
     // 하위 메뉴 열기·닫기
@@ -774,6 +924,94 @@ window.CLIMB = (function () {
       '<p class="page-range">' + pages + '쪽 중 ' + page + '쪽, ' + range + ' (한 쪽에 ' + size + unit + ')</p>';
   }
 
+
+  /* ---------- 관리자 화면 공통 부품 ----------
+   * gate: 쓸 수 없는 역할이면 안내만 보이고 본문(#content)을 감춤 (REQ-ADM-01). 슈퍼관리자는 모두 봄(REQ-AUTH-14)
+   * fieldHtml: 입력 칸 하나(이름표, 입력칸, 도움말, 오류) / formModal: 입력 창(KRDS 모달)
+   * adminHistoryHtml: 화면 아래 변경 이력 표(일시, 대상, 바뀐 내용, 사유, 바꾼 사람) */
+  function gate(user, roles, title, msg) {
+    if (user.role === 'SUPER' || roles.indexOf(user.role) > -1) return true;
+    document.getElementById('notice').innerHTML = '<div class="notice" role="status"><p class="notice-title">' + icon('alert') + esc(title) + '</p>' +
+      '<p>' + (msg || '지금은 ' + esc(roleLabel(user.role)) + ' 역할로 보고 있습니다. 화면 맨 위 검은 띠에서 관리자나 슈퍼관리자로 바꾸면 볼 수 있습니다.') + '</p></div>';
+    const body = document.getElementById('content');
+    if (body) body.hidden = true;
+    return false;
+  }
+  //   o: { name, label, type(text, date, number, url, select, textarea), value, options: [[값, 이름]], required, help, placeholder, unit, readonly, attrs }
+  function fieldHtml(o) {
+    const id = 'fm-' + o.name;
+    const req = o.required ? '<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span>' : '';
+    const ph = o.placeholder ? ' placeholder="' + esc(o.placeholder) + '"' : '';
+    let control;
+    if (o.type === 'select') {
+      control = '<select class="select" id="' + id + '" name="' + o.name + '"' + (o.attrs || '') + '>' + (o.options || []).map(function (op) {
+        return '<option value="' + esc(op[0]) + '"' + (String(op[0]) === String(o.value) ? ' selected' : '') + '>' + esc(op[1]) + '</option>';
+      }).join('') + '</select>';
+    } else if (o.type === 'textarea') {
+      control = '<textarea class="textarea textarea--sm" id="' + id + '" name="' + o.name + '"' + ph + (o.attrs || '') + '>' + esc(o.value || '') + '</textarea>';
+    } else {
+      control = '<input class="input" id="' + id + '" name="' + o.name + '" type="' + (o.type || 'text') + '" value="' + esc(o.value == null ? '' : o.value) + '"' + ph +
+        (o.readonly ? ' readonly' : '') + (o.attrs || '') + ' autocomplete="off">';
+    }
+    if (o.unit) control = '<div class="input-unit">' + control + '<span class="unit">' + esc(o.unit) + '</span></div>';
+    return '<div class="field" data-field="' + o.name + '"><label class="field-label" for="' + id + '">' + esc(o.label) + req + '</label>' + control +
+      (o.help ? '<p class="field-help">' + esc(o.help) + '</p>' : '') + '<p class="field-error" hidden></p></div>';
+  }
+  //   opt: { title, desc(누르면 어떻게 되는지만), body(입력 칸 HTML), btn, tone(primary, danger), open(form), check(form) → { 칸 이름: 오류 문장 }, done(form) }
+  let fmLast = null;
+  function closeFormModal() {
+    const el = document.getElementById('form-modal');
+    if (el) el.hidden = true;
+    if (fmLast && fmLast.focus) fmLast.focus();
+  }
+  function formModal(opt) {
+    let el = document.getElementById('form-modal');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'form-modal';
+      el.className = 'modal-backdrop';
+      document.body.appendChild(el);
+      el.addEventListener('click', function (e) { if (e.target === el || e.target.closest('[data-act="close"]')) closeFormModal(); });
+      document.addEventListener('keydown', function (e) { if (!el.hidden && e.key === 'Escape') closeFormModal(); });
+    }
+    fmLast = document.activeElement;
+    el.innerHTML = '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="fm-title">' +
+      '<h2 class="modal-title" id="fm-title">' + esc(opt.title) + '</h2>' +
+      (opt.desc ? '<p class="modal-desc">' + esc(opt.desc) + '</p>' : '') +
+      '<form class="modal-body modal-form" id="fm-form" novalidate>' + (opt.body || '') + '</form>' +
+      '<div class="modal-actions"><button type="button" class="btn btn--tertiary btn--md" data-act="close">닫기</button>' +
+      '<button type="submit" form="fm-form" class="btn btn--' + (opt.tone || 'primary') + ' btn--md">' + esc(opt.btn || '저장') + '</button></div></div>';
+    const form = el.querySelector('#fm-form');
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const errs = (opt.check && opt.check(form)) || {};
+      let first = null;
+      form.querySelectorAll('[data-field]').forEach(function (f) {
+        const msg = errs[f.getAttribute('data-field')];
+        f.classList.toggle('is-invalid', !!msg);
+        const box = f.querySelector('.field-error');
+        if (box) { box.innerHTML = msg ? icon('alert', 'sm') + esc(msg) : ''; box.hidden = !msg; }
+        if (msg && !first) first = f.querySelector('input, select, textarea');
+      });
+      if (first) { first.focus(); return; }
+      closeFormModal();
+      opt.done(form);
+    });
+    el.hidden = false;
+    if (opt.open) opt.open(form);
+    const f0 = form.querySelector('input:not([readonly]):not([disabled]), select:not([disabled]), textarea');
+    (f0 || el.querySelector('[data-act="close"]')).focus();
+  }
+  function adminHistoryHtml(list, caption) {
+    return '<div class="tbl-scroll" tabindex="0" role="region" aria-label="' + esc(caption) + '">' +
+      '<table class="tbl tbl--compact tbl--history"><caption class="sr-only">' + esc(caption) + ': 일시, 대상, 바뀐 내용, 사유, 바꾼 사람</caption>' +
+      '<thead><tr><th scope="col">일시</th><th scope="col">대상</th><th scope="col">바뀐 내용</th><th scope="col">사유</th><th scope="col">바꾼 사람</th></tr></thead><tbody>' +
+      (list.length ? list.map(function (e) {
+        return '<tr><td class="nowrap num-left">' + fmtDateTime(e.at) + '</td><td>' + esc(e.target) + '</td><td>' + esc(e.change) + '</td>' +
+          '<td>' + esc(e.reason) + '</td><td class="nowrap">' + esc(userName(e.by)) + '님</td></tr>';
+      }).join('') : '<tr><td class="empty-row" colspan="5">아직 바꾼 기록이 없습니다.</td></tr>') + '</tbody></table></div>';
+  }
+
   /* ---------- 워터마크 (REQ-SEC-07, REQ-ENV-11) ----------
    * "이름 이메일 일시"를 쪽 전체에 옅게 반복해 깝니다. 화면에는 보이지 않고 인쇄와 PDF 저장 때만 나옵니다(common.css).
    * 일시는 인쇄를 누른 때로 다시 찍습니다. 내려받는 PDF에도 서버가 같은 워터마크를 찍습니다(REQ-SEC-08). */
@@ -821,6 +1059,10 @@ window.CLIMB = (function () {
     reviewRoute: reviewRoute, canAct: canAct, canCancel: canCancel, pendingQueue: pendingQueue, recordAction: recordAction, flash: flash, pagerHtml: pagerHtml,
     canView: canView, myActions: myActions,
     esc: esc, badge: badge, statusBadge: statusBadge, todoAttrs: todoAttrs, icon: icon, brandText: brandText, meta: meta, toast: toast,
-    securityNotice: SECURITY_NOTICE,
+    securityNotice: SECURITY_NOTICE, addDays: addDays, daysBetween: daysBetween,
+    // 관리자 설정 (SCR-51~57)
+    adminSave: adminSave, adminLog: adminLog, assigneeAt: assigneeAt, assigneeOf: assigneeOf, delegationState: delegationState,
+    activeDelegation: activeDelegation, isMyStep: isMyStep, codeList: codeList, typeLabel: typeLabel,
+    gate: gate, fieldHtml: fieldHtml, formModal: formModal, adminHistoryHtml: adminHistoryHtml,
   };
 })();

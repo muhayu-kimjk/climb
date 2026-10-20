@@ -77,15 +77,25 @@
 
           <!-- 계약명 칸은 두지 않음: 계약은 거래처(고객사)와 서비스로 구분하고 계약번호로 식별 (v0.12) -->
 
+          <!-- 거래처: 자유 입력 대신 거래처 목록에서 고름 (REQ-REG-18, 데이터 정의서 D-01. 시안 v0.25)
+               고르면 상호와 사업자등록번호가 채워지고 고칠 수 없음. 목록에 없으면 "새 거래처 등록"을 골라 직접 넣음
+               같은 사업자등록번호는 두 번 등록할 수 없음. 거래처를 고치거나 합치는 것은 관리자(거래처 관리 SCR-55) -->
+          <div class="field" data-field="customer">
+            <label class="field-label" for="f-customer">거래처<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+            <select class="select" id="f-customer" name="customer"></select>
+            <p class="field-help" id="customer-help">거래처 목록에서 고릅니다. 상호와 사업자등록번호는 목록에서 채워집니다.</p>
+            <p class="field-error" hidden></p>
+          </div>
+
           <div class="field-row">
             <div class="field" data-field="counterparty">
               <label class="field-label" for="f-counterparty">거래처 상호<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
-              <input class="input" id="f-counterparty" name="counterparty" type="text" placeholder="예: 한빛대학교">
+              <input class="input" id="f-counterparty" name="counterparty" type="text" placeholder="거래처를 먼저 고르세요" readonly>
               <p class="field-error" hidden></p>
             </div>
             <div class="field" data-field="bizNo">
               <label class="field-label" for="f-bizno">사업자등록번호<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
-              <input class="input" id="f-bizno" name="bizNo" type="text" inputmode="numeric" placeholder="000-00-00000" maxlength="12">
+              <input class="input" id="f-bizno" name="bizNo" type="text" inputmode="numeric" placeholder="000-00-00000" maxlength="12" readonly>
               <p class="field-error" hidden></p>
             </div>
           </div>

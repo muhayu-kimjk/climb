@@ -111,7 +111,13 @@
 
   const actionable = (c.approvals || []).filter(function (s) { return C.canAct(c, s, me); });
   const cancelable = (c.approvals || []).filter(function (s) { return C.canCancel(c, s, me); });
-  const isMine = function (s) { return s.userId === me.id; };
+  // 내 차례: 담당자 본인이거나 대리 지정 기간 안의 대신할 사람 (REQ-REV-08)
+  const isMine = function (s) { return C.isMyStep(s, me); };
+  // 대리 지정으로 대신 처리하는 단계면 "최민준님 대신 (대리 지정 10.19 ~ 10.23)" 안내
+  function behalfText(s) {
+    const dl = s.userId !== me.id ? C.activeDelegation(s.userId, me.id) : null;
+    return dl ? esc(C.userName(s.userId)) + '님 대신 (대리 지정 ' + C.fmtDate(dl.from) + ' ~ ' + C.fmtDate(dl.to) + ')' : '';
+  }
 
   // 내 차례일 때 할 일 안내 (단계마다)
   const TODO = {
@@ -135,14 +141,16 @@
       ? '<br><strong>다시 등록 요청 (' + esc(C.userName(c.lastReturn.by)) + '님, ' + C.fmtDateTime(c.lastReturn.at) + ')</strong>: ' + esc(c.lastReturn.reason) : '';
     if (mineNow.length) {
       const s = mineNow[0];
-      html = notice('', C.stepLabel(s.step) + ' 차례입니다 (' + C.waitDays(c, s) + '일째)', esc(TODO[C.isReviewStep(s.step) ? 'review' : s.step]) + ret);
+      const dl = s.userId !== me.id ? C.activeDelegation(s.userId, me.id) : null;
+      const behalf = dl ? '<br><strong>' + behalfText(s) + '</strong>: 처리하면 결재 기록에 대리로 처리한 것과 근거가 남습니다. 근거: ' + esc(dl.reason) : '';
+      html = notice('', C.stepLabel(s.step) + ' 차례입니다 (' + C.waitDays(c, s) + '일째)', esc(TODO[C.isReviewStep(s.step) ? 'review' : s.step]) + behalf + ret);
     } else if (c.status === 'REJECTED') {
       html = notice('', C.stepLabel(c.rejection.step) + '에서 반려되었습니다',
         '<strong>' + esc(C.userName(c.rejection.by)) + '님 (' + C.fmtDateTime(c.rejection.at) + ')</strong><br>' + esc(c.rejection.reason) +
         '<br>기안자가 보완해 ' + (round + 1) + '차로 다시 기안합니다.');
     } else if (actionable.length && me.role === 'SUPER') {
       html = notice('', '시연: 담당자 대신 처리해 볼 수 있습니다',
-        '슈퍼관리자는 모든 결재 문서를 볼 수 있고, 프로토타입에서는 담당자 대신 각 단계를 처리해 볼 수 있습니다. 실제 시스템에서는 담당자 본인만 처리합니다(대리 결재는 미정).' + ret);
+        '슈퍼관리자는 모든 결재 문서를 볼 수 있고, 프로토타입에서는 담당자 대신 각 단계를 처리해 볼 수 있습니다. 실제 시스템에서는 담당자 본인과 관리자가 대리로 지정한 사람만 처리합니다(결재선 규칙의 대리 지정).' + ret);
     } else if (c.status === 'APPROVED' || c.status === 'OPS_REVIEW') {
       html = notice('success', c.status === 'APPROVED' ? '계약 검토가 끝나 체결 중입니다' : '체결이 끝나 운영 검토 중입니다',
         (c.status === 'APPROVED' ? C.fmtDateTime(c.approvedAt) + '에 계약 검토가 끝났습니다. ' : C.fmtDateTime(c.signedAt) + '에 체결본을 등록했습니다. ') +
@@ -180,7 +188,7 @@
     const when = (withDraft ? '<td class="box-when">' + C.fmtDateTime(c.requestedAt) + '</td>' : '') +
       steps.map(function (s) {
         let t;
-        if (s.state === 'DONE' || s.state === 'REJECTED') t = C.fmtDateTime(s.decidedAt) + (s.onBehalfOf ? '<br>' + esc(C.userName(s.decidedBy)) + '님 대신' : '');
+        if (s.state === 'DONE' || s.state === 'REJECTED') t = C.fmtDateTime(s.decidedAt) + (s.onBehalfOf ? '<br>' + esc(C.userName(s.decidedBy)) + '님이 대신' : '');
         else if (s.state === 'PENDING') t = C.waitDays(c, s) + '일째';
         else if (s.state === 'SKIPPED') t = esc(s.reason);
         else t = '-';
@@ -317,9 +325,11 @@
       '<thead><tr><th scope="col">일시</th><th scope="col">차수</th><th scope="col">단계</th><th scope="col">한 일</th><th scope="col">처리한 사람</th><th scope="col">의견, 사유</th></tr></thead>' +
       '<tbody>' + rows.map(function (h) {
         const a = D.APPROVAL_ACTIONS[h.action];
-        const who = esc(C.userName(h.actorId)) + '님' + (h.onBehalfOf ? ' <span class="behalf">(' + esc(C.userName(h.onBehalfOf)) + '님 대신, 시연)</span>' : '');
+        // 대신 처리한 기록: 대리 지정이면 "대리 지정"과 근거, 슈퍼관리자 시연이면 "시연"
+        const who = esc(C.userName(h.actorId)) + '님' + (h.onBehalfOf ? ' <span class="behalf">(' + esc(C.userName(h.onBehalfOf)) + '님 대신, ' + (h.delegationId ? '대리 지정' : '시연') + ')</span>' : '');
         // 체결본 등록은 올린 파일 이름도 함께
-        const note = (h.comment ? esc(h.comment) : '') + (h.fileName ? (h.comment ? '<br>' : '') + '<span class="behalf">파일: ' + esc(h.fileName) + '</span>' : '');
+        const extra = [h.fileName ? '파일: ' + esc(h.fileName) : '', h.basis ? '대리 근거: ' + esc(h.basis) : ''].filter(Boolean);
+        const note = (h.comment ? esc(h.comment) : '') + (extra.length ? (h.comment ? '<br>' : '') + '<span class="behalf">' + extra.join('<br>') + '</span>' : '');
         return '<tr><td class="nowrap num-left">' + C.fmtDateTime(h.at) + '</td><td class="num">' + (h.round || 1) + '차</td>' +
           '<td class="nowrap">' + esc(D.STEPS[h.step].no + ' ' + D.STEPS[h.step].short) + '</td>' +
           '<td class="nowrap">' + C.badge(a.tone, C.actionLabel(h, c)) + '</td><td class="nowrap">' + who + '</td><td>' + (note || '-') + '</td></tr>';
@@ -356,7 +366,7 @@
             return '<option value="' + s.step + '">' + esc(C.stepLabel(s.step)) + ' (' + esc(C.userName(s.userId)) + '님)</option>';
           }).join('') + '</select></label>'
         : '<p class="act-target"><strong>' + esc(C.stepLabel(actionable[0].step)) + '</strong>' +
-          (isMine(actionable[0]) ? '' : ' <span class="behalf">' + esc(C.userName(actionable[0].userId)) + '님 대신 (시연)</span>') + '</p>';
+          (actionable[0].userId === me.id ? '' : ' <span class="behalf">' + (behalfText(actionable[0]) || esc(C.userName(actionable[0].userId)) + '님 대신 (시연)') + '</span>') + '</p>';
       html += '<div class="act-row">' + pick + '<div class="act-btns" id="act-btns">' + buttonsHtml(actionable[0].step) + '</div></div>';
     }
     if (cancelable.length) {

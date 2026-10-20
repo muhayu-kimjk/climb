@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 브라우저 탭 제목: CLIMB (REQ-NAME-02) -->
+  <title>CLIMB</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/common.css">
+  <link rel="stylesheet" href="assets/css/form.css">
+  <link rel="stylesheet" href="assets/css/list.css">
+  <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<!-- =====================================================================
+  SCR-52 결재선 규칙 (docs/02_화면목록.md)
+  - 관리자와 슈퍼관리자가 씁니다. (REQ-AUTH-02, REQ-AUTH-06)
+  - 결재선은 체크리스트 답과 개인정보 처리 여부로 정해지고 금액 기준은 없습니다(REQ-CHK-05). 이 화면에서는 그 조건을 보여 주기만 하고,
+    바꾸는 것은 단계별 담당자, 대리 지정, 독촉 기준 일수입니다.
+  - 담당자를 바꾸면 아직 차례가 오지 않은 단계부터 새 담당자에게 가고, 지금 차례인 건은 원래 담당자가 처리합니다(기획자 결정 v0.25).
+  - 대리 지정: 관리자가 기간과 대신할 사람을 정하고, 결재 기록에 "누구 대신"과 근거가 남습니다(REQ-REV-08, 기획자 결정 v0.25).
+  - 바꿀 때는 사유가 필수이고, 변경 이력(누가, 언제, 무엇을, 사유)이 남습니다. 동작은 assets/js/admin-rules.js
+====================================================================== -->
+<body data-page="SCR-52">
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <div id="demo-bar"></div>
+
+  <div class="sheet">
+  <header id="site-header"></header>
+
+  <main id="main" class="page">
+    <div class="inner">
+      <div class="page-head page-head--sub">
+        <h1 class="page-title">결재선 규칙</h1>
+      </div>
+      <div class="page-intro">
+        <p>단계마다 누가 처리하는지, 자리를 비울 때 누가 대신하는지, 언제 독촉하는지를 정합니다.</p>
+        <p class="sub">어떤 단계를 거치는지는 체크리스트 답과 개인정보 처리 여부로 정해지고, 금액 기준은 없습니다. 바꿀 때는 사유를 꼭 적고, 바꾼 기록은 지우지 않습니다.</p>
+      </div>
+
+      <div id="notice"></div>
+
+      <div id="content" class="admin-stack">
+        <section class="panel" aria-labelledby="sec-assignee">
+          <div class="panel-head"><h2 class="panel-title" id="sec-assignee">단계별 담당자</h2></div>
+          <p class="panel-desc">담당자를 바꾸면 아직 차례가 오지 않은 계약부터 새 담당자에게 갑니다. 지금 차례인 계약은 원래 담당자가 그대로 처리합니다.</p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="단계별 담당자 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">단계별 담당자: 단계, 거치는 조건, 담당자, 지금 차례, 관리</caption>
+              <thead><tr><th scope="col">단계</th><th scope="col">거치는 조건</th><th scope="col">담당자</th><th scope="col" class="num">지금 차례</th><th scope="col" class="col-action">관리</th></tr></thead>
+              <tbody id="assignee-rows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-delegate">
+          <div class="panel-head panel-head--act">
+            <h2 class="panel-title" id="sec-delegate">대리 지정</h2>
+            <button type="button" class="btn btn--primary btn--md" id="btn-delegate">대리 지정 추가</button>
+          </div>
+          <p class="panel-desc">담당자가 휴가나 출장으로 자리를 비우는 기간에 대신 처리할 사람을 정합니다. 기간 안에는 대신할 사람이 처리하고, 결재 기록에 누구 대신인지와 근거가 남습니다.</p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="대리 지정 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">대리 지정: 자리를 비우는 담당자, 대신할 사람, 기간, 근거, 상태, 관리</caption>
+              <thead><tr><th scope="col">자리를 비우는 담당자</th><th scope="col">대신할 사람</th><th scope="col">기간</th><th scope="col">근거</th><th scope="col">상태</th><th scope="col" class="col-action">관리</th></tr></thead>
+              <tbody id="delegate-rows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-remind">
+          <div class="panel-head"><h2 class="panel-title" id="sec-remind">독촉 기준 일수</h2></div>
+          <p class="panel-desc">기준을 넘긴 건은 목록에서 강조하고, 담당자나 기안자에게 독촉 이메일을 보냅니다.</p>
+          <div class="tbl-scroll">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">독촉 기준 일수: 기준, 일수, 쓰는 곳, 관리</caption>
+              <thead><tr><th scope="col">기준</th><th scope="col" class="num">일수</th><th scope="col">쓰는 곳</th><th scope="col" class="col-action">관리</th></tr></thead>
+              <tbody id="remind-rows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-history">
+          <div class="panel-head"><h2 class="panel-title" id="sec-history">변경 이력</h2></div>
+          <p class="panel-desc">담당자, 대리 지정, 독촉 기준을 바꾼 기록입니다. 고치거나 지울 수 없습니다.</p>
+          <div id="history"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+  </div><!-- /.sheet -->
+
+  <script src="assets/js/mock-data.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/admin-rules.js"></script>
+</body>
+</html>

@@ -1,0 +1,79 @@
+/* =====================================================================
+ * 관리자 화면 공통 스타일 (admin.css)
+ * 사용자 권한 관리(SCR-51), 결재선 규칙(SCR-52), 열람 제한 관리(SCR-53), 가격 기준 관리(SCR-54),
+ * 거래처 관리(SCR-55), 코드 관리(SCR-56), 접속 기록 점검(SCR-57)이 함께 씁니다.
+ *   - 화면은 묶음(패널)을 위에서 아래로: 지금 설정 → 바꾸기 → 변경 이력
+ *   - 바꾸기, 끝내기 같은 줄 안의 버튼과 묶음 머리의 추가 버튼은 인쇄에서 감춤
+ *   - 입력 창은 common.js의 C.formModal, 변경 이력 표는 C.adminHistoryHtml
+ * 관련 요구사항: REQ-ADM, REQ-SEC-05, REQ-UI-10~12, REQ-UI-16
+ * ===================================================================== */
+
+.admin-stack { display: flex; flex-direction: column; gap: 2.4rem; }
+/* 묶음 머리: 제목 왼쪽, 추가 버튼 오른쪽 (세로 가운데) */
+.panel-head--act { align-items: center; flex-wrap: wrap; }
+.panel-head--act .btn { flex-shrink: 0; }
+
+/* 표 줄 안의 관리 버튼: 글자 링크 모양. 조심할 일(해제, 끝내기)은 핑크 */
+.link-act { min-height: var(--touch-min); padding: 0 0.2rem; font-size: var(--fs-body-small); font-weight: 700; color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; white-space: nowrap; }
+.link-act + .link-act { margin-left: 1rem; }
+.link-act--danger { color: var(--status-danger-fill); }
+.link-act:disabled { color: var(--text-disabled); text-decoration: none; cursor: default; }
+
+/* 표 안의 굵은 주 정보와 흐린 줄(사용 안 함, 끝남) */
+.tbl .cell-strong { font-weight: 700; color: var(--text-basic); }
+.tbl tr.is-muted td { color: var(--text-disabled); }
+.tbl tr.is-muted .cell-strong { color: var(--text-subtle); }
+.tbl .col-action { width: 1%; white-space: nowrap; text-align: center; }
+/* 글이 긴 칸(거치는 조건, 근거)은 좁아지지 않게 */
+.tbl .col-wide { min-width: 18rem; }
+
+/* 변경 이력 표: 글이 긴 칸(바뀐 내용, 사유)은 줄바꿈 */
+.tbl--history { min-width: 64rem; }
+.tbl--history td { vertical-align: top; }
+.tbl--history td:nth-child(3), .tbl--history td:nth-child(4) { min-width: 16rem; }
+
+/* 품의 문서 같은 표 안의 링크 */
+.doc-link { color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; }
+
+/* 사용자 권한 관리(SCR-51): 목록 아래 권한 변경 이력 */
+.users-history { margin-top: 3.2rem; }
+
+/* 묶음 아래 작은 안내 */
+.sub-note { margin-top: 1rem; font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
+
+/* 입력 창 안의 정보 줄 (예: 지금 담당자)과 체크 묶음 */
+.modal-info { padding: 1.2rem 1.6rem; border-radius: var(--radius-md); background: var(--surface-gray-subtler); font-size: var(--fs-body-small); color: var(--text-basic); }
+.modal-info + .field, .modal-info + .field-row { margin-top: 2rem; }
+.summary-list { padding-left: 2rem; list-style: disc; }
+.summary-list li + li { margin-top: 0.4rem; }
+.check-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.6rem; }
+
+/* 코드표 고르기 (코드 관리): 누른 것만 진한 초록. 누르는 영역 44px */
+.seg { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1.6rem; }
+.seg button { min-height: var(--touch-min); padding: 0 1.6rem; border: 1px solid var(--border-gray); border-radius: 99rem; background: var(--surface-white); font-size: var(--fs-body-small); color: var(--text-basic); }
+.seg button:hover { background: var(--surface-gray-subtler); }
+.seg button[aria-pressed="true"] { border-color: var(--mh-dark-green); background: var(--mh-dark-green); color: var(--text-inverse); font-weight: 700; }
+@media print { .seg { display: none; } }
+
+/* 입력 창 안의 세로 선택지 (예: 합칠 때 남길 거래처) */
+.modal-form .choice-col { display: flex; flex-direction: column; }
+
+/* 표 안의 고르기 칸: 체크 상자만 (누르는 영역 44px) */
+.choice--only { gap: 0; }
+
+/* 거르기 칸이 둘인 목록 (거래처 관리, 접속 기록): 검색 + 선택 하나 + 초기화를 한 줄에 */
+.filter-bar--two { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; }
+.filter-bar--two .field:first-child, .filter-bar--two .filter-reset { grid-column: auto; grid-row: auto; }
+
+/* 휴대폰 (방식 B): 배치는 같게, 체크 묶음만 한 줄에 하나 */
+@media screen and (max-width: 600px) {
+  .check-grid { grid-template-columns: 1fr; }
+  .filter-bar--two { grid-template-columns: 1fr 1fr; }
+  .filter-bar--two .field:first-child, .filter-bar--two .filter-reset { grid-column: 1 / -1; }
+}
+
+@media print {
+  .panel-head--act .btn, .link-act { display: none !important; }
+  .tbl--history { min-width: 0; }
+  .admin-stack { gap: 6mm; }
+}

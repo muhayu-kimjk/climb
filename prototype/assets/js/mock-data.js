@@ -103,17 +103,38 @@ window.CLIMB_DATA = (function () {
    * 서비스는 계약에 넣은 제품(가격 기준의 service)에서 정해집니다. 서비스 이름과 목록은 기획자 확인 필요 */
   const SERVICES = { CK: '카피킬러', HR: 'HR 서비스' };
 
-  /* ---------- 가격 기준: 표준단가표와 할인율 한도(cap) (REQ-SCOPE-02, REQ-CHK-04) ----------
+  /* ---------- 가격 기준: 표준단가표와 할인율 한도(cap) (REQ-SCOPE-02, REQ-CHK-04, REQ-CHK-07) ----------
    * 시연용 가상 값입니다. 실제 단가가 아닙니다.
-   * 실제 시스템에서는 관리자가 "가격 기준 관리"(SCR-54)에서 관리하고, 영업, 세일즈어드민, 관리자만 볼 수 있습니다.
-   * service: 제품이 속한 서비스(SERVICES) / listPrice: 표준 단가(원, 부가세 별도) / discountCap: 할인율 한도(이 비율까지 할인 가능) */
-  const PRICE_BOOK = [
-    { code: 'CK-ORG', service: 'CK', name: 'CK 기관 라이선스', unit: '기관, 1년', listPrice: 12000000, discountCap: 0.20 },
-    { code: 'CK-USER', service: 'CK', name: 'CK 추가 이용자', unit: '100명, 1년', listPrice: 1500000, discountCap: 0.15 },
-    { code: 'CK-API', service: 'CK', name: 'CK API 연동', unit: '1식, 1년', listPrice: 6000000, discountCap: 0.10 },
-    { code: 'HR-BASE', service: 'HR', name: 'HR 서비스 기본', unit: '기관, 1년', listPrice: 9600000, discountCap: 0.20 },
-    { code: 'HR-ADD', service: 'HR', name: 'HR 추가 모듈', unit: '모듈, 1년', listPrice: 3600000, discountCap: 0.15 },
+   * 관리자가 "가격 기준 관리"(SCR-54)에서 관리하고, 영업, 세일즈어드민, 관리자만 볼 수 있습니다.
+   * PRICE_ROWS: 바뀐 이력 전체. 값을 바꿀 때는 기존 줄을 고치지 않고 새 적용 시작일로 새 줄을 더합니다(데이터 정의서 8장).
+   *   service: 제품이 속한 서비스(SERVICES) / listPrice: 표준 단가(원, 부가세 별도) / discountCap: 할인율 한도(이 비율까지 할인 가능)
+   *   validFrom: 적용 시작일(이날 이후 기안하는 계약부터) / docUrl: 사내 품의 문서 링크(필수) / docNo: 품의 번호 / reason: 변경 사유
+   *   by, at: 바꾼 사람과 일시. 품의 문서 주소와 번호는 가상입니다.
+   * PRICE_BOOK: 오늘 적용되는 줄만 모은 표. 계약 등록 화면이 씁니다(common.js가 관리자 변경을 반영해 다시 만듦). */
+  const PRICE_DOC = 'https://gw.muhayu.com/approval/';
+  const PRICE_ROWS = [
+    { code: 'CK-ORG', service: 'CK', name: 'CK 기관 라이선스', unit: '기관, 1년', listPrice: 12000000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { code: 'CK-USER', service: 'CK', name: 'CK 추가 이용자', unit: '100명, 1년', listPrice: 1400000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { code: 'CK-API', service: 'CK', name: 'CK API 연동', unit: '1식, 1년', listPrice: 6000000, discountCap: 0.10, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { code: 'HR-BASE', service: 'HR', name: 'HR 서비스 기본', unit: '기관, 1년', listPrice: 9600000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { code: 'HR-ADD', service: 'HR', name: 'HR 추가 모듈', unit: '모듈, 1년', listPrice: 3600000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    // 바뀐 예: 추가 이용자 단가 인상(10월 1일부터)
+    { code: 'CK-USER', service: 'CK', name: 'CK 추가 이용자', unit: '100명, 1년', listPrice: 1500000, discountCap: 0.15, validFrom: '2026-10-01', docUrl: PRICE_DOC + '2026-0915', docNo: '경영지원-2026-0915', reason: '추가 이용자 단가 인상(서버 비용 반영)', by: 'u_admin', at: '2026-09-24 15:10' },
+    // 예정된 예: 추가 모듈 할인율 한도를 내년부터 넓힘 (아직 적용 전)
+    { code: 'HR-ADD', service: 'HR', name: 'HR 추가 모듈', unit: '모듈, 1년', listPrice: 3600000, discountCap: 0.20, validFrom: '2027-01-01', docUrl: PRICE_DOC + '2026-1007', docNo: '경영지원-2026-1007', reason: '추가 모듈 판매 촉진: 할인율 한도 15%에서 20%로', by: 'u_admin', at: '2026-10-14 11:30' },
   ];
+  // 오늘 적용되는 줄: 제품마다 적용 시작일이 오늘 이전인 줄 중 가장 늦은 것
+  function currentPrices(rows, today) {
+    const by = {};
+    rows.forEach(function (r) {
+      if (r.validFrom > today) return;
+      if (!by[r.code] || by[r.code].validFrom <= r.validFrom) by[r.code] = r;
+    });
+    const order = [];
+    rows.forEach(function (r) { if (order.indexOf(r.code) < 0) order.push(r.code); });
+    return order.filter(function (c) { return by[c]; }).map(function (c) { return by[c]; });
+  }
+  const PRICE_BOOK = currentPrices(PRICE_ROWS, TODAY);
 
   /* ---------- 업무 세부 단계 (요구사항 정의서 3.2, 데이터 정의서 CODE-STEP) ----------
    * role: 담당 역할 / short: 짧은 이름(현재 진행 칸, 결재란 머리에 씀) */
@@ -140,7 +161,8 @@ window.CLIMB_DATA = (function () {
   const POST_GROUPS = [['S06'], ['S07'], ['S08'], ['S09'], ['S10']];
   // 단계를 처리하는 역할 (검토 완료 화면과 메뉴에 씀): 결재 역할 + 총무, CEM, 재무
   const PROCESS_ROLES = ['SALES_ADMIN', 'LEGAL', 'PRIVACY', 'HEAD', 'EXEC', 'GA', 'CEM', 'FINANCE'];
-  // 단계별 담당자 [가정]. 실제 시스템에서는 관리자가 결재선 규칙(SCR-52)에서 지정합니다. (REQ-AUTH-06)
+  // 단계별 담당자(처음 설정) [가정]. 관리자가 결재선 규칙(SCR-52)에서 바꾸면 ASSIGNEE_CHANGES에 쌓입니다. (REQ-AUTH-06)
+  //   ③ 영업 검토는 영업본부 부서장 한 명 [가정]. 부서장 본인이 기안한 계약은 영업 담당 임원(REQ-AUTH-12)
   const STEP_ASSIGNEE = {
     S02: 'u_sadmin', S03: 'u_head', S04: 'u_legal', S05: 'u_privacy',
     S06: 'u_ga', S08: 'u_sadmin', S09: 'u_cem', S10: 'u_finance',
@@ -499,5 +521,138 @@ window.CLIMB_DATA = (function () {
     };
   });
 
-  return { TODAY, BRAND, ROLES, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, CONTRACT_TYPES, METHODS, SETTLEMENTS, PRICE_BOOK, STEPS, REVIEW_GROUPS, POST_GROUPS, PROCESS_ROLES, STEP_ASSIGNEE, APPROVAL_STATE, APPROVAL_ACTIONS, SEAL_CHECKS, OPS_CHECKS, OPS_CHECKS_END, OPS_CHECKS_EXTEND, AFTERCARE_TYPES, FILE_KINDS, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS };
+
+  /* ---------- 계정과 사용자 연결 (결재선 규칙, 대리 지정에서 사람을 고를 때 씀) ----------
+   * USERS에 없는 사람은 이메일 앞부분으로 번호를 만들어 더합니다. 예: minjae.song@muhayu.com → u_minjae_song */
+  ACCOUNTS.forEach(function (a) {
+    let id = Object.keys(USERS).filter(function (k) { return USERS[k].name === a.name; })[0];
+    if (!id) {
+      id = 'u_' + a.email.split('@')[0].replace(/\./g, '_');
+      USERS[id] = { name: a.name, dept: a.dept, role: a.roles[0] };
+    }
+    a.id = id;
+  });
+
+  /* ---------- 거래처 목록: 거래처 관리(SCR-55), 계약 등록의 고객사 고르기 (REQ-REG-18, 데이터 정의서 6장, D-01) ----------
+   * 가상의 거래처와 가상의 사업자등록번호입니다.
+   * 프로토타입은 계약의 상호(counterparty)로 거래처를 연결합니다. 실제 시스템은 거래처 번호(customer_id)로 연결합니다.
+   * use: 사용 여부 / mergedInto: 다른 거래처로 합쳐졌으면 남긴 거래처 번호
+   * C-0001~0013: CLIMB 도입 때 기존 계약관리대장에서 옮긴 거래처 / 그 뒤: 영업이 계약을 등록하며 새로 등록 */
+  const CUSTOMERS = [
+    // [번호, 상호, 사업자등록번호, 등록한 사람, 등록일]
+    ['C-0001', '한결대학교', '119-82-04512', 'u_super', '2026-09-01'],
+    ['C-0002', '푸른솔아카데미', '220-87-31408', 'u_super', '2026-09-01'],
+    ['C-0003', '별빛어학원', '305-91-18273', 'u_super', '2026-09-01'],
+    ['C-0004', '누리교육재단', '104-82-55120', 'u_super', '2026-09-01'],
+    ['C-0005', '온새미로대학교', '312-82-07436', 'u_super', '2026-09-01'],
+    ['C-0006', '가온테크', '129-86-40917', 'u_super', '2026-09-01'],
+    ['C-0007', '이음병원', '410-82-61125', 'u_super', '2026-09-01'],
+    ['C-0008', '해랑출판', '211-88-29364', 'u_super', '2026-09-01'],
+    ['C-0009', '청람컨설팅', '220-88-71542', 'u_super', '2026-09-01'],
+    ['C-0010', '마루중학교', '403-83-10288', 'u_super', '2026-09-01'],
+    ['C-0011', '바른출판', '105-87-44120', 'u_super', '2026-09-01'],
+    ['C-0012', '새솔고등학교', '314-83-20951', 'u_super', '2026-09-01'],
+    ['C-0013', '다온컨설팅', '120-88-63017', 'u_super', '2026-09-01'],
+    ['C-0014', '소담에듀', '107-86-33921', 'u_sales1', '2026-10-06'],
+    ['C-0015', '미래로병원', '506-82-17340', 'u_sales2', '2026-10-08'],
+    ['C-0016', '하늘연구원', '314-82-90215', 'u_sales2', '2026-10-10'],
+    ['C-0017', '한빛대학교', '134-82-00417', 'u_sales1', '2026-10-14'],
+    // 같은 거래처를 두 번 등록한 예: 상호를 줄여 쓰고 사업자등록번호 끝자리를 잘못 넣어 중복 검사를 지나침 → 거래처 관리에서 합침
+    ['C-0018', '한빛대', '134-82-00471', 'u_sales2', '2026-10-15'],
+    ['C-0019', '가람전자', '124-81-56732', 'u_sales1', '2026-10-17'],
+    ['C-0020', '단비소프트', '215-87-80164', 'u_sales1', '2026-10-18'],
+    ['C-0021', '바름고등학교', '214-82-10457', 'u_sales1', '2026-10-18'],
+  ].map(function (r) {
+    return { id: r[0], name: r[1], bizNo: r[2], registeredBy: r[3], registeredAt: r[4], use: true, mergedInto: null };
+  });
+
+  /* ---------- 관리자가 관리하는 코드표: 코드 관리(SCR-56) (데이터 정의서 9장) ----------
+   * 화면 이름을 바꿔도 코드는 그대로입니다. 쓰지 않는 코드는 지우지 않고 "사용 안 함"으로 돌립니다(지난 기록의 뜻을 지키려고).
+   * 사용 안 함인 코드는 새로 고르는 목록에서만 빠지고, 이미 저장된 기록에는 그대로 보입니다.
+   * 서비스는 대분류, 중분류, 소분류 3단계(level 1~3, parent 상위 코드). 중분류, 소분류는 기획자가 든 예 (D-09 목록 전달 예정) */
+  const CODE_GROUPS = {
+    DEPT: { name: '부서', table: 'CODE-DEPT', note: '사용자 권한 관리에서 고르는 부서' },
+    SERVICE: { name: '서비스', table: 'CODE-SERVICE', note: '대분류, 중분류, 소분류 3단계. 제품(가격 기준)이 속하는 서비스', levels: true },
+    CONTRACT_TYPE: { name: '계약 유형', table: 'CODE-CONTRACT-TYPE', note: '계약 등록에서 고르는 유형' },
+    METHOD: { name: '계약 방식', table: 'CODE-METHOD', note: '계약 등록에서 고르는 방식' },
+    SETTLEMENT: { name: '정산 방식', table: 'CODE-SETTLEMENT', note: '계약 등록에서 고르는 방식' },
+    AFTERCARE: { name: '사후관리 기록 종류', table: 'CODE-AFTERCARE-TYPE', note: '계약 상세의 사후관리 기록에서 고르는 종류' },
+  };
+  const CODES = [
+    ['DEPT', 'COMPLIANCE', '컴플라이언스팀'], ['DEPT', 'EXECUTIVE', '경영진'], ['DEPT', 'SALES_HQ', '영업본부'],
+    ['DEPT', 'SALES_1', '영업1팀'], ['DEPT', 'SALES_2', '영업2팀'], ['DEPT', 'SALES_3', '영업3팀'],
+    ['DEPT', 'SALES_ADMIN', '세일즈어드민팀'], ['DEPT', 'LEGAL', '법무팀'], ['DEPT', 'INFOSEC', '정보보호팀'],
+    ['DEPT', 'MGMT_SUPPORT', '경영지원팀'], ['DEPT', 'CEM', 'CEM팀'], ['DEPT', 'FINANCE', '재무팀'],
+    ['SERVICE', 'CK', SERVICES.CK, 1], ['SERVICE', 'HR', SERVICES.HR, 1], ['SERVICE', 'ETC', '기타', 1],
+    ['SERVICE', 'CK_CAMPUS', '카피킬러 캠퍼스', 2, 'CK'], ['SERVICE', 'CK_SCHOOL', '카피킬러 스쿨', 2, 'CK'], ['SERVICE', 'CK_CONTEST', '카피킬러 콘테스트', 2, 'CK'],
+    ['SERVICE', 'HR_PRISM', '프리즘', 2, 'HR'], ['SERVICE', 'HR_MONSTER', '몬스터', 2, 'HR'], ['SERVICE', 'HR_PRISM_Q', '프리즘Q', 3, 'HR_PRISM'],
+    ['CONTRACT_TYPE', 'SAAS', 'SaaS 이용계약'], ['CONTRACT_TYPE', 'NDA', '비밀유지계약(NDA)'], ['CONTRACT_TYPE', 'RESELLER', '리셀러 계약'],
+    ['CONTRACT_TYPE', 'DPA', '개인정보 처리위탁 계약'], ['CONTRACT_TYPE', 'ETC', '기타'],
+    ['METHOD', 'DIRECT', '직접'], ['METHOD', 'PROCURE', '조달'], ['METHOD', 'RESELLER', '리셀러'],
+    ['SETTLEMENT', 'LUMP', '일시'], ['SETTLEMENT', 'SPLIT', '분할'], ['SETTLEMENT', 'POST', '후불'],
+    ['AFTERCARE', 'CONTACT_CHANGE', '담당자 변경'], ['AFTERCARE', 'ISSUE', '특이사항'],
+  ].map(function (r) { return { group: r[0], code: r[1], label: r[2], level: r[3] || null, parent: r[4] || null, use: true }; });
+
+  /* ---------- 대리 지정: 결재선 규칙(SCR-52) (REQ-REV-08, 기획자 결정 v0.25) ----------
+   * 담당자가 자리를 비우는 기간과 대신할 사람을 관리자가 정합니다. 기간 안에는 대신할 사람이 그 담당자의 차례를 처리하고,
+   * 결재 기록에 "누구 대신"과 근거(사유)가 남습니다. 담당자 본인도 기간 중에 처리할 수 있습니다. [가정]
+   * absentId: 자리를 비우는 담당자 / delegateId: 대신할 사람 / from, to: 기간(날짜, 이틀 다 포함) / reason: 근거
+   * by, at: 지정한 관리자와 일시 / endedAt: 기간 전에 끝냈으면 그 일시 */
+  const DELEGATIONS = [
+    { id: 'DL-001', absentId: 'u_legal', delegateId: 'u_minjae_song', from: '2026-10-05', to: '2026-10-07',
+      reason: '김지우님 연차(10.5~10.7). 같은 법무팀 송민재님이 법무 검토를 대신함', by: 'u_admin', at: '2026-10-02 10:20', endedAt: null },
+    { id: 'DL-002', absentId: 'u_head', delegateId: 'u_exec', from: '2026-10-19', to: '2026-10-23',
+      reason: '최민준님 해외 출장(10.19~10.23). 영업 검토를 영업 담당 임원이 대신 결재(위임전결규정 대결)', by: 'u_admin', at: '2026-10-16 17:40', endedAt: null },
+  ];
+  // 단계 담당자를 바꾼 이력. 바꾸면 아직 차례가 오지 않은 단계부터 새 담당자에게 갑니다(기획자 결정 v0.25).
+  //   { step, to, at } 시연으로 바꾼 것은 common.js가 더함. 처음 설정은 STEP_ASSIGNEE
+  const ASSIGNEE_CHANGES = [];
+
+  /* ---------- 관리자 변경 이력 (SCR-51~56, REQ-SEC-05, REQ-AUTH-10, REQ-CHK-07) ----------
+   * 관리자 화면에서 바꾼 것은 모두 한 줄씩 남기고 고치거나 지우지 않습니다(영구 보관). 사유는 필수입니다.
+   * area: USER 사용자 권한 / RULE 결재선 규칙 / RESTRICT 열람 제한 / CUSTOMER 거래처 / CODE 코드 / AUDIT 기록 점검
+   * 아래는 이미 반영된 예시 기록입니다(시연으로 바꾼 것은 common.js가 이 브라우저에 저장해 더함). 가격 기준 이력은 PRICE_ROWS에 있습니다. */
+  const ADMIN_LOG = [
+    { at: '2026-09-01 09:00', by: 'u_super', area: 'RULE', target: '결재선 규칙', change: '처음 설정: ② 배수아, ③ 최민준, ④ 김지우, ⑤ 한서연, ⑥ 노은채, ⑧ 배수아, ⑨ 임하준, ⑩ 오현우, 결재 대기 독촉 5일, 체결 지연 독촉 14일', reason: 'CLIMB 도입' },
+    { at: '2026-09-01 09:00', by: 'u_super', area: 'CUSTOMER', target: '거래처 13곳', change: '거래처 추가: 한결대학교 외 12곳', reason: 'CLIMB 도입: 기존 계약관리대장에서 옮김' },
+    { at: '2026-09-01 09:00', by: 'u_super', area: 'CODE', target: '코드표 6개', change: '처음 등록: 부서, 서비스, 계약 유형, 계약 방식, 정산 방식, 사후관리 기록 종류', reason: 'CLIMB 도입' },
+    { at: '2026-10-02 09:30', by: 'u_admin', area: 'USER', target: '기태민 (taemin.ki@muhayu.com)', change: '상태: 사용 중 → 사용 중지', reason: '9월 30일 퇴사(인사팀 퇴사 통보 10.1)' },
+    { at: '2026-10-02 10:20', by: 'u_admin', area: 'RULE', target: '④ 법무 검토 대리 지정', change: '대리 지정: 김지우 → 송민재 (2026.10.05 ~ 2026.10.07)', reason: '김지우님 연차(10.5~10.7). 같은 법무팀 송민재님이 법무 검토를 대신함' },
+    { at: '2026-10-06 14:10', by: 'u_super', area: 'USER', target: '송민재 (minjae.song@muhayu.com)', change: '권한: 법무 → 법무, 관리자', reason: '관리자 부재에 대비해 법무팀 송민재님을 관리자로 함께 지정(경영지원팀 요청)' },
+    { at: '2026-10-08 16:00', by: 'u_admin', area: 'RESTRICT', target: 'CT-2026-0301 해랑출판', change: '열람 제한 해제', reason: '보도자료로 계약 사실이 공개되어 더 가릴 필요 없음(영업 요청)' },
+    { at: '2026-10-12 11:00', by: 'u_admin', area: 'USER', target: '석다인 (dain.seok@muhayu.com)', change: '부서: 영업2팀 → 세일즈어드민팀, 권한: 영업 → 세일즈어드민', reason: '10월 12일 세일즈어드민팀으로 인사 이동' },
+    { at: '2026-10-12 11:05', by: 'u_admin', area: 'USER', target: '차유나 (yuna.cha@muhayu.com)', change: '권한: 영업 → 부서장', reason: '10월 12일 영업3팀 부서장 발령' },
+    { at: '2026-10-15 10:00', by: 'u_admin', area: 'USER', target: '설은우 (eunwoo.seol@muhayu.com)', change: '사용자 추가: 영업3팀, 영업', reason: '10월 15일 입사' },
+    { at: '2026-10-16 10:00', by: 'u_admin', area: 'USER', target: '연주아 (jua.yeon@muhayu.com)', change: '사용자 추가: CEM팀, CEM', reason: '10월 16일 입사' },
+    { at: '2026-10-16 17:40', by: 'u_admin', area: 'RULE', target: '③ 영업 검토 대리 지정', change: '대리 지정: 최민준 → 문태호 (2026.10.19 ~ 2026.10.23)', reason: '최민준님 해외 출장(10.19~10.23). 영업 검토를 영업 담당 임원이 대신 결재(위임전결규정 대결)' },
+  ];
+  // 열람 제한을 건 기록 (계약을 등록할 때 영업이 건 것). 관리자가 바꾼 것은 ADMIN_LOG의 RESTRICT
+  const RESTRICT_LOG = [
+    { at: '2026-09-01 09:00', by: 'u_super', id: 'CT-2025-0902', on: true, reason: 'CLIMB 도입 때 기존 계약을 옮기며 설정(기존 계약관리대장의 비공개 표시)' },
+    { at: '2026-09-01 09:00', by: 'u_super', id: 'CT-2026-0301', on: true, reason: 'CLIMB 도입 때 기존 계약을 옮기며 설정(기존 계약관리대장의 비공개 표시)' },
+    { at: '2026-10-17 14:00', by: 'u_sales1', id: 'CT-2026-0421', on: true, reason: '계약을 등록하며 영업이 설정' },
+  ];
+
+  /* ---------- 접속 기록 점검: SCR-57 (REQ-SEC-05, REQ-SEC-06, 기획자 결정 v0.25) ----------
+   * 점검은 정보보호팀(개인정보 담당)이 합니다. 관리자가 자기 작업 기록을 스스로 점검하지 않게 하려는 것입니다.
+   * LOG_REVIEWS: 매월 접속 기록과 내려받기 기록 점검 결과 [가정] 기한: 다음 달 말일
+   * ACCESS_REVIEWS: 분기마다 모든 계정의 권한 검토 결과 [가정] 기한: 분기가 끝난 다음 달 말일
+   * SEC_ALERTS: 이상 행위 알림. 주기와 상관없이 바로 정보보호 담당에게 이메일로 감(REQ-SEC-06). 가상 인물의 가상 기록입니다.
+   *   kind: BULK 짧은 시간에 많은 열람이나 내려받기 / NIGHT 업무 시간 밖 접속 / NEW_PLACE 처음 보는 곳에서 접속 */
+  const LOG_REVIEWS = [
+    { month: '2026-09', by: 'u_privacy', at: '2026-10-05 15:00', result: 'OK',
+      note: '9월 접속 기록과 내려받기 기록 확인. 업무 시간 밖 접속 3건은 모두 결재 처리로 확인함', action: '' },
+  ];
+  const ACCESS_REVIEWS = [];
+  const SEC_ALERT_KINDS = { BULK: '짧은 시간에 많은 열람', NIGHT: '업무 시간 밖 접속', NEW_PLACE: '처음 보는 곳에서 접속' };
+  const SEC_ALERTS = [
+    { id: 'AL-003', at: '2026-10-16 23:05', userId: 'u_siwoo_hwang', kind: 'NIGHT', detail: '23시 5분 VPN 접속, 계약 4건 열람', status: 'OPEN' },
+    { id: 'AL-002', at: '2026-10-15 09:20', userId: 'u_jiho_yoo', kind: 'BULK', detail: '10분 동안 계약 18건 열람, 첨부 PDF 6건 내려받기', status: 'OPEN' },
+    { id: 'AL-001', at: '2026-10-09 10:15', userId: 'u_sales2', kind: 'NEW_PLACE', detail: '처음 쓰는 기기로 VPN 접속', status: 'DONE',
+      doneBy: 'u_privacy', doneAt: '2026-10-09 14:00', action: '본인에게 확인: 회사가 새로 지급한 노트북. 이상 없음' },
+  ];
+
+  return { TODAY, BRAND, ROLES, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, CONTRACT_TYPES, METHODS, SETTLEMENTS, PRICE_BOOK, STEPS, REVIEW_GROUPS, POST_GROUPS, PROCESS_ROLES, STEP_ASSIGNEE, APPROVAL_STATE, APPROVAL_ACTIONS, SEAL_CHECKS, OPS_CHECKS, OPS_CHECKS_END, OPS_CHECKS_EXTEND, AFTERCARE_TYPES, FILE_KINDS, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS,
+    PRICE_ROWS, currentPrices, CUSTOMERS, CODE_GROUPS, CODES, DELEGATIONS, ASSIGNEE_CHANGES, ADMIN_LOG, RESTRICT_LOG,
+    LOG_REVIEWS, ACCESS_REVIEWS, SEC_ALERT_KINDS, SEC_ALERTS };
 })();

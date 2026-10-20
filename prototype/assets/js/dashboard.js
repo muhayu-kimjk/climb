@@ -157,7 +157,7 @@
     if (!isProcessor) return;
     el.hidden = false;
     // 내 차례인 단계 (④⑤처럼 동시에 차례인 단계 중 내 것)
-    const mine = function (c) { return C.pendingSteps(c).filter(function (s) { return s.userId === me.id; })[0]; };
+    const mine = function (c) { return C.pendingSteps(c).filter(function (s) { return C.isMyStep(s, me); })[0]; };
     const rows = myActions.slice().sort(function (a, b) { return C.waitDays(b, mine(b)) - C.waitDays(a, mine(a)); });
     // CEM과 재무는 운영 검토 대기로, 그 외는 검토 대기로
     const ops = me.role === 'CEM' || me.role === 'FINANCE';

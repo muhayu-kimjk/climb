@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 브라우저 탭 제목: CLIMB (REQ-NAME-02) -->
+  <title>CLIMB</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/common.css">
+  <link rel="stylesheet" href="assets/css/form.css">
+  <link rel="stylesheet" href="assets/css/list.css">
+  <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<!-- =====================================================================
+  SCR-57 접속 기록 점검 (docs/02_화면목록.md)
+  - 정보보호팀(개인정보 담당)이 씁니다(기획자 결정 v0.25). 관리자가 자기 작업 기록을 스스로 점검하지 않도록
+    관리자에게는 보이지 않습니다. 슈퍼관리자는 모든 화면을 봅니다(REQ-AUTH-14).
+  - 이상 행위 알림 확인, 매월 기록 점검 결과, 분기마다 권한 검토 결과를 남기고, 접속 기록을 조회합니다. (REQ-SEC-05, REQ-SEC-06, REQ-AUTH-13)
+  - 접속 기록은 고치거나 지울 수 없고 영구 보관합니다. 이 화면을 연 것도 접속 기록에 남습니다.
+  - 동작은 assets/js/admin-logs.js
+====================================================================== -->
+<body data-page="SCR-57">
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <div id="demo-bar"></div>
+
+  <div class="sheet">
+  <header id="site-header"></header>
+
+  <main id="main" class="page">
+    <div class="inner">
+      <div class="page-head page-head--sub">
+        <h1 class="page-title">접속 기록 점검</h1>
+      </div>
+      <div class="page-intro">
+        <p>접속 기록과 내려받기 기록을 매월 점검하고, 분기마다 모든 계정의 권한을 검토해 결과를 남깁니다.</p>
+        <p class="sub">이상 행위(짧은 시간에 많은 열람, 업무 시간 밖 접속, 처음 보는 곳에서 접속)는 주기와 상관없이 바로 이메일로 알려 오며, 확인한 결과를 여기에 남깁니다. 기록은 고치거나 지울 수 없습니다.</p>
+      </div>
+
+      <div id="notice"></div>
+
+      <div id="content" class="admin-stack">
+        <section class="panel" aria-labelledby="sec-alert">
+          <div class="panel-head"><h2 class="panel-title" id="sec-alert">이상 행위 알림 <span id="alert-count"></span></h2></div>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="이상 행위 알림 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">이상 행위 알림: 일시, 사람, 종류와 내용, 상태, 관리</caption>
+              <thead><tr><th scope="col">일시</th><th scope="col">사람</th><th scope="col">종류와 내용</th><th scope="col">상태</th><th scope="col" class="col-action">관리</th></tr></thead>
+              <tbody id="alert-rows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-month">
+          <div class="panel-head"><h2 class="panel-title" id="sec-month">매월 기록 점검</h2></div>
+          <p class="panel-desc">지난달 접속 기록과 내려받기 기록을 다음 달 말일까지 점검합니다.</p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="매월 기록 점검 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">매월 기록 점검: 대상 월, 기한, 점검한 사람, 결과, 확인한 내용과 조치, 관리</caption>
+              <thead><tr><th scope="col">대상 월</th><th scope="col">기한</th><th scope="col">점검</th><th scope="col">결과</th><th scope="col">확인한 내용과 조치</th><th scope="col" class="col-action">관리</th></tr></thead>
+              <tbody id="month-rows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-quarter">
+          <div class="panel-head"><h2 class="panel-title" id="sec-quarter">분기 권한 검토</h2></div>
+          <p class="panel-desc">분기가 끝나면 다음 달 말일까지 모든 계정의 권한이 하는 일에 맞는지, 권한을 바꾼 기록에 사유가 있는지 검토합니다.</p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="분기 권한 검토 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">분기 권한 검토: 분기, 기한, 검토한 사람, 결과, 확인한 내용과 조치, 관리</caption>
+              <thead><tr><th scope="col">분기</th><th scope="col">기한</th><th scope="col">검토</th><th scope="col">결과</th><th scope="col">확인한 내용과 조치</th><th scope="col" class="col-action">관리</th></tr></thead>
+              <tbody id="quarter-rows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-log">
+          <div class="panel-head"><h2 class="panel-title" id="sec-log">접속 기록 조회</h2></div>
+          <p class="panel-desc">로그인, 열람, 기안, 결재, 내려받기, 인쇄, 설정 변경 기록입니다. 시안에는 예시 데이터로 만든 기록 일부만 보입니다.</p>
+          <form class="filter-bar" id="filter" role="search" aria-label="접속 기록 거르기">
+            <div class="field">
+              <label class="field-label field-label--sm" for="f-q">검색</label>
+              <input class="input" id="f-q" type="search" placeholder="사람 이름 또는 계약번호, 대상" autocomplete="off">
+            </div>
+            <div class="field">
+              <label class="field-label field-label--sm" for="f-act">한 일</label>
+              <select class="select" id="f-act"></select>
+            </div>
+            <div class="field">
+              <label class="field-label field-label--sm" for="f-from">시작일</label>
+              <input class="input" id="f-from" type="date">
+            </div>
+            <div class="field">
+              <label class="field-label field-label--sm" for="f-to">종료일</label>
+              <input class="input" id="f-to" type="date">
+            </div>
+            <button type="reset" class="btn btn--tertiary btn--md filter-reset">초기화</button>
+          </form>
+          <div class="list-head"><p class="list-count" id="list-count" aria-live="polite"></p></div>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="접속 기록 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">접속 기록: 일시, 사람, 한 일, 대상, 접속 위치</caption>
+              <thead><tr><th scope="col">일시</th><th scope="col">사람</th><th scope="col">한 일</th><th scope="col">대상</th><th scope="col">접속 위치</th></tr></thead>
+              <tbody id="log-rows"></tbody>
+            </table>
+          </div>
+          <nav class="pagination" id="pagination" aria-label="접속 기록 쪽 이동"></nav>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+  </div><!-- /.sheet -->
+
+  <script src="assets/js/mock-data.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/admin-logs.js"></script>
+</body>
+</html>

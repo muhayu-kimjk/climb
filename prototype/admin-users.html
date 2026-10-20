@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="assets/css/common.css">
   <link rel="stylesheet" href="assets/css/form.css">
   <link rel="stylesheet" href="assets/css/list.css">
+  <link rel="stylesheet" href="assets/css/admin.css">
   <link rel="stylesheet" href="assets/css/admin-users.css">
 </head>
 <!-- =====================================================================
@@ -23,7 +24,9 @@
   - 표가 넓어 가로 스크롤로 보고, 이메일 칸은 옆으로 밀어도 왼쪽에 붙어 있습니다.
   - 한 쪽에 보이는 사람 수는 화면이 A4 2장을 넘지 않게 정했고, 넘는 사람은 아래 쪽 번호로 넘겨 봅니다.
   - 검색, 권한, 부서, 상태로 거르기, 쪽 넘기기는 assets/js/admin-users.js가 처리합니다.
-  - 프로토타입: 사용자 추가, 권한 수정은 아직 만들지 않았습니다(누르면 안내만 나옴).
+  - 사용자 추가와 수정(부서, 권한, 사용 중지)은 사유가 필수이고, 아래 권한 변경 이력에 남습니다(기획자 결정 v0.25, REQ-ADM-08).
+    분기마다 정보보호팀이 접속 기록 점검(SCR-57)에서 이 이력과 사유를 확인합니다(REQ-SEC-05).
+  - [가정] 자기 권한은 스스로 바꿀 수 없고, 슈퍼관리자 권한은 슈퍼관리자만 주거나 뺄 수 있습니다.
 ====================================================================== -->
 <body data-page="SCR-51">
   <a class="skip-link" href="#main">본문 바로가기</a>
@@ -71,7 +74,7 @@
 
         <div class="list-head">
           <p class="list-count" id="list-count" aria-live="polite"></p>
-          <a class="btn btn--primary btn--md" href="#" data-todo="사용자 추가">사용자 추가</a>
+          <button type="button" class="btn btn--primary btn--md" id="btn-add">사용자 추가</button>
         </div>
         <p class="scroll-hint" aria-hidden="true">표가 넓어서 옆으로 밀어 볼 수 있습니다. 이메일 칸은 왼쪽에 붙어 있습니다.</p>
 
@@ -100,6 +103,16 @@
 
         <!-- KRDS 페이지네이션: 쪽 번호 -->
         <nav class="pagination" id="pagination" aria-label="사용자 목록 쪽 이동"></nav>
+
+        <!-- 권한 변경 이력: 화면이 A4 2장을 넘지 않게 최근 5건만 보이고, 버튼으로 모두 펼침 -->
+        <section class="panel users-history" aria-labelledby="sec-history">
+          <div class="panel-head panel-head--act">
+            <h2 class="panel-title" id="sec-history">권한 변경 이력</h2>
+            <button type="button" class="btn btn--tertiary btn--md" id="btn-history" aria-expanded="false">모두 보기</button>
+          </div>
+          <p class="panel-desc">사용자를 추가하고, 부서와 권한을 바꾸고, 사용 중지한 기록입니다. 고치거나 지울 수 없습니다.</p>
+          <div id="history"></div>
+        </section>
       </section>
     </div>
   </main>

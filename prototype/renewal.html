@@ -20,7 +20,8 @@
   SCR-44 갱신 검토 (docs/02_화면목록.md)
   - 자동갱신 계약은 만료 90일 전에 갱신 검토를 합니다(REQ-FLOW-20). 검토 없이 저절로 연장되는 것을 막는 통제.
   - 세 갈래 중 하나를 고릅니다(기획자 결정, REQ-ARC-07):
-    그대로 자동갱신 → 짧은 기안(③ 부서장 → ④ 법무 → ⑨ CEM 기간 연장 → ⑩ 재무 확인), 끝나면 기간만 늘어난 갱신 기록(-R01)
+    그대로 자동갱신 → 새 계약 기간을 직접 입력하고 짧은 기안(③ 부서장 → ④ 법무 → ⑨ CEM 기간 연장 → ⑩ 재무 확인),
+                     끝나면 기간만 늘어난 갱신 기록(-R01)
     조건을 바꿔 갱신 → 계약 등록 화면에서 갱신 계약을 기안(체크리스트에 따라 결재)
     해지 → 해지 기안 화면(SCR-13)
   - 들어오는 곳: 계약 상세, 만료 예정의 "갱신 검토". 주소: renewal.html?origin=원계약 번호
@@ -55,7 +56,7 @@
           <fieldset class="field" data-field="choice">
             <legend class="field-label">어떻게 할까요?<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
             <div class="choice-col">
-              <label class="choice"><input type="radio" name="choice" value="KEEP" checked>그대로 자동갱신 (기간만 1년 연장)</label>
+              <label class="choice"><input type="radio" name="choice" value="KEEP" checked>그대로 자동갱신 (금액과 조건은 그대로, 기간만 연장)</label>
               <label class="choice"><input type="radio" name="choice" value="CHANGE">조건을 바꿔 갱신</label>
               <label class="choice"><input type="radio" name="choice" value="END">해지</label>
             </div>
@@ -64,9 +65,22 @@
           <!-- 그대로 자동갱신: 짧은 기안 -->
           <div id="keep-box">
             <p class="field-help" id="keep-help"></p>
+            <!-- 새 계약 기간은 영업이 직접 입력 (기획자 결정 v0.25). 시작일은 지금 종료일 다음 날로 미리 채움 -->
+            <div class="field-row">
+              <div class="field" data-field="start">
+                <label class="field-label" for="f-start">새 계약 시작일<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+                <input class="input" id="f-start" type="date">
+                <p class="field-error" hidden></p>
+              </div>
+              <div class="field" data-field="end">
+                <label class="field-label" for="f-end">새 계약 종료일<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+                <input class="input" id="f-end" type="date">
+                <p class="field-error" hidden></p>
+              </div>
+            </div>
             <div class="field" data-field="reason">
               <label class="field-label" for="f-reason">그대로 연장하는 이유<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
-              <textarea class="textarea" id="f-reason" placeholder="예: 이용 규모와 조건이 같아 기존 조건 그대로 1년 연장"></textarea>
+              <textarea class="textarea" id="f-reason" placeholder="예: 이용 규모와 조건이 같아 기존 조건 그대로 연장"></textarea>
               <p class="field-error" hidden></p>
             </div>
           </div>
