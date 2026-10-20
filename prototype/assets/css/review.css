@@ -1,0 +1,88 @@
+/* =====================================================================
+ * SCR-23 검토 상세 전용 스타일 (review.css)
+ * 관련 요구사항: REQ-DOC-01~02, REQ-ENV-06, REQ-UI-10~12
+ *   - 결재 문서처럼: 맨 위 결재란(표), 그 아래 계약 내용 묶음들
+ *   - 처리 막대: 화면 아래에 붙어 있어 휴대폰에서도 바로 승인, 반려 (REQ-ENV-06)
+ *   - 인쇄: 처리 막대를 빼고 A4 결재 문서로
+ * ===================================================================== */
+
+.doc-kind { font-size: var(--fs-body-small); font-weight: 700; color: var(--text-primary); }
+.doc-meta { margin-top: 0.8rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
+.doc-meta .badge { vertical-align: 0.1rem; }
+.page-title .icon { margin-right: 0.6rem; vertical-align: -0.2rem; }
+.doc-stack { display: flex; flex-direction: column; gap: 2rem; margin-top: 2rem; }
+
+/* ---------- 결재란 (REQ-DOC-02) ----------
+ * 칸마다 단계, 담당, 결과, 일시. 종이 결재란처럼 칸을 선으로 나눔 */
+.approval-box-wrap { overflow-x: auto; }
+.approval-box { width: 100%; min-width: 56rem; table-layout: fixed; border-collapse: collapse; font-size: var(--fs-body-small); text-align: center; }
+.approval-box th, .approval-box td { padding: 0.8rem 0.6rem; border: 1px solid var(--border-gray-light); vertical-align: middle; }
+.approval-box thead th { background: var(--surface-secondary-subtler); font-weight: 700; color: var(--text-bolder); }
+.approval-box .box-rowhead { width: 6.4rem; background: var(--surface-gray-subtler); font-weight: 700; color: var(--text-subtle); }
+.approval-box td strong { color: var(--text-basic); }
+.approval-box .box-when { font-size: var(--fs-body-xsmall); color: var(--text-subtle); font-variant-numeric: tabular-nums; }
+.approval-box .is-skipped { color: var(--text-disabled); background: var(--surface-gray-subtler); }
+.approval-box .is-skipped strong { color: var(--text-disabled); }
+
+/* ---------- 기본 정보: 이름표와 값 두 쌍씩 ---------- */
+.info-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--border-gray-light); }
+.info-grid > div { display: grid; grid-template-columns: 14rem minmax(0, 1fr); align-items: baseline; border-bottom: 1px solid var(--border-gray-light); }
+.info-grid dt { padding: 1rem 1.2rem; background: var(--surface-gray-subtler); font-size: var(--fs-body-small); font-weight: 700; color: var(--text-subtle); align-self: stretch; }
+.info-grid dd { padding: 1rem 1.2rem; font-size: var(--fs-body-small); color: var(--text-basic); }
+.info-grid dd .icon { vertical-align: -0.2rem; margin-right: 0.2rem; }
+
+/* ---------- 금액, 체크리스트, 첨부, 결재 기록 ---------- */
+.cap-note { font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
+.tbl tfoot th, .tbl tfoot td { padding: 1.2rem; border-top: 2px solid var(--border-gray-light); font-weight: 700; color: var(--text-bolder); text-align: left; }
+.tbl tfoot .total { text-align: right; font-variant-numeric: tabular-nums; }
+.doc-checks > li { padding: 1.2rem 0; border-bottom: 1px solid var(--border-gray-light); }
+.doc-checks > li:first-child { padding-top: 0; }
+.check-q-text { font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
+.check-q-text .badge { margin-left: 0.4rem; vertical-align: 0.1rem; }
+.check-note { margin-top: 0.4rem; font-size: var(--fs-body-small); color: var(--text-basic); }
+.check-effect { display: block; margin-top: 0.4rem; font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
+p.check-effect { margin-top: 1.2rem; }
+.doc-files > li { display: flex; align-items: center; justify-content: space-between; gap: 1.2rem; flex-wrap: wrap; padding: 1rem 1.2rem; border: 1px solid var(--border-gray-light); border-radius: var(--radius-md); }
+.doc-files > li + li { margin-top: 0.8rem; }
+.doc-files .file-name { font-weight: 700; color: var(--text-basic); overflow-wrap: anywhere; }
+.doc-files .file-size { margin-left: 0.6rem; font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
+.file-acts { display: inline-flex; gap: 0.8rem; }
+.memo-label { margin-top: 2rem; }
+.memo { font-size: var(--fs-body-medium); color: var(--text-basic); white-space: pre-line; }
+.history td { vertical-align: baseline; }
+.behalf { font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
+
+/* ---------- 처리 막대 (REQ-ENV-06): 화면 아래에 붙음 ---------- */
+.action-bar {
+  position: sticky; bottom: 0; z-index: 10; margin-top: 2.4rem; padding: 1.6rem 2rem;
+  border: 1px solid var(--border-gray-light); border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  background: var(--surface-white); box-shadow: 0 -0.4rem 1.6rem rgba(2, 24, 33, 0.08);
+}
+.act-row { display: flex; align-items: center; justify-content: space-between; gap: 1.2rem; flex-wrap: wrap; }
+.act-row + .act-row { margin-top: 1.2rem; padding-top: 1.2rem; border-top: 1px solid var(--border-gray-light); }
+.act-target { font-size: var(--fs-body-medium); color: var(--text-basic); }
+.act-row--cancel .act-target { font-size: var(--fs-body-small); color: var(--text-subtle); }
+.act-pick { display: inline-flex; align-items: center; gap: 0.8rem; font-size: var(--fs-body-small); font-weight: 700; }
+.act-pick .select { width: auto; min-width: 22rem; }
+.act-btns { display: flex; gap: 0.8rem; }
+.btn-reject { color: var(--status-danger-fill); border-color: var(--status-danger-fill); }
+.act-field { margin-top: 1.6rem; }
+
+@media screen and (max-width: 600px) {
+  .info-grid { grid-template-columns: 1fr; }
+  .info-grid > div { grid-template-columns: 10rem minmax(0, 1fr); }
+  .action-bar { margin-left: -1.6rem; margin-right: -1.6rem; padding: 1.2rem 1.6rem; border-radius: 0; }
+  .act-btns { width: 100%; }
+  .act-btns .btn { flex: 1 1 0; }
+  .act-pick { width: 100%; flex-wrap: wrap; }
+  .act-pick .select { width: 100%; min-width: 0; }
+}
+
+@media print {
+  .action-bar, .file-acts { display: none !important; }
+  .approval-box { min-width: 0; font-size: 8pt; }
+  .approval-box-wrap { overflow: visible; }
+  .doc-stack { gap: 4mm; }
+  .doc-stack .panel { break-inside: avoid; }
+  .info-grid dt, .info-grid dd { padding: 1.5mm 2mm; }
+}

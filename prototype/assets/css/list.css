@@ -1,0 +1,66 @@
+/* =====================================================================
+ * 목록 화면 공통 스타일 (list.css)
+ * 사용자 권한 관리(SCR-51), 전체 진행 현황(SCR-20), 검토 대기(SCR-21), 검토 완료(SCR-22)가 함께 씁니다.
+ *   - 거르기 줄(KRDS 검색 패턴), 건수 요약, 가로 스크롤 표, KRDS 페이지네이션
+ *   - 한 쪽에 보이는 수는 화면이 A4 2장을 넘지 않게 정함(목록마다 20, REQ-ADM-04)
+ * ===================================================================== */
+
+/* ---------- 거르기 줄 (KRDS 검색 패턴) ----------
+ * 윗줄: 검색어 + 초기화 / 아랫줄: 선택 칸 셋 (A4 폭에서 선택 글자가 잘리지 않게 두 줄로) */
+.filter-bar {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; align-items: end; gap: 1.2rem;
+  margin-bottom: 2rem; padding: 1.6rem 2rem; border-radius: var(--radius-lg); background: var(--surface-gray-subtler);
+}
+.filter-bar .field { margin: 0; }
+.filter-bar .field:first-child { grid-column: 1 / 4; grid-row: 1; }
+.filter-reset { grid-column: 4; grid-row: 1; white-space: nowrap; }
+
+/* ---------- 건수 요약과 오른쪽 버튼 ---------- */
+.list-head { display: flex; align-items: center; justify-content: space-between; gap: 1.2rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
+.list-count { font-size: var(--fs-body-small); color: var(--text-subtle); }
+.list-count strong { color: var(--text-bolder); }
+.scroll-hint { margin-bottom: 0.8rem; font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
+
+/* ---------- 가로 스크롤 표 (REQ-ADM-03) ----------
+ * 칸이 많아 A4 폭을 넘으면 표 영역 안에서만 옆으로 밀어 봅니다. 스크롤바는 늘 보이게 회색으로 */
+.tbl-scroll {
+  overflow-x: auto; border: 1px solid var(--border-gray-light); border-radius: var(--radius-lg);
+  scrollbar-width: auto; scrollbar-color: var(--mh-gray) var(--surface-gray-subtler);
+}
+.tbl-scroll:focus-visible { box-shadow: var(--focus-ring); }
+.tbl-scroll .tbl { width: 100%; }
+.tbl-scroll .tbl tbody tr:last-child td { border-bottom: 0; }
+.empty-row { padding: 3.2rem 1.6rem !important; text-align: center; color: var(--text-subtle); }
+.num-left { font-variant-numeric: tabular-nums; }
+/* 칸 아래 보조 줄 (예: 계약번호, "④와 동시") */
+.cell-meta { display: block; margin-top: 0.2rem; font-size: var(--fs-body-xsmall); font-weight: 400; color: var(--text-subtle); }
+.cell-meta .icon { vertical-align: -0.2rem; }
+/* 전체 진행 현황: 현재 진행 칸에 자리를 더 줌 (서비스 칸은 좁게) */
+.tbl--progress .col-customer { width: 22%; }
+.tbl--progress .col-service { width: 14%; }
+
+/* ---------- KRDS 페이지네이션 (REQ-ADM-04) ---------- */
+.pagination { margin-top: 2.4rem; text-align: center; }
+.page-btns { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 0.4rem; }
+.page-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.2rem; min-width: var(--touch-min); height: var(--touch-min); padding: 0 0.8rem;
+  border-radius: var(--radius-md); font-size: var(--fs-body-small); color: var(--text-basic); font-variant-numeric: tabular-nums;
+}
+.page-btn:hover:not(:disabled):not(.is-current) { background: var(--surface-gray-subtler); }
+.page-btn.is-current { background: var(--mh-dark-green); color: var(--text-inverse); font-weight: 700; }
+.page-btn:disabled { color: var(--text-disabled); cursor: default; }
+.page-range { margin-top: 0.8rem; font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
+
+/* ---------- 휴대폰 (방식 B): 배치는 같게, 거르기 칸만 두 줄로 ---------- */
+@media screen and (max-width: 600px) {
+  .filter-bar { grid-template-columns: 1fr 1fr; padding: 1.6rem; }
+  .filter-bar .field:first-child { grid-column: 1 / -1; }
+  .filter-reset { grid-column: 1 / -1; grid-row: auto; }
+}
+
+/* ---------- 인쇄: 지금 보이는 쪽만, 가로 스크롤 없이 ---------- */
+@media print {
+  .filter-bar, .scroll-hint, .page-btns, .list-head .btn { display: none !important; }
+  .tbl-scroll { overflow: visible; border: 0; }
+  .pagination { margin-top: 3mm; }
+}

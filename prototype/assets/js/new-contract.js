@@ -88,10 +88,10 @@
   let round = 1;
   if (source && source.status === 'REJECTED') {
     round = (source.round || 1) + 1;
-    const rej = source.approvals.find(function (a) { return a.state === 'REJECTED'; });
+    const rej = source.rejection; // 결재 기록에서 계산한 반려 정보 (common.js buildReview)
     setTitle('보완 후 재기안');
     $('#notice').innerHTML = noticeHtml('', (round - 1) + '차 기안이 반려되었습니다',
-      '<strong>' + esc(C.roleLabel(rej.role)) + ' 반려 (' + C.fmtDate(rej.date) + ')</strong><br>' + esc(source.rejectReason) +
+      '<strong>' + esc(C.roleLabel(rej.role)) + ' 반려 (' + C.fmtDate(rej.at) + ')</strong><br>' + esc(source.rejectReason) +
       '<br>내용을 보완해 ' + round + '차로 기안합니다. ' + (round - 1) + '차 기안 내용과 반려 사유는 그대로 남습니다.', '');
   } else if (source && source.status === 'DRAFT') {
     setTitle('새 계약 등록 (이어서 작성)');
@@ -255,7 +255,7 @@
     else sales = ['wait', '금액 계산을 기다림'];
     const head = D.USERS.u_head;
     return [
-      { stage: '2단계 계약 검토', items: [
+      { stage: '2단계 계약 검토 (② 다음 ③과 ④ 동시, 그 다음 ⑤)', items: [
         { no: '②', name: '체크리스트 검토', who: '세일즈어드민', state: 'go', reason: '어떤 경우에도 생략하지 않음' }, // REQ-CHK-02
         { no: '③', name: '법무 검토', who: '법무 ' + D.USERS.u_legal.name, state: legal[0], reason: legal[1] },
         { no: '④', name: '개인정보 검토', who: '개인정보 담당 ' + D.USERS.u_privacy.name, state: privacy[0], reason: privacy[1] },

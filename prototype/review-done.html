@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 브라우저 탭 제목: CLIMB (REQ-NAME-02) -->
+  <title>CLIMB</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/common.css">
+  <link rel="stylesheet" href="assets/css/form.css">
+  <link rel="stylesheet" href="assets/css/list.css">
+</head>
+<!-- =====================================================================
+  SCR-22 검토 완료 (docs/02_화면목록.md)
+  - 내가 처리한 결재(승인, 반려, 승인 취소) 기록. 최근 것부터. 지금 그 계약의 상태도 함께 봅니다. (REQ-FLOW-12, REQ-REV-06)
+  - 슈퍼관리자와 관리자는 모든 사람의 결재 기록을 처리한 사람 칸과 함께 봅니다.
+  - 승인 취소는 결재 문서(검토 상세)에서 합니다. 이 화면은 기록을 보기만 합니다.
+====================================================================== -->
+<body data-page="SCR-22">
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <div id="demo-bar"></div>
+
+  <div class="sheet">
+  <header id="site-header"></header>
+
+  <main id="main" class="page">
+    <div class="inner">
+      <div class="page-head page-head--sub">
+        <h1 class="page-title">검토 완료</h1>
+      </div>
+      <div class="page-intro">
+        <p id="intro">내가 처리한 결재 기록입니다. 최근 것부터 보여 줍니다.</p>
+        <p class="sub">기록은 고치거나 지울 수 없습니다. 승인 취소는 고객사를 눌러 결재 문서에서 할 수 있습니다(다음 단계가 처리하기 전까지).</p>
+      </div>
+
+      <div id="notice"></div>
+
+      <section id="list" aria-labelledby="list-title">
+        <h2 class="sr-only" id="list-title">검토 완료 목록</h2>
+        <form class="filter-bar" id="filter" role="search" aria-label="검토 완료 거르기">
+          <div class="field">
+            <label class="field-label field-label--sm" for="f-q">검색</label>
+            <input class="input" id="f-q" type="search" placeholder="고객사 또는 계약번호" autocomplete="off">
+          </div>
+          <div class="field">
+            <label class="field-label field-label--sm" for="f-action">한 일</label>
+            <select class="select" id="f-action"></select>
+          </div>
+          <div class="field">
+            <label class="field-label field-label--sm" for="f-step">단계</label>
+            <select class="select" id="f-step"></select>
+          </div>
+          <div class="field">
+            <label class="field-label field-label--sm" for="f-status">지금 상태</label>
+            <select class="select" id="f-status"></select>
+          </div>
+          <button type="reset" class="btn btn--tertiary btn--md filter-reset">초기화</button>
+        </form>
+
+        <div class="list-head"><p class="list-count" id="list-count" aria-live="polite"></p></div>
+        <div class="tbl-scroll">
+          <table class="tbl tbl--compact">
+            <caption class="sr-only">검토 완료 목록</caption>
+            <thead id="thead"></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <nav class="pagination" id="pagination" aria-label="검토 완료 쪽 이동"></nav>
+      </section>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+  </div><!-- /.sheet -->
+
+  <script src="assets/js/mock-data.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/review-done.js"></script>
+</body>
+</html>

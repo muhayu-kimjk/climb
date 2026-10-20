@@ -104,24 +104,9 @@
     renderPagination(pages, list.length, from, rows.length);
   }
 
-  // KRDS 페이지네이션: 이전, 쪽 번호, 다음. 지금 쪽은 aria-current="page"
+  // KRDS 페이지네이션 (공통 C.pagerHtml)
   function renderPagination(pages, total, from, shown) {
-    const nav = $('#pagination');
-    const btn = function (label, target, opts) {
-      opts = opts || {};
-      return '<button type="button" class="page-btn' + (opts.cls || '') + '" data-page="' + target + '"' +
-        (opts.disabled ? ' disabled' : '') + (opts.current ? ' aria-current="page"' : '') +
-        (opts.aria ? ' aria-label="' + opts.aria + '"' : '') + '>' + label + '</button>';
-    };
-    let html = btn(C.icon('chevronLeft', 'sm') + '<span>이전</span>', page - 1, { cls: ' page-prev', disabled: page === 1, aria: '이전 쪽' });
-    for (let i = 1; i <= pages; i++) {
-      html += btn(String(i), i, { cls: i === page ? ' is-current' : '', current: i === page, aria: i + '쪽' });
-    }
-    html += btn('<span>다음</span>' + C.icon('chevronRight', 'sm'), page + 1, { cls: ' page-next', disabled: page === pages, aria: '다음 쪽' });
-    // 몇 번째 사람을 보고 있는지 (인쇄물에도 남김)
-    const range = total ? (from + 1) + '~' + (from + shown) + '번째 사람' : '해당 없음';
-    nav.innerHTML = '<div class="page-btns">' + html + '</div>' +
-      '<p class="page-range">' + pages + '쪽 중 ' + page + '쪽, ' + range + ' (한 쪽에 ' + PAGE_SIZE + '명)</p>';
+    $('#pagination').innerHTML = C.pagerHtml(page, pages, total, from, shown, PAGE_SIZE, '명');
   }
 
   /* ---------- 이벤트 ---------- */

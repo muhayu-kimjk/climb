@@ -16,6 +16,8 @@ MUHAYU Contract Lifecycle Management Base. 계약 등록, 계약 검토, 계약 
 
 아직 만들지 않은 화면의 메뉴, 버튼을 누르면 "아직 시안을 만들기 전"이라는 안내가 나옵니다.
 
+결재 화면에서 승인, 반려, 승인 취소를 눌러 볼 수 있습니다. 누른 결과는 이 브라우저에만 저장되어 다른 화면에도 반영되고, 시연 띠의 **시연 기록 지우기**를 누르면 처음 예시 상태로 돌아갑니다.
+
 모든 화면은 A4 세로 종이 폭으로 보입니다. 브라우저에서 인쇄(Ctrl+P)하면 A4 세로 문서로 나옵니다. 인쇄 설정에서 "머리글과 바닥글"은 끄고 "배경 그래픽"은 켜면 화면과 가장 비슷하게 나옵니다.
 
 ## 문서
@@ -39,11 +41,17 @@ Projects/CLM
    ├─ login.html           SCR-00 로그인
    ├─ index.html           SCR-01 개요 (대시보드)
    ├─ new-contract.html    SCR-11 새 계약 등록 (?id= 로 이어서 작성, 보완 후 재기안)
+   ├─ progress.html        SCR-20 전체 진행 현황
+   ├─ review-queue.html    SCR-21 검토 대기
+   ├─ review-done.html     SCR-22 검토 완료
+   ├─ review.html          SCR-23 검토 상세 (결재 문서, ?id=계약번호)
    ├─ admin-users.html     SCR-51 사용자 권한 관리 (관리자, 슈퍼관리자)
    └─ assets/
       ├─ css/tokens.css    색, 글자, 크기 값 (회사 컬러는 여기만 바꾸면 됨)
       ├─ css/common.css    모든 화면 공통 스타일 (KRDS 구조)
       ├─ css/form.css      입력 화면 공통 스타일 (KRDS 입력 폼, 라디오, 파일 업로드, 오류 표시)
+      ├─ css/list.css      목록 화면 공통 스타일 (거르기, 가로 스크롤 표, 쪽 번호)
+      ├─ css/review.css    검토 상세(결재 문서) 전용 스타일 (결재란, 처리 막대)
       ├─ css/dashboard.css 개요 화면 전용 스타일
       ├─ css/new-contract.css 새 계약 등록 화면 전용 스타일
       ├─ css/admin-users.css 사용자 권한 관리 화면 전용 스타일 (가로 스크롤 표, 쪽 번호)
@@ -52,6 +60,10 @@ Projects/CLM
       ├─ js/dashboard.js   개요 화면 로직
       ├─ js/new-contract.js 새 계약 등록 화면 로직 (체크리스트 자동 계산, 결재선, 입력 검사)
       ├─ js/admin-users.js 사용자 권한 관리 화면 로직 (거르기, 한 쪽 20명 쪽 나누기)
+      ├─ js/progress.js    전체 진행 현황 화면 로직
+      ├─ js/review-queue.js 검토 대기 화면 로직
+      ├─ js/review-done.js 검토 완료 화면 로직
+      ├─ js/review.js      검토 상세 화면 로직 (승인, 반려, 승인 취소)
       └─ img/favicon.svg   브라우저 탭 아이콘 (무하유 심볼 Black 원본. favicon.png는 SVG를 못 읽는 브라우저용)
 ```
 

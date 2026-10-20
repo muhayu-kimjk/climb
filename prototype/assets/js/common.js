@@ -25,9 +25,9 @@ window.CLIMB = (function () {
     ] },
     // 계약 현황: 검토와 체결이 진행 중인 계약 (REQ-FLOW-03~05)
     { label: '계약 현황', children: [
-      { label: '전체 진행 현황', scr: 'SCR-20' },
-      { label: '검토 대기', scr: 'SCR-21', roles: D.APPROVER_ROLES },
-      { label: '검토 완료', scr: 'SCR-22', roles: D.APPROVER_ROLES },
+      { label: '전체 진행 현황', scr: 'SCR-20', href: 'progress.html' },
+      { label: '검토 대기', scr: 'SCR-21', href: 'review-queue.html', roles: D.APPROVER_ROLES },
+      { label: '검토 완료', scr: 'SCR-22', href: 'review-done.html', roles: D.APPROVER_ROLES },
       // 체결본 확인은 세일즈어드민 담당 (REQ-FLOW-24). 세일즈어드민 역할은 시연 데이터에 추가 예정
       { label: '체결 대기', scr: 'SCR-31', roles: ['SALES'] },
     ] },
@@ -105,8 +105,9 @@ window.CLIMB = (function () {
   }
 
   /* ---------- 날짜·금액 표시 ---------- */
+  // 'YYYY-MM-DD'와 'YYYY-MM-DD HH:MM' 모두 받음 (날짜 부분만 씀)
   function parseDate(s) {
-    const p = s.split('-').map(Number);
+    const p = String(s).slice(0, 10).split('-').map(Number);
     return new Date(p[0], p[1] - 1, p[2]);
   }
   const TODAY = parseDate(D.TODAY);
@@ -115,7 +116,9 @@ window.CLIMB = (function () {
   }
   function daysSince(s) { return daysBetween(parseDate(s), TODAY); }
   function daysUntil(s) { return daysBetween(TODAY, parseDate(s)); }
-  function fmtDate(s) { return s ? s.replace(/-/g, '.') : '-'; }
+  function fmtDate(s) { return s ? String(s).slice(0, 10).replace(/-/g, '.') : '-'; }
+  // 'YYYY-MM-DD HH:MM(:SS)' → '2026.10.15 09:40'
+  function fmtDateTime(s) { return s ? String(s).slice(0, 16).replace(/-/g, '.') : '-'; }
   function fmtToday() {
     const w = '일월화수목금토'.charAt(TODAY.getDay());
     return TODAY.getFullYear() + '년 ' + (TODAY.getMonth() + 1) + '월 ' + TODAY.getDate() + '일(' + w + ')';
@@ -139,24 +142,128 @@ window.CLIMB = (function () {
   function serviceLabel(codes) {
     return (codes || []).map(function (s) { return D.SERVICES[s] || s; }).join(', ') || '-';
   }
-  function currentStep(c) {
-    return (c.approvals || []).find(function (a) { return a.state === 'PENDING'; }) || null;
+  // '② 체크리스트 검토'
+  function stepLabel(code) { const s = D.STEPS[code]; return s ? s.no + ' ' + s.name : code; }
+
+  /* ---------- 결재 흐름 계산 (요구사항 정의서 3.5, REQ-STEP-04, REQ-DOC-06) ----------
+   * 결재 기록(history)을 시간 순서대로 다시 적용해 단계마다 지금 상태(approvals)와 계약 상태를 만듭니다.
+   *   - 결재선: 체크리스트 답과 개인정보 처리 여부로만 정함. 금액 기준 없음 (REQ-CHK-05)
+   *   - 순서: ② → ③과 ④ 동시 → ⑤. 앞 묶음이 모두 승인되어야 다음 묶음이 차례가 됨
+   *   - 반려: 어느 단계든 반려하면 계약은 반려 상태
+   *   - 승인 취소: 그 단계는 다시 차례가 되고, 뒤 묶음은 다시 대기가 됨 (기록은 지우지 않음)
+   * 실제 시스템에서는 이 규칙을 서버가 지켜야 합니다. 화면에서만 막으면 우회할 수 있습니다. */
+  const REVIEW_ORDER = [].concat.apply([], D.REVIEW_GROUPS);
+  function groupIndex(code) {
+    return D.REVIEW_GROUPS.findIndex(function (g) { return g.indexOf(code) > -1; });
   }
-  // 현재 몇 번째 결재 단계인지 (예: 3단계 중 2단계)
+  // [거치는지, 까닭]
+  function reviewRoute(c) {
+    const ck = c.checklist || {};
+    let sales;
+    if (ck.price === 'NA') sales = [false, '금액이 없는 계약'];
+    else if (ck.price === 'NO' && ck.cap === 'NO') sales = [true, '할인율 캡을 넘김'];
+    else if (ck.price === 'NO') sales = [false, '할인율 캡 이내'];
+    else sales = [false, '표준단가표를 적용함'];
+    return {
+      S02: [true, '어떤 경우에도 생략하지 않음'],
+      S03: ck.standard === 'NO' ? [true, '표준계약서를 바꿈'] : [false, '표준계약서를 그대로 씀'],
+      S04: c.personalData ? [true, '개인정보를 처리함'] : [false, '개인정보 처리 없음'],
+      S05: sales,
+    };
+  }
+  // 이미 검토가 끝난 계약의 결재 기록을 승인일에 맞춰 만듦 (시연용 예시 데이터)
+  function autoHistory(c) {
+    const route = reviewRoute(c);
+    const routed = REVIEW_ORDER.filter(function (code) { return route[code][0]; });
+    const last = routed[routed.length - 1];
+    return routed.map(function (code) {
+      const at = code === last ? c.approvedAt
+        : code === 'S02' ? c.requestedAt.slice(0, 10) + ' 16:00'
+        : c.approvedAt.slice(0, 10) + ' 11:00';
+      return { step: code, action: 'APPROVE', at: at, comment: '', actorId: D.STEP_ASSIGNEE[code], round: c.round || 1 };
+    });
+  }
+  function buildReview(c) {
+    if (c.status === 'DRAFT') { c.approvals = []; return; }
+    if (c.autoHistory && !(c.history || []).length) c.history = autoHistory(c);
+    c.history = (c.history || []).slice().sort(function (a, b) { return a.at.localeCompare(b.at); });
+    const round = c.round || 1;
+    const route = reviewRoute(c);
+    const steps = REVIEW_ORDER.map(function (code) {
+      return {
+        step: code, role: D.STEPS[code].role, userId: D.STEP_ASSIGNEE[code],
+        state: route[code][0] ? 'WAITING' : 'SKIPPED', reason: route[code][1],
+        arrivedAt: null, decidedAt: null, decidedBy: null, onBehalfOf: null, comment: '',
+      };
+    });
+    const by = {};
+    steps.forEach(function (s) { by[s.step] = s; });
+    // 앞 묶음이 모두 승인된 묶음까지 차례로 만들고, 그 뒤 묶음은 대기로 되돌림
+    function recompute(at) {
+      let blocked = false;
+      D.REVIEW_GROUPS.forEach(function (group) {
+        const members = group.map(function (code) { return by[code]; }).filter(function (s) { return s.state !== 'SKIPPED'; });
+        members.forEach(function (s) {
+          if (blocked) { if (s.state === 'PENDING') { s.state = 'WAITING'; s.arrivedAt = null; } }
+          else if (s.state === 'WAITING') { s.state = 'PENDING'; s.arrivedAt = at; }
+        });
+        if (members.some(function (s) { return s.state !== 'DONE'; })) blocked = true;
+      });
+    }
+    recompute(c.requestedAt);
+    let rejection = null, approvedAt = null;
+    c.history.filter(function (h) { return (h.round || 1) === round; }).forEach(function (h) {
+      const s = by[h.step];
+      if (!s) return;
+      if (h.action === 'APPROVE' || h.action === 'REJECT') {
+        s.state = h.action === 'APPROVE' ? 'DONE' : 'REJECTED';
+        s.decidedAt = h.at; s.decidedBy = h.actorId; s.onBehalfOf = h.onBehalfOf || null; s.comment = h.comment;
+        if (h.action === 'REJECT') rejection = { step: h.step, role: s.role, at: h.at, reason: h.comment, by: h.actorId };
+      } else if (h.action === 'CANCEL') {
+        s.state = 'PENDING'; s.decidedAt = null; s.decidedBy = null; s.onBehalfOf = null; s.comment = '';
+      }
+      recompute(h.at);
+      approvedAt = !rejection && steps.every(function (x) { return x.state === 'DONE' || x.state === 'SKIPPED'; }) ? h.at : null;
+    });
+    if (['IN_REVIEW', 'REJECTED', 'APPROVED'].indexOf(c.status) > -1) {
+      c.status = rejection ? 'REJECTED' : approvedAt ? 'APPROVED' : 'IN_REVIEW';
+      c.approvedAt = approvedAt;
+    }
+    c.approvals = steps;
+    c.rejection = rejection;
+    if (rejection) { c.rejectedAt = rejection.at; c.rejectReason = rejection.reason; }
+  }
+
+  function pendingSteps(c) { return (c.approvals || []).filter(function (a) { return a.state === 'PENDING'; }); }
+  function currentStep(c) { return pendingSteps(c)[0] || null; }
+  function routedSteps(c) { return (c.approvals || []).filter(function (a) { return a.state !== 'SKIPPED'; }); }
+  // 현재 몇 번째 결재 단계인지 (생략한 단계는 세지 않음. 예: 3단계 중 2단계)
   function stepPosition(c) {
-    const list = c.approvals || [];
+    const list = routedSteps(c);
     const idx = list.findIndex(function (a) { return a.state === 'PENDING' || a.state === 'REJECTED'; });
     return { pos: idx + 1, total: list.length };
   }
-  // 현재 결재 단계에 머문 일수
-  function waitDays(c) {
-    const s = currentStep(c);
-    return s && s.date ? daysSince(s.date) : 0;
+  // 결재 단계에 머문 일수 (step을 주지 않으면 지금 차례인 단계 중 가장 오래된 것)
+  function waitDays(c, step) {
+    const list = step ? [step] : pendingSteps(c);
+    if (!list.length) return 0;
+    return Math.max.apply(null, list.map(function (s) { return s.arrivedAt ? daysSince(s.arrivedAt) : 0; }));
+  }
+  // 이 사람이 지금 처리할 수 있는 단계인지. 슈퍼관리자는 시연용으로 담당자 대신 처리할 수 있음 (프로토타입 전용)
+  function canAct(c, s, user) {
+    return c.status === 'IN_REVIEW' && s.state === 'PENDING' && (s.userId === user.id || user.role === 'SUPER');
+  }
+  // 승인 취소: 승인한 본인이, 다음 묶음이 아직 아무것도 처리하지 않았을 때만 (REQ-DOC-06)
+  function canCancel(c, s, user) {
+    if (s.state !== 'DONE' || ['IN_REVIEW', 'APPROVED'].indexOf(c.status) < 0) return false;
+    if (s.decidedBy !== user.id && user.role !== 'SUPER') return false;
+    const gi = groupIndex(s.step);
+    return !(c.approvals || []).some(function (a) { return groupIndex(a.step) > gi && a.decidedAt; });
   }
 
   /* 열람 권한 (REQ-AUTH-03, REQ-AUTH-09 [가정])
    * - 열람 제한이 없는 계약: 모든 사용자 열람 가능
-   * - 열람 제한 계약: 요청자 본인, 결재선에 지정된 사람, 관리자만 열람 가능
+   * - 열람 제한 계약: 요청자 본인, 결재선에 지정된 사람(생략된 단계 제외), 관리자만 열람 가능
    * ※ 실제 시스템에서는 반드시 서버에서 판단해야 합니다. 화면에서 가리는 것만으로는 보안이 되지 않습니다. */
   function canView(c, user) {
     // 작성 중(임시 저장) 계약은 작성자 본인만 봅니다. [가정]
@@ -164,20 +271,96 @@ window.CLIMB = (function () {
     if (!c.restricted) return true;
     if (user.role === 'ADMIN' || user.role === 'SUPER') return true;
     if (c.requesterId === user.id) return true;
-    return (c.approvals || []).some(function (a) { return a.userId === user.id; });
+    return routedSteps(c).some(function (a) { return a.userId === user.id; });
   }
 
-  // 내가 처리해야 할 건수 (헤더 알림 숫자, 대시보드 '내 할 일')
+  // 내 차례인 결재 단계 목록: [{ c: 계약, s: 단계 }] (슈퍼관리자 all=true면 모든 담당자 것)
+  function pendingQueue(user, all) {
+    const out = [];
+    D.CONTRACTS.forEach(function (c) {
+      if (c.status !== 'IN_REVIEW') return;
+      pendingSteps(c).forEach(function (s) { if (all || s.userId === user.id) out.push({ c: c, s: s }); });
+    });
+    return out;
+  }
+  // 내가 처리해야 할 계약 (개요 인사말과 '내가 검토할 계약')
   function myActions(user) {
     const list = D.CONTRACTS;
     if (D.APPROVER_ROLES.indexOf(user.role) > -1) {
-      return list.filter(function (c) { return c.status === 'IN_REVIEW' && currentStep(c) && currentStep(c).userId === user.id; });
+      return list.filter(function (c) {
+        return c.status === 'IN_REVIEW' && pendingSteps(c).some(function (s) { return s.userId === user.id; });
+      });
     }
     if (user.role === 'SALES') {
       return list.filter(function (c) { return c.requesterId === user.id && (c.status === 'REJECTED' || c.status === 'APPROVED'); });
     }
     return [];
   }
+
+  // 결재 단계 점: 승인 완료(채움), 현재 차례(테두리), 대기(회색), 반려(핑크). 생략한 단계는 그리지 않음
+  function stepDots(c) {
+    const stateClass = { DONE: 'is-done', PENDING: 'is-current', REJECTED: 'is-rejected' };
+    return '<span class="step-dots" aria-hidden="true">' + routedSteps(c).map(function (a) {
+      return '<span class="step-dot ' + (stateClass[a.state] || '') + '"></span>';
+    }).join('') + '</span>';
+  }
+
+  // 현재 진행: 한 줄로 간단하게 (REQ-DASH-06). 개요, 진행 현황이 함께 씀
+  function progressText(c) {
+    if (c.status === 'DRAFT') return '임시 저장 (' + fmtDate(c.savedAt) + ')';
+    if (c.status === 'APPROVED') return '체결본 등록 대기 (승인 후 ' + daysSince(c.approvedAt) + '일)';
+    if (c.status === 'REJECTED') {
+      return stepDots(c) + esc(roleLabel(c.rejection.role)) + ' 반려 (' + fmtDate(c.rejection.at) + ')';
+    }
+    // 검토 중: 지금 차례인 단계 이름. ③④는 동시에 차례일 수 있음 (예: 법무, 개인정보 검토 중)
+    if (c.status === 'IN_REVIEW') {
+      const names = pendingSteps(c).map(function (s) { return D.STEPS[s.step].short; }).join(', ');
+      return stepDots(c) + esc(names) + ' 검토 중 (' + waitDays(c) + '일째)';
+    }
+    // 운영 검토: ⑨ 운영 적용(CEM) 또는 ⑩ 재무 확인 차례 [가정]
+    if (c.status === 'OPS_REVIEW') return (c.opsStep === 'CEM' ? 'CEM 운영 적용 중' : '재무 확인 중') + ' (체결 후 ' + daysSince(c.signedAt) + '일)';
+    if (c.status === 'ACTIVE') return '계약 완료 (만료 ' + fmtDate(c.endDate) + ')';
+    return '-';
+  }
+
+  /* ---------- 시연 기록 (프로토타입 전용) ----------
+   * 화면에서 승인, 반려, 승인 취소를 누르면 이 브라우저에만 저장해 다른 화면에도 반영합니다.
+   * 실제 시스템에서는 서버의 결재 기록(approval_history)에 저장합니다.
+   * 시연 띠의 "시연 기록 지우기"를 누르면 처음 예시 상태로 돌아갑니다. */
+  const DEMO_ACTIONS_KEY = 'climb.demoActions';
+  function loadDemoActions() {
+    try { return JSON.parse(localStorage.getItem(DEMO_ACTIONS_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function saveDemoActions(list) {
+    try { localStorage.setItem(DEMO_ACTIONS_KEY, JSON.stringify(list)); } catch (e) { /* 저장소를 못 쓰면 이 화면에서만 반영 */ }
+  }
+  function nowStamp() {
+    const d = new Date();
+    const p = function (n) { return String(n).padStart(2, '0'); };
+    return D.TODAY + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }
+  // 승인(APPROVE), 반려(REJECT), 승인 취소(CANCEL)를 기록하고 계약 상태를 다시 계산
+  function recordAction(c, s, action, comment, user) {
+    const entry = {
+      contractId: c.id, step: s.step, action: action, at: nowStamp(), comment: comment || '',
+      actorId: user.id, onBehalfOf: s.userId !== user.id ? s.userId : null, round: c.round || 1,
+    };
+    const list = loadDemoActions();
+    list.push(entry);
+    saveDemoActions(list);
+    c.history.push(entry);
+    buildReview(c);
+    return entry;
+  }
+  // 저장해 둔 시연 기록을 예시 데이터에 더한 뒤, 모든 계약의 결재 상태를 계산
+  loadDemoActions().forEach(function (a) {
+    const c = D.CONTRACTS.find(function (x) { return x.id === a.contractId; });
+    if (c) { c.history = c.history || []; c.history.push(a); }
+  });
+  D.CONTRACTS.forEach(buildReview);
+
+  // 다음 화면에서 한 번 보여 줄 안내 (예: 승인한 뒤 목록으로 돌아갔을 때)
+  function flash(msg) { try { sessionStorage.setItem('climb.flash', msg); } catch (e) { /* 무시 */ } }
 
   /* ---------- HTML 조각 ---------- */
   function esc(s) {
@@ -215,10 +398,18 @@ window.CLIMB = (function () {
         '<label for="demo-role">시연용 역할 전환</label>' +
         '<select id="demo-role" class="demo-select" autocomplete="off">' + options + '</select>' +
         '<span>역할에 따라 메뉴와 개요 화면 구성이 바뀝니다. 실제 시스템에는 없는 영역입니다.</span>' +
+        // 화면에서 승인, 반려, 승인 취소를 해 봤다면 처음 예시 상태로 되돌리는 버튼
+        (loadDemoActions().length ? '<button type="button" class="demo-reset" id="demo-reset">시연 기록 지우기 (' + loadDemoActions().length + '건)</button>' : '') +
       '</div>';
     el.querySelector('#demo-role').addEventListener('change', function (e) {
       saveRole(e.target.value);
       location.search = '?role=' + e.target.value;
+    });
+    const reset = el.querySelector('#demo-reset');
+    if (reset) reset.addEventListener('click', function () {
+      saveDemoActions([]);
+      flash('시연 기록을 지우고 처음 예시 상태로 돌아갔습니다.');
+      location.reload();
     });
   }
 
@@ -343,6 +534,24 @@ window.CLIMB = (function () {
     toast('‘' + a.getAttribute('data-todo') + '’' + (scr ? ' 화면(' + scr + ')' : ' 화면') + '은 아직 시안을 만들기 전입니다.');
   });
 
+  /* ---------- 쪽 번호 (KRDS 페이지네이션) ----------
+   * 목록 화면이 함께 씀. 버튼마다 data-page가 있어 화면 스크립트가 눌린 쪽 번호를 읽습니다.
+   * 한 쪽에 보이는 수는 화면이 A4 2장을 넘지 않게 정한 값(REQ-ADM-04, 목록마다 20) */
+  function pagerHtml(page, pages, total, from, shown, size, unit) {
+    const btn = function (label, target, opts) {
+      opts = opts || {};
+      return '<button type="button" class="page-btn' + (opts.cls || '') + '" data-page="' + target + '"' +
+        (opts.disabled ? ' disabled' : '') + (opts.current ? ' aria-current="page"' : '') +
+        (opts.aria ? ' aria-label="' + opts.aria + '"' : '') + '>' + label + '</button>';
+    };
+    let html = btn(icon('chevronLeft', 'sm') + '<span>이전</span>', page - 1, { cls: ' page-prev', disabled: page === 1, aria: '이전 쪽' });
+    for (let i = 1; i <= pages; i++) html += btn(String(i), i, { cls: i === page ? ' is-current' : '', current: i === page, aria: i + '쪽' });
+    html += btn('<span>다음</span>' + icon('chevronRight', 'sm'), page + 1, { cls: ' page-next', disabled: page === pages, aria: '다음 쪽' });
+    const range = total ? (from + 1) + '~' + (from + shown) + '번째' : '해당 없음';
+    return '<div class="page-btns">' + html + '</div>' +
+      '<p class="page-range">' + pages + '쪽 중 ' + page + '쪽, ' + range + ' (한 쪽에 ' + size + unit + ')</p>';
+  }
+
   /* ---------- 화면 시작 ----------
    * 각 HTML의 <body data-page="SCR-xx">를 읽어 공통 영역을 그립니다. */
   function init() {
@@ -351,13 +560,21 @@ window.CLIMB = (function () {
     renderDemoBar(user);
     renderHeader(user, pageId);
     renderFooter();
+    // 앞 화면에서 남긴 안내가 있으면 한 번 보여 줌
+    try {
+      const msg = sessionStorage.getItem('climb.flash');
+      if (msg) { sessionStorage.removeItem('climb.flash'); setTimeout(function () { toast(msg); }, 50); }
+    } catch (e) { /* 무시 */ }
     return user;
   }
 
   return {
     init: init, getRole: getRole, saveRole: saveRole, currentUser: currentUser,
-    daysSince: daysSince, daysUntil: daysUntil, fmtDate: fmtDate, fmtToday: fmtToday, fmtKRW: fmtKRW,
-    roleLabel: roleLabel, userName: userName, serviceLabel: serviceLabel, currentStep: currentStep, stepPosition: stepPosition, waitDays: waitDays,
+    daysSince: daysSince, daysUntil: daysUntil, fmtDate: fmtDate, fmtDateTime: fmtDateTime, fmtToday: fmtToday, fmtKRW: fmtKRW,
+    roleLabel: roleLabel, userName: userName, serviceLabel: serviceLabel, stepLabel: stepLabel,
+    currentStep: currentStep, pendingSteps: pendingSteps, routedSteps: routedSteps, stepPosition: stepPosition, waitDays: waitDays,
+    stepDots: stepDots, progressText: progressText,
+    reviewRoute: reviewRoute, canAct: canAct, canCancel: canCancel, pendingQueue: pendingQueue, recordAction: recordAction, flash: flash, pagerHtml: pagerHtml,
     canView: canView, myActions: myActions,
     esc: esc, badge: badge, statusBadge: statusBadge, todoAttrs: todoAttrs, icon: icon, brandText: brandText, meta: meta, toast: toast,
     securityNotice: SECURITY_NOTICE,

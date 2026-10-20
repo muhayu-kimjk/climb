@@ -47,43 +47,23 @@
     if (!C.canView(c, me)) {
       return '<td><span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span></td><td class="col-service">-</td>';
     }
-    // 작성 중인 계약은 계약 등록 화면(SCR-11)에서 이어서 작성
+    // 작성 중인 계약은 계약 등록 화면(SCR-11)에서 이어서 작성, 그 밖에는 결재 문서 화면(검토 상세, SCR-23)
     const link = c.status === 'DRAFT'
       ? '<a class="cell-title" href="new-contract.html?id=' + encodeURIComponent(c.draftKey) + '">' + esc(c.counterparty) + '</a>'
-      : '<a class="cell-title" ' + C.todoAttrs('계약 상세', 'SCR-42') + '>' + esc(c.counterparty) + '</a>';
+      : '<a class="cell-title" href="review.html?id=' + encodeURIComponent(c.id) + '">' + esc(c.counterparty) + '</a>';
     const service = esc(C.serviceLabel(c.services));
     return '<td>' + link + '<span class="cell-sub">' + service + '</span></td><td class="col-service">' + service + '</td>';
   }
 
-  // 결재 단계 점: 승인 완료(채움), 현재 차례(테두리), 대기(회색), 반려(핑크)
-  function stepDots(c) {
-    const stateClass = { DONE: 'is-done', PENDING: 'is-current', REJECTED: 'is-rejected' };
-    return '<span class="step-dots" aria-hidden="true">' + c.approvals.map(function (a) {
-      return '<span class="step-dot ' + (stateClass[a.state] || '') + '"></span>';
-    }).join('') + '</span>';
-  }
+  // 결재 단계 점과 현재 진행 한 줄은 목록 화면들이 함께 쓰므로 common.js로 옮김 (C.stepDots, C.progressText)
+  const stepDots = C.stepDots, progressText = C.progressText;
 
-  // 현재 진행: 한 줄로 간단하게 (REQ-DASH-06)
-  function progressText(c) {
-    if (c.status === 'DRAFT') return '임시 저장 (' + C.fmtDate(c.savedAt) + ')';
-    if (c.status === 'APPROVED') return '체결본 등록 대기 (승인 후 ' + C.daysSince(c.approvedAt) + '일)';
-    if (c.status === 'REJECTED') {
-      const r = c.approvals.find(function (a) { return a.state === 'REJECTED'; });
-      return stepDots(c) + esc(C.roleLabel(r.role)) + ' 반려 (' + C.fmtDate(r.date) + ')';
-    }
-    if (c.status === 'IN_REVIEW') {
-      return stepDots(c) + esc(C.roleLabel(C.currentStep(c).role)) + ' 검토 중 (' + C.waitDays(c) + '일째)';
-    }
-    // 운영 검토: ⑨ 운영 적용(CEM) 또는 ⑩ 재무 확인 차례 [가정]
-    if (c.status === 'OPS_REVIEW') return (c.opsStep === 'CEM' ? 'CEM 운영 적용 중' : '재무 확인 중') + ' (체결 후 ' + C.daysSince(c.signedAt) + '일)';
-    if (c.status === 'ACTIVE') return '계약 완료 (만료 ' + C.fmtDate(c.endDate) + ')';
-    return '-';
-  }
-
-  function panelHead(id, title, sub, moreLabel, moreScr) {
+  // more: 오른쪽 '전체 보기' 링크. href가 있으면 그 화면으로, 없으면 아직 안 만든 화면 안내
+  function panelHead(id, title, sub, moreLabel, moreScr, moreHref) {
+    const attrs = moreHref ? 'href="' + moreHref + '"' : C.todoAttrs(moreLabel, moreScr);
     return '<div class="panel-head">' +
       '<h2 class="panel-title" id="' + id + '">' + esc(title) + (sub ? ' <span class="panel-sub">' + sub + '</span>' : '') + '</h2>' +
-      (moreLabel ? '<a class="link-more" ' + C.todoAttrs(moreLabel, moreScr) + '>' + esc(moreLabel) + C.icon('chevronRight', 'sm') + '</a>' : '') +
+      (moreLabel ? '<a class="link-more" ' + attrs + '>' + esc(moreLabel) + C.icon('chevronRight', 'sm') + '</a>' : '') +
     '</div>';
   }
 
@@ -114,9 +94,9 @@
    * 단계마다 단계 번호, 단계 이름, 건수만 보여 주고 아래 작은 설명 글은 두지 않습니다. (v0.14) */
   const STEPS = [
     { label: '계약 등록', statuses: ['DRAFT'], target: '내 등록 목록', scr: 'SCR-12' },
-    { label: '계약 검토', statuses: ['IN_REVIEW', 'REJECTED'], target: '전체 진행 현황', scr: 'SCR-20' },
+    { label: '계약 검토', statuses: ['IN_REVIEW', 'REJECTED'], target: '전체 진행 현황', scr: 'SCR-20', href: 'progress.html?status=REVIEW' },
     { label: '계약 체결', statuses: ['APPROVED'], target: '체결 대기', scr: 'SCR-31' },
-    { label: '운영 검토', statuses: ['OPS_REVIEW'], target: '전체 진행 현황', scr: 'SCR-20' },
+    { label: '운영 검토', statuses: ['OPS_REVIEW'], target: '전체 진행 현황', scr: 'SCR-20', href: 'progress.html?status=OPS_REVIEW' },
     { label: '계약 완료', statuses: ['ACTIVE'], target: '보관함 전체 계약', scr: 'SCR-41' },
   ];
 
@@ -127,7 +107,7 @@
       const count = unknown ? '-' : list.length;
       const cls = !unknown && list.length ? ' class="is-on"' : '';
       return '<li' + cls + '>' +
-        '<a class="step-body" ' + C.todoAttrs(s.target, s.scr) + '>' +
+        '<a class="step-body" ' + (s.href ? 'href="' + s.href + '"' : C.todoAttrs(s.target, s.scr)) + '>' +
           '<i class="step">' + (i + 1) + '단계</i>' +
           '<span class="step-tit">' + esc(s.label) + '</span>' +
           '<span class="step-count">' + count + (unknown ? '' : '<span class="unit">건</span>') + '</span>' +
@@ -168,24 +148,26 @@
     const el = document.getElementById('my-reviews');
     if (!isApprover) return;
     el.hidden = false;
-    const rows = myActions.slice().sort(function (a, b) { return C.waitDays(b) - C.waitDays(a); });
-    const head = panelHead('my-reviews-title', '내가 검토할 계약', rows.length + '건', '검토 대기 전체 보기', 'SCR-21');
+    // 내 차례인 단계 (③④처럼 동시에 차례인 단계 중 내 것)
+    const mine = function (c) { return C.pendingSteps(c).filter(function (s) { return s.userId === me.id; })[0]; };
+    const rows = myActions.slice().sort(function (a, b) { return C.waitDays(b, mine(b)) - C.waitDays(a, mine(a)); });
+    const head = panelHead('my-reviews-title', '내가 검토할 계약', rows.length + '건', '검토 대기 전체 보기', 'SCR-21', 'review-queue.html');
     if (!rows.length) { el.innerHTML = head + '<p class="empty">지금 검토할 계약이 없습니다.</p>'; return; }
     el.innerHTML = head +
       '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
-        '<caption class="sr-only">내가 검토할 계약: 고객사, 서비스, 요청자, 대기 일수, 결재 단계</caption>' +
-        '<thead><tr><th scope="col" class="col-customer">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col">요청자</th><th scope="col" class="num">대기</th><th scope="col">결재 단계</th></tr></thead>' +
+        '<caption class="sr-only">내가 검토할 계약: 고객사, 서비스, 요청자, 대기 일수, 내 단계</caption>' +
+        '<thead><tr><th scope="col" class="col-customer">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col">요청자</th><th scope="col" class="num">대기</th><th scope="col">내 단계</th></tr></thead>' +
         '<tbody>' + rows.map(function (c) {
-          const p = C.stepPosition(c);
-          const wait = C.waitDays(c);
+          const s = mine(c);
+          const wait = C.waitDays(c, s);
           // 내 차례인 결재 건은 열람 제한이어도 볼 수 있음 (REQ-AUTH-09)
           return '<tr>' +
-            '<td><a class="cell-title" ' + C.todoAttrs('검토 상세', 'SCR-23') + '>' + esc(c.counterparty) + '</a>' +
+            '<td><a class="cell-title" href="review.html?id=' + encodeURIComponent(c.id) + '">' + esc(c.counterparty) + '</a>' +
               '<span class="cell-sub">' + esc(C.serviceLabel(c.services)) + '</span></td>' +
             '<td class="col-service">' + esc(C.serviceLabel(c.services)) + '</td>' +
             '<td class="nowrap">' + esc(C.userName(c.requesterId)) + '</td>' +
             '<td class="num"><span' + (wait >= R.approvalDelayDays ? ' class="wait-long"' : '') + '>' + wait + '일</span></td>' +
-            '<td class="nowrap col-steps">' + stepDots(c) + p.total + '단계 중 ' + p.pos + '단계</td>' +
+            '<td class="nowrap col-steps">' + stepDots(c) + esc(C.stepLabel(s.step)) + '</td>' +
           '</tr>';
         }).join('') + '</tbody>' +
       '</table></div>';

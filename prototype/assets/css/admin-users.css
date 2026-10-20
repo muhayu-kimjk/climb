@@ -1,78 +1,30 @@
 /* =====================================================================
  * SCR-51 사용자 권한 관리 전용 스타일 (admin-users.css)
  * 관련 요구사항: REQ-ADM-01~06, REQ-UI-10~12, REQ-ENV-08
- *   - 거르기 줄, 건수 요약, 가로 스크롤 표(이메일 칸은 왼쪽에 고정), KRDS 페이지네이션
+ *   - 거르기 줄, 건수 요약, 가로 스크롤, 쪽 번호는 목록 공통(list.css)
+ *   - 이 파일: 사용자 표의 너비, 이메일 칸 고정, 사용 중지 계정 표시
  *   - 인쇄: 가로 스크롤 없이 A4 세로 폭에 모든 칸이 들어가도록 글자를 줄이고 줄바꿈 허용
  * ===================================================================== */
 
-/* ---------- 거르기 줄 (KRDS 검색 패턴) ----------
- * 윗줄: 검색어 + 초기화 / 아랫줄: 권한, 부서, 상태 (A4 폭에서 선택 글자가 잘리지 않게 두 줄로) */
-.filter-bar {
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; align-items: end; gap: 1.2rem;
-  margin-bottom: 2rem; padding: 1.6rem 2rem; border-radius: var(--radius-lg); background: var(--surface-gray-subtler);
-}
-.filter-bar .field { margin: 0; }
-.filter-bar .field:first-child { grid-column: 1 / 4; grid-row: 1; }
-.filter-reset { grid-column: 4; grid-row: 1; white-space: nowrap; }
-
-/* ---------- 건수 요약과 사용자 추가 버튼 ---------- */
-.list-head { display: flex; align-items: center; justify-content: space-between; gap: 1.2rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
-.list-count { font-size: var(--fs-body-small); color: var(--text-subtle); }
-.list-count strong { color: var(--text-bolder); }
-.scroll-hint { margin-bottom: 0.8rem; font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
-
-/* ---------- 가로 스크롤 표 (REQ-ADM-03) ----------
- * 칸이 많아 A4 폭을 넘으므로 표 영역 안에서만 옆으로 밀어 봅니다. 스크롤바는 늘 보이게 회색으로 */
-.tbl-scroll {
-  overflow-x: auto; border: 1px solid var(--border-gray-light); border-radius: var(--radius-lg);
-  scrollbar-width: auto; scrollbar-color: var(--mh-gray) var(--surface-gray-subtler);
-}
-.tbl-scroll:focus-visible { box-shadow: var(--focus-ring); }
-.tbl--users { width: 100%; min-width: 150rem; }
+.tbl--users { min-width: 150rem; }
 .tbl--users th, .tbl--users td { white-space: nowrap; }
 /* 줄이 많은 관리 표라 위아래 여백을 조금 줄여 한 쪽 20명이 A4 2장 안에 넉넉히 들어가게 */
 .tbl--users td { padding-top: 1.2rem; padding-bottom: 1.2rem; }
-.tbl--users tbody tr:last-child td { border-bottom: 0; }
 .tbl--users .cell-name { font-weight: 700; color: var(--text-basic); }
-.tbl--users .num-left { font-variant-numeric: tabular-nums; }
 .role-badges { display: inline-flex; gap: 0.4rem; }
 /* 사용 중지 계정: 글자를 흐리게 */
 .tbl--users tr.is-muted td { color: var(--text-disabled); }
 .tbl--users tr.is-muted .cell-name { color: var(--text-subtle); }
-.empty-row { padding: 3.2rem 1.6rem !important; text-align: center; color: var(--text-subtle); }
 .link-edit { color: var(--text-primary); font-weight: 700; text-decoration: underline; text-underline-offset: 0.3rem; }
 
 /* 이메일 칸 고정: 옆으로 밀어도 누구의 줄인지 보이게 왼쪽에 붙임 */
 .tbl--users .col-email { position: sticky; left: 0; z-index: 1; background: var(--surface-white); box-shadow: inset -1px 0 0 var(--border-gray-light); }
 .tbl--users th.col-email { z-index: 2; background: var(--surface-secondary-subtler); }
 
-/* ---------- KRDS 페이지네이션 (REQ-ADM-04) ---------- */
-.pagination { margin-top: 2.4rem; text-align: center; }
-.page-btns { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 0.4rem; }
-.page-btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 0.2rem; min-width: var(--touch-min); height: var(--touch-min); padding: 0 0.8rem;
-  border-radius: var(--radius-md); font-size: var(--fs-body-small); color: var(--text-basic); font-variant-numeric: tabular-nums;
-}
-.page-btn:hover:not(:disabled):not(.is-current) { background: var(--surface-gray-subtler); }
-.page-btn.is-current { background: var(--mh-dark-green); color: var(--text-inverse); font-weight: 700; }
-.page-btn:disabled { color: var(--text-disabled); cursor: default; }
-.page-range { margin-top: 0.8rem; font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
-
-/* ---------- 휴대폰 (방식 B): 배치는 같게, 거르기 칸만 두 줄로 ---------- */
-@media screen and (max-width: 600px) {
-  .filter-bar { grid-template-columns: 1fr 1fr; padding: 1.6rem; }
-  .filter-bar .field:first-child { grid-column: 1 / -1; }
-  .filter-reset { grid-column: 1 / -1; grid-row: auto; }
-}
-
-/* ---------- 인쇄: 지금 보이는 쪽의 사람만, 모든 칸을 A4 세로 폭 안에 ---------- */
 @media print {
-  .filter-bar, .scroll-hint, .page-btns, .list-head .btn { display: none !important; }
-  .tbl-scroll { overflow: visible; border: 0; }
   .tbl--users { min-width: 0; font-size: 7pt; }
   .tbl--users th, .tbl--users td { padding: 1.2mm 1mm; white-space: normal; word-break: keep-all; }
   .tbl--users .col-email { position: static; box-shadow: none; word-break: break-all; }
   .tbl--users .badge { height: auto; padding: 0.2mm 1mm; font-size: 6.5pt; }
   .role-badges { flex-wrap: wrap; }
-  .pagination { margin-top: 3mm; }
 }

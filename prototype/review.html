@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 브라우저 탭 제목: CLIMB (REQ-NAME-02) -->
+  <title>CLIMB</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/common.css">
+  <link rel="stylesheet" href="assets/css/form.css">
+  <link rel="stylesheet" href="assets/css/review.css">
+</head>
+<!-- =====================================================================
+  SCR-23 검토 상세 (docs/02_화면목록.md)
+  - 계약 한 건을 하나의 결재 문서처럼 보여 줍니다(REQ-DOC-01). 맨 위에 결재란(REQ-DOC-02), 그 아래 계약 내용,
+    체크리스트, 첨부 파일, 검토 요청 사항, 결재 기록. A4로 인쇄하면 그대로 결재 문서가 됩니다(REQ-FLOW-12).
+  - 내 차례인 단계가 있으면 화면 아래 처리 막대에서 승인(의견 선택) 또는 반려(사유 필수)합니다(REQ-DOC-07).
+    휴대폰에서도 같은 막대가 화면 아래에 붙어 있어 간단히 승인할 수 있습니다(REQ-ENV-06).
+  - 내가 승인한 단계는 다음 단계가 처리하기 전까지 승인을 취소할 수 있습니다(REQ-DOC-06).
+  - 주소: review.html?id=계약번호 (예: review.html?id=CT-2026-0412)
+  - 프로토타입: 승인, 반려, 승인 취소는 이 브라우저에만 저장됩니다(시연 띠의 "시연 기록 지우기"로 되돌림).
+====================================================================== -->
+<body data-page="SCR-23">
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <div id="demo-bar"></div>
+
+  <div class="sheet">
+  <header id="site-header"></header>
+
+  <main id="main" class="page">
+    <div class="inner">
+      <div class="page-head page-head--sub">
+        <div>
+          <p class="doc-kind">계약 결재 문서</p>
+          <h1 class="page-title" id="doc-title">검토 상세</h1>
+          <p class="doc-meta" id="doc-meta"></p>
+        </div>
+      </div>
+
+      <!-- 내 차례 안내, 반려 안내, 볼 수 없음 안내 -->
+      <div id="notice"></div>
+
+      <div class="doc-stack" id="doc" hidden>
+        <!-- 결재란 (REQ-DOC-02): 단계마다 담당자, 결과, 일시 -->
+        <section class="panel" aria-labelledby="box-title">
+          <h2 class="section-title" id="box-title">결재란</h2>
+          <p class="section-desc" id="box-desc"></p>
+          <div class="approval-box-wrap"><table class="approval-box" id="approval-box"></table></div>
+        </section>
+
+        <section class="panel" aria-labelledby="basic-title">
+          <h2 class="section-title" id="basic-title"><span class="num">1</span>기본 정보</h2>
+          <dl class="info-grid" id="basic"></dl>
+        </section>
+
+        <section class="panel" aria-labelledby="amount-title">
+          <h2 class="section-title" id="amount-title"><span class="num">2</span>금액과 제품</h2>
+          <div id="amount"></div>
+        </section>
+
+        <section class="panel" aria-labelledby="check-title">
+          <h2 class="section-title" id="check-title"><span class="num">3</span>체크리스트</h2>
+          <p class="section-desc">영업이 답한 1번과, 제품 금액으로 자동 계산된 2, 3번입니다. 이 답으로 결재선이 정해졌습니다.</p>
+          <div id="checklist"></div>
+        </section>
+
+        <section class="panel" aria-labelledby="files-title">
+          <h2 class="section-title" id="files-title"><span class="num">4</span>첨부 파일과 검토 요청 사항</h2>
+          <p class="section-desc">내려받으면 누가 언제 받았는지 기록에 남습니다.</p>
+          <ul class="doc-files" id="files"></ul>
+          <h3 class="field-label memo-label">검토 요청 사항</h3>
+          <p class="memo" id="memo"></p>
+        </section>
+
+        <section class="panel" aria-labelledby="history-title">
+          <h2 class="section-title" id="history-title"><span class="num">5</span>결재 기록</h2>
+          <p class="section-desc">기안, 승인, 반려, 승인 취소를 모두 남기며 고치거나 지울 수 없습니다.</p>
+          <div class="tbl-wrap"><table class="tbl tbl--compact history" id="history"></table></div>
+        </section>
+      </div>
+
+      <!-- 처리 막대: 내 차례이거나 승인 취소할 수 있을 때만 보임. 화면 아래에 붙음 (REQ-ENV-06) -->
+      <div class="action-bar" id="action-bar" hidden></div>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+  </div><!-- /.sheet -->
+
+  <!-- 승인, 반려, 승인 취소 확인 창 -->
+  <div class="modal-backdrop" id="act-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="act-title">
+      <h2 class="modal-title" id="act-title"></h2>
+      <div class="modal-body">
+        <p id="act-desc"></p>
+        <div class="field act-field" id="act-field">
+          <label class="field-label" for="act-comment" id="act-label"></label>
+          <textarea class="textarea textarea--sm" id="act-comment"></textarea>
+          <p class="field-error" id="act-error" hidden></p>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn--tertiary btn--md" data-act="close">닫기</button>
+        <button type="button" class="btn btn--primary btn--md" data-act="confirm" id="act-confirm"></button>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/js/mock-data.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/review.js"></script>
+</body>
+</html>

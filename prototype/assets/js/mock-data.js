@@ -40,10 +40,9 @@ window.CLIMB_DATA = (function () {
     FINANCE: '재무',
   };
 
-  // 결재선에 들어갈 수 있는 역할
+  // 2단계 계약 검토의 결재 역할: ② 세일즈어드민, ③ 법무, ④ 개인정보 담당, ⑤ 부서장(리더 본인 건은 영업 담당 임원)
   // 재무는 결재선에 들어가지 않고 체결 뒤 회계 인식만 확인합니다. (C-15 확정, REQ-FLOW-26)
-  // 세일즈어드민, 영업 담당 임원, 총무, CEM 역할(REQ-AUTH-12)은 검토 화면을 만들 때 시연 데이터에 추가합니다.
-  const APPROVER_ROLES = ['HEAD', 'LEGAL', 'PRIVACY'];
+  const APPROVER_ROLES = ['SALES_ADMIN', 'LEGAL', 'PRIVACY', 'HEAD', 'EXEC'];
 
   // 사용자 (실제로는 Google 계정 로그인 정보 + 관리자가 지정한 역할)
   const USERS = {
@@ -115,24 +114,66 @@ window.CLIMB_DATA = (function () {
     { code: 'HR-ADD', service: 'HR', name: 'HR 추가 모듈', unit: '모듈, 1년', listPrice: 3600000, discountCap: 0.15 },
   ];
 
-  // 결재 단계 한 칸을 만드는 도우미.
-  // state: DONE 승인 / PENDING 결재 차례 / WAITING 앞 단계 대기 / REJECTED 반려
-  // date : DONE·REJECTED는 처리한 날, PENDING은 이 단계에 도착한 날
-  const ROLE_USER = { HEAD: 'u_head', LEGAL: 'u_legal', PRIVACY: 'u_privacy', FINANCE: 'u_finance' };
-  function step(role, state, date) {
-    return { role: role, userId: ROLE_USER[role], state: state, date: date || null };
+  /* ---------- 업무 세부 단계 (요구사항 정의서 3.2, 데이터 정의서 CODE-STEP) ----------
+   * role: 담당 역할 / short: 짧은 이름(현재 진행 칸, 결재란 머리에 씀) */
+  const STEPS = {
+    S01: { no: '①', name: '계약 등록과 기안', short: '기안', role: 'SALES' },
+    S02: { no: '②', name: '체크리스트 검토', short: '체크리스트', role: 'SALES_ADMIN' },
+    S03: { no: '③', name: '법무 검토', short: '법무', role: 'LEGAL' },
+    S04: { no: '④', name: '개인정보 검토', short: '개인정보', role: 'PRIVACY' },
+    S05: { no: '⑤', name: '영업 검토', short: '영업', role: 'HEAD' },
+    S06: { no: '⑥', name: '인장 날인 검토', short: '인장', role: 'GA' },
+    S07: { no: '⑦', name: '상대방 서명, 체결본 등록', short: '체결본', role: 'SALES' },
+    S08: { no: '⑧', name: '체결본 확인', short: '체결본 확인', role: 'SALES_ADMIN' },
+    S09: { no: '⑨', name: '운영 적용', short: '운영', role: 'CEM' },
+    S10: { no: '⑩', name: '재무 확인', short: '재무', role: 'FINANCE' },
+    S11: { no: '⑪', name: '계약 완료', short: '완료', role: null },
+  };
+  // 2단계 계약 검토의 순서: ② 다음 ③과 ④를 동시에, 둘 다 끝나면 ⑤ (REQ-STEP-04)
+  const REVIEW_GROUPS = [['S02'], ['S03', 'S04'], ['S05']];
+  // 단계별 담당자 [가정]. 실제 시스템에서는 관리자가 결재선 규칙(SCR-52)에서 지정합니다. (REQ-AUTH-06)
+  const STEP_ASSIGNEE = {
+    S02: 'u_sadmin', S03: 'u_legal', S04: 'u_privacy', S05: 'u_head',
+    S06: 'u_ga', S08: 'u_sadmin', S09: 'u_cem', S10: 'u_finance',
+  };
+  // 결재 단계 처리 상태 (데이터 정의서 CODE-APPROVAL-STATE)
+  const APPROVAL_STATE = {
+    WAITING: { label: '대기', tone: 'line' },
+    PENDING: { label: '차례', tone: 'progress' },
+    DONE: { label: '승인', tone: 'success' },
+    REJECTED: { label: '반려', tone: 'danger' },
+    SKIPPED: { label: '생략', tone: 'neutral' },
+  };
+  // 결재에서 한 일 (데이터 정의서 CODE-APPROVAL-ACTION)
+  const APPROVAL_ACTIONS = {
+    SUBMIT: { label: '기안', tone: 'line' },
+    APPROVE: { label: '승인', tone: 'success' },
+    REJECT: { label: '반려', tone: 'danger' },
+    CANCEL: { label: '승인 취소', tone: 'attention' },
+  };
+  // 첨부 파일 종류 (데이터 정의서 CODE-FILE-KIND)
+  const FILE_KINDS = { DRAFT_DOC: '계약서 초안', QUOTE: '최종 견적서', SIGNED: '체결본', TERMINATE_DOC: '해지 관련 서류' };
+
+  // 결재 기록 한 줄 (데이터 정의서 approval_history). 한 번 남기면 고치거나 지우지 않습니다. (REQ-FLOW-12)
+  //   step: 단계 코드 / action: APPROVE 승인, REJECT 반려, CANCEL 승인 취소 / at: 'YYYY-MM-DD HH:MM'
+  //   comment: 승인 의견(선택) 또는 반려 사유(필수) 또는 취소 사유 / actorId: 비우면 그 단계 담당자 / round: 기안 차수
+  function ev(step, action, at, comment, actorId, round) {
+    return { step: step, action: action, at: at, comment: comment || '', actorId: actorId || STEP_ASSIGNEE[step], round: round || 1 };
   }
 
-  // 결재선 예시 [가정]: 부서장 → 법무 → (개인정보 포함 시) 개인정보 담당
-  // 실제 결재선은 체크리스트 답(3.5)과 위임전결규정으로 정합니다. 재무는 결재선에 없음 (C-15)
-  // ※ 실제 규칙은 위임전결규정을 받은 뒤 확정합니다. (REQ-AUTH-06)
+  /* 계약 [가정] (데이터 정의서 3장)
+   * checklist: 체크리스트 답. standard 1번(영업이 답함), price 2번과 cap 3번(제품 금액으로 자동 계산, NA는 해당 없음)
+   *   → 결재선은 이 답과 개인정보 처리 여부(personalData)로만 정합니다. 금액 기준은 없습니다. (REQ-CHK-05)
+   * history: 결재 기록. 결재 단계의 지금 상태(approvals)는 common.js가 이 기록을 차례로 다시 적용해 만듭니다.
+   * products: 계약 제품 줄. 비어 있으면 검토 상세 화면에서 서비스와 금액으로 예시 줄을 만듭니다.
+   * autoHistory: 이미 검토가 끝난 계약. 결재 기록을 승인일(approvedAt)에 맞춰 자동으로 만듭니다(시연용). */
   const CONTRACTS = [
-    /* ----- 작성 중 (DRAFT): 계약번호는 기안할 때 부여 [가정] ----- */
+    /* ----- 작성 중 (DRAFT): 계약번호는 기안할 때 부여 ----- */
     {
       // draftKey: 계약번호가 없는 임시 저장 건을 화면 주소로 부를 때 쓰는 임시 키 (new-contract.html?id=D-0001)
       id: null, draftKey: 'D-0001', counterparty: '바름고등학교', services: ['HR'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 7200000, requesterId: 'u_sales1', savedAt: '2026-10-18', restricted: false, personalData: true,
-      status: 'DRAFT', approvals: [],
+      status: 'DRAFT', history: [],
       // 계약 등록 화면(SCR-11)에 이어서 채울 값 (3.4 입력 항목)
       form: {
         bizNo: '214-82-10457', method: 'DIRECT', settlement: 'LUMP',
@@ -144,52 +185,84 @@ window.CLIMB_DATA = (function () {
 
     /* ----- 검토 중 (IN_REVIEW) ----- */
     {
+      // ④ 개인정보 검토가 오래 머문 예시 (11일째)
       id: 'CT-2026-0402', counterparty: '미래로병원', services: ['HR'], type: 'SaaS 이용계약', kind: 'NEW',
-      amount: 36000000, requesterId: 'u_sales2', requestedAt: '2026-10-08', restricted: false, personalData: true,
+      amount: 36000000, requesterId: 'u_sales2', requestedAt: '2026-10-08 14:10', restricted: false, personalData: true,
       status: 'IN_REVIEW',
-      approvals: [step('HEAD', 'DONE', '2026-10-09'), step('LEGAL', 'DONE', '2026-10-13'), step('PRIVACY', 'PENDING', '2026-10-13')],
+      checklist: { standard: 'YES', price: 'YES', cap: 'YES' },
+      products: [{ code: 'HR-BASE', qty: 3, amount: 28800000 }, { code: 'HR-ADD', qty: 2, amount: 7200000 }],
+      memo: '환자 정보는 다루지 않고 직원 인사 정보만 처리합니다. 위탁 범위를 확인해 주세요.',
+      history: [ev('S02', 'APPROVE', '2026-10-08 16:20')],
     },
     {
+      // 모든 검토를 거치는 예시(경우 6). ③④가 끝나 ⑤ 영업 검토 차례 (5일째)
       id: 'CT-2026-0405', counterparty: '하늘연구원', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
-      amount: 220000000, requesterId: 'u_sales2', requestedAt: '2026-10-10', restricted: false, personalData: true,
+      amount: 220000000, requesterId: 'u_sales2', requestedAt: '2026-10-10 10:05', restricted: false, personalData: true,
       status: 'IN_REVIEW',
-      approvals: [step('HEAD', 'DONE', '2026-10-10'), step('LEGAL', 'DONE', '2026-10-14'), step('PRIVACY', 'PENDING', '2026-10-14')],
+      checklist: { standard: 'NO', standardNote: '연구기관 보안 서약 조항 추가', price: 'NO', priceNote: '10개 기관 일괄 계약', cap: 'NO', capNote: '3년 계약 조건으로 기관 라이선스 25% 할인 요청' },
+      products: [{ code: 'CK-ORG', qty: 10, amount: 90000000 }, { code: 'CK-USER', qty: 50, amount: 70000000 }, { code: 'CK-API', qty: 10, amount: 60000000 }],
+      memo: '대형 연구기관 첫 계약입니다. 할인율이 캡을 넘어 영업 검토가 필요합니다.',
+      history: [
+        ev('S02', 'APPROVE', '2026-10-10 15:00'),
+        ev('S04', 'APPROVE', '2026-10-13 10:05', '개인정보 처리위탁 조항 확인'),
+        ev('S03', 'APPROVE', '2026-10-14 11:30', '보안 서약 조항은 표준 문안으로 수정 반영됨'),
+      ],
     },
     {
+      // ③ 법무와 ④ 개인정보가 동시에 차례인 예시. ② 승인은 아직 취소 가능
       id: 'CT-2026-0412', counterparty: '한빛대학교', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
-      amount: 48000000, requesterId: 'u_sales1', requestedAt: '2026-10-14', restricted: false, personalData: true,
+      amount: 48000000, requesterId: 'u_sales1', requestedAt: '2026-10-14 10:00', restricted: false, personalData: true,
       status: 'IN_REVIEW',
-      approvals: [step('HEAD', 'DONE', '2026-10-15'), step('LEGAL', 'PENDING', '2026-10-15'), step('PRIVACY', 'WAITING')],
+      checklist: { standard: 'NO', standardNote: '대학 요청으로 지식재산권 조항 일부 수정', price: 'NO', priceNote: '학과 단위 추가 이용자 묶음 할인', cap: 'YES' },
+      products: [{ code: 'CK-ORG', qty: 3, amount: 32400000 }, { code: 'CK-USER', qty: 12, amount: 15600000 }],
+      memo: '지식재산권 조항 수정본을 첨부했습니다.',
+      history: [ev('S02', 'APPROVE', '2026-10-15 09:40')],
     },
     {
+      // 승인 취소 기록이 남은 예시: ② 승인 → 취소 → 다시 승인
       id: 'CT-2026-0418', counterparty: '누리교육재단', services: ['CK'], type: 'SaaS 이용계약', kind: 'AMEND',
       parentId: 'CT-2026-0105',
-      amount: 12000000, requesterId: 'u_sales2', requestedAt: '2026-10-16', restricted: false, personalData: false,
+      amount: 12000000, requesterId: 'u_sales2', requestedAt: '2026-10-16 09:00', restricted: false, personalData: false,
       status: 'IN_REVIEW',
-      approvals: [step('HEAD', 'DONE', '2026-10-16'), step('LEGAL', 'PENDING', '2026-10-16')],
+      checklist: { standard: 'NO', standardNote: '변경 계약서(이용자 추가)', price: 'NO', priceNote: '기존 계약 할인율 유지', cap: 'NO', capNote: '추가 이용자 20% 할인(캡 15%), 기존 계약 조건 유지 요청' },
+      products: [{ code: 'CK-USER', qty: 10, amount: 12000000 }],
+      history: [
+        ev('S02', 'APPROVE', '2026-10-16 09:10'),
+        ev('S02', 'CANCEL', '2026-10-16 09:25', '첨부 견적서가 빠진 것을 확인해 승인 취소'),
+        ev('S02', 'APPROVE', '2026-10-16 11:05', '보완된 견적서 확인'),
+      ],
     },
     {
-      // 열람 제한 계약 예시 (REQ-AUTH-07, REQ-AUTH-09)
+      // 열람 제한 계약 예시 (REQ-AUTH-07, REQ-AUTH-09). ② 체크리스트 검토 차례
       id: 'CT-2026-0421', counterparty: '가람전자', services: ['CK'], type: '리셀러 계약', kind: 'NEW',
-      amount: 150000000, requesterId: 'u_sales1', requestedAt: '2026-10-17', restricted: true, personalData: false,
+      amount: 150000000, requesterId: 'u_sales1', requestedAt: '2026-10-17 14:00', restricted: true, personalData: false,
       status: 'IN_REVIEW',
-      approvals: [step('HEAD', 'PENDING', '2026-10-17'), step('LEGAL', 'WAITING')],
+      checklist: { standard: 'NO', standardNote: '리셀러 표준계약서 없음', price: 'NO', priceNote: '총판 공급가', cap: 'NO', capNote: '총판 마진 보장으로 21.9% 할인' },
+      products: [{ code: 'CK-ORG', qty: 16, amount: 150000000 }],
+      memo: '총판 계약이라 열람 제한을 걸었습니다.',
+      history: [],
     },
     {
+      // 금액이 없는 비밀유지계약 예시: ⑤ 영업 검토 생략(해당 없음)
       id: 'CT-2026-0427', counterparty: '단비소프트', services: ['HR'], type: '비밀유지계약(NDA)', kind: 'NEW',
-      amount: 0, requesterId: 'u_sales1', requestedAt: '2026-10-18', restricted: false, personalData: false,
+      amount: 0, requesterId: 'u_sales1', requestedAt: '2026-10-18 10:30', restricted: false, personalData: false,
       status: 'IN_REVIEW',
-      approvals: [step('HEAD', 'DONE', '2026-10-18'), step('LEGAL', 'PENDING', '2026-10-18')],
+      checklist: { standard: 'NO', standardNote: '상대방 양식 NDA', price: 'NA', cap: 'NA' },
+      products: [],
+      history: [ev('S02', 'APPROVE', '2026-10-18 13:00')],
     },
 
     /* ----- 반려 (REJECTED) ----- */
     {
       id: 'CT-2026-0398', counterparty: '소담에듀', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
-      amount: 18000000, requesterId: 'u_sales1', requestedAt: '2026-10-06', restricted: false, personalData: false,
-      status: 'REJECTED', rejectedAt: '2026-10-10',
-      rejectReason: '손해배상 한도 조항이 표준계약서 기준을 벗어납니다. 수정 후 다시 요청해 주세요.',
+      amount: 18000000, requesterId: 'u_sales1', requestedAt: '2026-10-06 11:00', restricted: false, personalData: false,
+      status: 'REJECTED',
       round: 1, // 기안 차수 (REQ-FLOW-17). 보완 후 재기안하면 2차
-      approvals: [step('HEAD', 'DONE', '2026-10-07'), step('LEGAL', 'REJECTED', '2026-10-10')],
+      checklist: { standard: 'NO', standardNote: '고객 요청으로 손해배상 한도 조항 수정', price: 'YES', cap: 'YES' },
+      history: [
+        ev('S02', 'APPROVE', '2026-10-07 10:00'),
+        ev('S03', 'REJECT', '2026-10-10 15:30', '손해배상 한도 조항이 표준계약서 기준을 벗어납니다. 수정 후 다시 요청해 주세요.'),
+      ],
       // 보완 후 재기안 때 계약 등록 화면(SCR-11)에 미리 채울 값
       form: {
         bizNo: '107-86-33921', method: 'DIRECT', settlement: 'SPLIT', opportunity: 'OPP-2026-0311',
@@ -203,91 +276,91 @@ window.CLIMB_DATA = (function () {
     /* ----- 승인 완료, 체결 대기 (APPROVED) ----- */
     {
       id: 'CT-2026-0371', counterparty: '바른출판', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
-      amount: 24000000, requesterId: 'u_sales2', requestedAt: '2026-09-15', restricted: false, personalData: false,
-      status: 'APPROVED', approvedAt: '2026-09-25',
-      approvals: [step('HEAD', 'DONE', '2026-09-16'), step('LEGAL', 'DONE', '2026-09-25')],
+      amount: 24000000, requesterId: 'u_sales2', requestedAt: '2026-09-15 10:00', restricted: false, personalData: false,
+      status: 'APPROVED', approvedAt: '2026-09-25 16:00', autoHistory: true,
+      checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
     },
     {
       id: 'CT-2026-0379', counterparty: '새솔고등학교', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
-      amount: 9600000, requesterId: 'u_sales1', requestedAt: '2026-09-22', restricted: false, personalData: true,
-      status: 'APPROVED', approvedAt: '2026-10-01',
-      approvals: [step('HEAD', 'DONE', '2026-09-23'), step('LEGAL', 'DONE', '2026-09-26'), step('PRIVACY', 'DONE', '2026-10-01')],
+      amount: 9600000, requesterId: 'u_sales1', requestedAt: '2026-09-22 10:00', restricted: false, personalData: true,
+      status: 'APPROVED', approvedAt: '2026-10-01 15:00', autoHistory: true,
+      checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
     },
     {
       id: 'CT-2026-0409', counterparty: '다온컨설팅', services: ['HR'], type: '비밀유지계약(NDA)', kind: 'NEW',
-      amount: 0, requesterId: 'u_sales1', requestedAt: '2026-10-13', restricted: false, personalData: false,
-      status: 'APPROVED', approvedAt: '2026-10-16',
-      approvals: [step('HEAD', 'DONE', '2026-10-14'), step('LEGAL', 'DONE', '2026-10-16')],
+      amount: 0, requesterId: 'u_sales1', requestedAt: '2026-10-13 10:00', restricted: false, personalData: false,
+      status: 'APPROVED', approvedAt: '2026-10-16 11:00', autoHistory: true,
+      checklist: { standard: 'NO', price: 'NA', cap: 'NA' },
     },
 
-    /* ----- 운영 검토 (OPS_REVIEW): 체결본 등록 뒤 ⑨ 운영 적용(CEM), ⑩ 재무 확인 [가정] -----
+    /* ----- 운영 검토 (OPS_REVIEW): 체결본 등록 뒤 ⑨ 운영 적용(CEM), ⑩ 재무 확인 -----
      * opsStep: 지금 차례인 일 (CEM: 운영 적용, FINANCE: 재무 확인) / signedAt: 체결본을 등록한 날 */
     {
       id: 'CT-2026-0386', counterparty: '마루중학교', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
-      amount: 13200000, requesterId: 'u_sales1', requestedAt: '2026-09-18', restricted: false, personalData: false,
-      status: 'OPS_REVIEW', approvedAt: '2026-09-24', signedAt: '2026-10-14', opsStep: 'CEM',
+      amount: 13200000, requesterId: 'u_sales1', requestedAt: '2026-09-18 10:00', restricted: false, personalData: false,
+      status: 'OPS_REVIEW', approvedAt: '2026-09-24 15:00', signedAt: '2026-10-14', opsStep: 'CEM', autoHistory: true,
+      checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
       startDate: '2026-11-01', endDate: '2027-10-31',
-      approvals: [step('HEAD', 'DONE', '2026-09-19'), step('LEGAL', 'DONE', '2026-09-24')],
     },
     {
       id: 'CT-2026-0362', counterparty: '청람컨설팅', services: ['HR'], type: 'SaaS 이용계약', kind: 'NEW',
-      amount: 19200000, requesterId: 'u_sales2', requestedAt: '2026-09-08', restricted: false, personalData: true,
-      status: 'OPS_REVIEW', approvedAt: '2026-09-15', signedAt: '2026-10-02', opsStep: 'FINANCE',
+      amount: 19200000, requesterId: 'u_sales2', requestedAt: '2026-09-08 10:00', restricted: false, personalData: true,
+      status: 'OPS_REVIEW', approvedAt: '2026-09-15 15:00', signedAt: '2026-10-02', opsStep: 'FINANCE', autoHistory: true,
+      checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
       startDate: '2026-10-15', endDate: '2027-10-14',
-      approvals: [step('HEAD', 'DONE', '2026-09-09'), step('LEGAL', 'DONE', '2026-09-11'), step('PRIVACY', 'DONE', '2026-09-15')],
     },
 
     /* ----- 계약 완료 (ACTIVE): 보관함 ----- */
     {
       id: 'CT-2025-0871', counterparty: '한결대학교', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
-      amount: 54000000, requesterId: 'u_sales1', requestedAt: '2025-11-03', restricted: false, personalData: true,
-      status: 'ACTIVE', startDate: '2025-11-15', endDate: '2026-11-14',
-      approvals: [step('HEAD', 'DONE', '2025-11-04'), step('LEGAL', 'DONE', '2025-11-06'), step('PRIVACY', 'DONE', '2025-11-07')],
+      amount: 54000000, requesterId: 'u_sales1', requestedAt: '2025-11-03 10:00', restricted: false, personalData: true,
+      status: 'ACTIVE', approvedAt: '2025-11-07 15:00', autoHistory: true, startDate: '2025-11-15', endDate: '2026-11-14',
+      checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
     },
     {
       // 열람 제한 + 만료 임박 예시
       id: 'CT-2025-0902', counterparty: '푸른솔아카데미', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
-      amount: 30000000, requesterId: 'u_sales2', requestedAt: '2025-11-27', restricted: true, personalData: false,
-      status: 'ACTIVE', startDate: '2025-12-10', endDate: '2026-12-09',
-      approvals: [step('HEAD', 'DONE', '2025-11-28'), step('LEGAL', 'DONE', '2025-12-02')],
+      amount: 30000000, requesterId: 'u_sales2', requestedAt: '2025-11-27 10:00', restricted: true, personalData: false,
+      status: 'ACTIVE', approvedAt: '2025-12-02 15:00', autoHistory: true, startDate: '2025-12-10', endDate: '2026-12-09',
+      checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
     },
     {
       id: 'CT-2026-0105', counterparty: '누리교육재단', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
-      amount: 60000000, requesterId: 'u_sales2', requestedAt: '2026-01-06', restricted: false, personalData: false,
-      status: 'ACTIVE', startDate: '2026-01-15', endDate: '2026-12-31',
-      approvals: [step('HEAD', 'DONE', '2026-01-07'), step('LEGAL', 'DONE', '2026-01-09')],
+      amount: 60000000, requesterId: 'u_sales2', requestedAt: '2026-01-06 10:00', restricted: false, personalData: false,
+      status: 'ACTIVE', approvedAt: '2026-01-09 15:00', autoHistory: true, startDate: '2026-01-15', endDate: '2026-12-31',
+      checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
     },
     {
       id: 'CT-2026-0011', counterparty: '온새미로대학교', services: ['CK', 'HR'], type: 'SaaS 이용계약', kind: 'NEW',
-      amount: 72000000, requesterId: 'u_sales1', requestedAt: '2025-12-22', restricted: false, personalData: true,
-      status: 'ACTIVE', startDate: '2026-01-10', endDate: '2027-01-09',
-      approvals: [step('HEAD', 'DONE', '2025-12-23'), step('LEGAL', 'DONE', '2025-12-26'), step('PRIVACY', 'DONE', '2025-12-29')],
+      amount: 72000000, requesterId: 'u_sales1', requestedAt: '2025-12-22 10:00', restricted: false, personalData: true,
+      status: 'ACTIVE', approvedAt: '2025-12-29 15:00', autoHistory: true, startDate: '2026-01-10', endDate: '2027-01-09',
+      checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
     },
     {
       id: 'CT-2026-0150', counterparty: '가온테크', services: ['CK'], type: '리셀러 계약', kind: 'NEW',
-      amount: 120000000, requesterId: 'u_sales2', requestedAt: '2026-02-10', restricted: false, personalData: false,
-      status: 'ACTIVE', startDate: '2026-03-01', endDate: '2028-02-29',
-      approvals: [step('HEAD', 'DONE', '2026-02-11'), step('LEGAL', 'DONE', '2026-02-16')],
+      amount: 120000000, requesterId: 'u_sales2', requestedAt: '2026-02-10 10:00', restricted: false, personalData: false,
+      status: 'ACTIVE', approvedAt: '2026-02-16 15:00', autoHistory: true, startDate: '2026-03-01', endDate: '2028-02-29',
+      checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
     },
     {
       id: 'CT-2026-0222', counterparty: '이음병원', services: ['HR'], type: 'SaaS 이용계약', kind: 'NEW',
-      amount: 42000000, requesterId: 'u_sales1', requestedAt: '2026-04-13', restricted: false, personalData: true,
-      status: 'ACTIVE', startDate: '2026-05-01', endDate: '2027-04-30',
-      approvals: [step('HEAD', 'DONE', '2026-04-14'), step('LEGAL', 'DONE', '2026-04-17'), step('PRIVACY', 'DONE', '2026-04-20')],
+      amount: 42000000, requesterId: 'u_sales1', requestedAt: '2026-04-13 10:00', restricted: false, personalData: true,
+      status: 'ACTIVE', approvedAt: '2026-04-20 15:00', autoHistory: true, startDate: '2026-05-01', endDate: '2027-04-30',
+      checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
     },
     {
       id: 'CT-2026-0301', counterparty: '해랑출판', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
-      amount: 15600000, requesterId: 'u_sales2', requestedAt: '2026-06-15', restricted: false, personalData: false,
-      status: 'ACTIVE', startDate: '2026-07-01', endDate: '2027-06-30',
-      approvals: [step('HEAD', 'DONE', '2026-06-16'), step('LEGAL', 'DONE', '2026-06-19')],
+      amount: 15600000, requesterId: 'u_sales2', requestedAt: '2026-06-15 10:00', restricted: false, personalData: false,
+      status: 'ACTIVE', approvedAt: '2026-06-19 15:00', autoHistory: true, startDate: '2026-07-01', endDate: '2027-06-30',
+      checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
     },
 
     /* ----- 만료 (EXPIRED) ----- */
     {
       id: 'CT-2025-0650', counterparty: '별빛어학원', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
-      amount: 8400000, requesterId: 'u_sales2', requestedAt: '2025-08-18', restricted: false, personalData: false,
-      status: 'EXPIRED', startDate: '2025-09-01', endDate: '2026-08-31',
-      approvals: [step('HEAD', 'DONE', '2025-08-19'), step('LEGAL', 'DONE', '2025-08-22')],
+      amount: 8400000, requesterId: 'u_sales2', requestedAt: '2025-08-18 10:00', restricted: false, personalData: false,
+      status: 'EXPIRED', approvedAt: '2025-08-22 15:00', autoHistory: true, startDate: '2025-09-01', endDate: '2026-08-31',
+      checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
     },
   ];
 
@@ -361,5 +434,5 @@ window.CLIMB_DATA = (function () {
     };
   });
 
-  return { TODAY, BRAND, ROLES, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, CONTRACT_TYPES, METHODS, SETTLEMENTS, PRICE_BOOK, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS };
+  return { TODAY, BRAND, ROLES, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, CONTRACT_TYPES, METHODS, SETTLEMENTS, PRICE_BOOK, STEPS, REVIEW_GROUPS, STEP_ASSIGNEE, APPROVAL_STATE, APPROVAL_ACTIONS, FILE_KINDS, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS };
 })();

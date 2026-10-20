@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 브라우저 탭 제목: CLIMB (REQ-NAME-02) -->
+  <title>CLIMB</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/common.css">
+  <link rel="stylesheet" href="assets/css/form.css">
+  <link rel="stylesheet" href="assets/css/list.css">
+</head>
+<!-- =====================================================================
+  SCR-20 전체 진행 현황 (docs/02_화면목록.md)
+  - 아직 끝나지 않은 모든 계약(검토 중, 반려, 체결 대기, 운영 검토)의 지금 단계와 지난 일수. 모두가 봅니다. (REQ-FLOW-03~05, REQ-REV-07)
+  - 열람 제한 계약은 볼 수 없는 사람에게 "열람 제한 계약"으로만 보입니다. (REQ-AUTH-09)
+  - 주소 뒤 ?status=REVIEW(검토 중과 반려), ?status=OPS_REVIEW 처럼 붙이면 그 상태로 거른 채 열립니다(개요의 단계 표시기에서 연결).
+====================================================================== -->
+<body data-page="SCR-20">
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <div id="demo-bar"></div>
+
+  <div class="sheet">
+  <header id="site-header"></header>
+
+  <main id="main" class="page">
+    <div class="inner">
+      <div class="page-head page-head--sub">
+        <h1 class="page-title">전체 진행 현황</h1>
+      </div>
+      <div class="page-intro">
+        <p>아직 끝나지 않은 모든 계약입니다. 오래된 기안부터 보여 줍니다.</p>
+        <p class="sub">계약 완료, 만료, 해지된 계약은 보관함에서 봅니다. 고객사를 누르면 결재 문서가 열립니다.</p>
+      </div>
+
+      <section id="list" aria-labelledby="list-title">
+        <h2 class="sr-only" id="list-title">진행 중인 계약 목록</h2>
+        <form class="filter-bar" id="filter" role="search" aria-label="진행 현황 거르기">
+          <div class="field">
+            <label class="field-label field-label--sm" for="f-q">검색</label>
+            <input class="input" id="f-q" type="search" placeholder="고객사 또는 계약번호" autocomplete="off">
+          </div>
+          <div class="field">
+            <label class="field-label field-label--sm" for="f-status">상태</label>
+            <select class="select" id="f-status"></select>
+          </div>
+          <div class="field">
+            <label class="field-label field-label--sm" for="f-service">서비스</label>
+            <select class="select" id="f-service"></select>
+          </div>
+          <div class="field">
+            <label class="field-label field-label--sm" for="f-owner">영업 대표</label>
+            <select class="select" id="f-owner"></select>
+          </div>
+          <button type="reset" class="btn btn--tertiary btn--md filter-reset">초기화</button>
+        </form>
+
+        <div class="list-head"><p class="list-count" id="list-count" aria-live="polite"></p></div>
+        <div class="tbl-scroll">
+          <table class="tbl tbl--compact tbl--progress">
+            <caption class="sr-only">진행 중인 계약: 고객사, 서비스, 상태, 현재 진행, 영업 대표, 기안일</caption>
+            <thead>
+              <tr>
+                <th scope="col" class="col-customer">고객사</th>
+                <th scope="col" class="col-service">서비스</th>
+                <th scope="col">상태</th>
+                <th scope="col">현재 진행</th>
+                <th scope="col">영업 대표</th>
+                <th scope="col">기안일</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <nav class="pagination" id="pagination" aria-label="진행 현황 쪽 이동"></nav>
+      </section>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+  </div><!-- /.sheet -->
+
+  <script src="assets/js/mock-data.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/progress.js"></script>
+</body>
+</html>
