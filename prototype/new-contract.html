@@ -176,7 +176,7 @@
             </div>
           </div>
           <!-- 날짜 입력 형식 도움말: 두 칸이 함께 씀 (KRDS 날짜 입력 필드, v0.35) -->
-          <p class="field-help" id="date-format-help">날짜는 숫자 8자리로 넣거나(예: 20270101) 달력 버튼을 눌러 고릅니다.</p>
+          <p class="field-help" id="date-format-help">날짜는 '-' 없이 숫자 8자리(예: 20270101)로 넣거나 달력 버튼을 눌러 고릅니다.</p>
 
           <fieldset class="field" data-field="autoRenew">
             <legend class="field-label">자동갱신<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
@@ -204,6 +204,17 @@
             <p class="field-error" hidden></p>
           </fieldset>
 
+          <!-- 서비스 수준 협약(SLA) (v0.40 기획자 요청). 계약서 안의 SLA 조항이 아니라 SLA를 별도로 체결하는지. 있음, 없음. 기록만 하고 결재선에는 영향 없음(기획자 결정), 결재 문서와 계약 상세에 보임 -->
+          <fieldset class="field" data-field="sla">
+            <legend class="field-label">서비스 수준 협약(SLA)<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
+            <div class="choice-row">
+              <label class="choice"><input type="radio" name="sla" value="YES">있음</label>
+              <label class="choice"><input type="radio" name="sla" value="NO">없음</label>
+            </div>
+            <p class="field-help">이 계약과 별도로 서비스 수준 협약(SLA)을 체결하면 '있음'을 고릅니다.</p>
+            <p class="field-error" hidden></p>
+          </fieldset>
+
           <div class="field">
             <label class="choice"><input type="checkbox" id="f-restricted" name="restricted">열람 제한</label>
             <p class="field-help" id="restricted-help">체크하면 나와 이 계약의 담당자(결재선과 단계 담당자), 관리자만 계약 내용을 볼 수 있습니다.</p><!-- REQ-AUTH-07, REQ-AUTH-09 -->
@@ -215,12 +226,7 @@
           <h2 class="section-title" id="sec-amount"><span class="num">2</span>금액과 제품</h2>
           <p class="section-desc">제품마다 계약 금액을 넣으면 표준 단가와 비교해 할인율이 자동으로 계산됩니다. 가격 기준은 영업, 영업지원, 관리자만 볼 수 있습니다.</p>
 
-          <!-- 금액이 없는 계약(비밀유지계약 등): 계약 유형을 없애면서 이 체크로 판단 (v0.34) -->
-          <div class="field">
-            <label class="choice"><input type="checkbox" id="f-no-amount" name="noAmount">금액이 없는 계약입니다(비밀유지계약 등)</label>
-            <p class="field-help">체크하면 제품, 금액, 정산 방식을 넣지 않고, 체크리스트 2, 3번은 해당 없음이 됩니다.</p>
-          </div>
-
+          <!-- CLIMB에는 금전 거래가 있는 계약만 등록 (v0.41 기획자 결정). 비밀유지계약 등은 아래 "부속 서류"로 첨부. v0.34의 "금액이 없는 계약" 체크는 뺌 -->
           <div class="field" data-field="products" id="products-field">
             <p class="field-label" id="products-label">제품별 금액<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></p>
             <ul class="product-list" id="product-list" aria-labelledby="products-label"></ul>
@@ -357,6 +363,17 @@
             </div>
             <ul class="file-list" id="diff-list"></ul>
             <p class="field-error" hidden></p>
+          </div>
+
+          <!-- 부속 서류 (v0.41): 비밀유지계약서처럼 이 계약에 딸린 서류. 선택, 여러 개 -->
+          <div class="field">
+            <p class="field-label" id="annex-label">부속 서류 <span class="opt">(선택)</span></p>
+            <div class="file-drop" data-target="annex">
+              <p>비밀유지계약서처럼 이 계약에 딸린 서류가 있으면 함께 첨부합니다.<span class="file-limits">PDF, Word(doc, docx), 한글(hwp, hwpx), 한 파일 50MB 이하, 여러 개</span></p>
+              <label class="btn btn--tertiary" for="f-annex">파일 선택</label>
+              <input type="file" id="f-annex" multiple aria-labelledby="annex-label">
+            </div>
+            <ul class="file-list" id="annex-list"></ul>
           </div>
 
           <div class="field">

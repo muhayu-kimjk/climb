@@ -76,8 +76,7 @@
     // 사업자등록번호: 거래처 목록(SCR-55)에 있으면 그 번호, 없으면 예시 번호
     bizNo: f.bizNo || (D.CUSTOMERS.filter(function (cu) { return cu.name === c.counterparty; })[0] || {}).bizNo || (100 + seq % 800) + '-' + (81 + seq % 9) + '-' + String(10000 + (seq * 37) % 89999).padStart(5, '0'),
     method: (f.method === 'RESELLER' ? 'INDIRECT' : f.method) || (c.type === '리셀러 계약' ? 'INDIRECT' : 'DIRECT'), // 리셀러 → 간접 (v0.34)
-    // 금액이 없는 계약(v0.34 체크 칸, 예전 기록은 유형 NDA)은 정산 방식 없음. 계약일은 v0.34에서 뺌
-    noAmount: !!(f.noAmount || c.noAmount || c.type === C.typeLabel('NDA')),
+    // 계약일은 v0.34에서 뺌. 금액이 없는 계약은 v0.41부터 등록하지 않음
     settlement: f.settlement || 'LUMP',
     startDate: startDate, endDate: endDate,
     autoRenew: c.autoRenew || f.autoRenew || 'NO', noticeDays: c.noticeDays || f.noticeDays,
@@ -109,6 +108,8 @@
       : [{ kind: 'DRAFT_DOC', name: c.counterparty + '_계약서_초안_' + (c.round || 1) + '차.docx', size: 84000 + seq * 13 }];
     // 조항 대비표: 표준계약서를 바꾼 계약 (v0.27, C-20)
     if (legalNote) list.push({ kind: 'CLAUSE_DIFF', name: c.counterparty + '_조항대비표_' + (c.round || 1) + '차.docx', size: 36000 + seq * 5 });
+    // 부속 서류: 비밀유지계약서처럼 계약에 딸린 서류 (v0.41)
+    (c.annex || []).forEach(function (name, i) { list.push({ kind: 'ANNEX', name: name, size: 152000 + seq * 3 + i * 1000 }); });
     if (c.amount && !short) list.push({ kind: 'QUOTE', name: c.counterparty + '_최종견적서.pdf', size: 212000 + seq * 7 });
     // 체결본: ⑦에서 올린 파일. 다시 등록 요청으로 다시 올려도 앞 파일은 지우지 않고 남김 (REQ-FLOW-22)
     (c.history || []).filter(function (h) { return h.action === 'REGISTER' && (h.round || 1) === (c.round || 1); }).forEach(function (h, i) {
@@ -267,10 +268,11 @@
       // 판다(CRM) 영업기회번호: 규칙에 맞으면 판다로 가는 링크 (v0.32)
       info('영업기회번호', detail.opportunity ? C.pandaLink(detail.opportunity) : '-'),
       info('계약 방식', esc(D.METHODS[detail.method])),
-      info('정산 방식', detail.noAmount ? '해당 없음(금액이 없는 계약)' : esc(D.SETTLEMENTS[detail.settlement])),
+      info('정산 방식', esc(D.SETTLEMENTS[detail.settlement])),
       info('계약 기간', C.fmtPeriod(detail.startDate, detail.endDate)),
       info('자동갱신', detail.autoRenew === 'YES' ? '있음 (해지 통지: 만료 ' + (detail.noticeDays || '-') + '일 전)' : '없음'),
       info('개인정보 처리위탁 계약', c.personalData ? '있음' : '없음'),
+      info('서비스 수준 협약(SLA)', (c.sla || f.sla) === 'YES' ? '있음' : '없음'), // v0.40
       info('열람 제한', c.restricted ? C.icon('lock', 'sm') + '있음' : '없음'),
     ]).join('');
   }
@@ -313,7 +315,7 @@
       return;
     }
     const rows = productRows();
-    if (!rows.length) { $('#amount').innerHTML = '<p class="empty">금액이 없는 계약입니다(비밀유지계약 등).</p>'; return; }
+    if (!rows.length) { $('#amount').innerHTML = '<p class="empty">제품 정보가 없습니다.</p>'; return; }
     const total = rows.reduce(function (a, r) { return a + r.amount; }, 0);
     const stdTotal = rows.reduce(function (a, r) { return a + r.std; }, 0);
     // 할인율 칸은 "표준 단가" 또는 "N% 할인"만 보여 줌. 할인율 한도 값과 한도 초과 여부는 이 표에 두지 않음

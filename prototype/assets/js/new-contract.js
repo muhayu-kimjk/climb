@@ -22,8 +22,7 @@
   const $$ = function (s, root) { return Array.prototype.slice.call((root || document).querySelectorAll(s)); };
 
   const form = $('#contract-form');
-  // v0.34: 계약 유형을 없앰. 예전 기록의 비밀유지계약(NDA)은 "금액이 없는 계약"으로 이어서 씀
-  const NDA = C.typeLabel('NDA');
+  // v0.34: 계약 유형을 없앰. v0.41: 금전 거래가 있는 계약만 등록하고 비밀유지계약 등은 부속 서류로 첨부
   const PRICE = {};
   D.PRICE_BOOK.forEach(function (p) { PRICE[p.code] = p; });
 
@@ -262,7 +261,6 @@
   });
 
   function readProducts() {
-    if (val('noAmount')) return []; // 금액이 없는 계약 (v0.34)
     return $$('#product-list > li').map(function (li) {
       const code = li.querySelector('[data-k="code"]').value;
       const qty = parseNum(li.querySelector('[data-k="qty"]').value);
@@ -299,7 +297,7 @@
   function renderYearly() {
     const years = contractYears();
     const box = $('#yearly-field');
-    box.hidden = years.length <= 1 || val('noAmount'); // 금액이 없는 계약은 연도별 금액도 없음 (v0.34)
+    box.hidden = years.length <= 1;
     if (box.hidden) { yearSig = ''; return; }
     // 기간이 바뀌었을 때만 다시 그림 (입력하는 중에 칸이 사라지지 않게)
     const sig = JSON.stringify(years);
@@ -326,13 +324,9 @@
   /* ---------- 4. 체크리스트 2, 3번 자동 계산 (REQ-CHK-04) ----------
    * 2번(표준단가표 적용): 모든 제품이 표준 단가 그대로면 예, 하나라도 할인이 있으면 아니오
    * 3번(할인율 한도 준수): 모든 제품의 할인율이 그 제품의 한도 이하이면 예
-   * 금액이 없는 계약(비밀유지계약 등, 체크 칸)은 해당 없음 → 영업 검토 생략 (v0.34) */
+   * 모든 계약에는 제품과 금액이 있음(v0.41: 금액이 없는 계약은 CLIMB에 등록하지 않음) */
   function priceCheck(rows) {
-    if (!rows.length) {
-      return val('noAmount')
-        ? { q2: 'NA', q3: 'NA', d2: '금액이 없는 계약이라 해당되지 않습니다.', d3: '금액이 없는 계약이라 해당되지 않습니다.' }
-        : { q2: 'WAIT', q3: 'WAIT', d2: '제품을 넣으면 자동으로 계산됩니다.', d3: '제품을 넣으면 자동으로 계산됩니다.' };
-    }
+    if (!rows.length) return { q2: 'WAIT', q3: 'WAIT', d2: '제품을 넣으면 자동으로 계산됩니다.', d3: '제품을 넣으면 자동으로 계산됩니다.' };
     if (rows.some(function (r) { return !r.product || !r.qty || r.amount == null; })) {
       return { q2: 'WAIT', q3: 'WAIT', d2: '제품, 수량, 계약 금액을 모두 넣으면 계산됩니다.', d3: '제품, 수량, 계약 금액을 모두 넣으면 계산됩니다.' };
     }
@@ -358,7 +352,7 @@
 
   /* ---------- 5. 결재선 자동 결정 (REQ-CHK-05, 3.5 경우의 수) ---------- */
   function caseNo(q1, q2, q3) {
-    if (q2 === 'NA' || !q1 || q2 === 'WAIT') return null;
+    if (!q1 || q2 === 'WAIT') return null;
     if (q1 === 'YES') return q2 === 'YES' ? 1 : (q3 === 'YES' ? 2 : 3);
     return q2 === 'YES' ? 4 : (q3 === 'YES' ? 5 : 6);
   }
@@ -367,8 +361,7 @@
     const legal = q1 === 'YES' ? ['skip', '표준계약서를 그대로 씀'] : q1 === 'NO' ? ['go', '표준계약서를 바꿈'] : ['wait', '체크리스트 1번 답을 기다림'];
     const privacy = personal === 'YES' ? ['go', '개인정보 처리위탁 계약 있음'] : personal === 'NO' ? ['skip', '개인정보 처리위탁 계약 없음'] : ['wait', '개인정보 처리위탁 계약 여부를 기다림'];
     let sales;
-    if (pc.q2 === 'NA') sales = ['skip', '금액이 없는 계약'];
-    else if (pc.q2 === 'YES') sales = ['skip', '표준단가표를 적용함'];
+    if (pc.q2 === 'YES') sales = ['skip', '표준단가표를 적용함'];
     else if (pc.q2 === 'NO' && pc.q3 === 'YES') sales = ['skip', '할인율 한도 이내'];
     else if (pc.q3 === 'NO') sales = ['go', '할인율 한도를 넘김'];
     else sales = ['wait', '금액 계산을 기다림'];
@@ -450,7 +443,7 @@
     const passText = '계약 검토에서 거치는 단계는 ' + esc(reviews.join(', ')) + '입니다.';
     $('#case-summary').innerHTML = cn
       ? '<strong>경우 ' + cn + '</strong>: ' + passText // 경우의 수: 요구사항 정의서 3.5
-      : (pc.q2 === 'NA' && q1 ? '<strong>금액이 없는 계약</strong>: ' + passText : '');
+      : '';
     $('#route').innerHTML = routeHtml(route);
     current = { route: route, pc: pc, q1: q1, total: total };
   }
@@ -472,7 +465,6 @@
     clearError(e.target);
     if (e.target.name === 'kind') onKindChange();
     if (e.target.id === 'f-origin') onOriginChange();
-    if (e.target.id === 'f-no-amount') applyNoAmount();
     if (e.target.id === 'f-unit-pick') { $('#f-unit').hidden = e.target.value !== NEW_UNIT; if (e.target.value === NEW_UNIT) $('#f-unit').focus(); }
     if (e.target.name === 'autoRenew') $('#notice-days-field').hidden = val('autoRenew') !== 'YES';
     refresh();
@@ -491,12 +483,7 @@
     w.innerHTML = msg ? C.icon('alert', 'sm') + esc(msg) : '';
     w.hidden = !msg;
   }
-  // 금액이 없는 계약(v0.34): 제품, 총액, 연도별 금액, 정산 방식을 감추고 묻지 않음
-  function applyNoAmount() {
-    const off = $('#f-no-amount').checked;
-    ['#products-field', '#amount-total-row', '#settlement-field'].forEach(function (s) { $(s).hidden = off; });
-    renderYearly();
-  }
+
 
   /* ---------- 변경, 연장: 원계약 고르기 (REQ-FLOW-18) ---------- */
   const RESTRICT_HELP = $('#restricted-help').textContent;
@@ -534,7 +521,7 @@
   }
 
   /* ---------- 파일 첨부 (KRDS 파일 업로드, 프로토타입은 이름만) ---------- */
-  const files = { draft: [], diff: [], quote: [] }; // diff: 조항 대비표 (표준계약서를 바꾸면 필수, v0.27)
+  const files = { draft: [], diff: [], annex: [], quote: [] }; // diff: 조항 대비표 (표준계약서를 바꾸면 필수, v0.27), annex: 부속 서류 (v0.41)
   function fmtSize(b) { return b >= 1048576 ? (b / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(b / 1024)) + 'KB'; }
   function renderFiles(key) {
     $('#' + key + '-list').innerHTML = files[key].map(function (f, i) {
@@ -549,7 +536,7 @@
     if (key === 'draft') clearError($('#f-draft'));
     if (key === 'diff') clearError($('#f-diff'));
   }
-  [['draft', '#f-draft'], ['diff', '#f-diff'], ['quote', '#f-quote']].forEach(function (pair) {
+  [['draft', '#f-draft'], ['diff', '#f-diff'], ['annex', '#f-annex'], ['quote', '#f-quote']].forEach(function (pair) {
     $(pair[1]).addEventListener('change', function (e) { addFiles(pair[0], e.target.files); e.target.value = ''; });
   });
   $$('.file-drop').forEach(function (drop) {
@@ -619,10 +606,11 @@
     need(!!val('autoRenew'), 'autoRenew', '자동갱신 여부를 고르세요.');
     if (val('autoRenew') === 'YES') need(!!parseNum(val('noticeDays')), 'noticeDays', '해지 통지 기한(만료 며칠 전)을 입력하세요.');
     need(!!val('personalData'), 'personalData', '개인정보 처리위탁 계약 여부를 고르세요.');
+    need(!!val('sla'), 'sla', '서비스 수준 협약(SLA) 여부를 고르세요.'); // v0.40
 
-    // 제품: 금액이 없는 계약이 아니면 1개 이상, 줄마다 제품, 수량, 금액 (v0.34)
+    // 제품: 1개 이상, 줄마다 제품, 수량, 금액 (금전 거래가 있는 계약만 등록, v0.41)
     const rows = readProducts();
-    if (!rows.length && !val('noAmount')) need(false, 'products', '제품을 1개 이상 넣으세요. 금액이 없는 계약이면 위에서 체크합니다.', $('#btn-add-product'));
+    if (!rows.length) need(false, 'products', '제품을 1개 이상 넣으세요.', $('#btn-add-product'));
     rows.forEach(function (r, i) {
       if (r.product && r.qty && r.amount != null) return;
       r.li.classList.add('is-invalid');
@@ -639,7 +627,7 @@
       need(ys.every(function (y) { return y != null; }) && sum === totalAmount(), 'yearly',
         '연도별 금액을 모두 넣고, 합계를 총액(' + fmtNum(totalAmount()) + '원)과 맞추세요.');
     }
-    if (!val('noAmount')) need(!!val('settlement'), 'settlement', '정산 방식을 고르세요.');
+    need(!!val('settlement'), 'settlement', '정산 방식을 고르세요.');
 
     // 체크리스트: 1번은 직접 답, "아니오"인 문항은 비고(사유) 필수 (panda p.9)
     need(!!val('standard'), 'standard', '체크리스트 1번에 답하세요.');
@@ -701,6 +689,7 @@
       ['서비스', serviceOfProducts()],
       ['계약 금액', current.total ? won(current.total) + ' (부가세 별도)' : '금액 없음'],
       ['계약 기간', C.fmtPeriod(val('startDate'), val('endDate'))],
+      ['서비스 수준 협약(SLA)', val('sla') === 'YES' ? '있음' : '없음'],
       ['계약 검토', goes.join(', ')],
       ['재무 알림', val('accounting') === 'YES' ? '재무에 이메일로 알림 (결재선 아님)' : '없음'],
       ['기안 차수', round + '차' + (val('restricted') ? ', 열람 제한' : '')],
@@ -755,8 +744,6 @@
     pickCustomerByName(source.counterparty, f.bizNo, source.unit || f.unit);
     $('#f-opportunity').value = f.opportunity || '';
     updateOppLink();
-    // 예전 비밀유지계약(유형 NDA)은 금액이 없는 계약으로 (v0.34)
-    if (source.type === NDA || f.noAmount) { $('#f-no-amount').checked = true; applyNoAmount(); }
     setRadio('method', f.method === 'RESELLER' ? 'INDIRECT' : f.method);
     $('#f-start').value = f.startDate || '';
     $('#f-end').value = f.endDate || '';
@@ -764,6 +751,7 @@
     $('#notice-days-field').hidden = f.autoRenew !== 'YES';
     $('#f-notice-days').value = f.noticeDays || '';
     setRadio('personalData', source.personalData ? 'YES' : 'NO');
+    if (source.sla || f.sla) setRadio('sla', source.sla || f.sla); // 서비스 수준 협약 (v0.40)
     $('#f-restricted').checked = !!source.restricted;
     setRadio('settlement', f.settlement);
     if (f.checklist) {

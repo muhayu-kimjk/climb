@@ -235,7 +235,7 @@ window.CLIMB_DATA = (function () {
   const AFTERCARE_TYPES = { CONTACT_CHANGE: '담당자 변경', ISSUE: '특이사항' };
   // 첨부 파일 종류 (데이터 정의서 CODE-FILE-KIND)
   //   조항 대비표(CLAUSE_DIFF): 표준계약서를 바꾼 계약에 필수. 바꾼 조항의 표준 문구와 바꾼 문구를 나란히 (v0.27, C-20)
-  const FILE_KINDS = { DRAFT_DOC: '계약서 초안', CLAUSE_DIFF: '조항 대비표', QUOTE: '최종 견적서', SIGNED: '체결본', TERMINATE_DOC: '해지 관련 서류' };
+  const FILE_KINDS = { DRAFT_DOC: '계약서 초안', CLAUSE_DIFF: '조항 대비표', ANNEX: '부속 서류', QUOTE: '최종 견적서', SIGNED: '체결본', TERMINATE_DOC: '해지 관련 서류' };
 
   // 결재 기록 한 줄 (데이터 정의서 approval_history). 한 번 남기면 고치거나 지우지 않습니다. (REQ-FLOW-12)
   //   step: 단계 코드 / action: APPROVE 승인, REJECT 반려, CANCEL 승인 취소 / at: 'YYYY-MM-DD HH:MM'
@@ -245,7 +245,7 @@ window.CLIMB_DATA = (function () {
   }
 
   /* 계약 [가정] (데이터 정의서 3장)
-   * checklist: 체크리스트 답. standard 1번(영업이 답함), price 2번과 cap 3번(제품 금액으로 자동 계산, NA는 해당 없음)
+   * checklist: 체크리스트 답. standard 1번(영업이 답함), price 2번과 cap 3번(제품 금액으로 자동 계산)
    *   → 결재선은 이 답과 개인정보 처리위탁 계약 여부(personalData)로만 정합니다. 금액 기준은 없습니다. (REQ-CHK-05)
    * history: 결재 기록. 결재 단계의 지금 상태(approvals)는 common.js가 이 기록을 차례로 다시 적용해 만듭니다.
    * products: 계약 제품 줄. 비어 있으면 검토 상세 화면에서 서비스와 금액으로 예시 줄을 만듭니다.
@@ -328,16 +328,17 @@ window.CLIMB_DATA = (function () {
       history: [],
     },
     {
-      // 금액이 없는 비밀유지계약 예시: ③ 영업 검토 생략(해당 없음)
-      id: '2610CL008', counterparty: '단비소프트', services: ['HR'], type: '비밀유지계약(NDA)', kind: 'NEW',
-      amount: 0, requesterId: 'u_sales1', requestedAt: '2026-10-18 10:30', restricted: false, personalData: false,
+      // 표준 단가 그대로라 ③ 영업 검토 생략. 비밀유지계약서는 부속 서류로 첨부 (v0.41: 금액이 없는 계약은 등록하지 않음)
+      id: '2610CL008', counterparty: '단비소프트', services: ['HR'], type: 'SaaS 이용계약', kind: 'NEW',
+      amount: 9600000, requesterId: 'u_sales1', requestedAt: '2026-10-18 10:30', restricted: false, personalData: false,
       status: 'IN_REVIEW',
-      checklist: { standard: 'NO', standardNote: '상대방 양식 NDA', price: 'NA', cap: 'NA' },
-      products: [],
+      checklist: { standard: 'NO', standardNote: '상대방 양식 계약서', price: 'YES', cap: 'YES' },
+      products: [{ code: 'HR-BASE', qty: 1, amount: 9600000 }],
+      annex: ['단비소프트_비밀유지계약서.pdf'],
       // 보완 요청 예시(v0.26): ④ 법무가 기안자에게 보완을 요청. 기안자가 고치면 ④부터 이어서 결재
       history: [
         ev('S02', 'APPROVE', '2026-10-18 13:00'),
-        ev('S04', 'SUPPLEMENT', '2026-10-18 16:40', '상대방 양식 NDA의 비밀 유지 기간이 비어 있습니다. 기간을 채운 계약서를 다시 올려 주세요.'),
+        ev('S04', 'SUPPLEMENT', '2026-10-18 16:40', '상대방 양식 계약서에 서비스 이용 기간이 비어 있습니다. 기간을 채운 계약서를 다시 올려 주세요.'),
       ],
     },
     {
@@ -395,10 +396,11 @@ window.CLIMB_DATA = (function () {
     },
     {
       // ⑥ 인장 날인 차례인 예시
-      id: '2610CL004', counterparty: '다온컨설팅', services: ['HR'], type: '비밀유지계약(NDA)', kind: 'NEW',
-      amount: 0, requesterId: 'u_sales1', requestedAt: '2026-10-13 10:00', restricted: false, personalData: false,
+      id: '2610CL004', counterparty: '다온컨설팅', services: ['HR'], type: 'SaaS 이용계약', kind: 'NEW',
+      amount: 13200000, requesterId: 'u_sales1', requestedAt: '2026-10-13 10:00', restricted: false, personalData: false,
       status: 'APPROVED', approvedAt: '2026-10-16 11:00', autoHistory: true, postAt: 'S06',
-      checklist: { standard: 'NO', price: 'NA', cap: 'NA' },
+      checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
+      products: [{ code: 'HR-BASE', qty: 1, amount: 9600000 }, { code: 'HR-ADD', qty: 1, amount: 3600000 }],
     },
 
     /* ----- 운영 검토 (OPS_REVIEW): ⑧ 체결본 확인 뒤 ⑨ 운영 적용(고객지원) → ⑩ 재무 확인 ----- */
@@ -447,7 +449,7 @@ window.CLIMB_DATA = (function () {
     },
     {
       // 자동갱신 계약. 연장 검토(조건 그대로)를 기안해 ④ 법무 차례인 예시는 아래 2512CL001-R01
-      id: '2512CL001', counterparty: '온새미로대학교', services: ['CK', 'HR'], type: 'SaaS 이용계약', kind: 'NEW',
+      id: '2512CL001', counterparty: '온새미로대학교', sla: 'YES', services: ['CK', 'HR'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 72000000, requesterId: 'u_sales1', requestedAt: '2025-12-22 10:00', restricted: false, personalData: true,
       status: 'ACTIVE', approvedAt: '2025-12-29 15:00', autoHistory: true, startDate: '2026-01-10', endDate: '2027-01-09',
       autoRenew: 'YES', noticeDays: 30,
@@ -460,7 +462,7 @@ window.CLIMB_DATA = (function () {
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
     },
     {
-      id: '2604CL001', counterparty: '이음병원', services: ['HR'], type: 'SaaS 이용계약', kind: 'NEW',
+      id: '2604CL001', counterparty: '이음병원', sla: 'YES', services: ['HR'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 42000000, requesterId: 'u_sales1', requestedAt: '2026-04-13 10:00', restricted: false, personalData: true,
       status: 'ACTIVE', approvedAt: '2026-04-20 15:00', autoHistory: true, startDate: '2026-05-01', endDate: '2027-04-30',
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },

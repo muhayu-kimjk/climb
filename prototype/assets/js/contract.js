@@ -85,6 +85,7 @@
     root.unit ? info('기관(부서)', esc(root.unit)) : '', // 거래처 아래 기관 (C-24 v0.39)
     info('영업대표', esc(C.userName(root.requesterId)) + '님'),
     info('개인정보 처리위탁 계약', root.personalData ? '있음' : '없음'),
+    info('서비스 수준 협약(SLA)', root.sla === 'YES' ? '있음' : '없음'), // v0.40
     info('열람 제한', root.restricted ? C.icon('lock', 'sm') + '있음' : '없음'),
     info('계약 완료일', cur.completedAt ? C.fmtDateTime(cur.completedAt) : '-'),
     info('해지일', b.status === 'TERMINATED' ? C.fmtDate(root.terminateDate) : '-'),

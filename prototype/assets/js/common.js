@@ -312,8 +312,7 @@ window.CLIMB = (function () {
     }
     const ck = c.checklist || {};
     let sales;
-    if (ck.price === 'NA') sales = [false, '금액이 없는 계약'];
-    else if (ck.price === 'NO' && ck.cap === 'NO') sales = [true, '할인율 한도를 넘김'];
+    if (ck.price === 'NO' && ck.cap === 'NO') sales = [true, '할인율 한도를 넘김'];
     else if (ck.price === 'NO') sales = [false, '할인율 한도 이내'];
     else sales = [false, '표준단가표를 적용함'];
     return {
@@ -361,7 +360,7 @@ window.CLIMB = (function () {
       return out.concat(((table || D.OPS_CHECKS)[s] || []).map(function (t) { return (list.length > 1 ? (D.SERVICES[s] || s) + ' ' : '') + t; }));
     }, []);
   }
-  // 이 계약의 ⑨ 확인 항목. 금액이 없는 비밀유지계약은 운영에 적용할 것이 없으므로 그 사실만 확인 [가정]
+  // 이 계약의 ⑨ 확인 항목 (v0.41: 금액이 없는 계약은 등록하지 않으므로 따로 두지 않음)
   //   운영 변경: 기간 변경은 OPS_CHECKS_PERIOD, 추가 충전은 충전 수량
   function opsChecksFor(c) {
     if (isChange(c)) {
@@ -370,8 +369,6 @@ window.CLIMB = (function () {
     }
     if (c.kind === 'TERMINATE') return opsChecks(c.services, D.OPS_CHECKS_END);
     if (c.renewMode === 'AUTO') return opsChecks(c.services, D.OPS_CHECKS_EXTEND);
-    // 금액이 없는 계약(v0.34 체크 칸, 예전 기록은 유형 NDA)
-    if (c.type === typeLabel('NDA') || c.noAmount || (c.form || {}).noAmount) return ['운영에 적용할 내용 없음(금액이 없는 계약)'];
     return opsChecks(c.services);
   }
   // 계약종류 이름. 연장 검토의 "그대로 자동갱신"은 따로 표시 (REQ-ARC-07)
@@ -1410,7 +1407,7 @@ window.CLIMB = (function () {
    * 브라우저 기본 날짜 칸은 브라우저마다 모양과 형식("연도-월-일")이 다르고 달력이 작으며 글꼴도 Noto Sans KR이 아니어서,
    * KRDS처럼 글자 칸 + 달력 버튼 + 큰 달력으로 바꿉니다. 기준은 KRDS 공식 코드(GitHub KRDS-uiux/krds-uiux)
    *   - 화면의 type=date 칸을 글자 칸으로 바꿈. 보이는 글자와 화면 코드가 읽고 쓰는 값(.value) 모두 YYYY-MM-DD(예: 2027-01-01, REQ-UI-23 v0.35)
-   *     숫자 8자리(20270101)를 넣으면 바로 "2027-01-01"로, "2027.1.1"이나 "2027. 1. 1."도 칸을 떠날 때 맞춰 줌. 맞지 않는 날짜는 값이 빈칸
+   *     숫자만 넣을 수 있고 넣는 대로 '-'가 붙어 "2027-01-01"이 됨(v0.40, 사업자등록번호와 같은 방식). 맞지 않는 날짜는 값이 빈칸
    *     (KRDS: 달력이 있어도 직접 입력을 막지 않음, 휴대폰은 숫자 자판)
    *   - 칸 오른쪽 안의 달력 버튼(KRDS 달력 아이콘 버튼) → 달력 층: 이전 달, 연도와 월 고르기, 다음 달 / 일~토 / 날짜 / 오늘, 취소, 확인
    *     달력 폭은 날짜 칸 폭에 맞춤(PC 280~322px, 휴대폰은 칸 폭 그대로. 기획자 요청)
@@ -1656,13 +1653,22 @@ window.CLIMB = (function () {
       });
       input.value = raw;
       input.defaultValue = INPUT_VALUE.get.call(input); // 초기화(reset) 때도 같은 모양
+      // 숫자만 받고 넣는 대로 '-'를 붙임: 2026 → 2026-11 → 2026-11-01 (v0.40 기획자 요청, 사업자등록번호와 같은 방식)
+      //   글자와 기호는 지움. 붙여 넣은 "2026.11.01"도 숫자만 남겨 맞춤
       input.addEventListener('input', function () {
         const t = INPUT_VALUE.get.call(input);
-        if (/^\d{8}$/.test(t) && isoFromText(t)) INPUT_VALUE.set.call(input, dateText(isoFromText(t)));
+        const d = t.replace(/[^0-9]/g, '').slice(0, 8);
+        const f = d.length > 6 ? d.slice(0, 4) + '-' + d.slice(4, 6) + '-' + d.slice(6) : d.length > 4 ? d.slice(0, 4) + '-' + d.slice(4) : d;
+        if (f !== t) INPUT_VALUE.set.call(input, f);
       });
+      // 칸을 떠날 때: 8자리를 다 넣었는데 없는 날짜(13월, 2월 30일 등)면 바로 알림, 고치면 지움 (v0.40)
+      const BAD_DATE = '없는 날짜입니다. 월과 일을 다시 확인하세요.';
       input.addEventListener('blur', function () {
-        const iso = isoFromText(INPUT_VALUE.get.call(input));
-        if (iso && INPUT_VALUE.get.call(input) !== dateText(iso)) INPUT_VALUE.set.call(input, dateText(iso));
+        const t = INPUT_VALUE.get.call(input), box = input.closest('.field');
+        const err = box && box.querySelector('.field-error');
+        if (!err) return;
+        if (t.length === 10 && !isoFromText(t)) setFieldError(box, BAD_DATE);
+        else if (!err.hidden && err.textContent === BAD_DATE) setFieldError(box, '');
       });
       const wrap = document.createElement('span');
       wrap.className = 'date-input';
