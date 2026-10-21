@@ -4,8 +4,8 @@
  * 관련 요구사항: REQ-FLOW-14, 17, 31, REQ-ARC-04
  * 하는 일
  *   1. 내가 등록한 계약을 모두 모음(작성 중 포함). 최근 것부터
- *      (최고관리자, 관리자는 모든 영업 것을 영업 대표 칸과 함께. 작성 중은 작성자만 보므로 빠짐)
- *   2. 검색, 상태, 구분으로 거르기. 한 쪽에 20건
+ *      (최고관리자, 관리자는 모든 영업 것을 영업대표 칸과 함께. 작성 중은 작성자만 보므로 빠짐)
+ *   2. 검색, 상태, 계약종류로 거르기. 한 쪽에 20건
  *   3. 할 일: 이어서 작성, 임시 저장 삭제(확인 창), 보완 후 재기안, ⑦ 체결본 등록
  * ===================================================================== */
 (function () {
@@ -39,9 +39,9 @@
     return '<option value="">' + esc(first) + '</option>' + pairs.map(function (p) { return '<option value="' + p[0] + '">' + esc(p[1]) + '</option>'; }).join('');
   }
   $('#f-status').innerHTML = options('전체 상태', Object.keys(D.STATUS).map(function (k) { return [k, D.STATUS[k].label]; }));
-  $('#f-kind').innerHTML = options('전체 구분', Object.keys(D.KINDS).map(function (k) { return [k, D.KINDS[k]]; }));
-  $('#thead').innerHTML = '<tr><th scope="col" class="col-customer">고객사</th><th scope="col">구분</th><th scope="col">상태</th><th scope="col">현재 진행</th>' +
-    (seeAll ? '<th scope="col">영업 대표</th>' : '') + '<th scope="col">기안일</th><th scope="col">할 일</th></tr>';
+  $('#f-kind').innerHTML = options('전체 계약종류', Object.keys(D.KINDS).map(function (k) { return [k, D.KINDS[k]]; }));
+  $('#thead').innerHTML = '<tr><th scope="col" class="col-customer">고객사</th><th scope="col">계약종류</th><th scope="col">상태</th><th scope="col">현재 진행</th>' +
+    (seeAll ? '<th scope="col">영업대표</th>' : '') + '<th scope="col">기안일</th><th scope="col">할 일</th></tr>';
 
   // 할 일 버튼 (내 계약일 때만)
   function todo(c) {

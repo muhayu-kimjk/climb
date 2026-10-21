@@ -4,7 +4,7 @@
  * 관련 요구사항: REQ-CHG-06~11 (기획자 결정 v0.26: 재무 문서의 계약 체결 이후 수정 절차 반영)
  * 하는 일
  *   1. 주소의 원계약 번호로 묶음을 찾고 운영 변경을 기안할 수 있는지 확인
- *      (지금 유효한 계약이 계약 완료, 영업 대표 본인(시연용 최고관리자 포함), 진행 중인 해지 없음)
+ *      (지금 유효한 계약이 계약 완료, 영업대표 본인(시연용 최고관리자 포함), 진행 중인 해지 없음)
  *   2. 변경 종류 하나: 계약 기간 변경(새 종료일), 추가 충전(수량, 유상이면 금액). 서비스에 있는 것만 고를 수 있음
  *   3. 변경 사유(필수), CRM 영업활동 링크(필수, https)
  *   4. 결재선 미리 보기: ③ 영업 검토(기간 2개월 넘게 바뀜, 무상 충전 50건 초과일 때만) → ⑨ 운영 변경(고객지원, HR 충전은 재무)
@@ -35,7 +35,7 @@
     return;
   }
   if (root.requesterId !== me.id && me.role !== 'SUPER') {
-    $('#notice').innerHTML = notice('영업 대표만 운영 변경을 기안합니다', '이 계약의 영업 대표는 ' + esc(C.userName(root.requesterId)) + '님입니다. <a href="' + back + '">계약 상세로</a>');
+    $('#notice').innerHTML = notice('영업대표만 운영 변경을 기안합니다', '이 계약의 영업대표는 ' + esc(C.userName(root.requesterId)) + '님입니다. <a href="' + back + '">계약 상세로</a>');
     return;
   }
   const terminating = b.open.filter(function (o) { return o.kind === 'TERMINATE'; });
@@ -45,7 +45,7 @@
     }).join('<br>'));
     return;
   }
-  // 기간 변경은 진행 중인 갱신이나 다른 기간 변경과 겹치면 막음 [가정]
+  // 기간 변경은 진행 중인 연장이나 다른 기간 변경과 겹치면 막음 [가정]
   const periodBusy = b.open.some(function (o) { return o.kind === 'RENEW' || (o.kind === 'CHANGE' && o.changeType === 'PERIOD'); });
 
   /* ---------- 1. 변경할 계약 ---------- */
@@ -56,7 +56,7 @@
     info('계약번호', '<a href="' + back + '">' + esc(b.id) + '</a>' + (b.current !== root ? ' (지금 유효: ' + esc(b.current.id) + ')' : '')),
     info('서비스', esc(C.serviceLabel(root.services))),
     info('계약 기간', C.fmtPeriod(b.start, b.end)),
-    info('영업 대표', esc(C.userName(root.requesterId)) + '님'),
+    info('영업대표', esc(C.userName(root.requesterId)) + '님'),
     info('진행 중인 일', b.open.length ? b.open.map(function (o) { return esc(o.id + ' ' + C.kindLabel(o)); }).join('<br>') : '없음'),
   ].join('');
   $('#number-help').textContent = '기안하면 ' + newId + '(운영 변경)로 원계약과 함께 묶입니다.';
@@ -68,7 +68,7 @@
   $('#type-choices').innerHTML = types.map(function (t) {
     const off = t === 'PERIOD' && periodBusy;
     return '<label class="choice"><input type="radio" name="type" value="' + t + '"' + (off ? ' disabled' : '') + '>' + esc(D.CHANGE_TYPES[t]) +
-      (off ? ' (진행 중인 갱신이나 기간 변경이 있어 지금은 고를 수 없음)' : '') + '</label>';
+      (off ? ' (진행 중인 연장이나 기간 변경이 있어 지금은 고를 수 없음)' : '') + '</label>';
   }).join('');
   $('#f-end').min = D.TODAY;
   const typeOf = function () { const r = document.querySelector('[name="type"]:checked'); return r ? r.value : ''; };

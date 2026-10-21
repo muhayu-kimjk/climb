@@ -3,8 +3,8 @@
  * ---------------------------------------------------------------------
  * 관련 요구사항: REQ-FLOW-15, REQ-FLOW-18, REQ-AUTH-09, REQ-ARC-01
  * 하는 일
- *   1. 계약 묶음(원계약 + 변경, 갱신, 해지)을 한 줄씩 모음 (common.js bundles). 최근 원계약부터
- *   2. 검색, 상태, 서비스, 영업 대표로 거르기
+ *   1. 계약 묶음(원계약 + 변경, 연장, 해지)을 한 줄씩 모음 (common.js bundles). 최근 원계약부터
+ *   2. 검색, 상태, 서비스, 영업대표로 거르기
  *   3. 열람 제한 계약은 볼 수 없는 사람에게 가림. 한 쪽에 20건
  * ===================================================================== */
 (function () {
@@ -27,11 +27,11 @@
   const owners = all.map(function (b) { return b.root.requesterId; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
   $('#f-owner').innerHTML = options('전체', owners.map(function (u) { return [u, C.userName(u)]; }));
 
-  // 변경과 갱신 칸: "변경 1, 갱신 1(그대로 연장), 해지 기안"
+  // 변경과 연장 칸: "변경 1, 연장 1(조건 그대로), 해지 기안"
   function childText(b) {
     const parts = [];
     if (b.count('AMEND')) parts.push('변경 ' + b.count('AMEND'));
-    if (b.count('RENEW')) parts.push('갱신 ' + b.count('RENEW'));
+    if (b.count('RENEW')) parts.push('연장 ' + b.count('RENEW'));
     if (b.count('TERMINATE')) parts.push('해지 기안');
     return parts.join(', ') || '-';
   }
@@ -72,7 +72,7 @@
           '<span class="cell-sub">' + service + '</span><span class="cell-meta">' + esc(b.id) + (c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span>'
         : '<span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>';
       const st = D.STATUS[b.status];
-      // 진행 중인 변경, 갱신, 해지가 있으면 상태 아래에 알림
+      // 진행 중인 변경, 연장, 해지가 있으면 상태 아래에 알림
       const open = b.open.length ? '<span class="cell-meta">진행 중: ' + esc(b.open.map(function (o) { return C.kindLabel(o); }).join(', ')) + '</span>' : '';
       return '<tr' + (b.status === 'REJECTED' ? ' class="is-alert"' : '') + '>' +
         '<td>' + cust + '</td>' +

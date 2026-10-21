@@ -6,8 +6,8 @@
  *   1. 지금 유효한 계약이 90일 안에 끝나는 묶음을 모음 (common.js expiringBundles). 만료일이 가까운 순서
  *      영업은 내가 맡은 계약만, 그 외 역할은 모든 계약
  *   2. 자동갱신이면 해지 통지 기한(만료일 - 통지 일수)을 보여 주고, 지났으면 강조
- *   3. 할 일 버튼: 자동갱신이면 갱신 검토, 아니면 갱신 기안, 그리고 해지 기안
- *      진행 중인 갱신, 해지가 있으면 버튼 대신 그 상태
+ *   3. 할 일 버튼: 자동갱신이면 연장 검토, 아니면 연장 기안, 그리고 해지 기안
+ *      진행 중인 연장, 해지가 있으면 버튼 대신 그 상태
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -20,14 +20,14 @@
   if (!isSales) $('#intro').textContent = '90일 안에 끝나는 모든 계약입니다(' + C.roleLabel(me.role) + ' 보기). 만료일이 가까운 순서로 보여 줍니다.';
   const all = C.expiringBundles(90).filter(function (b) { return !isSales || b.root.requesterId === me.id; });
 
-  // 해지 통지 기한: 자동갱신 계약은 만료 며칠 전까지 상대방에게 알려야 갱신을 막을 수 있음
+  // 해지 통지 기한: 자동갱신 계약은 만료 며칠 전까지 상대방에게 알려야 연장을 막을 수 있음
   function noticeDate(b) {
     if (b.autoRenew !== 'YES' || !b.noticeDays) return null;
     const d = new Date(b.end.replace(/-/g, '/'));
     d.setDate(d.getDate() - b.noticeDays);
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
-  // 갱신이나 해지 기안을 할 수 있는 사람: 영업 대표 본인 (최고관리자는 시연용으로)
+  // 연장이나 해지 기안을 할 수 있는 사람: 영업대표 본인 (최고관리자는 시연용으로)
   function canDraft(b) { return b.root.requesterId === me.id || me.role === 'SUPER'; }
 
   function render() {
@@ -58,15 +58,15 @@
       const autoCell = b.autoRenew === 'YES'
         ? '있음' + (n ? '<span class="cell-meta">' + (C.daysUntil(n) < 0 ? '<span class="wait-long">통지 기한 지남</span> ' : '통지 기한 ') + C.fmtDate(n) + '</span>' : '')
         : '없음';
-      // 진행 중인 갱신, 해지 (변경은 만료와 상관없으므로 함께 보여 주기만 함)
+      // 진행 중인 연장, 해지 (변경은 만료와 상관없으므로 함께 보여 주기만 함)
       const open = b.open.map(function (o) { return C.kindLabel(o) + ' ' + D.STATUS[o.status].label; }).join(', ');
       const blocking = b.open.some(function (o) { return o.kind === 'RENEW' || o.kind === 'TERMINATE'; });
       let todo = '-';
       if (visible && canDraft(b) && !blocking) {
         todo = '<div class="row-actions">' +
           (b.autoRenew === 'YES'
-            ? '<a class="btn btn--secondary" href="renewal.html?origin=' + encodeURIComponent(b.id) + '">갱신 검토</a>'
-            : '<a class="btn btn--secondary" href="new-contract.html?kind=RENEW&origin=' + encodeURIComponent(b.id) + '">갱신 기안</a>') +
+            ? '<a class="btn btn--secondary" href="renewal.html?origin=' + encodeURIComponent(b.id) + '">연장 검토</a>'
+            : '<a class="btn btn--secondary" href="new-contract.html?kind=RENEW&origin=' + encodeURIComponent(b.id) + '">연장 기안</a>') +
           '<a class="btn btn--tertiary" href="terminate.html?origin=' + encodeURIComponent(b.id) + '">해지 기안</a></div>';
       }
       return '<tr>' +

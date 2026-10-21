@@ -58,7 +58,7 @@
   $('#f-status').innerHTML = options('전체 상태', Object.keys(D.ACCOUNT_STATUS).map(function (s) { return [s, D.ACCOUNT_STATUS[s].label]; }));
 
   /* ---------- 표시 도우미 ---------- */
-  // "2026-10-19 14:05" → "2026. 10. 19. 14:05", 없으면 "-" (날짜 표기 v0.31)
+  // "2026-10-19 14:05" 그대로, 없으면 "-" (날짜 표기 v0.35)
   function dt(s) { return C.fmtDateTime(s); }
   function roleBadges(roles) {
     return '<span class="role-badges">' + roles.map(function (r) {

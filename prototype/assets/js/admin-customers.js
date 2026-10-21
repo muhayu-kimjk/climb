@@ -28,10 +28,6 @@
   function find(id) { return D.CUSTOMERS.filter(function (cu) { return cu.id === id; })[0]; }
   function stateOf(cu) { return cu.mergedInto ? 'MERGED' : cu.use ? 'USE' : 'OFF'; }
   function contractsOf(cu) { return D.CONTRACTS.filter(function (c) { return c.id && c.counterparty === cu.name; }).length; }
-  function fmtBizNo(v) {
-    const d = String(v).replace(/[^0-9]/g, '').slice(0, 10);
-    return d.length > 5 ? d.slice(0, 3) + '-' + d.slice(3, 5) + '-' + d.slice(5) : d.length > 3 ? d.slice(0, 3) + '-' + d.slice(3) : d;
-  }
   function tag(cu) { return cu.name + '(' + cu.id + ')'; }
   // 받침에 따라 "로"와 "으로" (ㄹ 받침은 "로")
   function ro(word) {
@@ -129,7 +125,8 @@
     return dup ? '이미 등록된 사업자등록번호입니다(' + dup.name + ').' : '';
   }
   function formatOnInput(f) {
-    f.elements.bizNo.addEventListener('input', function (e) { e.target.value = fmtBizNo(e.target.value); });
+    // 숫자만 넣으면 '-'를 붙여 보여 줌 (v0.34)
+    f.elements.bizNo.addEventListener('input', function (e) { e.target.value = C.fmtBizNo(e.target.value); });
   }
   function openEdit(id) {
     const cu = find(id);
@@ -137,7 +134,7 @@
       title: cu.name + ' 거래처를 고칠까요?',
       desc: '상호를 바꾸면 이 거래처의 모든 계약에 새 상호가 보입니다. 사용 안 함으로 돌리면 계약 등록에서 고를 수 없습니다.',
       body: C.fieldHtml({ name: 'cuName', label: '상호', required: true, value: cu.name, help: '사업자등록증의 상호' }) +
-        C.fieldHtml({ name: 'bizNo', label: '사업자등록번호', required: true, value: cu.bizNo, attrs: ' inputmode="numeric" maxlength="12"' }) +
+        C.fieldHtml({ name: 'bizNo', label: '사업자등록번호', required: true, value: cu.bizNo, help: "'-' 없이 숫자만 넣으면 됩니다.", attrs: ' inputmode="numeric" maxlength="12"' }) +
         C.fieldHtml({ name: 'use', label: '상태', type: 'select', value: String(cu.use), options: [['true', '사용 중'], ['false', '사용 안 함']] }) +
         C.fieldHtml({ name: 'reason', label: '고치는 사유', type: 'textarea', required: true, placeholder: '예: 사업자등록증의 상호로 바로잡음' }),
       btn: '저장',
@@ -166,8 +163,8 @@
     C.formModal({
       title: '거래처를 추가할까요?',
       desc: '추가하면 계약 등록의 거래처 목록에서 고를 수 있습니다.',
-      body: C.fieldHtml({ name: 'cuName', label: '상호', required: true, help: '사업자등록증의 상호' }) +
-        C.fieldHtml({ name: 'bizNo', label: '사업자등록번호', required: true, placeholder: '000-00-00000', attrs: ' inputmode="numeric" maxlength="12"' }) +
+      body: C.fieldHtml({ name: 'cuName', label: '상호', required: true, placeholder: '예: 주식회사 가나다', help: '사업자등록증의 상호' }) +
+        C.fieldHtml({ name: 'bizNo', label: '사업자등록번호', required: true, placeholder: '예: 123-45-67890', help: "'-' 없이 숫자만 넣으면 됩니다.", attrs: ' inputmode="numeric" maxlength="12"' }) +
         C.fieldHtml({ name: 'reason', label: '추가하는 사유', type: 'textarea', required: true, placeholder: '예: 조달 계약 예정 기관을 미리 등록' }),
       btn: '추가',
       open: formatOnInput,

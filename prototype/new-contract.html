@@ -58,18 +58,19 @@
           <p class="section-desc">계약 상대방과 기간 등 계약의 기본 사항입니다.</p>
 
           <fieldset class="field" data-field="kind">
-            <legend class="field-label">계약 구분<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
+            <!-- 계약종류(v0.34: 계약 구분에서 이름을 바꾸고 붙여 씀, 내부 CRM과 맞춤): 신규, 변경, 연장 -->
+            <legend class="field-label">계약종류<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
             <div class="choice-row">
               <label class="choice"><input type="radio" name="kind" value="NEW" checked>신규</label>
               <label class="choice"><input type="radio" name="kind" value="AMEND">변경</label>
-              <label class="choice"><input type="radio" name="kind" value="RENEW">갱신</label>
+              <label class="choice"><input type="radio" name="kind" value="RENEW">연장</label>
             </div>
             <!-- 운영 변경(기간 변경, 추가 충전)은 이 화면이 아니라 계약 상세의 "운영 변경 기안"(SCR-14)에서 (v0.26) -->
             <p class="field-help">변경은 계약서 내용이 바뀔 때 고릅니다. 계약 기간만 바꾸거나 수량을 추가 충전하면 계약 상세의 "운영 변경 기안"을 쓰세요.</p>
             <p class="field-error" hidden></p>
           </fieldset>
 
-          <!-- 변경, 갱신일 때만 보임 (REQ-FLOW-18 묶음 번호) -->
+          <!-- 변경, 연장일 때만 보임 (REQ-FLOW-18 묶음 번호) -->
           <div class="field" data-field="origin" id="origin-field" hidden>
             <label class="field-label" for="f-origin">원계약<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
             <select class="select" id="f-origin" name="origin"></select>
@@ -79,8 +80,8 @@
 
           <!-- 계약명 칸은 두지 않음: 계약은 거래처(고객사)와 서비스로 구분하고 계약번호로 식별 (v0.12) -->
 
-          <!-- 거래처: 검색해서 고름 (REQ-REG-18, 기획자 요청 v0.32)
-               상호나 사업자등록번호로 우리 거래처 목록과 사업자 정보 DB(공공데이터를 내재화)를 함께 찾고, 고르면 상호와 사업자등록번호가 채워짐
+          <!-- 거래처: 검색해서 고름 (REQ-REG-18, 기획자 요청 v0.32, v0.34)
+               상호나 사업자등록번호로 우리 거래처 목록과 사업자 정보 DB(기획자가 모은 자료, 추후 전달)를 함께 찾고, 고르면 상호와 사업자등록번호가 채워짐
                검색 결과가 없으면 "직접 입력"으로 상호와 사업자등록번호를 넣음(검증 숫자 확인, 거래처 목록과 중복 불가)
                거래처를 고치거나 합치는 것은 관리자(거래처 관리 SCR-55) -->
           <div class="field" data-field="customer">
@@ -106,25 +107,28 @@
           <div class="field-row">
             <div class="field" data-field="counterparty">
               <label class="field-label" for="f-counterparty">거래처 상호<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
-              <input class="input" id="f-counterparty" name="counterparty" type="text" readonly>
+              <!-- 예시는 가상의 상호와 번호 (v0.35 기획자 요청) -->
+              <input class="input" id="f-counterparty" name="counterparty" type="text" placeholder="예: 주식회사 가나다" readonly>
               <p class="field-error" hidden></p>
             </div>
             <div class="field" data-field="bizNo">
               <label class="field-label" for="f-bizno">사업자등록번호<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
-              <input class="input" id="f-bizno" name="bizNo" type="text" inputmode="numeric" placeholder="000-00-00000" maxlength="12" readonly>
+              <!-- 숫자만 넣으면 '-'를 붙여 000-00-00000으로 보여 줌 (v0.34) -->
+              <input class="input" id="f-bizno" name="bizNo" type="text" inputmode="numeric" maxlength="12" placeholder="예: 123-45-67890" readonly aria-describedby="bizno-help">
+              <p class="field-help" id="bizno-help">'-' 없이 숫자만 넣으면 됩니다.</p>
               <p class="field-error" hidden></p>
             </div>
           </div>
 
-          <!-- 영업 대표: 로그인한 사람, "조직 이름"으로 (님 없이, v0.32) -->
+          <!-- 영업대표: 로그인한 사람, "조직 이름"으로 (님 없이, v0.32) -->
           <div class="field-row">
             <div class="field">
-              <label class="field-label" for="f-owner">영업 대표</label>
+              <label class="field-label" for="f-owner">영업대표</label>
               <input class="input" id="f-owner" type="text" readonly>
               <p class="field-help">로그인한 사람으로 자동 입력됩니다.</p>
             </div>
           </div>
-          <!-- 영업기회번호(붙여 씀, 필수): 영업 대표 아래 줄. 판다(CRM) 번호 규칙 연도 2자리, 월 2자리, 영문 2자리, 일련번호 3자리 (v0.32)
+          <!-- 영업기회번호(붙여 씀, 필수): 영업대표 아래 줄. 판다(CRM) 번호 규칙 연도 2자리, 월 2자리, 영문 2자리, 일련번호 3자리 (v0.32)
                규칙에 맞으면 판다의 영업 기회 화면(https://panda.muhayu.com/sales/opp/번호)으로 가는 링크가 생김 -->
           <div class="field-row">
             <div class="field" data-field="opportunity">
@@ -138,52 +142,28 @@
             </div>
           </div>
 
-          <div class="field-row">
-            <div class="field" data-field="type">
-              <label class="field-label" for="f-type">계약 유형<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
-              <select class="select" id="f-type" name="type"></select>
-              <p class="field-error" hidden></p>
-            </div>
-            <fieldset class="field" data-field="method">
-              <legend class="field-label">계약 방식<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
-              <div class="choice-row" id="method-choices"></div>
-              <p class="field-error" hidden></p>
-            </fieldset>
-          </div>
+          <!-- 계약 방식: 계약 유형(드롭다운)을 없애고 계약 방식 버튼 하나로 합침. 직접, 조달, 간접 (v0.34 기획자 결정) -->
+          <fieldset class="field" data-field="method">
+            <legend class="field-label">계약 방식<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
+            <div class="choice-row" id="method-choices"></div>
+            <p class="field-error" hidden></p>
+          </fieldset>
 
+          <!-- 계약일은 품의 승인 뒤에야 정해져 적지 않고 계약 시작일과 종료일만 (v0.34). 서비스 기간은 계약 기간과 같다고 봄 -->
           <div class="field-row">
-            <div class="field" data-field="contractDate">
-              <label class="field-label" for="f-contract-date">계약일<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
-              <input class="input" id="f-contract-date" name="contractDate" type="date">
-              <p class="field-error" hidden></p>
-            </div>
             <div class="field" data-field="startDate">
               <label class="field-label" for="f-start">계약 시작일<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
-              <input class="input" id="f-start" name="startDate" type="date">
+              <input class="input" id="f-start" name="startDate" type="date" data-describedby="date-format-help">
               <p class="field-error" hidden></p>
             </div>
             <div class="field" data-field="endDate">
               <label class="field-label" for="f-end">계약 종료일<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
-              <input class="input" id="f-end" name="endDate" type="date">
+              <input class="input" id="f-end" name="endDate" type="date" data-describedby="date-format-help">
               <p class="field-error" hidden></p>
             </div>
           </div>
-
-          <div class="field">
-            <label class="choice"><input type="checkbox" id="f-service-diff">서비스 기간이 계약 기간과 다릅니다</label>
-            <div class="field-row sub-fields" id="service-fields" hidden>
-              <div class="field" data-field="serviceStart">
-                <label class="field-label field-label--sm" for="f-service-start">서비스 시작일</label>
-                <input class="input" id="f-service-start" name="serviceStart" type="date">
-                <p class="field-error" hidden></p>
-              </div>
-              <div class="field" data-field="serviceEnd">
-                <label class="field-label field-label--sm" for="f-service-end">서비스 종료일</label>
-                <input class="input" id="f-service-end" name="serviceEnd" type="date">
-                <p class="field-error" hidden></p>
-              </div>
-            </div>
-          </div>
+          <!-- 날짜 입력 형식 도움말: 두 칸이 함께 씀 (KRDS 날짜 입력 필드, v0.35) -->
+          <p class="field-help" id="date-format-help">날짜는 숫자 8자리로 넣거나(예: 20270101) 달력 버튼을 눌러 고릅니다.</p>
 
           <fieldset class="field" data-field="autoRenew">
             <legend class="field-label">자동갱신<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
@@ -201,12 +181,13 @@
           </fieldset>
 
           <fieldset class="field" data-field="personalData">
-            <legend class="field-label">개인정보 처리<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
+            <!-- 개인정보 처리위탁 계약(v0.36 기획자 결정: "개인정보 처리"는 뜻이 모호해 이름을 바꿈). 있음이면 ⑤ 개인정보 검토(정보보호 담당자)가 결재 -->
+            <legend class="field-label">개인정보 처리위탁 계약<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
             <div class="choice-row">
               <label class="choice"><input type="radio" name="personalData" value="YES">있음</label>
               <label class="choice"><input type="radio" name="personalData" value="NO">없음</label>
             </div>
-            <p class="field-help">있음이면 결재선에 정보보호 담당자가 자동으로 들어갑니다.</p>
+            <p class="field-help">'있음'이면 결재선에 정보보호 담당자가 자동으로 들어갑니다.</p>
             <p class="field-error" hidden></p>
           </fieldset>
 
@@ -221,14 +202,20 @@
           <h2 class="section-title" id="sec-amount"><span class="num">2</span>금액과 제품</h2>
           <p class="section-desc">제품마다 계약 금액을 넣으면 표준 단가와 비교해 할인율이 자동으로 계산됩니다. 가격 기준은 영업, 영업지원, 관리자만 볼 수 있습니다.</p>
 
-          <div class="field" data-field="products">
+          <!-- 금액이 없는 계약(비밀유지계약 등): 계약 유형을 없애면서 이 체크로 판단 (v0.34) -->
+          <div class="field">
+            <label class="choice"><input type="checkbox" id="f-no-amount" name="noAmount">금액이 없는 계약입니다(비밀유지계약 등)</label>
+            <p class="field-help">체크하면 제품, 금액, 정산 방식을 넣지 않고, 체크리스트 2, 3번은 해당 없음이 됩니다.</p>
+          </div>
+
+          <div class="field" data-field="products" id="products-field">
             <p class="field-label" id="products-label">제품별 금액<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></p>
             <ul class="product-list" id="product-list" aria-labelledby="products-label"></ul>
             <button type="button" class="btn btn--tertiary btn--add" id="btn-add-product">제품 추가</button>
             <p class="field-error" hidden></p>
           </div>
 
-          <div class="amount-total" aria-live="polite">
+          <div class="amount-total" id="amount-total-row" aria-live="polite">
             <span class="amount-total-label">계약 금액 총액 <span class="opt">(부가세 별도)</span></span>
             <span class="amount-total-value" id="amount-total">0원</span>
           </div>
@@ -241,7 +228,7 @@
             <p class="field-error" hidden></p>
           </div>
 
-          <fieldset class="field" data-field="settlement">
+          <fieldset class="field" data-field="settlement" id="settlement-field">
             <legend class="field-label">정산 방식<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
             <div class="choice-row" id="settlement-choices"></div>
             <p class="field-error" hidden></p>
@@ -257,7 +244,7 @@
             </fieldset>
             <div class="field">
               <label class="field-label" for="f-tax">세금계산서 <span class="opt">(선택)</span><span class="badge badge--proposal tag-tbd">형식 미정</span></label>
-              <input class="input" id="f-tax" name="taxInvoice" type="text" placeholder="예: 계약일 기준 정발행">
+              <input class="input" id="f-tax" name="taxInvoice" type="text" placeholder="예: 계약 시작일 기준 정발행">
             </div>
             <div class="field">
               <label class="field-label" for="f-purchase">매입 <span class="opt">(선택)</span><span class="badge badge--proposal tag-tbd">형식 미정</span></label>
@@ -378,7 +365,7 @@
         <!-- ============ 5. 결재선 (자동, REQ-CHK-05) ============ -->
         <section class="panel" aria-labelledby="sec-route">
           <h2 class="section-title" id="sec-route"><span class="num">5</span>결재선</h2>
-          <p class="section-desc">체크리스트 답과 개인정보 처리 여부에 따라 자동으로 정해집니다. 금액에 따라 결재선이 바뀌지는 않습니다.</p>
+          <p class="section-desc">체크리스트 답과 개인정보 처리위탁 계약 여부에 따라 자동으로 정해집니다. 금액에 따라 결재선이 바뀌지는 않습니다.</p>
           <div id="route" aria-live="polite"></div>
         </section>
 

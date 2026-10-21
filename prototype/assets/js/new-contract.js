@@ -2,7 +2,7 @@
  * SCR-11 새 계약 등록 화면 로직 (new-contract.js)
  * ---------------------------------------------------------------------
  * 관련 요구사항: 요구사항 정의서 3.4(입력 항목), 3.5(체크리스트와 결재선),
- *   REQ-FLOW-14(임시 저장, 기안), REQ-FLOW-17(재기안은 다음 차수), REQ-FLOW-18(변경, 갱신 묶음 번호),
+ *   REQ-FLOW-14(임시 저장, 기안), REQ-FLOW-17(재기안은 다음 차수), REQ-FLOW-18(변경, 연장 묶음 번호),
  *   REQ-SCOPE-02, REQ-CHK-04(가격 기준으로 체크리스트 2, 3번 자동 계산), REQ-CHK-05(결재선 자동)
  * 하는 일
  *   1. 영업만 쓸 수 있게 막기
@@ -22,7 +22,8 @@
   const $$ = function (s, root) { return Array.prototype.slice.call((root || document).querySelectorAll(s)); };
 
   const form = $('#contract-form');
-  const NDA = C.typeLabel('NDA'); // 비밀유지계약(NDA): 코드 관리에서 이름을 바꿔도 같은 유형으로 판단
+  // v0.34: 계약 유형을 없앰. 예전 기록의 비밀유지계약(NDA)은 "금액이 없는 계약"으로 이어서 씀
+  const NDA = C.typeLabel('NDA');
   const PRICE = {};
   D.PRICE_BOOK.forEach(function (p) { PRICE[p.code] = p; });
 
@@ -66,9 +67,7 @@
 
   /* ---------- 선택지 채우기 (3.4) ---------- */
   $('#f-owner').value = C.ownerLabel(me.id); // "경영지원유닛 원지안" (님 없이, v0.32)
-  $('#f-type').innerHTML = '<option value="">고르세요</option>' +
-    D.CONTRACT_TYPES.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('');
-  // 계약 유형, 계약 방식, 정산 방식: 코드 관리(SCR-56)에서 사용 중인 코드만 고름
+  // 계약 방식(직접, 조달, 간접), 정산 방식: 코드 관리(SCR-56)에서 사용 중인 코드만 고름 (계약 유형은 v0.34에서 없앰)
   $('#method-choices').innerHTML = C.codeList('METHOD').map(function (c) {
     return '<label class="choice"><input type="radio" name="method" value="' + c.code + '">' + esc(c.label) + '</label>';
   }).join('');
@@ -82,8 +81,8 @@
    *   선택 값(name="customer"): 'C:거래처 번호' 우리 거래처 / 'R:사업자등록번호' DB / 'NEW' 직접 입력
    * 프로토타입: 새 거래처는 기안할 때 함께 등록되는 것으로 안내만 함. 실제 시스템은 서버가 사업자등록번호 중복과 상태를 다시 검사 */
   const NEW_CUSTOMER = 'NEW';
-  const HELP_SEARCH = '상호나 사업자등록번호 일부를 넣어 찾습니다. 우리 거래처와 사업자 정보 DB(' + D.BIZ_REGISTRY_INFO.source + ', ' +
-    C.fmtDate(D.BIZ_REGISTRY_INFO.refreshedAt) + ' 기준)를 함께 찾고, 고르면 상호와 사업자등록번호가 채워집니다.';
+  const HELP_SEARCH = '상호나 사업자등록번호 일부를 넣어 찾습니다. 우리 거래처와 ' + D.BIZ_REGISTRY_INFO.source + '(' +
+    C.fmtDate(D.BIZ_REGISTRY_INFO.refreshedAt) + ' 기준)를 함께 찾고, 고르면 상호와 사업자등록번호가 채워집니다. 찾는 곳이 없으면 직접 입력합니다.';
   const qInput = $('#f-customer-q'), panel = $('#customer-panel'), list = $('#customer-list');
   $('#customer-icon').innerHTML = C.icon('search', 'sm');
   $('#customer-help').textContent = HELP_SEARCH;
@@ -94,7 +93,7 @@
     $('#f-counterparty').readOnly = !manual;
     $('#f-bizno').readOnly = !manual;
     $('#f-counterparty').value = name || '';
-    $('#f-bizno').value = bizNo || '';
+    $('#f-bizno').value = C.fmtBizNo(bizNo); // 000-00-00000 (v0.34)
     // 지시문은 예시 글자에 두지 않고 거래처 칸 도움말에 둠 (KRDS, v0.28)
     $('#f-counterparty').placeholder = manual ? '예: 사업자등록증의 상호' : '';
     $('#customer-help').innerHTML = !key ? esc(HELP_SEARCH)
@@ -244,6 +243,7 @@
   });
 
   function readProducts() {
+    if (val('noAmount')) return []; // 금액이 없는 계약 (v0.34)
     return $$('#product-list > li').map(function (li) {
       const code = li.querySelector('[data-k="code"]').value;
       const qty = parseNum(li.querySelector('[data-k="qty"]').value);
@@ -280,8 +280,8 @@
   function renderYearly() {
     const years = contractYears();
     const box = $('#yearly-field');
-    box.hidden = years.length <= 1;
-    if (years.length <= 1) { yearSig = ''; return; }
+    box.hidden = years.length <= 1 || val('noAmount'); // 금액이 없는 계약은 연도별 금액도 없음 (v0.34)
+    if (box.hidden) { yearSig = ''; return; }
     // 기간이 바뀌었을 때만 다시 그림 (입력하는 중에 칸이 사라지지 않게)
     const sig = JSON.stringify(years);
     if (sig === yearSig) { updateYearSum(); return; }
@@ -307,10 +307,10 @@
   /* ---------- 4. 체크리스트 2, 3번 자동 계산 (REQ-CHK-04) ----------
    * 2번(표준단가표 적용): 모든 제품이 표준 단가 그대로면 예, 하나라도 할인이 있으면 아니오
    * 3번(할인율 한도 준수): 모든 제품의 할인율이 그 제품의 한도 이하이면 예
-   * 금액이 없는 비밀유지계약(NDA)은 해당 없음 → 영업 검토 생략 */
+   * 금액이 없는 계약(비밀유지계약 등, 체크 칸)은 해당 없음 → 영업 검토 생략 (v0.34) */
   function priceCheck(rows) {
     if (!rows.length) {
-      return val('type') === NDA
+      return val('noAmount')
         ? { q2: 'NA', q3: 'NA', d2: '금액이 없는 계약이라 해당되지 않습니다.', d3: '금액이 없는 계약이라 해당되지 않습니다.' }
         : { q2: 'WAIT', q3: 'WAIT', d2: '제품을 넣으면 자동으로 계산됩니다.', d3: '제품을 넣으면 자동으로 계산됩니다.' };
     }
@@ -346,7 +346,7 @@
   function buildRoute(q1, pc) {
     const personal = val('personalData');
     const legal = q1 === 'YES' ? ['skip', '표준계약서를 그대로 씀'] : q1 === 'NO' ? ['go', '표준계약서를 바꿈'] : ['wait', '체크리스트 1번 답을 기다림'];
-    const privacy = personal === 'YES' ? ['go', '개인정보를 처리함'] : personal === 'NO' ? ['skip', '개인정보 처리 없음'] : ['wait', '개인정보 처리 여부를 기다림'];
+    const privacy = personal === 'YES' ? ['go', '개인정보 처리위탁 계약 있음'] : personal === 'NO' ? ['skip', '개인정보 처리위탁 계약 없음'] : ['wait', '개인정보 처리위탁 계약 여부를 기다림'];
     let sales;
     if (pc.q2 === 'NA') sales = ['skip', '금액이 없는 계약'];
     else if (pc.q2 === 'YES') sales = ['skip', '표준단가표를 적용함'];
@@ -442,7 +442,8 @@
       ? '<a class="btn btn--tertiary btn--md ext-btn" href="' + C.pandaUrl(v) + '" target="_blank" rel="noopener noreferrer">' + C.icon('external', 'sm') + '판다에서 열기<span class="sr-only">(새 창)</span></a>' : '';
   }
   form.addEventListener('input', function (e) {
-    if (e.target.id === 'f-bizno') e.target.value = formatBizNo(e.target.value);
+    // 사업자등록번호: 숫자만 넣으면 '-'를 붙여 보여 줌(글자는 지움, v0.34)
+    if (e.target.id === 'f-bizno') e.target.value = C.fmtBizNo(e.target.value);
     if (e.target.id === 'f-opportunity') { e.target.value = e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, ''); updateOppLink(); }
     clearError(e.target);
     refresh();
@@ -452,19 +453,19 @@
     clearError(e.target);
     if (e.target.name === 'kind') onKindChange();
     if (e.target.id === 'f-origin') onOriginChange();
-    if (e.target.id === 'f-service-diff') $('#service-fields').hidden = !e.target.checked;
+    if (e.target.id === 'f-no-amount') applyNoAmount();
     if (e.target.name === 'autoRenew') $('#notice-days-field').hidden = val('autoRenew') !== 'YES';
     refresh();
   });
 
-  function formatBizNo(v) {
-    const d = v.replace(/[^0-9]/g, '').slice(0, 10);
-    if (d.length <= 3) return d;
-    if (d.length <= 5) return d.slice(0, 3) + '-' + d.slice(3);
-    return d.slice(0, 3) + '-' + d.slice(3, 5) + '-' + d.slice(5);
+  // 금액이 없는 계약(v0.34): 제품, 총액, 연도별 금액, 정산 방식을 감추고 묻지 않음
+  function applyNoAmount() {
+    const off = $('#f-no-amount').checked;
+    ['#products-field', '#amount-total-row', '#settlement-field'].forEach(function (s) { $(s).hidden = off; });
+    renderYearly();
   }
 
-  /* ---------- 변경, 갱신: 원계약 고르기 (REQ-FLOW-18) ---------- */
+  /* ---------- 변경, 연장: 원계약 고르기 (REQ-FLOW-18) ---------- */
   function onKindChange() {
     const kind = val('kind');
     $('#origin-field').hidden = kind === 'NEW';
@@ -482,11 +483,10 @@
     help.textContent = no
       ? '기안하면 ' + no + '(' + D.KINDS[val('kind')] + ' ' + no.slice(-2).replace(/^0/, '') + '차)로 원계약과 함께 묶입니다.'
       : '보관함에 있는 계약 중에서 고릅니다. 원계약 번호에 차수가 붙어 함께 묶입니다.';
-    // 원계약을 고르면 거래처와 계약 유형을 미리 채움 (비어 있을 때만). 계약명은 두지 않음 (v0.12)
+    // 원계약을 고르면 거래처를 미리 채움 (비어 있을 때만). 계약명은 두지 않음 (v0.12)
     const o = D.CONTRACTS.find(function (c) { return c.id === $('#f-origin').value; });
     if (o) {
       if (!$('#f-customer').value) pickCustomerByName(o.counterparty);
-      if (!$('#f-type').value) $('#f-type').value = o.type;
     }
   }
 
@@ -548,39 +548,34 @@
       errors.push({ msg: msg, target: target });
     }
     const kind = val('kind');
-    need(!!kind, 'kind', '계약 구분을 고르세요.');
+    need(!!kind, 'kind', '계약종류를 고르세요.');
     if (kind && kind !== 'NEW') need(!!$('#f-origin').value, 'origin', '원계약을 고르세요.');
     need(!!val('customer'), 'customer', '거래처를 검색해 고르세요. 검색 결과가 없으면 직접 입력합니다.', qInput);
     if (val('customer') === NEW_CUSTOMER) {
       need(!!val('counterparty'), 'counterparty', '거래처 상호를 입력하세요.');
-      const no = val('bizNo');
-      const dupCu = D.CUSTOMERS.filter(function (cu) { return cu.bizNo === no; })[0];
-      const inDb = D.BIZ_REGISTRY.filter(function (r) { return r.bizNo === no; })[0];
-      need(/^\d{3}-\d{2}-\d{5}$/.test(no), 'bizNo', '사업자등록번호 10자리를 입력하세요.');
-      // 검증 숫자 규칙 (실제 시스템은 국세청 상태 조회로 휴업, 폐업도 확인 [가정])
-      if (/^\d{3}-\d{2}-\d{5}$/.test(no)) need(C.isBizNo(no), 'bizNo', '사업자등록번호가 맞지 않습니다. 사업자등록증의 숫자를 다시 확인하세요.');
+      const no = val('bizNo').replace(/-/g, ''); // 숫자 10자리로 비교. 저장과 표시는 000-00-00000 (v0.34)
+      const digits = function (x) { return String(x).replace(/-/g, ''); };
+      const dupCu = D.CUSTOMERS.filter(function (cu) { return digits(cu.bizNo) === no; })[0];
+      const inDb = D.BIZ_REGISTRY.filter(function (r) { return digits(r.bizNo) === no; })[0];
+      need(/^\d{10}$/.test(no), 'bizNo', '사업자등록번호 10자리를 입력하세요.');
+      // 검증 숫자 규칙
+      if (/^\d{10}$/.test(no)) need(C.isBizNo(no), 'bizNo', '사업자등록번호가 맞지 않습니다. 사업자등록증의 숫자를 다시 확인하세요.');
       if (C.isBizNo(no)) need(!dupCu && !inDb, 'bizNo', '이미 ' + (dupCu ? '거래처 목록' : '사업자 정보 DB') + '에 있는 번호입니다(' + (dupCu || inDb || {}).name + '). 거래처 칸에서 검색해 고르세요.');
     }
     // 영업기회번호: 필수, 판다 번호 규칙 (v0.32 기획자 요청)
     need(!!val('opportunity'), 'opportunity', '영업기회번호를 입력하세요.');
     if (val('opportunity')) need(C.isOppNo(val('opportunity')), 'opportunity', '영업기회번호는 연도 2자리, 월 2자리, 영문 2자리, 일련번호 3자리입니다(예: 2610SU067).');
-    need(!!val('type'), 'type', '계약 유형을 고르세요.');
     need(!!val('method'), 'method', '계약 방식을 고르세요.');
-    need(!!val('contractDate'), 'contractDate', '계약일을 입력하세요.');
     need(!!val('startDate'), 'startDate', '계약 시작일을 입력하세요.');
     need(!!val('endDate'), 'endDate', '계약 종료일을 입력하세요.');
     if (val('startDate') && val('endDate')) need(val('endDate') >= val('startDate'), 'endDate', '종료일은 시작일보다 뒤여야 합니다.');
-    if ($('#f-service-diff').checked) {
-      need(!!val('serviceStart'), 'serviceStart', '서비스 시작일을 입력하세요.');
-      need(!!val('serviceEnd'), 'serviceEnd', '서비스 종료일을 입력하세요.');
-    }
     need(!!val('autoRenew'), 'autoRenew', '자동갱신 여부를 고르세요.');
     if (val('autoRenew') === 'YES') need(!!parseNum(val('noticeDays')), 'noticeDays', '해지 통지 기한(만료 며칠 전)을 입력하세요.');
-    need(!!val('personalData'), 'personalData', '개인정보 처리 여부를 고르세요.');
+    need(!!val('personalData'), 'personalData', '개인정보 처리위탁 계약 여부를 고르세요.');
 
-    // 제품: 비밀유지계약이 아니면 1개 이상, 줄마다 제품, 수량, 금액
+    // 제품: 금액이 없는 계약이 아니면 1개 이상, 줄마다 제품, 수량, 금액 (v0.34)
     const rows = readProducts();
-    if (!rows.length && val('type') !== NDA) need(false, 'products', '제품을 1개 이상 넣으세요.', $('#btn-add-product'));
+    if (!rows.length && !val('noAmount')) need(false, 'products', '제품을 1개 이상 넣으세요. 금액이 없는 계약이면 위에서 체크합니다.', $('#btn-add-product'));
     rows.forEach(function (r, i) {
       if (r.product && r.qty && r.amount != null) return;
       r.li.classList.add('is-invalid');
@@ -597,7 +592,7 @@
       need(ys.every(function (y) { return y != null; }) && sum === totalAmount(), 'yearly',
         '연도별 금액을 모두 넣고, 합계를 총액(' + fmtNum(totalAmount()) + '원)과 맞추세요.');
     }
-    need(!!val('settlement'), 'settlement', '정산 방식을 고르세요.');
+    if (!val('noAmount')) need(!!val('settlement'), 'settlement', '정산 방식을 고르세요.');
 
     // 체크리스트: 1번은 직접 답, "아니오"인 문항은 비고(사유) 필수 (panda p.9)
     need(!!val('standard'), 'standard', '체크리스트 1번에 답하세요.');
@@ -710,9 +705,9 @@
     pickCustomerByName(source.counterparty, f.bizNo);
     $('#f-opportunity').value = f.opportunity || '';
     updateOppLink();
-    $('#f-type').value = source.type || '';
-    setRadio('method', f.method);
-    $('#f-contract-date').value = f.contractDate || '';
+    // 예전 비밀유지계약(유형 NDA)은 금액이 없는 계약으로 (v0.34)
+    if (source.type === NDA || f.noAmount) { $('#f-no-amount').checked = true; applyNoAmount(); }
+    setRadio('method', f.method === 'RESELLER' ? 'INDIRECT' : f.method);
     $('#f-start').value = f.startDate || '';
     $('#f-end').value = f.endDate || '';
     setRadio('autoRenew', f.autoRenew);
@@ -730,7 +725,7 @@
     if (source.status === 'REJECTED') { files.draft.push({ name: source.counterparty + ' 계약서 1차 기안본.docx', size: 84000 }); renderFiles('draft'); }
     if (source.status === 'REJECTED' && f.checklist && f.checklist.standard === 'NO') { files.diff.push({ name: source.counterparty + ' 조항 대비표.docx', size: 36000 }); renderFiles('diff'); }
   }
-  // 계약 상세, 만료 예정에서 "변경 기안", "갱신 기안"으로 들어오면 구분과 원계약을 미리 고름
+  // 계약 상세, 만료 예정에서 "변경 기안", "연장 기안"으로 들어오면 구분과 원계약을 미리 고름
   //   new-contract.html?kind=AMEND&origin=CT-2026-0105 (REQ-ARC-02, 05)
   const pre = new URLSearchParams(location.search);
   if (!source && ['AMEND', 'RENEW'].indexOf(pre.get('kind')) > -1) {

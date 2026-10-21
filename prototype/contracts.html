@@ -18,7 +18,7 @@
 <!-- =====================================================================
   SCR-41 전체 계약 (docs/02_화면목록.md)
   - 보관함: 반려, 진행 중, 계약 완료, 만료, 해지를 포함한 모든 계약을 묶음마다 한 줄로 (REQ-FLOW-15, REQ-ARC-01)
-    묶음 = 원계약 + 변경(-A) + 갱신(-R) + 해지(-T) (REQ-FLOW-18, 3.3 방식 C)
+    묶음 = 원계약 + 변경(-A) + 연장(-R) + 해지(-T) (REQ-FLOW-18, 3.3 방식 C)
   - 작성 중(임시 저장)은 나오지 않습니다. 열람 제한 계약은 볼 수 없는 사람에게 가립니다(REQ-AUTH-09).
   - 고객사를 누르면 계약 상세(SCR-42)가 열립니다. 거르기, 쪽 나누기는 assets/js/contracts.js가 처리합니다.
 ====================================================================== -->
@@ -35,8 +35,8 @@
         <h1 class="page-title">전체 계약</h1>
       </div>
       <div class="page-intro">
-        <p>지금까지의 모든 계약입니다. 원계약과 그 변경, 갱신, 해지를 한 줄로 묶어 보여 줍니다.</p>
-        <p class="sub">계약 기간은 지금 유효한 계약(가장 나중에 끝난 갱신, 없으면 원계약) 기준입니다. 고객사를 누르면 계약 상세가 열립니다.</p>
+        <p>지금까지의 모든 계약입니다. 원계약과 그 변경, 연장, 해지를 한 줄로 묶어 보여 줍니다.</p>
+        <p class="sub">계약 기간은 지금 유효한 계약(가장 나중에 끝난 연장, 없으면 원계약) 기준입니다. 고객사를 누르면 계약 상세가 열립니다.</p>
       </div>
 
       <section id="list" aria-labelledby="list-title">
@@ -55,7 +55,7 @@
             <select class="select" id="f-service"></select>
           </div>
           <div class="field">
-            <label class="field-label field-label--sm" for="f-owner">영업 대표</label>
+            <label class="field-label field-label--sm" for="f-owner">영업대표</label>
             <select class="select" id="f-owner"></select>
           </div>
           <button type="reset" class="btn btn--tertiary btn--md filter-reset">초기화</button>
@@ -64,15 +64,15 @@
         <div class="list-head"><p class="list-count" id="list-count" aria-live="polite"></p></div>
         <div class="tbl-scroll">
           <table class="tbl tbl--compact tbl--progress">
-            <caption class="sr-only">전체 계약: 고객사, 서비스, 상태, 계약 기간, 변경과 갱신, 영업 대표</caption>
+            <caption class="sr-only">전체 계약: 고객사, 서비스, 상태, 계약 기간, 변경과 연장, 영업대표</caption>
             <thead>
               <tr>
                 <th scope="col" class="col-customer">고객사</th>
                 <th scope="col" class="col-service">서비스</th>
                 <th scope="col">상태</th>
                 <th scope="col">계약 기간</th>
-                <th scope="col">변경과 갱신</th>
-                <th scope="col">영업 대표</th>
+                <th scope="col">변경과 연장</th>
+                <th scope="col">영업대표</th>
               </tr>
             </thead>
             <tbody id="rows"></tbody>

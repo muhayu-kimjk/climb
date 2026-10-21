@@ -142,7 +142,7 @@
         '<div class="choice-row"><label class="choice"><input type="radio" name="result" value="OK">' + esc(okLabel) + '</label>' +
         '<label class="choice"><input type="radio" name="result" value="ACTION">조치함</label></div><p class="field-error" hidden></p></fieldset>' +
       C.fieldHtml({ name: 'note', label: '확인한 내용', type: 'textarea', required: true }) +
-      C.fieldHtml({ name: 'act', label: '조치', type: 'textarea', help: '조치함을 고르면 꼭 적습니다. 예: 퇴사자 계정 사용 중지 요청(관리자, 10. 2. 처리)' });
+      C.fieldHtml({ name: 'act', label: '조치', type: 'textarea', help: '조치함을 고르면 꼭 적습니다. 예: 퇴사자 계정 사용 중지 요청(관리자, 2026-10-02 처리)' });
   }
   function checkResult(f) {
     const r = f.querySelector('[name="result"]:checked');

@@ -4,7 +4,7 @@
  * 관련 요구사항: REQ-FLOW-04~05, REQ-SIGN-07, REQ-ENV-10
  * 하는 일
  *   1. 계약 검토가 끝나 체결 중인 계약(⑥ 인장 날인, ⑦ 체결본 등록, ⑧ 체결본 확인)을 모음
- *      영업은 내가 기안한 계약만, 최고관리자와 관리자는 모든 계약을 영업 대표 칸과 함께
+ *      영업은 내가 기안한 계약만, 최고관리자와 관리자는 모든 계약을 영업대표 칸과 함께
  *   2. 검색, 지금 단계, 승인 후 14일 이상으로 거르기. 오래된 승인부터
  *   3. 한 쪽에 20건씩 쪽 나누기
  * ===================================================================== */
@@ -39,7 +39,7 @@
   $('#f-step').innerHTML = options('전체', SIGN_STEPS.map(function (code) { return [code, D.STEPS[code].no + ' ' + D.STEPS[code].ing]; }));
 
   $('#thead').innerHTML = '<tr><th scope="col" class="col-customer">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col">지금 단계</th>' +
-    (seeAll ? '<th scope="col">영업 대표</th>' : '') + '<th scope="col">승인일</th><th scope="col" class="num">승인 후</th></tr>';
+    (seeAll ? '<th scope="col">영업대표</th>' : '') + '<th scope="col">승인일</th><th scope="col" class="num">승인 후</th></tr>';
 
   let page = 1;
   function filtered() {

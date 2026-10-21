@@ -114,10 +114,11 @@ window.CLIMB_DATA = (function () {
     TERMINATED: { label: '해지', tone: 'neutral' },
   };
 
-  // 계약 구분 (REQ-FLOW-08~09: 갱신, 변경은 원계약(parentId)과 연결)
+  // 계약종류 (REQ-FLOW-08~09: 연장, 변경은 원계약(parentId)과 연결)
   // 해지(TERMINATE)는 원계약을 기간 중에 끝내는 기안 (REQ-FLOW-29, 번호 끝 -T01)
   // 운영 변경(CHANGE)은 계약서를 바꾸지 않고 기간 변경이나 추가 충전만 하는 기안 (번호 끝 -C01, 재무 문서 반영 v0.26)
-  const KINDS = { NEW: '신규', AMEND: '변경', RENEW: '갱신', TERMINATE: '해지', CHANGE: '운영 변경' };
+  // 계약종류(v0.34 기획자 결정: 계약 구분에서 이름을 바꾸고 RENEW의 이름도 연장으로, 내부 CRM과 맞춤). 코드 RENEW는 그대로
+  const KINDS = { NEW: '신규', AMEND: '변경', RENEW: '연장', TERMINATE: '해지', CHANGE: '운영 변경' };
   // 운영 변경 종류: 한 번에 한 가지만 (재무 문서 원칙)
   const CHANGE_TYPES = { PERIOD: '계약 기간 변경', CK_FREE: 'CK 무상 추가 충전', CK_PAID: 'CK 유상 추가 충전', HR_FREE: 'HR 무상 추가 충전', HR_PAID: 'HR 유상 추가 충전' };
   // 운영 변경에서 ③ 영업 검토를 거치는 기준 (재무 문서): 기간이 2개월 넘게 바뀜, 무상 충전이 50건을 넘음. 유상 충전은 영업 검토 없음
@@ -125,7 +126,7 @@ window.CLIMB_DATA = (function () {
 
   /* ---------- 계약 등록(SCR-11) 선택지 (요구사항 정의서 3.4) ---------- */
   const CONTRACT_TYPES = ['SaaS 이용계약', '비밀유지계약(NDA)', '리셀러 계약', '개인정보 처리위탁 계약', '기타'];
-  const METHODS = { DIRECT: '직접', PROCURE: '조달', RESELLER: '리셀러' };      // C-10 확정
+  const METHODS = { DIRECT: '직접', PROCURE: '조달', INDIRECT: '간접' };      // C-10 확정. v0.34: 리셀러 → 간접, 계약 유형을 합침
   const SETTLEMENTS = { LUMP: '일시', SPLIT: '분할', POST: '후불' };          // C-10 확정
 
   /* ---------- 서비스 [가정] ----------
@@ -245,7 +246,7 @@ window.CLIMB_DATA = (function () {
 
   /* 계약 [가정] (데이터 정의서 3장)
    * checklist: 체크리스트 답. standard 1번(영업이 답함), price 2번과 cap 3번(제품 금액으로 자동 계산, NA는 해당 없음)
-   *   → 결재선은 이 답과 개인정보 처리 여부(personalData)로만 정합니다. 금액 기준은 없습니다. (REQ-CHK-05)
+   *   → 결재선은 이 답과 개인정보 처리위탁 계약 여부(personalData)로만 정합니다. 금액 기준은 없습니다. (REQ-CHK-05)
    * history: 결재 기록. 결재 단계의 지금 상태(approvals)는 common.js가 이 기록을 차례로 다시 적용해 만듭니다.
    * products: 계약 제품 줄. 비어 있으면 검토 상세 화면에서 서비스와 금액으로 예시 줄을 만듭니다.
    * autoHistory: 이미 검토가 끝난 계약. 결재 기록을 승인일(approvedAt)에 맞춰 자동으로 만듭니다(시연용). */
@@ -419,7 +420,7 @@ window.CLIMB_DATA = (function () {
 
     /* ----- 계약 완료 (ACTIVE): 보관함 ----- */
     {
-      // 자동갱신 계약, 만료 26일 전인데 갱신 검토를 아직 하지 않은 예시 (해지 통지 기한 60일은 이미 지남)
+      // 자동갱신 계약, 만료 26일 전인데 연장 검토를 아직 하지 않은 예시 (해지 통지 기한 60일은 이미 지남)
       id: 'CT-2025-0871', counterparty: '한결대학교', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 54000000, requesterId: 'u_sales1', requestedAt: '2025-11-03 10:00', restricted: false, personalData: true,
       status: 'ACTIVE', approvedAt: '2025-11-07 15:00', autoHistory: true, startDate: '2025-11-15', endDate: '2026-11-14',
@@ -445,7 +446,7 @@ window.CLIMB_DATA = (function () {
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
     },
     {
-      // 자동갱신 계약. 갱신 검토(그대로 연장)를 기안해 ④ 법무 차례인 예시는 아래 CT-2026-0011-R01
+      // 자동갱신 계약. 연장 검토(조건 그대로)를 기안해 ④ 법무 차례인 예시는 아래 CT-2026-0011-R01
       id: 'CT-2026-0011', counterparty: '온새미로대학교', services: ['CK', 'HR'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 72000000, requesterId: 'u_sales1', requestedAt: '2025-12-22 10:00', restricted: false, personalData: true,
       status: 'ACTIVE', approvedAt: '2025-12-29 15:00', autoHistory: true, startDate: '2026-01-10', endDate: '2027-01-09',
@@ -465,9 +466,9 @@ window.CLIMB_DATA = (function () {
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
       notes: [{ type: 'ISSUE', at: '2026-08-20 11:00', by: 'u_sales1', content: '병원 정보보호팀 감사로 접속 기록 사본을 요청받아 CEM유닛이 제공함' }],
     },
-    /* ----- 갱신 검토와 해지 기안 (짧은 결재: ③ 영업 리더 → ④ 법무 → ⑨ 운영 → ⑩ 재무, REQ-ARC-06, 07) ----- */
+    /* ----- 연장 검토와 해지 기안 (짧은 결재: ③ 영업 리더 → ④ 법무 → ⑨ 운영 → ⑩ 재무, REQ-ARC-06, 07) ----- */
     {
-      // 갱신 검토 "그대로 자동갱신" 예시: ③ 영업 리더 승인, ④ 법무 차례
+      // 연장 검토 "그대로 자동갱신" 예시: ③ 영업 리더 승인, ④ 법무 차례
       id: 'CT-2026-0011-R01', parentId: 'CT-2026-0011', counterparty: '온새미로대학교', services: ['CK', 'HR'], type: 'SaaS 이용계약',
       kind: 'RENEW', renewMode: 'AUTO', amount: 72000000, requesterId: 'u_sales1', requestedAt: '2026-10-15 10:00',
       restricted: false, personalData: true, status: 'IN_REVIEW', startDate: '2027-01-10', endDate: '2028-01-09',
@@ -648,12 +649,11 @@ window.CLIMB_DATA = (function () {
   });
 
   /* ---------- 사업자 정보 DB: 거래처 검색 (기획자 요청 v0.32, 요구사항 정의서 REQ-REG-18) ----------
-   * 상호와 사업자등록번호만 가져와 CLIMB 안에 두는(내재화) DB입니다. 출처(v0.33 기획자 결정, 요구사항 정의서 3.4.1, C-22):
-   *   우리 전자세금계산서와 계약관리대장을 먼저, 금융위원회 기업기본정보, OpenDART, 공정거래위원회 통신판매사업자, 조달청 업체 정보를 더함
-   *   (국민연금 자료는 번호가 잘려 있을 수 있어 쓰지 않음). 대표자명, 전화, 이메일은 가져오지 않음
+   * 상호와 사업자등록번호만 CLIMB 안에 두는(내재화) DB입니다. 출처(v0.34 기획자 결정, C-22): 기획자가 모은 거래처 자료를 받아 넣음(추후 전달).
+   *   공공데이터 API는 쓰지 않음(v0.33 권고안을 바꿈). 대표자명, 전화, 이메일은 넣지 않음
    * 계약 등록의 거래처 검색은 우리 거래처 목록(CUSTOMERS)과 이 DB를 함께 찾습니다.
    * 아래는 시연용 가상 사업체와 가상 번호입니다(번호는 사업자등록번호 검증 숫자 규칙에 맞춰 만듦). 실제 사업체가 아닙니다. */
-  const BIZ_REGISTRY_INFO = { refreshedAt: '2026-10-19', source: '우리 세금계산서와 공공데이터' };
+  const BIZ_REGISTRY_INFO = { refreshedAt: '2026-10-19', source: '모아 둔 사업자 자료' };
   const BIZ_REGISTRY = [
     ['한빛초등학교', '128-83-11021'], ['한빛고등학교', '128-82-20519'], ['한빛의료재단 한빛병원', '135-82-33176'],
     ['별가람대학교', '312-82-44080'], ['미래로간호대학교', '506-82-51231'], ['푸른누리병원', '410-82-62908'],
@@ -671,7 +671,7 @@ window.CLIMB_DATA = (function () {
     // levels: 단계가 있는 코드표의 단계 이름 (조직은 실과 그 아래 유닛, 서비스는 3단계)
     DEPT: { name: '조직', table: 'CODE-DEPT', note: '사용자 권한 관리에서 고르는 조직(실, 유닛). 화면 맨 위 이름 앞에 보임', levels: { 1: '1단계', 2: '2단계' } },
     SERVICE: { name: '서비스', table: 'CODE-SERVICE', note: '대분류, 중분류, 소분류 3단계. 제품(가격 기준)이 속하는 서비스', levels: { 1: '대분류', 2: '중분류', 3: '소분류' } },
-    CONTRACT_TYPE: { name: '계약 유형', table: 'CODE-CONTRACT-TYPE', note: '계약 등록에서 고르는 유형' },
+    // 계약 유형(CONTRACT_TYPE)은 v0.34에서 없애 코드 관리에 보이지 않음. 코드 줄은 예전 기록을 읽을 때만 씀
     METHOD: { name: '계약 방식', table: 'CODE-METHOD', note: '계약 등록에서 고르는 방식' },
     SETTLEMENT: { name: '정산 방식', table: 'CODE-SETTLEMENT', note: '계약 등록에서 고르는 방식' },
     AFTERCARE: { name: '사후관리 기록 종류', table: 'CODE-AFTERCARE-TYPE', note: '계약 상세의 사후관리 기록에서 고르는 종류' },
@@ -689,7 +689,7 @@ window.CLIMB_DATA = (function () {
     ['SERVICE', 'HR_PRISM', '프리즘', 2, 'HR'], ['SERVICE', 'HR_MONSTER', '몬스터', 2, 'HR'], ['SERVICE', 'HR_PRISM_Q', '프리즘Q', 3, 'HR_PRISM'],
     ['CONTRACT_TYPE', 'SAAS', 'SaaS 이용계약'], ['CONTRACT_TYPE', 'NDA', '비밀유지계약(NDA)'], ['CONTRACT_TYPE', 'RESELLER', '리셀러 계약'],
     ['CONTRACT_TYPE', 'DPA', '개인정보 처리위탁 계약'], ['CONTRACT_TYPE', 'ETC', '기타'],
-    ['METHOD', 'DIRECT', '직접'], ['METHOD', 'PROCURE', '조달'], ['METHOD', 'RESELLER', '리셀러'],
+    ['METHOD', 'DIRECT', '직접'], ['METHOD', 'PROCURE', '조달'], ['METHOD', 'INDIRECT', '간접'],
     ['SETTLEMENT', 'LUMP', '일시'], ['SETTLEMENT', 'SPLIT', '분할'], ['SETTLEMENT', 'POST', '후불'],
     ['AFTERCARE', 'CONTACT_CHANGE', '담당자 변경'], ['AFTERCARE', 'ISSUE', '특이사항'],
   ].map(function (r) { return { group: r[0], code: r[1], label: r[2], level: r[3] || null, parent: r[4] || null, use: true }; });
@@ -701,9 +701,9 @@ window.CLIMB_DATA = (function () {
    * by, at: 지정한 관리자와 일시 / endedAt: 기간 전에 끝냈으면 그 일시 */
   const DELEGATIONS = [
     { id: 'DL-001', absentId: 'u_legal', delegateId: 'u_minjae_song', from: '2026-10-05', to: '2026-10-07',
-      reason: '김지우님 연차(10. 5.~10. 7.). 같은 법무 담당자 송민재님이 법무 검토를 대신함', by: 'u_admin', at: '2026-10-02 10:20', endedAt: null },
+      reason: '김지우님 연차(2026-10-05~2026-10-07). 같은 법무 담당자 송민재님이 법무 검토를 대신함', by: 'u_admin', at: '2026-10-02 10:20', endedAt: null },
     { id: 'DL-002', absentId: 'u_eunseong_ko', delegateId: 'u_exec', from: '2026-10-19', to: '2026-10-23',
-      reason: '고은성님 해외 출장(10. 19.~10. 23.). 비즈니스2유닛 계약의 영업 검토를 영업 임원이 대신 결재(위임전결규정 대결)', by: 'u_admin', at: '2026-10-16 17:40', endedAt: null },
+      reason: '고은성님 해외 출장(2026-10-19~2026-10-23). 비즈니스2유닛 계약의 영업 검토를 영업 임원이 대신 결재(위임전결규정 대결)', by: 'u_admin', at: '2026-10-16 17:40', endedAt: null },
   ];
   // 단계 담당자를 바꾼 이력. 바꾸면 아직 차례가 오지 않은 단계부터 새 담당자에게 갑니다(기획자 결정 v0.25).
   //   { step, to, at } 시연으로 바꾼 것은 common.js가 더함. 처음 설정은 STEP_ASSIGNEE
@@ -717,15 +717,15 @@ window.CLIMB_DATA = (function () {
     { at: '2026-09-01 09:00', by: 'u_super', area: 'RULE', target: '결재선 규칙', change: '처음 설정: ② 배수아, ③ 유닛 리더(비즈니스1유닛 최민준, 비즈니스2유닛 고은성, 비즈니스3유닛 차유나, 리더 본인 계약은 문태호), ④ 김지우, ⑤ 한서연, ⑥ 노은채, ⑧ 배수아, ⑨ 임하준, ⑩ 오현우, 결재 대기 독촉 5일, 체결 지연 독촉 14일', reason: 'CLIMB 도입' },
     { at: '2026-09-01 09:00', by: 'u_super', area: 'CUSTOMER', target: '거래처 13곳', change: '거래처 추가: 한결대학교 외 12곳', reason: 'CLIMB 도입: 기존 계약관리대장에서 옮김' },
     { at: '2026-09-01 09:00', by: 'u_super', area: 'CODE', target: '코드표 6개', change: '처음 등록: 조직, 서비스, 계약 유형, 계약 방식, 정산 방식, 사후관리 기록 종류', reason: 'CLIMB 도입' },
-    { at: '2026-10-02 09:30', by: 'u_admin', area: 'USER', target: '기태민 (taemin.ki@muhayu.com)', change: '상태: 사용 중 → 사용 중지', reason: '9월 30일 퇴사(인사 담당 퇴사 통보 10. 1.)' },
-    { at: '2026-10-02 10:20', by: 'u_admin', area: 'RULE', target: '④ 법무 검토 대리 지정', change: '대리 지정: 김지우 → 송민재 (2026. 10. 5.~2026. 10. 7.)', reason: '김지우님 연차(10. 5.~10. 7.). 같은 법무 담당자 송민재님이 법무 검토를 대신함' },
+    { at: '2026-10-02 09:30', by: 'u_admin', area: 'USER', target: '기태민 (taemin.ki@muhayu.com)', change: '상태: 사용 중 → 사용 중지', reason: '9월 30일 퇴사(인사 담당 퇴사 통보 2026-10-01)' },
+    { at: '2026-10-02 10:20', by: 'u_admin', area: 'RULE', target: '④ 법무 검토 대리 지정', change: '대리 지정: 김지우 → 송민재 (2026-10-05~2026-10-07)', reason: '김지우님 연차(2026-10-05~2026-10-07). 같은 법무 담당자 송민재님이 법무 검토를 대신함' },
     { at: '2026-10-06 14:10', by: 'u_super', area: 'USER', target: '송민재 (minjae.song@muhayu.com)', change: '권한: 법무 담당자 → 법무 담당자, 관리자', reason: '관리자 부재에 대비해 법무 담당자 송민재님을 관리자로 함께 지정(경영지원유닛 요청)' },
     { at: '2026-10-08 16:00', by: 'u_admin', area: 'RESTRICT', target: 'CT-2026-0301 해랑출판', change: '열람 제한 해제', reason: '보도자료로 계약 사실이 공개되어 더 가릴 필요 없음(영업 요청)' },
     { at: '2026-10-12 11:00', by: 'u_admin', area: 'USER', target: '석다인 (dain.seok@muhayu.com)', change: '조직: 비즈니스2유닛 → 세일즈어드민유닛, 권한: 영업 담당자 → 영업지원 담당자', reason: '10월 12일 세일즈어드민유닛으로 인사 이동' },
     { at: '2026-10-12 11:05', by: 'u_admin', area: 'USER', target: '차유나 (yuna.cha@muhayu.com)', change: '권한: 영업 담당자 → 영업 리더', reason: '10월 12일 비즈니스3유닛 리더 발령' },
     { at: '2026-10-15 10:00', by: 'u_admin', area: 'USER', target: '설은우 (eunwoo.seol@muhayu.com)', change: '사용자 추가: 비즈니스3유닛, 영업 담당자', reason: '10월 15일 입사' },
     { at: '2026-10-16 10:00', by: 'u_admin', area: 'USER', target: '연주아 (jua.yeon@muhayu.com)', change: '사용자 추가: CEM유닛, 고객지원 담당자', reason: '10월 16일 입사' },
-    { at: '2026-10-16 17:40', by: 'u_admin', area: 'RULE', target: '③ 영업 검토(비즈니스2유닛 리더) 대리 지정', change: '대리 지정: 고은성 → 문태호 (2026. 10. 19.~2026. 10. 23.)', reason: '고은성님 해외 출장(10. 19.~10. 23.). 비즈니스2유닛 계약의 영업 검토를 영업 임원이 대신 결재(위임전결규정 대결)' },
+    { at: '2026-10-16 17:40', by: 'u_admin', area: 'RULE', target: '③ 영업 검토(비즈니스2유닛 리더) 대리 지정', change: '대리 지정: 고은성 → 문태호 (2026-10-19~2026-10-23)', reason: '고은성님 해외 출장(2026-10-19~2026-10-23). 비즈니스2유닛 계약의 영업 검토를 영업 임원이 대신 결재(위임전결규정 대결)' },
     { at: '2026-10-19 09:00', by: 'u_super', area: 'CODE', target: '조직 코드표', change: '조직 개편: 부서 12개를 실과 유닛 10개로 바꿈(영업1~3팀 → 비즈니스1~3유닛, 법무팀과 경영지원팀 → 경영지원유닛 등), 사람마다 새 조직으로 옮김', reason: '2026년 10월 조직 개편' },
   ];
   // 열람 제한을 건 기록 (계약을 등록할 때 영업이 건 것). 관리자가 바꾼 것은 ADMIN_LOG의 RESTRICT

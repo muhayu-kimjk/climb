@@ -28,7 +28,15 @@ body {
   background: var(--desk-bg);
   word-break: keep-all;
   overflow-wrap: break-word;
+  /* 글 정렬은 양쪽 정렬이 기본 (기획자 결정 v0.35: 휴대폰에서 줄이 넘어갈 때 오른쪽 끝이 들쭉날쭉해 보여서)
+   * 한 줄짜리 글과 문단의 마지막 줄은 왼쪽에 붙음. 가운데(표 머리글 등), 오른쪽(숫자) 정렬로 정한 곳은 그대로 */
+  text-align: justify;
 }
+/* 입력 칸에 쓰는 글은 양쪽 정렬하지 않음 (쓰는 중에 낱말 사이가 벌어지지 않게) */
+input, textarea { text-align: start; }
+/* 휴대폰: 양쪽 정렬로 낱말 사이가 크게 벌어지지 않게 글자 단위로 줄을 넘김 (기획자 결정 v0.36)
+ * PC와 인쇄는 낱말 단위 그대로(keep-all). 버튼, 배지처럼 한 줄로 두는 곳은 그대로 */
+@media screen and (max-width: 600px) { body { word-break: normal; } }
 
 h1, h2, h3, h4, p, ul, ol, dl, dd, figure { margin: 0; }
 ul, ol { padding: 0; list-style: none; }
@@ -36,6 +44,8 @@ a { color: inherit; text-decoration: none; }
 /* 입력 칸도 본문 글꼴(Noto Sans KR)을 쓰게 함. 브라우저는 입력 칸, 특히 여러 줄 입력(textarea)에
  * 기본으로 고정폭 글꼴(Windows에서는 굴림체)을 쓰므로 빠짐없이 물려받게 지정 (REQ-UI-02) */
 button, select, input, textarea, optgroup { font: inherit; color: inherit; }
+/* 코드값(<code>)도 브라우저 고정폭 글꼴 대신 Noto Sans KR (REQ-UI-02, v0.35) */
+code, kbd, samp, pre { font-family: inherit; font-size: inherit; }
 button { background: none; border: 0; padding: 0; cursor: pointer; }
 table { border-collapse: collapse; width: 100%; }
 svg { flex-shrink: 0; }
@@ -126,7 +136,7 @@ svg { flex-shrink: 0; }
 /* 로그인 화면: 카드 폭이 좁아 첫 줄이 한 줄에 들어가지 않으므로 세로선 없이 CLIMB과 한글 이름을 위아래로 (REQ-NAME-04, v0.14) */
 .login-brand .brand-name { display: block; }
 .login-brand .brand-sep { display: none; }
-.brand-en { font-size: var(--fs-body-xsmall); line-height: 1.4; color: var(--text-subtle); white-space: nowrap; }
+.brand-en { font-size: var(--fs-body-xsmall); line-height: 1.4; color: var(--text-subtle); white-space: nowrap; text-align: left; } /* 영문 이름은 휴대폰에서 줄이 바뀌어도 양쪽 정렬하지 않음 (v0.35) */
 a.brand-title:hover { color: var(--text-primary); }
 
 /* 오른쪽 한 줄: 조직명 + 사용자 이름 | 로그아웃 (v0.29: 역할 배지 대신 조직명) */

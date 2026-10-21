@@ -34,7 +34,7 @@
   const byStatus = function (list, s) { return list.filter(function (c) { return c.status === s; }); };
   const inReview = byStatus(all, 'IN_REVIEW');
   const active = byStatus(all, 'ACTIVE');
-  // 만료 임박: 계약 묶음의 지금 유효한 계약 기준 (그대로 연장한 갱신이 있으면 그 기간, common.js expiringBundles)
+  // 만료 임박: 계약 묶음의 지금 유효한 계약 기준 (조건 그대로 연장한 기록이 있으면 그 기간, common.js expiringBundles)
   const expiring = C.expiringBundles(90).map(function (b) { return Object.assign({}, b.root, { endDate: b.end }); });
   const restricted = all.filter(function (c) { return c.restricted && c.status !== 'DRAFT'; });
   const myActions = C.myActions(me);
@@ -138,7 +138,7 @@
     // 계약 체결: 영업은 체결 대기 화면, 그 외는 전체 진행 현황(체결 대기로 거름)
     { label: '계약 체결', statuses: ['APPROVED'], target: '체결 대기', scr: 'SCR-31', href: isSales ? 'signing.html' : 'progress.html?status=APPROVED' },
     { label: '운영 검토', statuses: ['OPS_REVIEW'], target: '전체 진행 현황', scr: 'SCR-20', href: 'progress.html?status=OPS_REVIEW' },
-    // 계약 완료는 묶음마다 셈(그대로 연장한 갱신을 따로 세지 않음)
+    // 계약 완료는 묶음마다 셈(조건 그대로 연장한 기록을 따로 세지 않음)
     { label: '계약 완료', statuses: ['ACTIVE'], target: '보관함 전체 계약', scr: 'SCR-41', href: 'contracts.html', bundles: true },
   ];
 

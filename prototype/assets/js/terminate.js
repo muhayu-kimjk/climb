@@ -4,7 +4,7 @@
  * 관련 요구사항: REQ-FLOW-29, REQ-ARC-06
  * 하는 일
  *   1. 주소의 원계약 번호로 묶음을 찾고 해지 기안을 할 수 있는지 확인
- *      (지금 유효한 계약이 계약 완료, 영업 대표 본인(시연용 최고관리자 포함), 진행 중인 갱신이나 해지 없음)
+ *      (지금 유효한 계약이 계약 완료, 영업대표 본인(시연용 최고관리자 포함), 진행 중인 연장이나 해지 없음)
  *   2. 해지일(오늘부터 계약 종료일 사이), 해지 사유(필수), 환불과 위약금, 해지 관련 서류(선택)
  *   3. 결재선 미리 보기: ③ 영업 리더 → ④ 법무 → ⑨ 고객지원 운영 종료 → ⑩ 재무 확인
  *   4. 기안하면 -T01 번호로 원계약에 묶어 저장(프로토타입은 이 브라우저에만)하고 결재 문서로 이동
@@ -35,11 +35,11 @@
     return;
   }
   if (root.requesterId !== me.id && me.role !== 'SUPER') {
-    $('#notice').innerHTML = notice('영업 대표만 해지를 기안합니다', '이 계약의 영업 대표는 ' + esc(C.userName(root.requesterId)) + '님입니다. <a href="' + back + '">계약 상세로</a>');
+    $('#notice').innerHTML = notice('영업대표만 해지를 기안합니다', '이 계약의 영업대표는 ' + esc(C.userName(root.requesterId)) + '님입니다. <a href="' + back + '">계약 상세로</a>');
     return;
   }
   if (blocking.length) {
-    $('#notice').innerHTML = notice('진행 중인 갱신이나 해지가 있습니다', blocking.map(function (o) {
+    $('#notice').innerHTML = notice('진행 중인 연장이나 해지가 있습니다', blocking.map(function (o) {
       return '<a href="review.html?id=' + encodeURIComponent(o.id) + '">' + esc(o.id) + '</a> ' + esc(C.kindLabel(o)) + ' ' + esc(D.STATUS[o.status].label);
     }).join('<br>'));
     return;
@@ -55,7 +55,7 @@
     info('서비스', esc(C.serviceLabel(root.services))),
     info('계약 기간', C.fmtPeriod(b.start, b.end)),
     info('계약 금액', cur.amount ? Number(cur.amount).toLocaleString('ko-KR') + '원' : '금액 없음'),
-    info('영업 대표', esc(C.userName(root.requesterId)) + '님'),
+    info('영업대표', esc(C.userName(root.requesterId)) + '님'),
   ].join('');
   $('#number-help').textContent = '기안하면 ' + newId + '(해지)로 원계약과 함께 묶입니다.';
   $('#date-help').textContent = '오늘(' + C.fmtDate(D.TODAY) + ')부터 계약 종료일(' + C.fmtDate(b.end) + ') 사이의 날짜';

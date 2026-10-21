@@ -218,7 +218,7 @@
           C.fieldHtml({ name: 'to', label: '종료일', type: 'date', required: true, attrs: ' min="' + D.TODAY + '"' }) +
         '</div>' +
         C.fieldHtml({ name: 'reason', label: '근거', type: 'textarea', required: true,
-          placeholder: '예: 고은성님 해외 출장(10. 19.~10. 23.). 위임전결규정에 따라 영업 임원이 대신 결재', help: '휴가, 출장 같은 사유와 대신 결재하는 근거를 적습니다. 결재 기록에 함께 남습니다.' }),
+          placeholder: '예: 고은성님 해외 출장(2026-10-19~2026-10-23). 위임전결규정에 따라 영업 임원이 대신 결재', help: '휴가, 출장 같은 사유와 대신 결재하는 근거를 적습니다. 결재 기록에 함께 남습니다.' }),
       btn: '대리 지정',
       open: function (f) {
         f.elements.absent.addEventListener('change', function () {

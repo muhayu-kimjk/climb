@@ -5,8 +5,8 @@
  * 하는 일
  *   1. 주소의 번호로 계약 묶음을 찾고(common.js bundleOf), 볼 수 있는 사람인지 확인
  *   2. 지금 유효한 계약, 차수별 이력, 체결본, 사후관리 기록을 한 장으로
- *   3. 영업 대표(시연용 최고관리자 포함)에게 변경 기안, 갱신 기안(자동갱신이면 갱신 검토), 해지 기안 버튼
- *   4. 사후관리 기록 남기기(영업 대표, 법무, 관리자). 덧붙이기만 하고 고치거나 지울 수 없음
+ *   3. 영업대표(시연용 최고관리자 포함)에게 변경 기안, 연장 기안(자동갱신이면 연장 검토), 해지 기안 버튼
+ *   4. 사후관리 기록 남기기(영업대표, 법무, 관리자). 덧붙이기만 하고 고치거나 지울 수 없음
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -39,7 +39,7 @@
   $('#doc-title').textContent = root.counterparty;
   $('#doc-meta').innerHTML = C.meta([esc(b.id), esc(C.serviceLabel(root.services)), esc(root.type), C.badge(st.tone, st.label) + (root.restricted ? ' ' + C.icon('lock', 'sm') : '')]);
 
-  // 진행 중인 변경, 갱신, 해지 안내
+  // 진행 중인 변경, 연장, 해지 안내
   if (b.open.length) {
     $('#notice').innerHTML = notice('', '진행 중인 기안이 있습니다', b.open.map(function (o) {
       return '<a href="review.html?id=' + encodeURIComponent(o.id) + '">' + esc(o.id) + '</a> ' + esc(C.kindLabel(o)) + ': ' + C.progressText(o);
@@ -49,8 +49,8 @@
   }
 
   /* ---------- 할 일 버튼 (REQ-ARC-02) ----------
-   * 지금 유효한 계약이 계약 완료일 때, 영업 대표 본인(시연용 최고관리자 포함)에게만.
-   * 진행 중인 갱신이나 해지가 있으면 갱신, 해지 버튼은 감춤 */
+   * 지금 유효한 계약이 계약 완료일 때, 영업대표 본인(시연용 최고관리자 포함)에게만.
+   * 진행 중인 연장이나 해지가 있으면 연장, 해지 버튼은 감춤 */
   const canDraft = root.requesterId === me.id || me.role === 'SUPER';
   const blocking = b.open.some(function (o) { return o.kind === 'RENEW' || o.kind === 'TERMINATE'; });
   if (b.status === 'ACTIVE' && canDraft) {
@@ -60,8 +60,8 @@
       '<a class="btn btn--tertiary btn--md" href="new-contract.html?kind=AMEND&origin=' + q + '">변경 기안</a>' +
       '<a class="btn btn--tertiary btn--md" href="ops-change.html?origin=' + q + '">운영 변경 기안</a>' +
       (blocking ? '' : (b.autoRenew === 'YES'
-        ? '<a class="btn btn--secondary btn--md" href="renewal.html?origin=' + q + '">갱신 검토</a>'
-        : '<a class="btn btn--secondary btn--md" href="new-contract.html?kind=RENEW&origin=' + q + '">갱신 기안</a>') +
+        ? '<a class="btn btn--secondary btn--md" href="renewal.html?origin=' + q + '">연장 검토</a>'
+        : '<a class="btn btn--secondary btn--md" href="new-contract.html?kind=RENEW&origin=' + q + '">연장 기안</a>') +
         '<a class="btn btn--tertiary btn--md btn-reject" href="terminate.html?origin=' + q + '">해지 기안</a>');
     $('#bundle-actions').hidden = false;
   }
@@ -78,12 +78,12 @@
   }
   $('#now').innerHTML = [
     info('계약번호', '<a href="review.html?id=' + encodeURIComponent(cur.id) + '">' + esc(cur.id) + '</a>'),
-    info('구분', esc(C.kindLabel(cur))),
+    info('계약종류', esc(C.kindLabel(cur))),
     info('계약 기간', b.start ? C.fmtPeriod(b.start, b.end) : '-'),
     info('계약 금액', cur.amount ? Number(cur.amount).toLocaleString('ko-KR') + '원 (' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도)' : '금액 없음'),
     info('자동갱신', b.autoRenew === 'YES' ? '있음' + notice60() : '없음'),
-    info('영업 대표', esc(C.userName(root.requesterId)) + '님'),
-    info('개인정보 처리', root.personalData ? '있음' : '없음'),
+    info('영업대표', esc(C.userName(root.requesterId)) + '님'),
+    info('개인정보 처리위탁 계약', root.personalData ? '있음' : '없음'),
     info('열람 제한', root.restricted ? C.icon('lock', 'sm') + '있음' : '없음'),
     info('계약 완료일', cur.completedAt ? C.fmtDateTime(cur.completedAt) : '-'),
     info('해지일', b.status === 'TERMINATED' ? C.fmtDate(root.terminateDate) : '-'),
@@ -95,8 +95,8 @@
     const s = C.startOf(c), e = C.endOf(c);
     return s ? C.fmtPeriod(s, e) : '-';
   }
-  $('#items').innerHTML = '<caption class="sr-only">차수별 이력: 계약번호, 구분, 기안일, 상태, 계약 기간</caption>' +
-    '<thead><tr><th scope="col">계약번호</th><th scope="col">구분</th><th scope="col">기안일</th><th scope="col">상태</th><th scope="col">계약 기간 또는 해지일</th></tr></thead>' +
+  $('#items').innerHTML = '<caption class="sr-only">차수별 이력: 계약번호, 계약종류, 기안일, 상태, 계약 기간</caption>' +
+    '<thead><tr><th scope="col">계약번호</th><th scope="col">계약종류</th><th scope="col">기안일</th><th scope="col">상태</th><th scope="col">계약 기간 또는 해지일</th></tr></thead>' +
     '<tbody>' + b.items.map(function (c) {
       return '<tr' + (c === cur ? ' class="is-current"' : '') + '>' +
         '<td class="nowrap"><a class="cell-title" href="review.html?id=' + encodeURIComponent(c.id) + '">' + esc(c.id) + '</a>' + (c === cur ? '<span class="cell-meta">지금 유효</span>' : '') + '</td>' +
@@ -143,7 +143,7 @@
       }).join('') : '<tr><td class="empty-row" colspan="4">남긴 기록이 없습니다.</td></tr>') + '</tbody>';
   }
   renderNotes();
-  // 남길 수 있는 사람: 영업 대표, 법무, 관리자(최고관리자 포함) [가정]. 계약 완료, 만료, 해지된 계약에만
+  // 남길 수 있는 사람: 영업대표, 법무, 관리자(최고관리자 포함) [가정]. 계약 완료, 만료, 해지된 계약에만
   const canNote = (root.requesterId === me.id || ['LEGAL', 'ADMIN', 'SUPER'].indexOf(me.role) > -1) &&
     ['ACTIVE', 'EXPIRED', 'TERMINATED'].indexOf(root.status) > -1;
   if (canNote) {

@@ -28,6 +28,8 @@
 /* 한 줄에 여러 항목: 폭이 모자라면 자동으로 다음 줄로 */
 .field-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 0 1.6rem; }
 .field-row > .field { margin-bottom: 2.4rem; }
+/* 여러 칸이 함께 쓰는 도움말(예: 시작일, 종료일의 날짜 형식 안내): 칸 줄 바로 아래로 (v0.35) */
+.field-row + .field-help { margin: -1.8rem 0 2.4rem; }
 .field-row:last-child > .field { margin-bottom: 0; }
 
 /* ---------- 텍스트 입력, 셀렉트, 여러 줄 입력 ---------- */
@@ -154,3 +156,90 @@
 .ext-btn { flex-shrink: 0; gap: 0.4rem; }
 .ext-link { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; }
 @media print { .combo-panel, .combo-icon, #opp-link { display: none !important; } .combo-input { padding-left: 1.6rem; } }
+
+/* ---------- 날짜 입력과 달력 (KRDS 날짜 입력 필드, 달력. v0.35) ----------
+ * 수치는 KRDS 공식 코드(GitHub KRDS-uiux/krds-uiux, resources/scss/component/_calendar.scss, krds_tokens.css)를 따름
+ *   구성: 이전과 다음 달, 연도와 월 고르기, 요일 머리, 날짜 원, 오늘 점, 아래 버튼 줄(오늘, 취소, 확인) 흰 바탕, 모서리 1.2rem
+ *   KRDS 색을 무하유 색으로 바꿈: 바탕 secondary-5 → Dark Green 8%, 고른 날짜 secondary-70 → Dark Green(흰 글자 5.5:1),
+ *   오늘 점 point-50 → Pink, 쉬는 날(일요일) danger-60 → 진한 Pink(4.6:1), 앞뒤 달 gray-40 → Gray(고를 수 없는 날짜)
+ *   다른 점: 크기는 KRDS 384px 대신 날짜 칸 폭에 맞춤(아래, 기획자 요청). 연도와 월은 브라우저 고르기 칸 */
+.date-input { position: relative; display: block; }
+.date-input .input { padding-right: 5.6rem; font-variant-numeric: tabular-nums; }
+.date-btn {
+  position: absolute; top: 50%; right: 0.2rem; transform: translateY(-50%);
+  display: grid; place-items: center; width: var(--touch-min); height: var(--touch-min);
+  border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-basic); cursor: pointer;
+}
+.date-btn:hover { background: var(--surface-gray-subtler); }
+.date-btn:focus-visible { box-shadow: var(--focus-ring); }
+.date-btn .icon { width: 2.4rem; height: 2.4rem; }
+.date-input .input[readonly] + .date-btn, .date-input .input:disabled + .date-btn { display: none; }
+
+/* 달력 크기: 날짜 칸 폭에 맞춤(기획자 요청 v0.35, KRDS 384px은 너무 큼). 폭은 화면 코드(calPlace)가 정함
+ *   PC: 칸 폭, 다만 28rem~32.2rem(계약 등록 칸 322px과 같음). 날짜 원 36px, 글자 15px
+ *   휴대폰(600px 이하): 칸 폭 그대로(약 290px). 날짜 원 40px, 글자 17px */
+.cal {
+  position: fixed; z-index: 350; width: 32.2rem; overflow: hidden;
+  border: 1px solid var(--border-secondary-light); border-radius: var(--radius-xl); background: var(--surface-secondary-subtler); box-shadow: var(--shadow-1);
+  font-size: var(--fs-body-small); color: var(--text-basic);
+}
+.cal[hidden] { display: none; }
+.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; padding: 1.2rem; }
+.cal-switch { display: flex; align-items: center; gap: 0.2rem; }
+.cal-select {
+  width: auto; height: var(--height-xs); padding: 0 2.4rem 0 0.6rem; border: 0; border-radius: var(--radius-md);
+  background-color: transparent; background-position: right 0.4rem center; background-size: 1.6rem; font-size: var(--fs-body-small); font-weight: 700;
+}
+.cal-select:hover { background-color: var(--surface-white); }
+.cal-move {
+  display: grid; place-items: center; flex-shrink: 0; width: var(--height-xs); height: var(--height-xs);
+  border: 1px solid var(--border-gray-light); border-radius: 50%; background: var(--surface-white); color: var(--text-basic); cursor: pointer;
+}
+.cal-move .icon { width: 1.6rem; height: 1.6rem; }
+.cal-move:hover { border-color: var(--border-gray); }
+.cal-move:focus-visible, .cal-select:focus-visible { box-shadow: var(--focus-ring); }
+.cal-body { position: relative; padding: 0 0.8rem; }
+.cal-grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
+/* 표 제목 "2026년 10월"은 위 연도, 월과 겹쳐 화면낭독기에만 (작게 하려고 KRDS의 보이는 제목 줄을 뺌) */
+.cal-grid caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.cal-grid th { height: 2.8rem; font-size: var(--fs-body-xsmall); font-weight: 400; text-align: center; }
+.cal-grid th:first-child { color: var(--status-danger-fill); }
+.cal-grid td { padding: 0.1rem 0; text-align: center; }
+.cal-day {
+  position: relative; display: inline-grid; place-items: center; width: 3.6rem; height: 3.6rem; border: 0; border-radius: 50%;
+  background: transparent; color: var(--text-basic); font-size: var(--fs-body-small); font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.cal-day:hover { background: var(--surface-white); }
+.cal-day:active { background: var(--border-secondary-light); }
+.cal-day:focus-visible { box-shadow: var(--focus-ring); }
+.cal-day.is-sun { color: var(--status-danger-fill); }
+/* 앞뒤 달 날짜: KRDS 코드처럼 흐리게, 고를 수 없음(화살표로 넘어가면 그 달이 보임) */
+.cal-day.is-other, .cal-day.is-other:hover { color: var(--text-disabled); background: transparent; cursor: default; }
+/* 오늘: 숫자 아래 점(KRDS) + 굵게 */
+.cal-day.is-today { font-weight: 700; }
+.cal-day.is-today::after { content: ""; position: absolute; left: 50%; bottom: 0.3rem; width: 0.4rem; height: 0.4rem; margin-left: -0.2rem; border-radius: 50%; background: var(--mh-pink); }
+/* 고른 날짜: 진한 초록 원 + 흰 글자 */
+.cal-day.is-selected, .cal-day.is-selected:hover { background: var(--mh-dark-green); color: var(--text-inverse); font-weight: 700; }
+.cal-day.is-selected.is-today::after { background: var(--text-inverse); }
+/* 고를 수 없는 날(min, max 밖): 흐리게 + 줄 */
+.cal-day[aria-disabled="true"], .cal-day[aria-disabled="true"]:hover { color: var(--text-disabled); text-decoration: line-through; cursor: not-allowed; background: transparent; }
+.cal-foot { display: flex; justify-content: flex-end; align-items: center; gap: 0.6rem; margin-top: 0.8rem; padding: 1rem 1.2rem; border-top: 1px solid var(--border-gray-light); background: var(--surface-white); }
+.cal-foot .btn { height: var(--height-xs); padding: 0 1.2rem; }
+.cal-foot .cal-today { margin-right: auto; padding: 0 0.6rem; }
+.btn--text { padding: 0 0.8rem; border-color: transparent; background: transparent; color: var(--text-primary); font-weight: 700; text-decoration: underline; text-underline-offset: 0.3rem; }
+.btn--text:hover { background: var(--surface-gray-subtler); }
+.btn--text:disabled { color: var(--text-disabled); cursor: not-allowed; }
+/* 휴대폰: 칸 폭 그대로. 날짜 원은 40px(한 칸 폭에 맞춘 최대), 버튼은 44px 높이 */
+@media screen and (max-width: 600px) {
+  .cal { font-size: var(--fs-body-medium); }
+  .cal-head { padding: 0.8rem; }
+  .cal-move { width: var(--touch-min); height: var(--touch-min); }
+  .cal-select { height: var(--touch-min); font-size: var(--fs-body-medium); }
+  .cal-body { padding: 0 0.4rem; }
+  .cal-grid th { height: 3.2rem; font-size: var(--fs-body-small); }
+  .cal-grid td { padding: 0; }
+  .cal-day { width: 4rem; height: 4rem; font-size: var(--fs-body-medium); }
+  .cal-foot { padding: 0.8rem; }
+  .cal-foot .btn { height: var(--touch-min); }
+}
+@media print { .date-btn, .cal { display: none !important; } .date-input .input { padding-right: 1.6rem; } }

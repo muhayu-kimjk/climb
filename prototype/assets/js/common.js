@@ -36,7 +36,7 @@ window.CLIMB = (function () {
       { label: '운영 검토 대기', scr: 'SCR-34', href: 'ops-queue.html', roles: ['CEM', 'FINANCE'] },
     ] },
     // 보관함: 반려, 승인, 체결된 모든 계약을 묶음마다 (REQ-FLOW-15~16, REQ-ARC-01)
-    //   계약 상세(SCR-42), 해지 기안(SCR-13), 갱신 검토(SCR-44)는 메뉴 없이 계약 상세, 만료 예정에서 들어감
+    //   계약 상세(SCR-42), 해지 기안(SCR-13), 연장 검토(SCR-44)는 메뉴 없이 계약 상세, 만료 예정에서 들어감
     { label: '보관함', children: [
       { label: '전체 계약', scr: 'SCR-41', href: 'contracts.html' },
       { label: '만료 예정 계약', scr: 'SCR-43', href: 'expiring.html' },
@@ -69,6 +69,7 @@ window.CLIMB = (function () {
     arrowUp: '<path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>',
     external: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
     search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+    calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
   };
   function icon(name, size) {
     const cls = 'icon' + (size ? ' icon--' + size : '');
@@ -138,16 +139,16 @@ window.CLIMB = (function () {
   }
   function daysSince(s) { return daysBetween(parseDate(s), TODAY); }
   function daysUntil(s) { return daysBetween(TODAY, parseDate(s)); }
-  // 날짜 표기는 문장 부호 규정(마침표)을 따름: 'YYYY-MM-DD' → '2026. 10. 5.' (어문 규범 검토 v0.31, 예전 '2026.10.05')
+  // 날짜 표기: 'YYYY-MM-DD' 그대로 '2027-01-01' (v0.35 기획자 결정. v0.31의 '2026. 10. 5.'에서 바꿈, 맞춤법 때문에 마침표로 쓸 필요 없음)
+  //   빈칸이 없어 날짜 안에서는 줄이 바뀌지 않음. 날짜와 시각 사이, 물결표 뒤에서는 줄이 바뀔 수 있음
   function fmtDate(s) {
     if (!s) return '-';
     const p = String(s).slice(0, 10).split('-');
-    // 날짜 안에서는 줄이 바뀌지 않게 점 뒤 칸을 줄바꿈 없는 빈칸(NBSP)으로 씀. 날짜와 시각 사이, 물결표 뒤에서는 줄이 바뀔 수 있음
-    return p.length < 3 ? String(s) : Number(p[0]) + '.\u00a0' + Number(p[1]) + '.\u00a0' + Number(p[2]) + '.';
+    return p.length < 3 ? String(s) : p[0] + '-' + String(Number(p[1])).padStart(2, '0') + '-' + String(Number(p[2])).padStart(2, '0');
   }
-  // 'YYYY-MM-DD HH:MM(:SS)' → '2026. 10. 15. 09:40'
+  // 'YYYY-MM-DD HH:MM(:SS)' → '2026-10-15 09:40'
   function fmtDateTime(s) { return s ? fmtDate(s) + (String(s).length > 10 ? ' ' + String(s).slice(11, 16) : '') : '-'; }
-  // 기간: 물결표 앞뒤를 붙여 씀 → '2026. 10. 24.~2027. 10. 23.' (문장 부호 규정 물결표, v0.31)
+  // 기간: 물결표 앞뒤를 붙여 씀 → '2026-10-24~2027-10-23' (v0.31 물결표, v0.35 날짜 형식)
   //   표 칸이 좁으면 물결표 뒤에서 줄이 바뀌도록 폭 없는 빈칸(ZWSP)을 둠
   function fmtPeriod(a, b) { return fmtDate(a) + '~\u200b' + fmtDate(b); }
   function fmtToday() {
@@ -167,7 +168,7 @@ window.CLIMB = (function () {
 
   /* ---------- 계약·결재 관련 ---------- */
   function roleLabel(role) { return D.ROLES[role] || role; }
-  // 받침에 맞는 조사를 붙여 돌려줌: josa('갱신 검토', '은', '는') → '갱신 검토는', josa('재무', '이', '가') → '재무가'
+  // 받침에 맞는 조사를 붙여 돌려줌: josa('연장 검토', '은', '는') → '연장 검토는', josa('재무', '이', '가') → '재무가'
   //   '으로'는 ㄹ 받침 뒤에서 '로' (한글 맞춤법). 글자를 이어 붙여 만드는 문장에 씀 (어문 규범 검토 v0.31)
   function josa(word, withFinal, withoutFinal) {
     const code = String(word).charCodeAt(String(word).length - 1) - 0xAC00;
@@ -178,12 +179,17 @@ window.CLIMB = (function () {
   // 결재란과 현재 진행 칸에 쓰는 짧은 이름: 담당자는 분야 이름만("영업", "법무"), 리더와 임원은 등급까지("영업 리더")
   function roleShort(role) { return D.ROLE_SHORT[role] || role; }
   function userName(id) { return D.USERS[id] ? D.USERS[id].name : '-'; }
-  // 영업 대표 표기: "조직 이름" (님 없이, 기획자 요청 v0.32. 예: 경영지원유닛 원지안)
+  // 영업대표 표기: "조직 이름" (님 없이, 기획자 요청 v0.32. 예: 경영지원유닛 원지안)
   function ownerLabel(id) { const u = D.USERS[id]; return u ? (u.dept ? u.dept + ' ' : '') + u.name : '-'; }
 
   /* ---------- 사업자등록번호 (거래처 검색, v0.32) ----------
    * 형식 000-00-00000, 끝자리는 검증 숫자: 앞 9자리에 1,3,7,1,3,7,1,3,5를 곱해 더하고 9번째 자리 x 5의 십의 자리를 더한 뒤 10에서 뺀 끝자리
    * 실제 시스템은 직접 입력한 번호를 국세청 사업자등록 상태 조회로 계속, 휴업, 폐업까지 확인 [가정] */
+  // 표시: 사용자는 숫자만 넣고 화면에는 '-'를 붙여 000-00-00000으로 보여 줌 (v0.34 기획자 결정). 입력 중에도 씀
+  function fmtBizNo(v) {
+    const d = String(v || '').replace(/[^0-9]/g, '').slice(0, 10);
+    return d.length > 5 ? d.slice(0, 3) + '-' + d.slice(3, 5) + '-' + d.slice(5) : d.length > 3 ? d.slice(0, 3) + '-' + d.slice(3) : d;
+  }
   function isBizNo(v) {
     const d = String(v || '').replace(/-/g, '');
     if (!/^\d{10}$/.test(d)) return false;
@@ -229,7 +235,7 @@ window.CLIMB = (function () {
 
   /* ---------- 결재 흐름 계산 (요구사항 정의서 3.5, REQ-STEP-04, REQ-DOC-06, REQ-SIGN-01~06) ----------
    * 결재 기록(history)을 시간 순서대로 다시 적용해 단계마다 지금 상태(approvals)와 계약 상태를 만듭니다.
-   *   - 2단계 계약 검토(②~⑤): 체크리스트 답과 개인정보 처리 여부로 결재선을 정함. 금액 기준 없음 (REQ-CHK-05)
+   *   - 2단계 계약 검토(②~⑤): 체크리스트 답과 개인정보 처리위탁 계약 여부로 결재선을 정함. 금액 기준 없음 (REQ-CHK-05)
    *     순서: ② → ③ 영업 → ④ 법무와 ⑤ 개인정보 동시 (v0.20)
    *   - 3단계 계약 체결(⑥ 인장 날인 → ⑦ 체결본 등록 → ⑧ 체결본 확인)과 4단계 운영 검토(⑨ 운영 적용 → ⑩ 재무 확인):
    *     생략 없이 하나씩 차례로 (v0.23)
@@ -249,7 +255,7 @@ window.CLIMB = (function () {
   function isReviewStep(code) { return REVIEW_ORDER.indexOf(code) > -1; }
   // 단계가 속한 업무 단계: 2 계약 검토, 3 계약 체결, 4 운영 검토
   function phaseOf(code) { return isReviewStep(code) ? 2 : ['S06', 'S07', 'S08'].indexOf(code) > -1 ? 3 : 4; }
-  // 짧은 결재: 해지 기안(-T)과 갱신 검토의 "그대로 자동갱신"(-R) (REQ-ARC-06, 07)
+  // 짧은 결재: 해지 기안(-T)과 연장 검토의 "그대로 자동갱신"(-R) (REQ-ARC-06, 07)
   //   ③ 영업 리더 → ④ 법무 → ⑨ 운영(종료, 기간 연장) → ⑩ 재무. ②, ⑤와 ⑥~⑧(날인, 체결본)은 없음
   function isShort(c) { return c.kind === 'TERMINATE' || c.renewMode === 'AUTO'; }
   /* 운영 변경(-C): 계약서는 그대로 두고 계약 기간을 바꾸거나 수량을 추가 충전 (REQ-CHG-06~11, 재무 문서 반영 v0.26)
@@ -286,7 +292,7 @@ window.CLIMB = (function () {
       };
     }
     if (isShort(c)) {
-      const what = c.kind === 'TERMINATE' ? '해지 기안' : '갱신 검토';
+      const what = c.kind === 'TERMINATE' ? '해지 기안' : '연장 검토';
       return {
         S02: [false, josa(what, '은', '는') + ' 체크리스트 검토 없음'], S03: [true, '영업 리더 승인'],
         S04: [true, '법무 승인'], S05: [false, josa(what, '은', '는') + ' 개인정보 검토 없음'],
@@ -302,7 +308,7 @@ window.CLIMB = (function () {
       S02: [true, '어떤 경우에도 생략하지 않음'],
       S03: sales,
       S04: ck.standard === 'NO' ? [true, '표준계약서를 바꿈'] : [false, '표준계약서를 그대로 씀'],
-      S05: c.personalData ? [true, '개인정보를 처리함'] : [false, '개인정보 처리 없음'],
+      S05: c.personalData ? [true, '개인정보 처리위탁 계약 있음'] : [false, '개인정보 처리위탁 계약 없음'],
     };
   }
   /* 단계 담당자 (REQ-AUTH-06, 재무 문서 반영 v0.26)
@@ -352,13 +358,14 @@ window.CLIMB = (function () {
     }
     if (c.kind === 'TERMINATE') return opsChecks(c.services, D.OPS_CHECKS_END);
     if (c.renewMode === 'AUTO') return opsChecks(c.services, D.OPS_CHECKS_EXTEND);
-    if (c.type === typeLabel('NDA')) return ['운영에 적용할 내용 없음(비밀유지계약)'];
+    // 금액이 없는 계약(v0.34 체크 칸, 예전 기록은 유형 NDA)
+    if (c.type === typeLabel('NDA') || c.noAmount || (c.form || {}).noAmount) return ['운영에 적용할 내용 없음(금액이 없는 계약)'];
     return opsChecks(c.services);
   }
-  // 계약 구분 이름. 갱신 검토의 "그대로 자동갱신"은 따로 표시 (REQ-ARC-07)
+  // 계약종류 이름. 연장 검토의 "그대로 자동갱신"은 따로 표시 (REQ-ARC-07)
   function kindLabel(c) {
     if (isChange(c)) return '운영 변경(' + (D.CHANGE_TYPES[c.changeType] || '-') + ')';
-    return c.kind === 'RENEW' && c.renewMode === 'AUTO' ? '갱신(그대로 연장)' : D.KINDS[c.kind] || '-';
+    return c.kind === 'RENEW' && c.renewMode === 'AUTO' ? '연장(조건 그대로)' : D.KINDS[c.kind] || '-';
   }
   // 차례일 때 현재 진행 칸에 쓰는 말 (해지와 자동갱신의 ⑨는 운영 종료, 기간 연장)
   function stepIng(c, code) {
@@ -680,7 +687,7 @@ window.CLIMB = (function () {
     applyBundleEffects(); // 해지 기안이 끝나면 원계약을 해지 상태로
     return entry;
   }
-  // 시연으로 만든 계약(해지 기안, 갱신 검토), 사후관리 기록, 지운 임시 저장 (프로토타입 전용, REQ-ARC-04~07)
+  // 시연으로 만든 계약(해지 기안, 연장 검토), 사후관리 기록, 지운 임시 저장 (프로토타입 전용, REQ-ARC-04~07)
   const DEMO_KEYS = { contracts: 'climb.demoContracts', notes: 'climb.demoNotes', deleted: 'climb.demoDeleted', admin: 'climb.demoAdmin' };
   function loadDemo(key) { try { return JSON.parse(localStorage.getItem(DEMO_KEYS[key]) || '[]'); } catch (e) { return []; } }
   function pushDemo(key, item) {
@@ -689,7 +696,7 @@ window.CLIMB = (function () {
     try { localStorage.setItem(DEMO_KEYS[key], JSON.stringify(list)); } catch (e) { /* 저장소를 못 쓰면 이 화면에서만 반영 */ }
   }
   function demoCount() { return loadDemoActions().length + loadDemo('contracts').length + loadDemo('notes').length + loadDemo('deleted').length + loadDemo('admin').length; }
-  // 새 계약 기록 저장 (해지 기안, 갱신 검토). 실제 시스템에서는 서버에 저장
+  // 새 계약 기록 저장 (해지 기안, 연장 검토). 실제 시스템에서는 서버에 저장
   function saveDemoContract(c) {
     pushDemo('contracts', c);
     D.CONTRACTS.push(c);
@@ -903,8 +910,8 @@ window.CLIMB = (function () {
   D.CONTRACTS.forEach(buildReview);
 
   /* ---------- 계약 묶음 (REQ-FLOW-18, 3.3 방식 C, REQ-ARC-01~03) ----------
-   * 원계약 번호가 묶음 번호입니다. 변경(-A), 갱신(-R), 해지(-T)는 parentId로 원계약에 연결됩니다.
-   *   - 지금 유효한 계약: 끝난(계약 완료, 만료) 갱신 중 가장 나중 것, 없으면 원계약
+   * 원계약 번호가 묶음 번호입니다. 변경(-A), 연장(-R), 해지(-T)는 parentId로 원계약에 연결됩니다.
+   *   - 지금 유효한 계약: 끝난(계약 완료, 만료) 연장 중 가장 나중 것, 없으면 원계약
    *   - 해지 기안이 끝나면(⑩ 재무 확인) 원계약이 "해지" 상태가 됨 (REQ-FLOW-29) */
   function rootOf(c) { return c.parentId || c.id; }
   function startOf(c) { return c.startDate || (c.form && c.form.startDate) || ''; }
@@ -933,7 +940,7 @@ window.CLIMB = (function () {
     const done = ['ACTIVE', 'EXPIRED', 'TERMINATED'];
     // 원계약이 아직 진행 중이면 원계약 상태, 끝났으면 지금 유효한 계약의 상태(해지면 해지)
     const status = done.indexOf(root.status) < 0 ? root.status : root.status === 'TERMINATED' ? 'TERMINATED' : current.status;
-    // 진행 중인 변경, 갱신, 갱신 검토, 해지 기안
+    // 진행 중인 변경, 연장, 연장 검토, 해지 기안
     const open = items.filter(function (c) { return c !== root && WORKING.concat(['REJECTED', 'SUPPLEMENT']).indexOf(c.status) > -1; });
     // 운영 변경(기간 변경)이 끝났으면 그 종료일이 지금 유효한 계약의 종료일 (재무 문서: 끝나면 서비스 기간이 바뀜)
     const periodDone = items.filter(function (c) {
@@ -1188,7 +1195,8 @@ window.CLIMB = (function () {
       const control = f.querySelector('input:not([type=hidden]):not([type=radio]):not([type=checkbox]), select, textarea');
       const targets = control ? [control] : Array.prototype.slice.call(f.querySelectorAll('input[type=radio], input[type=checkbox]'));
       if (!targets.length) return;
-      const ids = [];
+      // 이미 걸어 둔 연결(예: 두 날짜 칸이 함께 쓰는 도움말)은 남김 (v0.35)
+      const ids = ((control || f).getAttribute('data-describedby') || '').split(' ').filter(Boolean);
       f.querySelectorAll(':scope > .field-help, :scope > .field-error, :scope > .input-unit ~ .field-help').forEach(function (h) {
         if (!h.id) h.id = 'fd-' + (++fieldSeq);
         if (ids.indexOf(h.id) < 0) ids.push(h.id);
@@ -1383,6 +1391,278 @@ window.CLIMB = (function () {
     });
   }
 
+  /* ---------- 날짜 입력과 달력 (KRDS 날짜 입력 필드, 달력. v0.35 기획자 요청) ----------
+   * 브라우저 기본 날짜 칸은 브라우저마다 모양과 형식("연도-월-일")이 다르고 달력이 작으며 글꼴도 Noto Sans KR이 아니어서,
+   * KRDS처럼 글자 칸 + 달력 버튼 + 큰 달력으로 바꿉니다. 기준은 KRDS 공식 코드(GitHub KRDS-uiux/krds-uiux)
+   *   - 화면의 type=date 칸을 글자 칸으로 바꿈. 보이는 글자와 화면 코드가 읽고 쓰는 값(.value) 모두 YYYY-MM-DD(예: 2027-01-01, REQ-UI-23 v0.35)
+   *     숫자 8자리(20270101)를 넣으면 바로 "2027-01-01"로, "2027.1.1"이나 "2027. 1. 1."도 칸을 떠날 때 맞춰 줌. 맞지 않는 날짜는 값이 빈칸
+   *     (KRDS: 달력이 있어도 직접 입력을 막지 않음, 휴대폰은 숫자 자판)
+   *   - 칸 오른쪽 안의 달력 버튼(KRDS 달력 아이콘 버튼) → 달력 층: 이전 달, 연도와 월 고르기, 다음 달 / 일~토 / 날짜 / 오늘, 취소, 확인
+   *     달력 폭은 날짜 칸 폭에 맞춤(PC 280~322px, 휴대폰은 칸 폭 그대로. 기획자 요청)
+   *   - 오늘은 굵은 글자와 아래 점, 고른 날짜는 진한 초록 원. 색만으로 구분하지 않고 화면낭독기에는 "오늘", "고른 날짜"를 읽어 줌
+   *   - 앞뒤 달의 날짜는 흐리게 보이고 고를 수 없음(KRDS 코드). 고를 수 없는 날(min, max 밖)은 흐리고 줄을 그음
+   *   - 키보드: 화살표(하루, 한 주), Home/End(그 주 일요일, 토요일), PageUp/PageDown(이전, 다음 달), Enter(고르기), Esc(닫기),
+   *     Tab은 달력 안에서만 돎. 입력 칸에서 Alt+아래 화살표로도 엶
+   *   - 확인 창처럼 나중에 그려지는 날짜 칸도 같이 바꿈(MutationObserver) */
+  const WEEK = ['일', '월', '화', '수', '목', '금', '토'];
+  function isoOf(y, m, d) {
+    const t = new Date(y, m, d);
+    return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+  }
+  function shiftIso(s, days) { const t = parseDate(s); return isoOf(t.getFullYear(), t.getMonth(), t.getDate() + days); }
+  function shiftMonth(s, n) {
+    const t = parseDate(s);
+    const last = new Date(t.getFullYear(), t.getMonth() + n + 1, 0).getDate();
+    return isoOf(t.getFullYear(), t.getMonth() + n, Math.min(t.getDate(), last));
+  }
+  const cal = { el: null, input: null, btn: null, view: null, sel: '', focus: '' };
+  function calOutOfRange(s) { const i = cal.input; return !!((i.min && s < i.min) || (i.max && s > i.max)); }
+  function calBuild() {
+    const el = document.createElement('div');
+    el.className = 'cal';
+    el.hidden = true;
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-label', '날짜 고르기');
+    el.innerHTML =
+      '<div class="cal-head">' +
+        '<button type="button" class="cal-move" data-move="-1" aria-label="이전 달">' + icon('chevronLeft') + '</button>' +
+        '<div class="cal-switch">' +
+          '<label class="sr-only" for="cal-year">연도</label><select class="select cal-select" id="cal-year"></select>' +
+          '<label class="sr-only" for="cal-month">월</label><select class="select cal-select" id="cal-month"></select>' +
+        '</div>' +
+        '<button type="button" class="cal-move" data-move="1" aria-label="다음 달">' + icon('chevronRight') + '</button>' +
+      '</div>' +
+      '<p class="sr-only" id="cal-status" aria-live="polite"></p>' +
+      '<div class="cal-body"><table class="cal-grid"><caption></caption><thead><tr>' + WEEK.map(function (w) { return '<th scope="col" abbr="' + w + '요일">' + w + '</th>'; }).join('') + '</tr></thead><tbody></tbody></table></div>' +
+      '<div class="cal-foot">' +
+        '<button type="button" class="btn btn--text cal-today">오늘</button>' +
+        '<button type="button" class="btn btn--tertiary cal-cancel">취소</button>' +
+        '<button type="button" class="btn btn--primary cal-ok">확인</button>' +
+      '</div>';
+    document.body.appendChild(el);
+    let months = '';
+    for (let i = 0; i < 12; i++) months += '<option value="' + i + '">' + (i + 1) + '월</option>';
+    el.querySelector('#cal-month').innerHTML = months;
+    el.addEventListener('click', function (e) {
+      const day = e.target.closest('.cal-day');
+      if (day) { calPick(day.getAttribute('data-date')); return; }
+      const mv = e.target.closest('.cal-move');
+      if (mv) { calGo(shiftMonth(cal.focus, Number(mv.getAttribute('data-move'))), mv); return; }
+      if (e.target.closest('.cal-today')) { calPick(D.TODAY); return; }
+      if (e.target.closest('.cal-cancel')) { calClose(true); return; }
+      if (e.target.closest('.cal-ok')) calOk();
+    });
+    el.addEventListener('dblclick', function (e) { if (e.target.closest('.cal-day:not([aria-disabled])')) calOk(); });
+    el.addEventListener('change', function (e) {
+      if (e.target.id !== 'cal-year' && e.target.id !== 'cal-month') return;
+      const t = parseDate(cal.focus);
+      const y = Number(el.querySelector('#cal-year').value), m = Number(el.querySelector('#cal-month').value);
+      const last = new Date(y, m + 1, 0).getDate();
+      calGo(isoOf(y, m, Math.min(t.getDate(), last)), e.target);
+    });
+    el.addEventListener('keydown', calKey);
+    return el;
+  }
+  function calRender() {
+    const el = cal.el;
+    const f = parseDate(cal.focus);
+    const y = f.getFullYear(), m = f.getMonth();
+    // 연도 목록: 오늘 앞뒤 10년, 고른 해와 min, max가 그 밖이면 넓힘
+    const ty = TODAY.getFullYear();
+    let lo = ty - 10, hi = ty + 10;
+    if (cal.input.min) lo = Math.max(lo, Number(cal.input.min.slice(0, 4)));
+    if (cal.input.max) hi = Math.min(hi, Number(cal.input.max.slice(0, 4)));
+    lo = Math.min(lo, y); hi = Math.max(hi, y);
+    let opts = '';
+    for (let i = lo; i <= hi; i++) opts += '<option value="' + i + '"' + (i === y ? ' selected' : '') + '>' + i + '년</option>';
+    el.querySelector('#cal-year').innerHTML = opts;
+    el.querySelector('#cal-month').value = String(m);
+    el.querySelector('#cal-status').textContent = y + '년 ' + (m + 1) + '월';
+    el.querySelector('caption').textContent = y + '년 ' + (m + 1) + '월';
+    // 6주(42칸)로 늘 같은 높이
+    const start = new Date(y, m, 1 - new Date(y, m, 1).getDay());
+    let rows = '';
+    for (let w = 0; w < 6; w++) {
+      rows += '<tr>';
+      for (let d = 0; d < 7; d++) {
+        const t = new Date(start.getFullYear(), start.getMonth(), start.getDate() + w * 7 + d);
+        const s = isoOf(t.getFullYear(), t.getMonth(), t.getDate());
+        const cls = ['cal-day'];
+        const label = [t.getFullYear() + '년 ' + (t.getMonth() + 1) + '월 ' + t.getDate() + '일 ' + WEEK[t.getDay()] + '요일'];
+        if (t.getMonth() !== m) cls.push('is-other');
+        if (d === 0) cls.push('is-sun');
+        if (s === D.TODAY) { cls.push('is-today'); label.push('오늘'); }
+        if (s === cal.sel) { cls.push('is-selected'); label.push('고른 날짜'); }
+        // 앞뒤 달 날짜는 KRDS 코드처럼 고를 수 없게(disabled). min, max 밖은 화살표로 지나갈 수 있게 aria-disabled
+        const other = t.getMonth() !== m;
+        const off = !other && calOutOfRange(s);
+        if (off) label.push('고를 수 없음');
+        rows += '<td><button type="button" class="' + cls.join(' ') + '" data-date="' + s + '" tabindex="' + (s === cal.focus ? '0' : '-1') + '"' +
+          (other ? ' disabled' : '') + (off ? ' aria-disabled="true"' : '') + (s === cal.sel ? ' aria-pressed="true"' : '') + ' aria-label="' + label.join(', ') + '">' + t.getDate() + '</button></td>';
+      }
+      rows += '</tr>';
+    }
+    el.querySelector('tbody').innerHTML = rows;
+    el.querySelector('.cal-today').disabled = calOutOfRange(D.TODAY);
+  }
+  // 보는 달을 바꾸고(필요하면) 그 날짜에 포커스. keep: 포커스를 남길 버튼이나 고르기 칸
+  function calGo(s, keep) {
+    cal.focus = s;
+    calRender();
+    if (keep && keep.isConnected) keep.focus();
+    else { const b = cal.el.querySelector('.cal-day[data-date="' + s + '"]'); if (b) b.focus(); }
+  }
+  function calPick(s) {
+    if (calOutOfRange(s)) return;
+    cal.sel = s;
+    calGo(s);
+  }
+  function calOk() {
+    const i = cal.input;
+    if (cal.sel && cal.sel !== i.value) {
+      i.value = cal.sel;
+      i.dispatchEvent(new Event('input', { bubbles: true }));
+      i.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    calClose(true);
+  }
+  function calKey(e) {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); calClose(true); return; }
+    if (e.key === 'Tab') {
+      // 달력 안에서만 돎 (확인 창의 Tab 돌기보다 먼저 처리)
+      const items = Array.prototype.filter.call(cal.el.querySelectorAll('button:not([disabled]), select'), function (x) {
+        return !x.classList.contains('cal-day') || x.getAttribute('tabindex') === '0';
+      });
+      const i = items.indexOf(document.activeElement);
+      e.preventDefault(); e.stopPropagation();
+      const next = items[(i + (e.shiftKey ? -1 : 1) + items.length) % items.length];
+      if (next) next.focus();
+      return;
+    }
+    const day = e.target.closest && e.target.closest('.cal-day');
+    if (!day) return;
+    const s = day.getAttribute('data-date');
+    const wd = parseDate(s).getDay();
+    const move = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7, Home: -wd, End: 6 - wd }[e.key];
+    if (move != null) { e.preventDefault(); calGo(shiftIso(s, move)); return; }
+    if (e.key === 'PageUp' || e.key === 'PageDown') {
+      e.preventDefault();
+      calGo(shiftMonth(s, (e.key === 'PageUp' ? -1 : 1) * (e.shiftKey ? 12 : 1)));
+    }
+  }
+  function calPlace() {
+    if (!cal.el || cal.el.hidden) return;
+    const r = cal.input.parentNode.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth, vh = window.innerHeight;
+    // 폭: 날짜 칸 폭에 맞춤(v0.35 기획자 요청). PC는 280~322px, 휴대폰(600px 이하)은 칸 폭 그대로(좁은 칸이면 280px)
+    const phone = window.matchMedia && window.matchMedia('screen and (max-width: 600px)').matches;
+    const fit = Math.max(280, phone ? r.width : Math.min(r.width, 322));
+    cal.el.style.width = Math.round(Math.min(fit, vw - 16)) + 'px';
+    const w = cal.el.offsetWidth, h = cal.el.offsetHeight;
+    // 칸 왼쪽에 맞추되, A4 종이(확인 창이면 그 창)나 화면 밖으로 나가면 칸 오른쪽에 맞춤
+    const box = (cal.input.closest('.modal') || cal.input.closest('.sheet') || document.documentElement).getBoundingClientRect();
+    let left = r.left;
+    if (left + w > Math.min(vw - 8, box.right)) left = Math.max(8, r.right - w);
+    let top = r.bottom + 4;
+    if (top + h > vh - 8 && r.top - 4 - h >= 8) top = r.top - 4 - h;
+    cal.el.style.left = Math.round(left) + 'px';
+    cal.el.style.top = Math.round(top) + 'px';
+  }
+  function calOpen(input, btn) {
+    if (input.disabled || input.readOnly) return;
+    if (!cal.el) cal.el = calBuild();
+    if (!cal.el.hidden && cal.input === input) { calClose(true); return; }
+    calClose(false);
+    cal.input = input; cal.btn = btn;
+    const v = /^\d{4}-\d{2}-\d{2}$/.test(input.value) ? input.value : '';
+    cal.sel = v;
+    let f = v || D.TODAY;
+    if (!v && input.min && f < input.min) f = input.min;
+    if (!v && input.max && f > input.max) f = input.max;
+    cal.focus = f;
+    cal.el.setAttribute('aria-label', '날짜 고르기: ' + ((input.labels && input.labels[0] && input.labels[0].textContent.replace(/\*|\(필수\)/g, '').trim()) || '날짜'));
+    calRender();
+    cal.el.hidden = false;
+    btn.setAttribute('aria-expanded', 'true');
+    calPlace();
+    const b = cal.el.querySelector('.cal-day[data-date="' + f + '"]');
+    if (b) b.focus();
+  }
+  function calClose(back) {
+    if (!cal.el || cal.el.hidden) return;
+    cal.el.hidden = true;
+    if (cal.btn) cal.btn.setAttribute('aria-expanded', 'false');
+    if (back && cal.btn && cal.btn.isConnected) cal.btn.focus();
+  }
+  // 날짜 글자 → 값: "2026-11-01", "2026.11.1", "2026. 11. 1.", "20261101" → '2026-11-01'. 없는 날짜(2월 30일 등)는 ''
+  const INPUT_VALUE = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+  function isoFromText(t) {
+    t = String(t || '').trim();
+    const m = t.match(/^(\d{4})\D+(\d{1,2})\D+(\d{1,2})\D*$/) || t.match(/^(\d{4})(\d{2})(\d{2})$/);
+    if (!m) return '';
+    const y = Number(m[1]), mo = Number(m[2]) - 1, d = Number(m[3]);
+    const dt = new Date(y, mo, d);
+    return dt.getFullYear() === y && dt.getMonth() === mo && dt.getDate() === d ? isoOf(y, mo, d) : '';
+  }
+  function dateText(iso) { return iso; } // 칸에 보이는 글자도 YYYY-MM-DD (v0.35)
+  function enhanceDates(root) {
+    (root || document).querySelectorAll('input[type=date]:not([data-cal])').forEach(function (input) {
+      input.setAttribute('data-cal', '');
+      // 글자 칸으로 바꾸고 .value는 YYYY-MM-DD로 주고받음 (화면 코드는 그대로)
+      const raw = INPUT_VALUE.get.call(input);
+      input.type = 'text';
+      input.setAttribute('inputmode', 'numeric');
+      input.setAttribute('autocomplete', 'off');
+      input.maxLength = 10;
+      if (!input.placeholder) input.placeholder = 'YYYY-MM-DD'; // KRDS 날짜 입력 필드의 형식 자리 표시
+      Object.defineProperty(input, 'value', {
+        configurable: true,
+        get: function () { return isoFromText(INPUT_VALUE.get.call(this)); },
+        set: function (v) { const iso = isoFromText(v); INPUT_VALUE.set.call(this, iso ? dateText(iso) : (v == null ? '' : String(v))); },
+      });
+      input.value = raw;
+      input.defaultValue = INPUT_VALUE.get.call(input); // 초기화(reset) 때도 같은 모양
+      input.addEventListener('input', function () {
+        const t = INPUT_VALUE.get.call(input);
+        if (/^\d{8}$/.test(t) && isoFromText(t)) INPUT_VALUE.set.call(input, dateText(isoFromText(t)));
+      });
+      input.addEventListener('blur', function () {
+        const iso = isoFromText(INPUT_VALUE.get.call(input));
+        if (iso && INPUT_VALUE.get.call(input) !== dateText(iso)) INPUT_VALUE.set.call(input, dateText(iso));
+      });
+      const wrap = document.createElement('span');
+      wrap.className = 'date-input';
+      input.parentNode.insertBefore(wrap, input);
+      wrap.appendChild(input);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'date-btn';
+      btn.setAttribute('aria-haspopup', 'dialog');
+      btn.setAttribute('aria-expanded', 'false');
+      btn.title = '달력 열기';
+      btn.innerHTML = icon('calendar') + '<span class="sr-only">달력 열기</span>';
+      wrap.appendChild(btn);
+      btn.addEventListener('click', function () { calOpen(input, btn); });
+      input.addEventListener('keydown', function (e) { if (e.altKey && e.key === 'ArrowDown') { e.preventDefault(); calOpen(input, btn); } });
+    });
+  }
+  // 바깥을 누르면 닫음, 화면을 움직이면 따라감
+  document.addEventListener('mousedown', function (e) {
+    if (cal.el && !cal.el.hidden && !cal.el.contains(e.target) && !(cal.btn && cal.btn.contains(e.target))) calClose(false);
+  }, true);
+  window.addEventListener('scroll', calPlace, true);
+  window.addEventListener('resize', calPlace);
+  if (window.MutationObserver) {
+    new MutationObserver(function (list) {
+      list.forEach(function (m) {
+        m.addedNodes.forEach(function (n) {
+          if (n.nodeType !== 1 || (cal.el && cal.el.contains(n))) return;
+          enhanceDates(n.matches('input[type=date]') ? n.parentNode : n);
+        });
+      });
+    }).observe(document.documentElement, { childList: true, subtree: true });
+  }
+
   /* ---------- 화면 시작 ----------
    * 각 HTML의 <body data-page="SCR-xx">를 읽어 공통 영역을 그립니다. */
   function init() {
@@ -1394,6 +1674,7 @@ window.CLIMB = (function () {
     renderWatermark(user);
     renderTopButton();
     wireFields(document);
+    enhanceDates(document);
     // 앞 화면에서 남긴 안내가 있으면 한 번 보여 줌
     try {
       const msg = sessionStorage.getItem('climb.flash');
@@ -1406,7 +1687,7 @@ window.CLIMB = (function () {
     init: init, getRole: getRole, saveRole: saveRole, currentUser: currentUser,
     daysSince: daysSince, daysUntil: daysUntil, fmtDate: fmtDate, fmtDateTime: fmtDateTime, fmtPeriod: fmtPeriod, fmtToday: fmtToday, fmtKRW: fmtKRW,
     roleLabel: roleLabel, roleShort: roleShort, josa: josa, ownerLabel: ownerLabel,
-    isBizNo: isBizNo, searchBusinesses: searchBusinesses, isOppNo: isOppNo, pandaUrl: pandaUrl, pandaLink: pandaLink, hasRole: hasRole, userName: userName, serviceLabel: serviceLabel, stepLabel: stepLabel,
+    isBizNo: isBizNo, fmtBizNo: fmtBizNo, searchBusinesses: searchBusinesses, isOppNo: isOppNo, pandaUrl: pandaUrl, pandaLink: pandaLink, hasRole: hasRole, userName: userName, serviceLabel: serviceLabel, stepLabel: stepLabel,
     currentStep: currentStep, pendingSteps: pendingSteps, routedSteps: routedSteps, stepPosition: stepPosition, waitDays: waitDays,
     stepDots: stepDots, progressText: progressText, actionLabel: actionLabel, opsChecks: opsChecks, isReviewStep: isReviewStep, routedReview: routedReview,
     isShort: isShort, opsChecksFor: opsChecksFor, stepIng: stepIng, kindLabel: kindLabel,
@@ -1423,6 +1704,6 @@ window.CLIMB = (function () {
     stepUserNow: function (code, c) { return stepUser(code, c, '9999'); },
     isChange: isChange, changeSales: changeSales, monthsLater: monthsLater, teamOf: teamOf, leaderAt: leaderAt, duties: duties,
     gate: gate, fieldHtml: fieldHtml, formModal: formModal, adminHistoryHtml: adminHistoryHtml,
-    focusModal: focusModal, wireFields: wireFields, setFieldError: setFieldError, breadcrumb: breadcrumb,
+    focusModal: focusModal, wireFields: wireFields, enhanceDates: enhanceDates, setFieldError: setFieldError, breadcrumb: breadcrumb,
   };
 })();
