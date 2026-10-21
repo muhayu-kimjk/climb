@@ -269,7 +269,7 @@ window.CLIMB_DATA = (function () {
     /* ----- 검토 중 (IN_REVIEW) ----- */
     {
       // ⑤ 개인정보 검토가 오래 머문 예시 (11일째)
-      id: 'CT-2026-0402', counterparty: '미래로병원', services: ['HR'], type: 'SaaS 이용계약', kind: 'NEW',
+      id: '2610CL002', counterparty: '미래로병원', services: ['HR'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 36000000, requesterId: 'u_sales2', requestedAt: '2026-10-08 14:10', restricted: false, personalData: true,
       status: 'IN_REVIEW',
       checklist: { standard: 'YES', price: 'YES', cap: 'YES' },
@@ -280,7 +280,7 @@ window.CLIMB_DATA = (function () {
     {
       // 모든 검토를 거치는 예시(경우 6). ③ 영업 검토 승인 뒤 ④ 법무와 ⑤ 개인정보를 동시에 검토하는 중.
       // ⑤는 끝났고 ④ 법무 검토 차례 (7일째)
-      id: 'CT-2026-0405', counterparty: '하늘연구원', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
+      id: '2610CL003', counterparty: '하늘연구원', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 220000000, requesterId: 'u_sales2', requestedAt: '2026-10-10 10:05', restricted: false, personalData: true,
       status: 'IN_REVIEW',
       checklist: { standard: 'NO', standardNote: '연구기관 보안 서약 조항 추가', price: 'NO', priceNote: '10개 기관 일괄 계약', cap: 'NO', capNote: '3년 계약 조건으로 기관 라이선스 25% 할인 요청',
@@ -295,7 +295,7 @@ window.CLIMB_DATA = (function () {
     },
     {
       // ④ 법무와 ⑤ 개인정보가 동시에 차례인 예시(할인율 한도 이내라 ③ 영업 검토 생략). ② 승인은 아직 취소 가능
-      id: 'CT-2026-0412', counterparty: '한빛대학교', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
+      id: '2610CL005', counterparty: '한빛대학교', unit: '중앙도서관', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 48000000, requesterId: 'u_sales1', requestedAt: '2026-10-14 10:00', restricted: false, personalData: true,
       status: 'IN_REVIEW',
       checklist: { standard: 'NO', standardNote: '대학 요청으로 지식재산권 조항 일부 수정', price: 'NO', priceNote: '학과 단위 추가 이용자 묶음 할인', cap: 'YES' },
@@ -305,8 +305,8 @@ window.CLIMB_DATA = (function () {
     },
     {
       // 승인 취소 기록이 남은 예시: ② 승인 → 취소 → 다시 승인. 지금 ③ 영업 검토 차례
-      id: 'CT-2026-0105-A01', counterparty: '누리교육재단', services: ['CK'], type: 'SaaS 이용계약', kind: 'AMEND',
-      parentId: 'CT-2026-0105',
+      id: '2601CL001-A01', counterparty: '누리교육재단', services: ['CK'], type: 'SaaS 이용계약', kind: 'AMEND',
+      parentId: '2601CL001',
       amount: 12000000, requesterId: 'u_sales2', requestedAt: '2026-10-16 09:00', restricted: false, personalData: false,
       status: 'IN_REVIEW',
       checklist: { standard: 'NO', standardNote: '변경 계약서(이용자 추가)', price: 'NO', priceNote: '기존 계약 할인율 유지', cap: 'NO', capNote: '추가 이용자 20% 할인(한도 15%), 기존 계약 조건 유지 요청' },
@@ -319,7 +319,7 @@ window.CLIMB_DATA = (function () {
     },
     {
       // 열람 제한 계약 예시 (REQ-AUTH-07, REQ-AUTH-09). ② 체크리스트 검토 차례
-      id: 'CT-2026-0421', counterparty: '가람전자', services: ['CK'], type: '리셀러 계약', kind: 'NEW',
+      id: '2610CL007', counterparty: '가람전자', services: ['CK'], type: '리셀러 계약', kind: 'NEW',
       amount: 150000000, requesterId: 'u_sales1', requestedAt: '2026-10-17 14:00', restricted: true, personalData: false,
       status: 'IN_REVIEW',
       checklist: { standard: 'NO', standardNote: '리셀러 표준계약서 없음', price: 'NO', priceNote: '총판 공급가', cap: 'NO', capNote: '총판 마진 보장으로 21.9% 할인' },
@@ -329,7 +329,7 @@ window.CLIMB_DATA = (function () {
     },
     {
       // 금액이 없는 비밀유지계약 예시: ③ 영업 검토 생략(해당 없음)
-      id: 'CT-2026-0427', counterparty: '단비소프트', services: ['HR'], type: '비밀유지계약(NDA)', kind: 'NEW',
+      id: '2610CL008', counterparty: '단비소프트', services: ['HR'], type: '비밀유지계약(NDA)', kind: 'NEW',
       amount: 0, requesterId: 'u_sales1', requestedAt: '2026-10-18 10:30', restricted: false, personalData: false,
       status: 'IN_REVIEW',
       checklist: { standard: 'NO', standardNote: '상대방 양식 NDA', price: 'NA', cap: 'NA' },
@@ -342,7 +342,7 @@ window.CLIMB_DATA = (function () {
     },
     {
       // ③ 영업 검토 차례 예시(v0.26): 비즈니스1유닛 이도윤님의 계약이라 비즈니스1유닛 리더 최민준님이 검토
-      id: 'CT-2026-0418', counterparty: '새봄평생교육원', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
+      id: '2610CL006', counterparty: '새봄평생교육원', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 18000000, requesterId: 'u_sales1', requestedAt: '2026-10-16 15:00', restricted: false, personalData: false,
       status: 'IN_REVIEW',
       checklist: { standard: 'YES', price: 'NO', priceNote: '기관 2곳 묶음 계약', cap: 'NO', capNote: '두 기관을 한 번에 계약해 기관 라이선스 25% 할인 요청' },
@@ -353,7 +353,7 @@ window.CLIMB_DATA = (function () {
 
     /* ----- 반려 (REJECTED) ----- */
     {
-      id: 'CT-2026-0398', counterparty: '소담에듀', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
+      id: '2610CL001', counterparty: '소담에듀', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 18000000, requesterId: 'u_sales1', requestedAt: '2026-10-06 11:00', restricted: false, personalData: false,
       status: 'REJECTED',
       round: 1, // 기안 차수 (REQ-FLOW-17). 보완 후 재기안하면 2차
@@ -377,14 +377,14 @@ window.CLIMB_DATA = (function () {
      * signedAt: 체결본을 등록한 날 / extraHistory: 자동으로 만든 기록 뒤에 더하는 기록 */
     {
       // ⑦ 체결본 등록이 오래 걸리는 예시 (승인 후 14일 이상 강조)
-      id: 'CT-2026-0371', counterparty: '바른출판', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
+      id: '2609CL002', counterparty: '바른출판', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 24000000, requesterId: 'u_sales2', requestedAt: '2026-09-15 10:00', restricted: false, personalData: false,
       status: 'APPROVED', approvedAt: '2026-09-25 16:00', autoHistory: true, postAt: 'S07',
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
     },
     {
       // ⑧에서 스캔 문제로 "다시 등록 요청" 뒤 영업이 다시 올려 ⑧ 확인 차례인 예시
-      id: 'CT-2026-0379', counterparty: '새솔고등학교', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
+      id: '2609CL003', counterparty: '새솔고등학교', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 9600000, requesterId: 'u_sales1', requestedAt: '2026-09-22 10:00', restricted: false, personalData: true,
       status: 'APPROVED', approvedAt: '2026-10-01 15:00', autoHistory: true, postAt: 'S08', signedAt: '2026-10-08',
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
@@ -395,7 +395,7 @@ window.CLIMB_DATA = (function () {
     },
     {
       // ⑥ 인장 날인 차례인 예시
-      id: 'CT-2026-0409', counterparty: '다온컨설팅', services: ['HR'], type: '비밀유지계약(NDA)', kind: 'NEW',
+      id: '2610CL004', counterparty: '다온컨설팅', services: ['HR'], type: '비밀유지계약(NDA)', kind: 'NEW',
       amount: 0, requesterId: 'u_sales1', requestedAt: '2026-10-13 10:00', restricted: false, personalData: false,
       status: 'APPROVED', approvedAt: '2026-10-16 11:00', autoHistory: true, postAt: 'S06',
       checklist: { standard: 'NO', price: 'NA', cap: 'NA' },
@@ -403,7 +403,7 @@ window.CLIMB_DATA = (function () {
 
     /* ----- 운영 검토 (OPS_REVIEW): ⑧ 체결본 확인 뒤 ⑨ 운영 적용(고객지원) → ⑩ 재무 확인 ----- */
     {
-      id: 'CT-2026-0386', counterparty: '마루중학교', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
+      id: '2609CL004', counterparty: '마루중학교', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 13200000, requesterId: 'u_sales1', requestedAt: '2026-09-18 10:00', restricted: false, personalData: false,
       status: 'OPS_REVIEW', approvedAt: '2026-09-24 15:00', signedAt: '2026-10-14', postAt: 'S09', autoHistory: true,
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
@@ -411,7 +411,7 @@ window.CLIMB_DATA = (function () {
     },
     {
       // ⑩ 재무 확인 차례. 체크리스트 4번이 "예"라 재무가 특수 조건을 확인해야 하는 예시
-      id: 'CT-2026-0362', counterparty: '청람컨설팅', services: ['HR'], type: 'SaaS 이용계약', kind: 'NEW',
+      id: '2609CL001', counterparty: '청람컨설팅', services: ['HR'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 19200000, requesterId: 'u_sales2', requestedAt: '2026-09-08 10:00', restricted: false, personalData: true,
       status: 'OPS_REVIEW', approvedAt: '2026-09-15 15:00', signedAt: '2026-10-02', postAt: 'S10', autoHistory: true,
       checklist: { standard: 'NO', price: 'YES', cap: 'YES', accounting: 'YES', accountingNote: '첫해 2개월 무상 사용 후 과금 시작' },
@@ -421,7 +421,7 @@ window.CLIMB_DATA = (function () {
     /* ----- 계약 완료 (ACTIVE): 보관함 ----- */
     {
       // 자동갱신 계약, 만료 26일 전인데 연장 검토를 아직 하지 않은 예시 (해지 통지 기한 60일은 이미 지남)
-      id: 'CT-2025-0871', counterparty: '한결대학교', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
+      id: '2511CL001', counterparty: '한결대학교', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 54000000, requesterId: 'u_sales1', requestedAt: '2025-11-03 10:00', restricted: false, personalData: true,
       status: 'ACTIVE', approvedAt: '2025-11-07 15:00', autoHistory: true, startDate: '2025-11-15', endDate: '2026-11-14',
       autoRenew: 'YES', noticeDays: 60,
@@ -434,33 +434,33 @@ window.CLIMB_DATA = (function () {
     },
     {
       // 열람 제한 + 만료 임박 예시
-      id: 'CT-2025-0902', counterparty: '푸른솔아카데미', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
+      id: '2511CL002', counterparty: '푸른솔아카데미', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 30000000, requesterId: 'u_sales2', requestedAt: '2025-11-27 10:00', restricted: true, personalData: false,
       status: 'ACTIVE', approvedAt: '2025-12-02 15:00', autoHistory: true, startDate: '2025-12-10', endDate: '2026-12-09',
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
     },
     {
-      id: 'CT-2026-0105', counterparty: '누리교육재단', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
+      id: '2601CL001', counterparty: '누리교육재단', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 60000000, requesterId: 'u_sales2', requestedAt: '2026-01-06 10:00', restricted: false, personalData: false,
       status: 'ACTIVE', approvedAt: '2026-01-09 15:00', autoHistory: true, startDate: '2026-01-15', endDate: '2026-12-31',
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
     },
     {
-      // 자동갱신 계약. 연장 검토(조건 그대로)를 기안해 ④ 법무 차례인 예시는 아래 CT-2026-0011-R01
-      id: 'CT-2026-0011', counterparty: '온새미로대학교', services: ['CK', 'HR'], type: 'SaaS 이용계약', kind: 'NEW',
+      // 자동갱신 계약. 연장 검토(조건 그대로)를 기안해 ④ 법무 차례인 예시는 아래 2512CL001-R01
+      id: '2512CL001', counterparty: '온새미로대학교', services: ['CK', 'HR'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 72000000, requesterId: 'u_sales1', requestedAt: '2025-12-22 10:00', restricted: false, personalData: true,
       status: 'ACTIVE', approvedAt: '2025-12-29 15:00', autoHistory: true, startDate: '2026-01-10', endDate: '2027-01-09',
       autoRenew: 'YES', noticeDays: 30,
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
     },
     {
-      id: 'CT-2026-0150', counterparty: '가온테크', services: ['CK'], type: '리셀러 계약', kind: 'NEW',
+      id: '2602CL001', counterparty: '가온테크', services: ['CK'], type: '리셀러 계약', kind: 'NEW',
       amount: 120000000, requesterId: 'u_sales2', requestedAt: '2026-02-10 10:00', restricted: false, personalData: false,
       status: 'ACTIVE', approvedAt: '2026-02-16 15:00', autoHistory: true, startDate: '2026-03-01', endDate: '2028-02-29',
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
     },
     {
-      id: 'CT-2026-0222', counterparty: '이음병원', services: ['HR'], type: 'SaaS 이용계약', kind: 'NEW',
+      id: '2604CL001', counterparty: '이음병원', services: ['HR'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 42000000, requesterId: 'u_sales1', requestedAt: '2026-04-13 10:00', restricted: false, personalData: true,
       status: 'ACTIVE', approvedAt: '2026-04-20 15:00', autoHistory: true, startDate: '2026-05-01', endDate: '2027-04-30',
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
@@ -469,7 +469,7 @@ window.CLIMB_DATA = (function () {
     /* ----- 연장 검토와 해지 기안 (짧은 결재: ③ 영업 리더 → ④ 법무 → ⑨ 운영 → ⑩ 재무, REQ-ARC-06, 07) ----- */
     {
       // 연장 검토 "그대로 자동갱신" 예시: ③ 영업 리더 승인, ④ 법무 차례
-      id: 'CT-2026-0011-R01', parentId: 'CT-2026-0011', counterparty: '온새미로대학교', services: ['CK', 'HR'], type: 'SaaS 이용계약',
+      id: '2512CL001-R01', parentId: '2512CL001', counterparty: '온새미로대학교', services: ['CK', 'HR'], type: 'SaaS 이용계약',
       kind: 'RENEW', renewMode: 'AUTO', amount: 72000000, requesterId: 'u_sales1', requestedAt: '2026-10-15 10:00',
       restricted: false, personalData: true, status: 'IN_REVIEW', startDate: '2027-01-10', endDate: '2028-01-09',
       autoRenew: 'YES', noticeDays: 30, reason: '이용 규모와 조건이 같아 기존 조건 그대로 1년 연장',
@@ -477,14 +477,14 @@ window.CLIMB_DATA = (function () {
     },
     {
       // 해지 기안 예시: ③ 영업 리더, ④ 법무 승인 뒤 ⑨ 운영 종료 차례
-      id: 'CT-2026-0150-T01', parentId: 'CT-2026-0150', counterparty: '가온테크', services: ['CK'], type: '리셀러 계약',
+      id: '2602CL001-T01', parentId: '2602CL001', counterparty: '가온테크', services: ['CK'], type: '리셀러 계약',
       kind: 'TERMINATE', amount: 0, requesterId: 'u_sales2', requestedAt: '2026-10-05 10:00', restricted: false, personalData: false,
       status: 'OPS_REVIEW', approvedAt: '2026-10-08 15:00', autoHistory: true, postAt: 'S09',
       terminateDate: '2026-11-30', reason: '총판의 최소 구매 약정 미이행으로 합의 해지',
       refundNote: '남은 기간 이용료는 환불하지 않고 위약금도 없음(해지 합의서 3조)',
     },
     {
-      id: 'CT-2026-0301', counterparty: '해랑출판', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
+      id: '2606CL001', counterparty: '해랑출판', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 15600000, requesterId: 'u_sales2', requestedAt: '2026-06-15 10:00', restricted: false, personalData: false,
       status: 'ACTIVE', approvedAt: '2026-06-19 15:00', autoHistory: true, startDate: '2026-07-01', endDate: '2027-06-30',
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
@@ -492,7 +492,7 @@ window.CLIMB_DATA = (function () {
 
     /* ----- 만료 (EXPIRED) ----- */
     {
-      id: 'CT-2025-0650', counterparty: '별빛어학원', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
+      id: '2508CL001', counterparty: '별빛어학원', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 8400000, requesterId: 'u_sales2', requestedAt: '2025-08-18 10:00', restricted: false, personalData: false,
       status: 'EXPIRED', approvedAt: '2025-08-22 15:00', autoHistory: true, startDate: '2025-09-01', endDate: '2026-08-31',
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
@@ -503,7 +503,7 @@ window.CLIMB_DATA = (function () {
      * oldEndDate, endDate: 기간 변경 전후 종료일 / reason: 변경 사유 / activityUrl: CRM 영업활동 링크(재무 문서: 사유는 영업활동에 적고 링크를 남김) */
     {
       // 무상 충전 80건(50건 초과)이라 ③ 영업 검토 차례. 끝나면 ⑨에서 재무가 수불부에 반영
-      id: 'CT-2026-0222-C01', parentId: 'CT-2026-0222', counterparty: '이음병원', services: ['HR'], type: 'SaaS 이용계약', kind: 'CHANGE',
+      id: '2604CL001-C01', parentId: '2604CL001', counterparty: '이음병원', services: ['HR'], type: 'SaaS 이용계약', kind: 'CHANGE',
       changeType: 'HR_FREE', changeQty: 80, changeAmount: 0, amount: 0,
       requesterId: 'u_sales1', requestedAt: '2026-10-17 11:00', restricted: false, personalData: false, status: 'IN_REVIEW',
       reason: '병원 신규 간호 인력 채용 시즌에 검사 수량이 부족해 무상으로 추가 제공(재계약 협의 중)',
@@ -512,7 +512,7 @@ window.CLIMB_DATA = (function () {
     },
     {
       // 무상 충전 30건(50건 이내)이라 영업 검토 없이 ⑨ 고객지원 운영 변경 차례
-      id: 'CT-2026-0105-C01', parentId: 'CT-2026-0105', counterparty: '누리교육재단', services: ['CK'], type: 'SaaS 이용계약', kind: 'CHANGE',
+      id: '2601CL001-C01', parentId: '2601CL001', counterparty: '누리교육재단', services: ['CK'], type: 'SaaS 이용계약', kind: 'CHANGE',
       changeType: 'CK_FREE', changeQty: 30, changeAmount: 0, amount: 0,
       requesterId: 'u_sales2', requestedAt: '2026-10-15 14:00', restricted: false, personalData: false, status: 'IN_REVIEW',
       reason: '학기 말 검사 집중으로 검사 건수 소진. 다음 학기 증액 전까지 무상 30건 제공',
@@ -619,6 +619,9 @@ window.CLIMB_DATA = (function () {
    * 프로토타입은 계약의 상호(counterparty)로 거래처를 연결합니다. 실제 시스템은 거래처 번호(customer_id)로 연결합니다.
    * use: 사용 여부 / mergedInto: 다른 거래처로 합쳐졌으면 남긴 거래처 번호
    * C-0001~0013: CLIMB 도입 때 기존 계약관리대장에서 옮긴 거래처 / 그 뒤: 영업이 계약을 등록하며 새로 등록 */
+  // 거래처 아래 기관(부서) (C-24 v0.39 기획자 결정): 사업자등록번호 하나에 거래처 하나를 두고, 실제로 계약하는 기관이나 부서가 여럿이면 여기에 둠
+  //   예: 한 대학(사업자등록번호 하나)의 중앙도서관과 대학원이 따로 계약. 계약에는 거래처와 기관(unit)을 함께 남김
+  const CUSTOMER_UNITS = { 'C-0017': ['중앙도서관', '대학원'], 'C-0001': ['교수학습개발센터'] };
   const CUSTOMERS = [
     // [번호, 상호, 사업자등록번호, 등록한 사람, 등록일]
     ['C-0001', '한결대학교', '119-82-04515', 'u_super', '2026-09-01'],
@@ -645,7 +648,7 @@ window.CLIMB_DATA = (function () {
     ['C-0021', '바름고등학교', '214-82-10457', 'u_sales1', '2026-10-18'],
     ['C-0022', '새봄평생교육원', '211-91-40314', 'u_sales1', '2026-10-16'],
   ].map(function (r) {
-    return { id: r[0], name: r[1], bizNo: r[2], registeredBy: r[3], registeredAt: r[4], use: true, mergedInto: null };
+    return { id: r[0], name: r[1], bizNo: r[2], registeredBy: r[3], registeredAt: r[4], use: true, mergedInto: null, units: CUSTOMER_UNITS[r[0]] || [] };
   });
 
   /* ---------- 사업자 정보 DB: 거래처 검색 (기획자 요청 v0.32, 요구사항 정의서 REQ-REG-18) ----------
@@ -654,6 +657,9 @@ window.CLIMB_DATA = (function () {
    * 계약 등록의 거래처 검색은 우리 거래처 목록(CUSTOMERS)과 이 DB를 함께 찾습니다.
    * 아래는 시연용 가상 사업체와 가상 번호입니다(번호는 사업자등록번호 검증 숫자 규칙에 맞춰 만듦). 실제 사업체가 아닙니다. */
   const BIZ_REGISTRY_INFO = { refreshedAt: '2026-10-19', source: '모아 둔 사업자 자료' };
+  // 국세청 사업자등록 상태 조회 결과(가상, v0.39 기획자 결정): 실제 시스템은 계약 등록에서 직접 넣은 번호만 국세청에 조회해
+  //   폐업(CLOSED)은 기안을 막고 휴업(SUSPENDED)은 알림. 상호는 가져오지 않음. 여기에 없는 번호는 "계속 사업자"로 봄
+  const NTS_STATUS = { '5018612342': 'CLOSED', '3128155668': 'SUSPENDED' };
   const BIZ_REGISTRY = [
     ['한빛초등학교', '128-83-11021'], ['한빛고등학교', '128-82-20519'], ['한빛의료재단 한빛병원', '135-82-33176'],
     ['별가람대학교', '312-82-44080'], ['미래로간호대학교', '506-82-51231'], ['푸른누리병원', '410-82-62908'],
@@ -682,7 +688,7 @@ window.CLIMB_DATA = (function () {
     //   정보보호유닛(개인정보 보호)
     ['DEPT', 'MGMT', '경영지원실', 1], ['DEPT', 'MGMT_SUPPORT', '경영지원유닛', 2, 'MGMT'], ['DEPT', 'FIN_PLAN', '재무기획유닛', 2, 'MGMT'],
     ['DEPT', 'BIZ', '비즈니스유닛', 1], ['DEPT', 'BIZ_1', '비즈니스1유닛', 2, 'BIZ'], ['DEPT', 'BIZ_2', '비즈니스2유닛', 2, 'BIZ'],
-    ['DEPT', 'BIZ_3', '비즈니스3유닛', 2, 'BIZ'], ['DEPT', 'SALES_ADMIN', '세일즈어드민유닛', 2, 'BIZ'], ['DEPT', 'CEM', 'CEM유닛', 2, 'BIZ'],
+    ['DEPT', 'BIZ_3', '비즈니스3유닛', 2, 'BIZ'], ['DEPT', 'SALES_ADMIN', '세일즈어드민유닛', 2, 'BIZ'], ['DEPT', 'CEM', 'CEM유닛', 1], // C-21 ② v0.39: 어느 실에도 속하지 않는 1단계 조직
     ['DEPT', 'INFOSEC', '정보보호유닛', 1],
     ['SERVICE', 'CK', SERVICES.CK, 1], ['SERVICE', 'HR', SERVICES.HR, 1], ['SERVICE', 'ETC', '기타', 1],
     ['SERVICE', 'CK_CAMPUS', '카피킬러 캠퍼스', 2, 'CK'], ['SERVICE', 'CK_SCHOOL', '카피킬러 스쿨', 2, 'CK'], ['SERVICE', 'CK_CONTEST', '카피킬러 콘테스트', 2, 'CK'],
@@ -720,7 +726,7 @@ window.CLIMB_DATA = (function () {
     { at: '2026-10-02 09:30', by: 'u_admin', area: 'USER', target: '기태민 (taemin.ki@muhayu.com)', change: '상태: 사용 중 → 사용 중지', reason: '9월 30일 퇴사(인사 담당 퇴사 통보 2026-10-01)' },
     { at: '2026-10-02 10:20', by: 'u_admin', area: 'RULE', target: '④ 법무 검토 대리 지정', change: '대리 지정: 김지우 → 송민재 (2026-10-05~2026-10-07)', reason: '김지우님 연차(2026-10-05~2026-10-07). 같은 법무 담당자 송민재님이 법무 검토를 대신함' },
     { at: '2026-10-06 14:10', by: 'u_super', area: 'USER', target: '송민재 (minjae.song@muhayu.com)', change: '권한: 법무 담당자 → 법무 담당자, 관리자', reason: '관리자 부재에 대비해 법무 담당자 송민재님을 관리자로 함께 지정(경영지원유닛 요청)' },
-    { at: '2026-10-08 16:00', by: 'u_admin', area: 'RESTRICT', target: 'CT-2026-0301 해랑출판', change: '열람 제한 해제', reason: '보도자료로 계약 사실이 공개되어 더 가릴 필요 없음(영업 요청)' },
+    { at: '2026-10-08 16:00', by: 'u_admin', area: 'RESTRICT', target: '2606CL001 해랑출판', change: '열람 제한 해제', reason: '보도자료로 계약 사실이 공개되어 더 가릴 필요 없음(영업 요청)' },
     { at: '2026-10-12 11:00', by: 'u_admin', area: 'USER', target: '석다인 (dain.seok@muhayu.com)', change: '조직: 비즈니스2유닛 → 세일즈어드민유닛, 권한: 영업 담당자 → 영업지원 담당자', reason: '10월 12일 세일즈어드민유닛으로 인사 이동' },
     { at: '2026-10-12 11:05', by: 'u_admin', area: 'USER', target: '차유나 (yuna.cha@muhayu.com)', change: '권한: 영업 담당자 → 영업 리더', reason: '10월 12일 비즈니스3유닛 리더 발령' },
     { at: '2026-10-15 10:00', by: 'u_admin', area: 'USER', target: '설은우 (eunwoo.seol@muhayu.com)', change: '사용자 추가: 비즈니스3유닛, 영업 담당자', reason: '10월 15일 입사' },
@@ -730,9 +736,9 @@ window.CLIMB_DATA = (function () {
   ];
   // 열람 제한을 건 기록 (계약을 등록할 때 영업이 건 것). 관리자가 바꾼 것은 ADMIN_LOG의 RESTRICT
   const RESTRICT_LOG = [
-    { at: '2026-09-01 09:00', by: 'u_super', id: 'CT-2025-0902', on: true, reason: 'CLIMB 도입 때 기존 계약을 옮기며 설정(기존 계약관리대장의 비공개 표시)' },
-    { at: '2026-09-01 09:00', by: 'u_super', id: 'CT-2026-0301', on: true, reason: 'CLIMB 도입 때 기존 계약을 옮기며 설정(기존 계약관리대장의 비공개 표시)' },
-    { at: '2026-10-17 14:00', by: 'u_sales1', id: 'CT-2026-0421', on: true, reason: '계약을 등록하며 영업이 설정' },
+    { at: '2026-09-01 09:00', by: 'u_super', id: '2511CL002', on: true, reason: 'CLIMB 도입 때 기존 계약을 옮기며 설정(기존 계약관리대장의 비공개 표시)' },
+    { at: '2026-09-01 09:00', by: 'u_super', id: '2606CL001', on: true, reason: 'CLIMB 도입 때 기존 계약을 옮기며 설정(기존 계약관리대장의 비공개 표시)' },
+    { at: '2026-10-17 14:00', by: 'u_sales1', id: '2610CL007', on: true, reason: '계약을 등록하며 영업이 설정' },
   ];
 
   /* ---------- 접속 기록 점검: SCR-57 (REQ-SEC-05, REQ-SEC-06, 기획자 결정 v0.25) ----------
@@ -756,6 +762,6 @@ window.CLIMB_DATA = (function () {
 
   return { TODAY, BRAND, ROLES, ROLE_AREAS, ROLE_SHORT, ROLE_AREA, ROLE_BASE, STEP_LEADS, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, CONTRACT_TYPES, METHODS, SETTLEMENTS, PRICE_BOOK, STEPS, REVIEW_GROUPS, POST_GROUPS, PROCESS_ROLES, STEP_ASSIGNEE, APPROVAL_STATE, APPROVAL_ACTIONS, SEAL_CHECKS, OPS_CHECKS, OPS_CHECKS_END, OPS_CHECKS_EXTEND, AFTERCARE_TYPES, FILE_KINDS, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS,
     CHANGE_TYPES, CHANGE_RULES, OPS_CHECKS_PERIOD, TEAM_LEADERS,
-    PRICE_ROWS, currentPrices, CUSTOMERS, BIZ_REGISTRY, BIZ_REGISTRY_INFO, CODE_GROUPS, CODES, DELEGATIONS, ASSIGNEE_CHANGES, ADMIN_LOG, RESTRICT_LOG,
+    PRICE_ROWS, currentPrices, CUSTOMERS, BIZ_REGISTRY, BIZ_REGISTRY_INFO, NTS_STATUS, CODE_GROUPS, CODES, DELEGATIONS, ASSIGNEE_CHANGES, ADMIN_LOG, RESTRICT_LOG,
     LOG_REVIEWS, ACCESS_REVIEWS, SEC_ALERT_KINDS, SEC_ALERTS };
 })();

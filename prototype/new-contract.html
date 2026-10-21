@@ -20,7 +20,7 @@
   - 1단계 계약 등록: 계약 내용 작성과 기안 (REQ-FLOW-14). 영업만 씁니다.
   - 입력 항목은 요구사항 정의서 3.4, 체크리스트와 결재선은 3.5를 따릅니다.
   - 주소 뒤에 ?id=를 붙이면 이어서 작성(임시 저장 건) 또는 보완 후 재기안(반려 건)으로 열립니다.
-      예) new-contract.html?id=D-0001 (임시 저장)  /  new-contract.html?id=CT-2026-0398 (반려)
+      예) new-contract.html?id=D-0001 (임시 저장)  /  new-contract.html?id=2610CL001 (반려)
   - 자동 계산(체크리스트 2, 3번, 결재선), 필수 항목 검사, 기안 확인 창은 assets/js/new-contract.js가 처리합니다.
   - 프로토타입: 임시 저장, 기안, 파일 첨부는 화면만 동작하고 실제로 저장되지 않습니다.
 ====================================================================== -->
@@ -116,8 +116,20 @@
               <!-- 숫자만 넣으면 '-'를 붙여 000-00-00000으로 보여 줌 (v0.34) -->
               <input class="input" id="f-bizno" name="bizNo" type="text" inputmode="numeric" maxlength="12" placeholder="예: 123-45-67890" readonly aria-describedby="bizno-help">
               <p class="field-help" id="bizno-help">'-' 없이 숫자만 넣으면 됩니다.</p>
+              <!-- 막지는 않지만 알릴 것: 고유번호 검증 숫자, 국세청 휴업 (v0.39) -->
+              <p class="field-warn" id="bizno-warn" role="status" hidden></p>
               <p class="field-error" hidden></p>
             </div>
+          </div>
+
+          <!-- 기관(부서) (C-24 v0.39 기획자 결정): 같은 사업자등록번호 안에서 실제로 계약하는 기관이나 부서. 선택
+               거래처의 기관을 고르거나 새로 넣음(새 기관은 기안하면 거래처에 함께 등록) -->
+          <div class="field" data-field="unit">
+            <label class="field-label" for="f-unit-pick">기관(부서) <span class="opt">(선택)</span></label>
+            <select class="select" id="f-unit-pick" disabled><option value="">거래처를 먼저 고르세요</option></select>
+            <input class="input unit-new" id="f-unit" type="text" maxlength="40" placeholder="예: 중앙도서관" aria-label="새 기관(부서) 이름" hidden>
+            <p class="field-help">한 거래처(사업자등록번호 하나) 안에서 따로 계약하는 기관이나 부서가 있으면 고릅니다. 예: 대학의 중앙도서관, 대학원</p>
+            <p class="field-error" hidden></p>
           </div>
 
           <!-- 영업대표: 로그인한 사람, "조직 이름"으로 (님 없이, v0.32) -->
@@ -158,7 +170,8 @@
             </div>
             <div class="field" data-field="endDate">
               <label class="field-label" for="f-end">계약 종료일<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
-              <input class="input" id="f-end" name="endDate" type="date" data-describedby="date-format-help">
+              <!-- 종료일은 시작일보다 앞설 수 없음(같은 날은 됨). 달력에서 못 고르고, 넣으면 바로 경고 (v0.38) -->
+              <input class="input" id="f-end" name="endDate" type="date" data-describedby="date-format-help" data-after="f-start" data-after-msg="계약 종료일은 계약 시작일보다 앞설 수 없습니다.">
               <p class="field-error" hidden></p>
             </div>
           </div>
@@ -193,7 +206,7 @@
 
           <div class="field">
             <label class="choice"><input type="checkbox" id="f-restricted" name="restricted">열람 제한</label>
-            <p class="field-help">체크하면 나와 이 계약의 담당자(결재선과 단계 담당자), 관리자만 계약 내용을 볼 수 있습니다.</p><!-- REQ-AUTH-07, REQ-AUTH-09 -->
+            <p class="field-help" id="restricted-help">체크하면 나와 이 계약의 담당자(결재선과 단계 담당자), 관리자만 계약 내용을 볼 수 있습니다.</p><!-- REQ-AUTH-07, REQ-AUTH-09 -->
           </div>
         </section>
 

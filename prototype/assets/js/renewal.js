@@ -99,11 +99,11 @@
     e.preventDefault();
     const v = choice();
     if (GO[v]) { location.href = GO[v].href; return; }
-    // 입력 검사: 시작일(지금 종료일 다음 날 이후), 종료일(시작일보다 뒤), 이유
+    // 입력 검사: 시작일(지금 종료일 다음 날 이후), 종료일(시작일보다 앞설 수 없음, v0.38), 이유
     const start = $('#f-start').value, end = $('#f-end').value, reason = $('#f-reason').value.trim();
     const msgs = {
       start: !start ? '새 계약 시작일을 고르세요.' : start < newStart ? '새 계약 시작일은 지금 종료일 다음 날(' + C.fmtDate(newStart) + ') 이후여야 합니다.' : '',
-      end: !end ? '새 계약 종료일을 고르세요.' : start && end <= start ? '새 계약 종료일은 시작일보다 뒤여야 합니다.' : '',
+      end: !end ? '새 계약 종료일을 고르세요.' : start && end < start ? '새 계약 종료일은 새 계약 시작일보다 앞설 수 없습니다.' : '', // 같은 날은 됨 (v0.38)
       reason: reason ? '' : '그대로 연장하는 이유를 적으세요.',
     };
     let first = null;

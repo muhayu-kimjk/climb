@@ -198,7 +198,12 @@ window.CLIMB = (function () {
     for (let i = 0; i < 9; i++) sum += Number(d[i]) * w[i];
     sum += Math.floor(Number(d[8]) * 5 / 10);
     return (10 - sum % 10) % 10 === Number(d[9]);
-  }
+  }  // 고유번호(가운데 두 자리 82 비영리법인, 83 국가와 지자체): 학교, 공공기관이 많이 씀. 검증 숫자 규칙이 같은지 공식 문서를 찾지 못해
+  //   맞지 않아도 막지 않고 알리기만 함 (v0.39 기획자 결정)
+  function isUniqueNo(v) { const d = String(v || '').replace(/-/g, ''); return /^\d{10}$/.test(d) && (d.slice(3, 5) === '82' || d.slice(3, 5) === '83'); }
+  // 국세청 상태(가상, v0.39): 'CLOSED' 폐업, 'SUSPENDED' 휴업, '' 계속 사업자. 실제 시스템은 국세청 사업자등록 상태 조회
+  function ntsStatus(v) { return (D.NTS_STATUS || {})[String(v || '').replace(/-/g, '')] || ''; }
+
   // 거래처 검색: 상호 일부나 사업자등록번호 일부로 우리 거래처(C)와 사업자 정보 DB(R)를 함께 찾음. 거래처를 먼저, 최대 n건
   function searchBusinesses(q, n) {
     const text = String(q || '').trim().toLowerCase();
@@ -207,8 +212,15 @@ window.CLIMB = (function () {
     const hit = function (name, bizNo) {
       return name.toLowerCase().indexOf(text) > -1 || (digits.length >= 3 && bizNo.replace(/-/g, '').indexOf(digits) > -1);
     };
-    const mine = D.CUSTOMERS.filter(function (cu) { return cu.use && hit(cu.name, cu.bizNo); })
-      .map(function (cu) { return { kind: 'C', key: 'C:' + cu.id, name: cu.name, bizNo: cu.bizNo }; });
+    // 우리 거래처: 상호나 번호가 맞으면 그 거래처, 기관(부서) 이름이 맞으면 "거래처 + 기관"으로 (C-24 v0.39)
+    const mine = [];
+    D.CUSTOMERS.forEach(function (cu) {
+      if (!cu.use) return;
+      if (hit(cu.name, cu.bizNo)) mine.push({ kind: 'C', key: 'C:' + cu.id, name: cu.name, bizNo: cu.bizNo });
+      (cu.units || []).forEach(function (u) {
+        if (u.toLowerCase().indexOf(text) > -1) mine.push({ kind: 'C', key: 'C:' + cu.id, name: cu.name, unit: u, bizNo: cu.bizNo });
+      });
+    });
     const known = D.CUSTOMERS.map(function (cu) { return cu.bizNo; });
     const reg = D.BIZ_REGISTRY.filter(function (r) { return known.indexOf(r.bizNo) < 0 && hit(r.name, r.bizNo); })
       .map(function (r) { return { kind: 'R', key: 'R:' + r.bizNo, name: r.name, bizNo: r.bizNo }; });
@@ -796,13 +808,14 @@ window.CLIMB = (function () {
       D.PRICE_ROWS.push(Object.assign({ by: e.by, at: e.at }, op.row));
       refreshPrices();
     } else if (op.k === 'CUSTOMER_ADD') {
-      D.CUSTOMERS.push(Object.assign({ registeredBy: e.by, registeredAt: day, use: true, mergedInto: null }, op.cu));
+      D.CUSTOMERS.push(Object.assign({ registeredBy: e.by, registeredAt: day, use: true, mergedInto: null, units: [] }, op.cu));
     } else if (op.k === 'CUSTOMER_EDIT') {
       const cu = findBy(D.CUSTOMERS, 'id', op.id);
       if (!cu) return;
       if (op.set.name && op.set.name !== cu.name) { rename(cu.name, op.set.name); cu.name = op.set.name; }
       if (op.set.bizNo) cu.bizNo = op.set.bizNo;
       if (typeof op.set.use === 'boolean') cu.use = op.set.use;
+      if (op.set.units) cu.units = op.set.units.slice(); // 기관(부서) 목록 (C-24 v0.39)
     } else if (op.k === 'CUSTOMER_MERGE') {
       // 합치기: 남길 거래처 하나만 두고 나머지는 사용 안 함 + 합쳐진 곳 표시. 계약은 남길 거래처로 옮김
       const keep = findBy(D.CUSTOMERS, 'id', op.keep);
@@ -811,6 +824,8 @@ window.CLIMB = (function () {
         if (!cu || !keep || cu === keep) return;
         rename(cu.name, keep.name);
         cu.use = false; cu.mergedInto = keep.id;
+        // 합쳐진 거래처의 기관(부서)도 남길 거래처로 옮김 (v0.39)
+        keep.units = (keep.units || []).concat((cu.units || []).filter(function (u) { return (keep.units || []).indexOf(u) < 0; }));
       });
     } else if (op.k === 'CODE_ADD') {
       D.CODES.push(Object.assign({ level: null, parent: null, use: true }, op.c));
@@ -925,7 +940,7 @@ window.CLIMB = (function () {
   }
   applyBundleEffects();
   const CHILD_LETTER = { AMEND: 'A', RENEW: 'R', TERMINATE: 'T', CHANGE: 'C' };
-  // 다음 차수 번호: CT-2026-0105 → CT-2026-0105-A02
+  // 다음 차수 번호: 2601CL001 → 2601CL001-A02
   function nextChildId(rootId, kind) {
     const n = D.CONTRACTS.filter(function (c) { return c.parentId === rootId && c.kind === kind; }).length;
     return rootId + '-' + CHILD_LETTER[kind] + String(n + 1).padStart(2, '0');
@@ -1416,7 +1431,22 @@ window.CLIMB = (function () {
     return isoOf(t.getFullYear(), t.getMonth() + n, Math.min(t.getDate(), last));
   }
   const cal = { el: null, input: null, btn: null, view: null, sel: '', focus: '' };
-  function calOutOfRange(s) { const i = cal.input; return !!((i.min && s < i.min) || (i.max && s > i.max)); }
+  // 짝 날짜(v0.38): 끝 칸에 data-after="시작 칸 id"가 있으면 시작일보다 앞선 날은 고를 수 없음(같은 날은 됨)
+  function afterOf(i) { const id = i.getAttribute('data-after'); return id ? document.getElementById(id) : null; }
+  function calMin(i) {
+    const a = afterOf(i);
+    return [i.min, a ? a.value : ''].filter(Boolean).sort().pop() || '';
+  }
+  function calOutOfRange(s) { const i = cal.input, min = calMin(i); return !!((min && s < min) || (i.max && s > i.max)); }
+  function labelText(i) { return ((i.labels && i.labels[0] && i.labels[0].textContent) || '').replace(/\*|\(필수\)/g, '').trim(); }
+  // 고를 수 없는 날을 눌렀을 때 달력 안에 알릴 문장
+  function calWhyOff(s) {
+    const i = cal.input, a = afterOf(i);
+    if (a && a.value && s < a.value) return (labelText(a) || '시작일') + '(' + a.value + ')보다 앞선 날은 고를 수 없습니다.';
+    if (i.min && s < i.min) return i.min + '보다 앞선 날은 고를 수 없습니다.';
+    if (i.max && s > i.max) return i.max + '보다 뒤의 날은 고를 수 없습니다.';
+    return '';
+  }
   function calBuild() {
     const el = document.createElement('div');
     el.className = 'cal';
@@ -1434,6 +1464,7 @@ window.CLIMB = (function () {
       '</div>' +
       '<p class="sr-only" id="cal-status" aria-live="polite"></p>' +
       '<div class="cal-body"><table class="cal-grid"><caption></caption><thead><tr>' + WEEK.map(function (w) { return '<th scope="col" abbr="' + w + '요일">' + w + '</th>'; }).join('') + '</tr></thead><tbody></tbody></table></div>' +
+      '<p class="cal-note" id="cal-note" role="alert" hidden></p>' +
       '<div class="cal-foot">' +
         '<button type="button" class="btn btn--text cal-today">오늘</button>' +
         '<button type="button" class="btn btn--tertiary cal-cancel">취소</button>' +
@@ -1470,7 +1501,7 @@ window.CLIMB = (function () {
     // 연도 목록: 오늘 앞뒤 10년, 고른 해와 min, max가 그 밖이면 넓힘
     const ty = TODAY.getFullYear();
     let lo = ty - 10, hi = ty + 10;
-    if (cal.input.min) lo = Math.max(lo, Number(cal.input.min.slice(0, 4)));
+    if (calMin(cal.input)) lo = Math.max(lo, Number(calMin(cal.input).slice(0, 4)));
     if (cal.input.max) hi = Math.min(hi, Number(cal.input.max.slice(0, 4)));
     lo = Math.min(lo, y); hi = Math.max(hi, y);
     let opts = '';
@@ -1504,7 +1535,9 @@ window.CLIMB = (function () {
     }
     el.querySelector('tbody').innerHTML = rows;
     el.querySelector('.cal-today').disabled = calOutOfRange(D.TODAY);
+    calNote('');
   }
+  function calNote(msg) { const n = cal.el.querySelector('#cal-note'); n.textContent = msg; n.hidden = !msg; }
   // 보는 달을 바꾸고(필요하면) 그 날짜에 포커스. keep: 포커스를 남길 버튼이나 고르기 칸
   function calGo(s, keep) {
     cal.focus = s;
@@ -1513,7 +1546,7 @@ window.CLIMB = (function () {
     else { const b = cal.el.querySelector('.cal-day[data-date="' + s + '"]'); if (b) b.focus(); }
   }
   function calPick(s) {
-    if (calOutOfRange(s)) return;
+    if (calOutOfRange(s)) { calNote(calWhyOff(s)); return; }
     cal.sel = s;
     calGo(s);
   }
@@ -1577,7 +1610,8 @@ window.CLIMB = (function () {
     const v = /^\d{4}-\d{2}-\d{2}$/.test(input.value) ? input.value : '';
     cal.sel = v;
     let f = v || D.TODAY;
-    if (!v && input.min && f < input.min) f = input.min;
+    const min = calMin(input);
+    if (!v && min && f < min) f = min; // 종료일 칸은 비어 있으면 시작일이 있는 달부터
     if (!v && input.max && f > input.max) f = input.max;
     cal.focus = f;
     cal.el.setAttribute('aria-label', '날짜 고르기: ' + ((input.labels && input.labels[0] && input.labels[0].textContent.replace(/\*|\(필수\)/g, '').trim()) || '날짜'));
@@ -1646,6 +1680,24 @@ window.CLIMB = (function () {
       input.addEventListener('keydown', function (e) { if (e.altKey && e.key === 'ArrowDown') { e.preventDefault(); calOpen(input, btn); } });
     });
   }
+  // 종료일이 시작일보다 앞서면 그 칸 아래에 바로 경고 (v0.38). 고친 뒤에는 이 경고만 지움
+  function checkAfter(end) {
+    const start = afterOf(end), box = end.closest('.field');
+    const msg = end.getAttribute('data-after-msg') || '종료일은 시작일보다 앞설 수 없습니다.';
+    if (!start || !box || !box.querySelector('.field-error')) return;
+    const bad = !!(start.value && end.value && end.value < start.value);
+    const err = box.querySelector('.field-error');
+    if (bad) setFieldError(box, msg);
+    else if (!err.hidden && err.textContent === msg) setFieldError(box, '');
+  }
+  ['input', 'change'].forEach(function (type) {
+    document.addEventListener(type, function (e) {
+      const t = e.target;
+      if (!t || t.tagName !== 'INPUT') return;
+      if (t.hasAttribute('data-after')) checkAfter(t);
+      if (t.id) document.querySelectorAll('input[data-after="' + t.id + '"]').forEach(checkAfter);
+    });
+  });
   // 바깥을 누르면 닫음, 화면을 움직이면 따라감
   document.addEventListener('mousedown', function (e) {
     if (cal.el && !cal.el.hidden && !cal.el.contains(e.target) && !(cal.btn && cal.btn.contains(e.target))) calClose(false);
@@ -1687,7 +1739,7 @@ window.CLIMB = (function () {
     init: init, getRole: getRole, saveRole: saveRole, currentUser: currentUser,
     daysSince: daysSince, daysUntil: daysUntil, fmtDate: fmtDate, fmtDateTime: fmtDateTime, fmtPeriod: fmtPeriod, fmtToday: fmtToday, fmtKRW: fmtKRW,
     roleLabel: roleLabel, roleShort: roleShort, josa: josa, ownerLabel: ownerLabel,
-    isBizNo: isBizNo, fmtBizNo: fmtBizNo, searchBusinesses: searchBusinesses, isOppNo: isOppNo, pandaUrl: pandaUrl, pandaLink: pandaLink, hasRole: hasRole, userName: userName, serviceLabel: serviceLabel, stepLabel: stepLabel,
+    isBizNo: isBizNo, fmtBizNo: fmtBizNo, isUniqueNo: isUniqueNo, ntsStatus: ntsStatus, searchBusinesses: searchBusinesses, isOppNo: isOppNo, pandaUrl: pandaUrl, pandaLink: pandaLink, hasRole: hasRole, userName: userName, serviceLabel: serviceLabel, stepLabel: stepLabel,
     currentStep: currentStep, pendingSteps: pendingSteps, routedSteps: routedSteps, stepPosition: stepPosition, waitDays: waitDays,
     stepDots: stepDots, progressText: progressText, actionLabel: actionLabel, opsChecks: opsChecks, isReviewStep: isReviewStep, routedReview: routedReview,
     isShort: isShort, opsChecksFor: opsChecksFor, stepIng: stepIng, kindLabel: kindLabel,

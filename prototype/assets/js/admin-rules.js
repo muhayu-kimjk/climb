@@ -215,7 +215,7 @@
           help: '같은 역할(영업지원, 정보보호, 고객지원은 그 분야 리더도)이 있는 사람만 고를 수 있습니다. 영업 리더는 영업 임원도 고를 수 있습니다.' }) +
         '<div class="field-row">' +
           C.fieldHtml({ name: 'from', label: '시작일', type: 'date', required: true, value: D.TODAY, attrs: ' min="' + D.TODAY + '"' }) +
-          C.fieldHtml({ name: 'to', label: '종료일', type: 'date', required: true, attrs: ' min="' + D.TODAY + '"' }) +
+          C.fieldHtml({ name: 'to', label: '종료일', type: 'date', required: true, attrs: ' min="' + D.TODAY + '" data-after="fm-from" data-after-msg="종료일은 시작일보다 앞설 수 없습니다."' }) +
         '</div>' +
         C.fieldHtml({ name: 'reason', label: '근거', type: 'textarea', required: true,
           placeholder: '예: 고은성님 해외 출장(2026-10-19~2026-10-23). 위임전결규정에 따라 영업 임원이 대신 결재', help: '휴가, 출장 같은 사유와 대신 결재하는 근거를 적습니다. 결재 기록에 함께 남습니다.' }),
@@ -237,7 +237,7 @@
           absent: absent ? '' : '자리를 비우는 담당자를 고르세요.',
           sub: val(f, 'sub') ? '' : '대신할 사람을 고르세요.',
           from: !from ? '시작일을 고르세요.' : from < D.TODAY ? '시작일은 오늘(' + C.fmtDate(D.TODAY) + ') 이후여야 합니다.' : '',
-          to: !to ? '종료일을 고르세요.' : from && to < from ? '종료일은 시작일과 같거나 뒤여야 합니다.' : overlap ? '이 기간에 이미 이 담당자의 대리 지정이 있습니다.' : '',
+          to: !to ? '종료일을 고르세요.' : from && to < from ? '종료일은 시작일보다 앞설 수 없습니다.' : overlap ? '이 기간에 이미 이 담당자의 대리 지정이 있습니다.' : '',
           reason: val(f, 'reason') ? '' : '근거를 적으세요.',
         };
       },

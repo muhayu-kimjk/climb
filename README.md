@@ -27,6 +27,7 @@ MUHAYU Contract Lifecycle Management Base. 계약 등록, 계약 검토, 계약 
 | [docs/01_요구사항정의서.md](docs/01_요구사항정의서.md) | 요구사항 전체 (확정, 가정, 제안, 미정 구분, `REQ-` 번호) |
 | [docs/02_화면목록.md](docs/02_화면목록.md) | 메뉴 구조와 화면 목록 (`SCR-` 번호), 시안 진행 상태 |
 | [docs/03_데이터정의서.md](docs/03_데이터정의서.md) | 항목마다 들어갈 값(자유 입력, 코드값, 목록 참조, 계산값), 코드표(`CODE-`), 계약 상태 전이표. 기획자가 Obsidian으로 직접 수정 |
+| [docs/04_개발팀전달.md](docs/04_개발팀전달.md) | 개발팀에 전달할 것: 만들어 둔 것, 시안에 없는 것, 개발팀이 정할 것, 아직 정하지 않은 것 |
 
 코드 주석에도 같은 `REQ-`, `SCR-` 번호를 적어 두었습니다. 화면, 기능이 어떤 요구사항에서 나왔는지 번호로 찾아갈 수 있습니다.
 
@@ -40,7 +41,7 @@ Projects/CLM
 └─ prototype/              화면 시안
    ├─ login.html           SCR-00 로그인
    ├─ index.html           SCR-01 개요 (대시보드)
-   ├─ new-contract.html    SCR-11 새 계약 등록 (?id= 로 이어서 작성, 보완 후 재기안, ?kind=&origin= 으로 변경, 갱신)
+   ├─ new-contract.html    SCR-11 새 계약 등록 (?id= 로 이어서 작성, 보완 후 재기안, ?kind=&origin= 으로 변경, 연장)
    ├─ my-contracts.html    SCR-12 내 등록 목록 (영업)
    ├─ terminate.html       SCR-13 해지 기안 (?origin=원계약 번호)
    ├─ ops-change.html      SCR-14 운영 변경 기안 (기간 변경, 추가 충전. ?origin=원계약 번호)
@@ -53,12 +54,12 @@ Projects/CLM
    ├─ contracts.html       SCR-41 전체 계약 (보관함, 묶음마다 한 줄)
    ├─ contract.html        SCR-42 계약 상세 (묶음 한 장, ?id=묶음 번호)
    ├─ expiring.html        SCR-43 만료 예정 계약
-   ├─ renewal.html         SCR-44 갱신 검토 (자동갱신, ?origin=원계약 번호)
+   ├─ renewal.html         SCR-44 연장 검토 (자동갱신, ?origin=원계약 번호)
    ├─ admin-users.html     SCR-51 사용자 권한 관리 (사용자 추가, 권한 수정, 권한 변경 이력)
    ├─ admin-rules.html     SCR-52 결재선 규칙 (단계별 담당자, 대리 지정, 독촉 기준 일수)
    ├─ admin-restrict.html  SCR-53 열람 제한 관리
    ├─ admin-prices.html    SCR-54 가격 기준 관리 (적용 시작일, 품의 문서, 이력)
-   ├─ admin-customers.html SCR-55 거래처 관리 (고치기, 합치기)
+   ├─ admin-customers.html SCR-55 거래처 관리 (고치기, 합치기, 기관)
    ├─ admin-codes.html     SCR-56 코드 관리
    ├─ admin-logs.html      SCR-57 접속 기록 점검 (정보보호 담당자와 리더, 최고관리자)
    ├─ help.html            SCR-90 이용 안내
@@ -97,13 +98,13 @@ Projects/CLM
       ├─ js/expiring.js    만료 예정 계약 화면 로직
       ├─ js/terminate.js   해지 기안 화면 로직
       ├─ js/ops-change.js  운영 변경 기안 화면 로직
-      ├─ js/renewal.js     갱신 검토 화면 로직
+      ├─ js/renewal.js     연장 검토 화면 로직
       └─ img/favicon.svg   브라우저 탭 아이콘 (무하유 심볼 Black 원본. favicon.png는 SVG를 못 읽는 브라우저용)
 ```
 
 ## 개발팀 참고
 
-- 프로토타입은 특정 프레임워크 없이 순수 HTML, CSS, JavaScript로 만들었습니다. 사내 표준 기술로 옮길 때 구조와 동작을 참고하세요.
+- 프로토타입은 특정 프레임워크 없이 순수 HTML, CSS, JavaScript로 만들었습니다(외부 라이브러리 없음, 글꼴만 Google Fonts). 사내 표준 기술로 옮길 때 구조와 동작을 참고하세요. React를 쓰지 않은 이유는 요구사항 정의서 1.4에 있습니다.
 - `mock-data.js`의 데이터 구조(계약, 결재 단계, 상태값)는 화면 설계를 위한 **가정**입니다. DB 설계 시 요구사항정의서와 함께 검토가 필요합니다.
 - 가격 기준(`mock-data.js`의 `PRICE_BOOK`)은 시연용 가상 값입니다. 체크리스트 2, 3번 계산과 결재선 결정은 실제 시스템에서 서버가 다시 검증해야 합니다(요구사항 정의서 3.4.1).
 - 열람 제한(REQ-AUTH-09), 도메인 제한 로그인(REQ-ENV-03), 대리 지정으로 대신 처리할 수 있는지(REQ-REV-08), 관리자 화면 접근 같은 권한 처리는 프로토타입에서는 화면에서만 흉내 냅니다. 실제 시스템에서는 반드시 서버에서 처리해야 합니다.

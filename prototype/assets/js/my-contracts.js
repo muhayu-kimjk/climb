@@ -88,7 +88,7 @@
     const cols = seeAll ? 7 : 6;
     $('#rows').innerHTML = rows.length ? rows.map(function (c) {
       // 작성 중은 계약 등록 화면으로, 그 밖에는 결재 문서로
-      // 계약번호는 날짜처럼 한 줄로 (CT-2026-0011-R01이 마지막 하이픈에서 끊기지 않게)
+      // 계약번호는 날짜처럼 한 줄로 (2512CL001-R01이 마지막 하이픈에서 끊기지 않게)
       const link = c.status === 'DRAFT'
         ? '<a class="cell-title" href="new-contract.html?id=' + encodeURIComponent(c.draftKey) + '">' + esc(c.counterparty) + '</a><span class="cell-meta">임시 저장</span>'
         : '<a class="cell-title" href="review.html?id=' + encodeURIComponent(c.id) + '">' + esc(c.counterparty) + '</a><span class="cell-meta"><span class="nowrap">' + esc(c.id) + '</span>' + (c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span>';

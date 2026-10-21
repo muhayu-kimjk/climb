@@ -385,10 +385,13 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
    * 제목 크기와 좌우 여백은 tokens.css의 휴대폰 값이 자동으로 적용됩니다. */
   .sheet { margin: 0; min-height: 100vh; box-shadow: none; }
 
-  /* 헤더: PC와 같은 구성 유지. 폭이 좁아 조직명만 감춤 (이름 | 로그아웃) */
-  .header-top .inner { min-height: 6.4rem; padding-top: 1.2rem; padding-bottom: 1.2rem; column-gap: 1.2rem; }
+  /* 헤더: 폭이 좁아 조직명을 감춤 (이름 | 로그아웃)
+   * 영문 이름 줄(MUHAYU Contract Lifecycle Management Base)도 감추고, 사용자 줄을 CLIMB과 같은 줄 가운데에 맞춤
+   * (기획자 요청 v0.36: 오른쪽 사용자 줄과 균형. 푸터와 로그인 화면의 영문 이름은 그대로) */
+  .header-top .inner { min-height: 6.4rem; padding-top: 1.2rem; padding-bottom: 1.2rem; column-gap: 1.2rem; align-items: center; }
   .header-top .brand-title { font-size: var(--fs-body-large); }
-  .header-top .brand-en { white-space: normal; }
+  .header-top .brand-en { display: none; }
+  .header-top .user-line { grid-row: 1; }
   .user-line .user-org { display: none; }
   .user-line { gap: 0.8rem; }
 

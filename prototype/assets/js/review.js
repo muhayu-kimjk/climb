@@ -29,7 +29,7 @@
 
   /* ---------- 1. 계약 찾기와 열람 권한 ---------- */
   if (!c) {
-    $('#notice').innerHTML = notice('', '계약을 찾을 수 없습니다', '주소의 계약번호를 확인해 주세요. 예: review.html?id=CT-2026-0412');
+    $('#notice').innerHTML = notice('', '계약을 찾을 수 없습니다', '주소의 계약번호를 확인해 주세요. 예: review.html?id=2610CL005');
     return;
   }
   if (c.status === 'DRAFT') {
@@ -261,6 +261,7 @@
       info('계약번호', esc(c.id)),
       info('계약종류', esc(kindText)),
       info('고객사', esc(c.counterparty)),
+    ].concat((c.unit || f.unit) ? [info('기관(부서)', esc(c.unit || f.unit))] : []).concat([ // 거래처 아래 기관 (C-24 v0.39)
       info('사업자등록번호', esc(C.fmtBizNo(detail.bizNo))), // 000-00-00000 (v0.34)
       info('영업대표', esc(C.ownerLabel(c.requesterId))), // 조직 이름 (v0.32)
       // 판다(CRM) 영업기회번호: 규칙에 맞으면 판다로 가는 링크 (v0.32)
@@ -271,7 +272,7 @@
       info('자동갱신', detail.autoRenew === 'YES' ? '있음 (해지 통지: 만료 ' + (detail.noticeDays || '-') + '일 전)' : '없음'),
       info('개인정보 처리위탁 계약', c.personalData ? '있음' : '없음'),
       info('열람 제한', c.restricted ? C.icon('lock', 'sm') + '있음' : '없음'),
-    ].join('');
+    ]).join('');
   }
 
   function renderAmount() {

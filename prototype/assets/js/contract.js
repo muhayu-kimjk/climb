@@ -24,7 +24,7 @@
   const found = D.CONTRACTS.find(function (c) { return c.id === id; });
   const b = found ? C.bundleOf(C.rootOf(found)) : null;
   if (!b) {
-    $('#notice').innerHTML = notice('', '계약을 찾을 수 없습니다', '주소의 계약번호를 확인해 주세요. 예: contract.html?id=CT-2026-0105');
+    $('#notice').innerHTML = notice('', '계약을 찾을 수 없습니다', '주소의 계약번호를 확인해 주세요. 예: contract.html?id=2601CL001');
     return;
   }
   const root = b.root;
@@ -82,6 +82,7 @@
     info('계약 기간', b.start ? C.fmtPeriod(b.start, b.end) : '-'),
     info('계약 금액', cur.amount ? Number(cur.amount).toLocaleString('ko-KR') + '원 (' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도)' : '금액 없음'),
     info('자동갱신', b.autoRenew === 'YES' ? '있음' + notice60() : '없음'),
+    root.unit ? info('기관(부서)', esc(root.unit)) : '', // 거래처 아래 기관 (C-24 v0.39)
     info('영업대표', esc(C.userName(root.requesterId)) + '님'),
     info('개인정보 처리위탁 계약', root.personalData ? '있음' : '없음'),
     info('열람 제한', root.restricted ? C.icon('lock', 'sm') + '있음' : '없음'),
