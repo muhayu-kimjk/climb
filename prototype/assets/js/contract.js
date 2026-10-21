@@ -79,7 +79,7 @@
   $('#now').innerHTML = [
     info('계약번호', '<a href="review.html?id=' + encodeURIComponent(cur.id) + '">' + esc(cur.id) + '</a>'),
     info('구분', esc(C.kindLabel(cur))),
-    info('계약 기간', b.start ? C.fmtDate(b.start) + ' ~ ' + C.fmtDate(b.end) : '-'),
+    info('계약 기간', b.start ? C.fmtPeriod(b.start, b.end) : '-'),
     info('계약 금액', cur.amount ? Number(cur.amount).toLocaleString('ko-KR') + '원 (' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도)' : '금액 없음'),
     info('자동갱신', b.autoRenew === 'YES' ? '있음' + notice60() : '없음'),
     info('영업 대표', esc(C.userName(root.requesterId)) + '님'),
@@ -93,7 +93,7 @@
   function termOf(c) {
     if (c.kind === 'TERMINATE') return '해지일 ' + C.fmtDate(c.terminateDate);
     const s = C.startOf(c), e = C.endOf(c);
-    return s ? C.fmtDate(s) + ' ~ ' + C.fmtDate(e) : '-';
+    return s ? C.fmtPeriod(s, e) : '-';
   }
   $('#items').innerHTML = '<caption class="sr-only">차수별 이력: 계약번호, 구분, 기안일, 상태, 계약 기간</caption>' +
     '<thead><tr><th scope="col">계약번호</th><th scope="col">구분</th><th scope="col">기안일</th><th scope="col">상태</th><th scope="col">계약 기간 또는 해지일</th></tr></thead>' +
@@ -101,9 +101,9 @@
       return '<tr' + (c === cur ? ' class="is-current"' : '') + '>' +
         '<td class="nowrap"><a class="cell-title" href="review.html?id=' + encodeURIComponent(c.id) + '">' + esc(c.id) + '</a>' + (c === cur ? '<span class="cell-meta">지금 유효</span>' : '') + '</td>' +
         '<td class="nowrap">' + esc(C.kindLabel(c)) + '</td>' +
-        '<td class="nowrap num-left">' + C.fmtDate(c.requestedAt) + '</td>' +
+        '<td class="num-left">' + C.fmtDate(c.requestedAt) + '</td>' +
         '<td class="nowrap">' + C.statusBadge(c) + '</td>' +
-        '<td class="nowrap num-left">' + termOf(c) + '</td>' +
+        '<td class="num-left">' + termOf(c) + '</td>' +
       '</tr>';
     }).join('') + '</tbody>';
 
@@ -138,7 +138,7 @@
     $('#notes').innerHTML = '<caption class="sr-only">사후관리 기록: 일시, 종류, 내용, 남긴 사람</caption>' +
       '<thead><tr><th scope="col">일시</th><th scope="col">종류</th><th scope="col">내용</th><th scope="col">남긴 사람</th></tr></thead>' +
       '<tbody>' + (list.length ? list.map(function (n) {
-        return '<tr><td class="nowrap num-left">' + C.fmtDateTime(n.at) + '</td><td class="nowrap">' + esc(D.AFTERCARE_TYPES[n.type]) + '</td>' +
+        return '<tr><td class="num-left">' + C.fmtDateTime(n.at) + '</td><td class="nowrap">' + esc(D.AFTERCARE_TYPES[n.type]) + '</td>' +
           '<td>' + esc(n.content) + '</td><td class="nowrap">' + esc(C.userName(n.by)) + '님</td></tr>';
       }).join('') : '<tr><td class="empty-row" colspan="4">남긴 기록이 없습니다.</td></tr>') + '</tbody>';
   }

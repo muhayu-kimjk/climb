@@ -11,6 +11,7 @@
  *      [가정] 자기 권한은 스스로 바꿀 수 없음(직무 분리). 최고관리자 권한은 최고관리자만 주거나 뺌
  *      결재 단계 담당자를 사용 중지하거나 그 역할을 빼려면 먼저 결재선 규칙(SCR-52)에서 담당자를 바꿔야 함
  *   6. 권한 변경 이력: 최근 5건, 모두 보기로 펼침
+ *   7. 조직 옮기기: 조직 개편 때 한 조직의 여러 사람을 한 번에 다른 조직으로. 역할은 그대로 (v0.31)
  * 프로토타입: 계정 데이터는 mock-data.js의 ACCOUNTS(가상 인물). 실제 시스템은 서버에서 거르고 쪽을 나눠 받아옵니다.
  * ===================================================================== */
 (function () {
@@ -57,8 +58,8 @@
   $('#f-status').innerHTML = options('전체 상태', Object.keys(D.ACCOUNT_STATUS).map(function (s) { return [s, D.ACCOUNT_STATUS[s].label]; }));
 
   /* ---------- 표시 도우미 ---------- */
-  // "2026-10-19 14:05" → "2026.10.19 14:05", 없으면 "-"
-  function dt(s) { return s ? s.replace(/-/g, '.') : '-'; }
+  // "2026-10-19 14:05" → "2026. 10. 19. 14:05", 없으면 "-" (날짜 표기 v0.31)
+  function dt(s) { return C.fmtDateTime(s); }
   function roleBadges(roles) {
     return '<span class="role-badges">' + roles.map(function (r) {
       // 최고관리자와 관리자는 진한 배지로 눈에 띄게 [가정]
@@ -228,6 +229,50 @@
       },
     });
   }
+  /* ---------- 7. 조직 옮기기 (조직 개편, 기획자 결정 v0.31) ----------
+   * 역할과 조직은 묶지 않으므로 옮겨도 역할은 그대로입니다. ③ 영업 검토는 기안자의 지금 조직으로 리더를 찾습니다. */
+  function openMove() {
+    const used = depts.filter(function (d) { return all.some(function (a) { return a.dept === d; }); });
+    C.formModal({
+      title: '여러 사람을 다른 조직으로 옮길까요?',
+      desc: '조직 개편 때 한 조직의 사람들을 한 번에 옮깁니다. 역할(권한)은 바뀌지 않고, 옮긴 기록은 권한 변경 이력에 남습니다.',
+      body: '<div class="field-row">' +
+          C.fieldHtml({ name: 'from', label: '지금 조직', type: 'select', required: true, options: [['', '고르세요']].concat(used.map(function (d) { return [d, d]; })) }) +
+          C.fieldHtml({ name: 'to', label: '옮길 조직', type: 'select', required: true, options: deptOptions() }) +
+        '</div>' +
+        '<fieldset class="field" data-field="people"><legend class="field-label">옮길 사람<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>' +
+          '<div class="check-grid" id="move-people"><p class="field-help">지금 조직을 먼저 고르세요.</p></div><p class="field-error" hidden></p></fieldset>' +
+        C.fieldHtml({ name: 'reason', label: '옮기는 사유', type: 'textarea', required: true, placeholder: '예: 2027년 1월 조직 개편으로 비즈니스3유닛을 비즈니스2유닛에 합침' }),
+      btn: '조직 옮기기',
+      open: function (f) {
+        f.elements.from.addEventListener('change', function () {
+          const list = all.filter(function (a) { return a.dept === val(f, 'from'); });
+          f.querySelector('#move-people').innerHTML = list.length ? list.map(function (a) {
+            return '<label class="choice"><input type="checkbox" name="people" value="' + esc(a.email) + '" checked>' + esc(a.name) +
+              (a.status === 'SUSPENDED' ? ' (사용 중지)' : '') + '</label>';
+          }).join('') : '<p class="field-help">지금 조직을 먼저 고르세요.</p>';
+        });
+      },
+      check: function (f) {
+        const n = f.querySelectorAll('[name="people"]:checked').length;
+        return {
+          from: val(f, 'from') ? '' : '지금 조직을 고르세요.',
+          to: !val(f, 'to') ? '옮길 조직을 고르세요.' : val(f, 'to') === val(f, 'from') ? '지금 조직과 다른 조직을 고르세요.' : '',
+          people: n ? '' : '옮길 사람을 한 명 이상 고르세요.',
+          reason: val(f, 'reason') ? '' : '옮기는 사유를 적으세요.',
+        };
+      },
+      done: function (f) {
+        const emails = Array.prototype.map.call(f.querySelectorAll('[name="people"]:checked'), function (x) { return x.value; });
+        const names = emails.map(function (e) { return all.filter(function (a) { return a.email === e; })[0].name; });
+        C.adminSave('USER', val(f, 'from') + ' → ' + val(f, 'to'), '조직 옮기기: ' + names.join(', ') + ' (' + names.length + '명)', val(f, 'reason'),
+          { k: 'ACCOUNTS_MOVE', emails: emails, to: val(f, 'to') });
+        render();
+        C.toast(names.length + '명을 ' + C.josa(val(f, 'to'), '으로', '로') + ' 옮겼습니다.');
+      },
+    });
+  }
+  $('#btn-move').addEventListener('click', openMove);
   $('#btn-add').addEventListener('click', openAdd);
   $('#user-rows').addEventListener('click', function (e) {
     const b = e.target.closest('[data-edit]');

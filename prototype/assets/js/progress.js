@@ -68,7 +68,7 @@
         '<td class="nowrap">' + C.statusBadge(c) + '</td>' +
         '<td>' + C.progressText(c) + '</td>' +
         '<td class="nowrap">' + esc(C.userName(c.requesterId)) + '</td>' +
-        '<td class="nowrap num-left">' + C.fmtDate(c.requestedAt) + '</td>' +
+        '<td class="num-left">' + C.fmtDate(c.requestedAt) + '</td>' +
       '</tr>';
     }).join('') : '<tr><td class="empty-row" colspan="6">조건에 맞는 계약이 없습니다.</td></tr>';
     $('#pagination').innerHTML = C.pagerHtml(page, pages, list.length, from, rows.length, PAGE_SIZE, '건');

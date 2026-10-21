@@ -72,8 +72,8 @@
       return '<tr>' +
         '<td class="num"><span class="badge badge--' + tone + '" aria-label="만료까지 ' + d + '일">D-' + d + '</span></td>' +
         '<td>' + cust + '</td>' +
-        '<td class="nowrap num-left">' + C.fmtDate(b.end) + '</td>' +
-        '<td class="nowrap">' + autoCell + '</td>' +
+        '<td class="num-left">' + C.fmtDate(b.end) + '</td>' +
+        '<td>' + autoCell + '</td>' +
         '<td>' + (visible && open ? esc(open) : '-') + '</td>' +
         '<td class="nowrap col-owner">' + esc(C.userName(c.requesterId)) + '</td>' +
         '<td class="nowrap">' + todo + '</td>' +

@@ -53,7 +53,7 @@
     info('고객사', esc(root.counterparty)),
     info('계약번호', '<a href="' + back + '">' + esc(b.id) + '</a>' + (cur !== root ? ' (지금 유효: ' + esc(cur.id) + ')' : '')),
     info('서비스', esc(C.serviceLabel(root.services))),
-    info('계약 기간', C.fmtDate(b.start) + ' ~ ' + C.fmtDate(b.end)),
+    info('계약 기간', C.fmtPeriod(b.start, b.end)),
     info('계약 금액', cur.amount ? Number(cur.amount).toLocaleString('ko-KR') + '원' : '금액 없음'),
     info('영업 대표', esc(C.userName(root.requesterId)) + '님'),
   ].join('');

@@ -49,7 +49,7 @@
         '<td>' + esc(C.serviceLabel(c.services)) + '</td>' +
         '<td class="nowrap">' + C.statusBadge(c) + '</td>' +
         '<td class="nowrap">' + esc(C.userName(c.requesterId)) + '</td>' +
-        '<td class="nowrap num-left">' + setInfo(c.id) + '</td>' +
+        '<td class="num-left">' + setInfo(c.id) + '</td>' +
         '<td class="col-action"><button type="button" class="link-act link-act--danger" data-off="' + esc(c.id) + '" aria-label="' + esc(c.counterparty) + ' 열람 제한 풀기">풀기</button></td></tr>';
     }).join('') : '<tr><td class="empty-row" colspan="6">열람 제한 계약이 없습니다.</td></tr>';
     $('#history').innerHTML = C.adminHistoryHtml(events(), '열람 제한 변경 이력');

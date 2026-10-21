@@ -47,6 +47,11 @@
 .summary-list { padding-left: 2rem; list-style: disc; }
 .summary-list li + li { margin-top: 0.4rem; }
 .check-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.6rem; }
+/* 표 아래 보조 버튼 (결재선 규칙의 유닛 추가) */
+.sub-actions { display: flex; justify-content: flex-end; margin-top: 1.2rem; }
+@media print { .sub-actions, .list-actions { display: none !important; } }
+/* 목록 위 버튼 여러 개 (사용자 권한 관리: 조직 옮기기, 사용자 추가) */
+.list-actions { display: inline-flex; flex-wrap: wrap; gap: 0.8rem; }
 /* 권한 고르기 (사용자 권한 관리): 분야 이름 한 칸 + 등급 체크를 나란히, 분야마다 한 줄 (역할 2단계, v0.29) */
 .role-pick { border-top: 1px solid var(--border-gray-light); }
 .role-row { margin: 0; padding: 0; border: 0; border-bottom: 1px solid var(--border-gray-light); }

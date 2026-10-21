@@ -16,17 +16,17 @@
 <!-- =====================================================================
   SCR-00 로그인 (docs/02_화면목록.md)
   - 회사 Google 계정으로 로그인합니다. 회사 도메인 계정만 허용합니다. (REQ-ENV-03)
-  - 사내망 또는 VPN에서만 접속할 수 있습니다. (REQ-ENV-02)
+  - 사내망 또는 VPN에서만 접속할 수 있습니다(REQ-ENV-02). 화면에는 적지 않음 (v0.31 기획자 결정)
+  - (v0.31 기획자 결정) 화면에 CLIMB 글자를 두지 않고 한글 이름과 영문 이름만, 안내는 @muhayu.com 계정 한 줄만
   - 프로토타입: 버튼을 누르면 실제 인증 없이 아래에서 고른 역할로 대시보드에 들어갑니다.
   - 개발팀 참고: Google OAuth 2.0 / OpenID Connect. 허용 도메인(hd) 검증은 반드시 서버에서 합니다.
 ====================================================================== -->
 <body class="login-page" data-page="SCR-00">
   <main class="login-wrap">
     <section class="login-card" aria-label="로그인">
-      <!-- 시스템 이름: 로고 그림 없이 글자로만 표시 (REQ-NAME-03~04) -->
+      <!-- 시스템 이름: 로고 그림 없이 글자로만. CLIMB 글자 없이 한글 이름과 영문 이름 (REQ-NAME-03~04, v0.31) -->
       <div class="login-brand" id="login-brand"></div>
 
-      <p class="login-guide">회사 Google 계정으로 로그인하세요.</p>
       <button type="button" class="btn btn--lg btn--google" id="google-login">
         <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
           <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
@@ -36,7 +36,7 @@
         </svg>
         Google 계정으로 로그인
       </button>
-      <p class="login-help">@muhayu.com 계정만 사용할 수 있습니다.<br>사내망 또는 VPN에 연결한 상태에서 접속하세요.</p>
+      <p class="login-help">@muhayu.com 계정만 사용할 수 있습니다.</p>
       <!-- 보안 안내 문구: 접속하기 전에 보이도록 로그인 버튼 아래에 둠 (REQ-UI-15). 문장은 common.js SECURITY_NOTICE -->
       <p class="login-notice" id="login-notice"></p>
 
@@ -57,17 +57,21 @@
       const C = window.CLIMB;
       const role = C.getRole();
 
-      // 이름 영역: 무하유 계약 관리 플랫폼 + 영문 명칭 (REQ-NAME-03~04)
-      document.getElementById('login-brand').innerHTML = C.brandText('h1');
+      // 이름 영역: 무하유 계약 관리 플랫폼 + 영문 명칭. CLIMB 글자는 두지 않음 (REQ-NAME-03~04, v0.31)
+      document.getElementById('login-brand').innerHTML =
+        '<h1 class="brand-title"><span class="brand-ko">' + C.esc(D.BRAND.ko) + '</span></h1><span class="brand-en">' + C.esc(D.BRAND.en) + '</span>';
       document.getElementById('login-notice').textContent = C.securityNotice;
       document.getElementById('login-foot').innerHTML =
         C.meta(['© 2026 MUHAYU. All rights reserved.']);
 
       // 시연용 역할 목록
       const select = document.getElementById('login-role');
-      select.innerHTML = Object.keys(D.ROLES).map(function (r) {
-        const u = D.USERS[D.DEMO_PERSONA[r]];
-        return '<option value="' + r + '"' + (r === role ? ' selected' : '') + '>' + C.esc(D.ROLES[r]) + ' (' + C.esc(u.name) + ')</option>';
+      // 역할 2단계: 분야마다 묶음 (v0.29)
+      select.innerHTML = D.ROLE_AREAS.map(function (g) {
+        return '<optgroup label="' + C.esc(g.name) + '">' + Object.keys(g.roles).map(function (r) {
+          const u = D.USERS[D.DEMO_PERSONA[r]];
+          return '<option value="' + r + '"' + (r === role ? ' selected' : '') + '>' + C.esc(D.ROLES[r]) + ' (' + C.esc(u.name) + ')</option>';
+        }).join('') + '</optgroup>';
       }).join('');
 
       // 로그인 → 대시보드 (실제로는 Google 인증 후 서버가 역할을 확인)

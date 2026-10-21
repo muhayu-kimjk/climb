@@ -41,6 +41,15 @@
 /* 전체 진행 현황: 현재 진행 칸에 자리를 더 줌 (서비스 칸은 좁게) */
 .tbl--progress .col-customer { width: 22%; }
 .tbl--progress .col-service { width: 14%; }
+/* 칸이 많은 표를 종이 폭에 맞춤 (REQ-UI-10): 내 등록 목록, 검토 완료, 대리 지정(결재선 규칙), 코드 표(코드 관리)
+ *   본문 폭(약 716px, 묶음 안 658px)을 조금 넘어 옆으로 밀어야 했던 표를 가로 스크롤 없이 보이게 함
+ *   - 칸 좌우 여백을 휴대폰의 촘촘한 표와 같은 0.8rem으로 줄임 (글자 사이 16px)
+ *   - 머리글이 내용보다 긴 칸(자리를 비우는 담당자, 처리한 사람, 영업 대표, 쓰는 곳)은 머리글을 띄어쓰기에서 두 줄로 나눔. 가운데 정렬은 그대로
+ *   - 고객사 칸은 정해 둔 너비(24%) 대신 이름 길이만큼만 차지해, 남는 자리가 구분, 현재 진행, 의견 칸으로 감 (서비스 칸이 없는 표)
+ *   - 날짜(줄바꿈 없는 빈칸), 배지, 버튼, 코드값은 지금처럼 한 줄 */
+.tbl--fit th, .tbl--fit td { padding-left: 0.8rem; padding-right: 0.8rem; }
+.tbl--fit thead th { white-space: normal; }
+.tbl--fit .col-customer { width: auto; }
 
 /* ---------- KRDS 페이지네이션 (REQ-ADM-04) ---------- */
 .pagination { margin-top: 2.4rem; text-align: center; }

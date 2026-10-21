@@ -65,6 +65,8 @@
               <tbody id="leader-rows"></tbody>
             </table>
           </div>
+          <!-- 조직 개편으로 새 유닛이 생기면 표에 더함 (v0.31). 표에 없는 유닛의 계약은 영업 임원이 검토 -->
+          <div class="sub-actions"><button type="button" class="btn btn--tertiary btn--md" id="btn-unit">유닛 추가</button></div>
         </section>
 
         <section class="panel" aria-labelledby="sec-delegate">
@@ -74,7 +76,7 @@
           </div>
           <p class="panel-desc">담당자가 휴가나 출장으로 자리를 비우는 기간에 대신 처리할 사람을 정합니다. 기간 안에는 대신할 사람이 처리하고, 결재 기록에 누구 대신인지와 근거가 남습니다.</p>
           <div class="tbl-scroll" tabindex="0" role="region" aria-label="대리 지정 표">
-            <table class="tbl tbl--compact">
+            <table class="tbl tbl--compact tbl--fit">
               <caption class="sr-only">대리 지정: 자리를 비우는 담당자, 대신할 사람, 기간, 근거, 상태, 관리</caption>
               <thead><tr><th scope="col">자리를 비우는 담당자</th><th scope="col">대신할 사람</th><th scope="col">기간</th><th scope="col">근거</th><th scope="col">상태</th><th scope="col" class="col-action">관리</th></tr></thead>
               <tbody id="delegate-rows"></tbody>

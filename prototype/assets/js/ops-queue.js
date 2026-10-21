@@ -81,7 +81,7 @@
           (!showWho && x.s.userId !== me.id ? '<span class="cell-meta">' + esc(C.userName(x.s.userId)) + '님 대신 (대리 지정)</span>' : '') + '</td>' +
         (showWho ? '<td class="nowrap">' + esc(C.userName(x.s.userId)) + '</td>' : '') +
         // 운영 변경은 체결본이 없으므로 기안일
-        '<td class="nowrap num-left">' + (x.c.signedAt ? C.fmtDate(x.c.signedAt) : C.isChange(x.c) ? '기안 ' + C.fmtDate(x.c.requestedAt) : '-') + '</td>' +
+        '<td class="num-left">' + (x.c.signedAt ? C.fmtDate(x.c.signedAt) : C.isChange(x.c) ? '기안 ' + C.fmtDate(x.c.requestedAt) : '-') + '</td>' +
         '<td class="num"><span' + (x.wait >= LONG ? ' class="wait-long"' : '') + '>' + x.wait + '일</span></td>' +
       '</tr>';
     }).join('') : '<tr><td class="empty-row" colspan="' + cols + '">' + (all.length ? '조건에 맞는 건이 없습니다.' : '지금 차례인 운영 검토가 없습니다.') + '</td></tr>';

@@ -51,7 +51,7 @@
   $('#origin').innerHTML = [
     info('고객사', esc(root.counterparty)),
     info('계약번호', '<a href="' + back + '">' + esc(b.id) + '</a>' + (cur !== root ? ' (지금 유효: ' + esc(cur.id) + ')' : '')),
-    info('계약 기간', C.fmtDate(b.start) + ' ~ ' + C.fmtDate(b.end) + ' (만료까지 ' + C.daysUntil(b.end) + '일)'),
+    info('계약 기간', C.fmtPeriod(b.start, b.end) + ' (만료까지 ' + C.daysUntil(b.end) + '일)'),
     info('계약 금액', cur.amount ? Number(cur.amount).toLocaleString('ko-KR') + '원' : '금액 없음'),
     info('해지 통지 기한', noticeDay ? C.fmtDate(noticeDay) + ' (만료 ' + b.noticeDays + '일 전)' + (C.daysUntil(noticeDay) < 0 ? ' <span class="wait-long">지남</span>' : '') : '-'),
     info('영업 대표', esc(C.userName(root.requesterId)) + '님'),
@@ -116,7 +116,7 @@
     $('#confirm-body').innerHTML = '<p>기안하면 ③ 영업 검토부터 시작되고, 결재가 끝날 때까지 고칠 수 없습니다.</p>' +
       '<dl class="confirm-list"><div><dt>계약</dt><dd>' + esc(root.counterparty + ' ' + b.id) + '</dd></div>' +
       '<div><dt>갱신 번호</dt><dd>' + esc(newId) + '</dd></div>' +
-      '<div><dt>새 계약 기간</dt><dd>' + C.fmtDate(start) + ' ~ ' + C.fmtDate(end) + '</dd></div></dl>';
+      '<div><dt>새 계약 기간</dt><dd>' + C.fmtPeriod(start, end) + '</dd></div></dl>';
     modal.hidden = false;
     C.focusModal(modal); // 제목에 포커스 (KRDS 모달, v0.28)
   });

@@ -81,7 +81,7 @@
         '<td class="col-action">' + (st === 'USE' ? '<label class="choice choice--only"><input type="checkbox" data-pick="' + esc(cu.id) + '"' +
           (picked.indexOf(cu.id) > -1 ? ' checked' : '') + ' aria-label="' + esc(cu.name) + ' 합치기에 고르기"></label>' : '') + '</td>' +
         '<td><span class="cell-strong">' + esc(cu.name) + '</span><span class="cell-meta">' + esc(cu.id) + (into ? ', ' + esc(ro(into.name)) + ' 합쳐짐' : '') + '</span></td>' +
-        '<td class="nowrap num-left">' + esc(cu.bizNo) + '</td>' +
+        '<td class="num-left">' + esc(cu.bizNo) + '</td>' +
         '<td class="num">' + contractsOf(cu) + '건</td>' +
         '<td class="nowrap">' + esc(C.userName(cu.registeredBy)) + '님<span class="cell-meta">' + C.fmtDate(cu.registeredAt) + '</span></td>' +
         '<td class="nowrap">' + C.badge(STATE[st][0], STATE[st][1]) + '</td>' +
@@ -124,6 +124,7 @@
   /* ---------- 4. 고치기, 추가 ---------- */
   function bizNoError(v, selfId) {
     if (!/^\d{3}-\d{2}-\d{5}$/.test(v)) return '사업자등록번호 10자리를 넣으세요.';
+    if (!C.isBizNo(v)) return '사업자등록번호가 맞지 않습니다. 사업자등록증의 숫자를 다시 확인하세요.'; // 검증 숫자 규칙 (v0.32)
     const dup = D.CUSTOMERS.filter(function (cu) { return cu.bizNo === v && cu.id !== selfId; })[0];
     return dup ? '이미 등록된 사업자등록번호입니다(' + dup.name + ').' : '';
   }

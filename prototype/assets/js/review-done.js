@@ -72,12 +72,13 @@
     $('#rows').innerHTML = rows.length ? rows.map(function (x) {
       const a = D.APPROVAL_ACTIONS[x.h.action];
       return '<tr>' +
-        '<td class="nowrap num-left">' + C.fmtDateTime(x.h.at) + '</td>' +
+        '<td class="num-left">' + C.fmtDateTime(x.h.at) + '</td>' +
         '<td><a class="cell-title" href="review.html?id=' + encodeURIComponent(x.c.id) + '">' + esc(x.c.counterparty) + '</a>' +
-          '<span class="cell-meta">' + esc(x.c.id) + ', ' + esc(C.serviceLabel(x.c.services)) + ', ' + (x.h.round || 1) + '차</span></td>' +
-        '<td class="nowrap">' + esc(D.STEPS[x.h.step].no + ' ' + D.STEPS[x.h.step].short) + '</td>' +
+          // 계약번호는 날짜처럼 한 줄로 (마지막 하이픈에서 끊기지 않게). 서비스와 차수는 쉼표 뒤에서 줄이 바뀔 수 있음
+          '<span class="cell-meta"><span class="nowrap">' + esc(x.c.id) + '</span>, ' + esc(C.serviceLabel(x.c.services)) + ', ' + (x.h.round || 1) + '차</span></td>' +
+        '<td>' + esc(D.STEPS[x.h.step].no + ' ' + D.STEPS[x.h.step].short) + '</td>' +
         '<td class="nowrap">' + C.badge(a.tone, C.actionLabel(x.h, x.c)) + '</td>' +
-        (seeAll ? '<td class="nowrap">' + esc(C.userName(x.h.actorId)) + (x.h.onBehalfOf ? '<span class="cell-meta">' + esc(C.userName(x.h.onBehalfOf)) + '님 대신</span>' : '') + '</td>' : '') +
+        (seeAll ? '<td>' + esc(C.userName(x.h.actorId)) + (x.h.onBehalfOf ? '<span class="cell-meta">' + esc(C.userName(x.h.onBehalfOf)) + '님 대신</span>' : '') + '</td>' : '') +
         '<td>' + (x.h.comment ? esc(x.h.comment) : '-') + '</td>' +
         '<td class="nowrap">' + C.statusBadge(x.c) + '</td>' +
       '</tr>';

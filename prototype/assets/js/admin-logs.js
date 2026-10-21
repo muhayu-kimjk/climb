@@ -74,7 +74,7 @@
     const list = D.SEC_ALERTS.slice().sort(function (a, b) { return (a.status === 'OPEN' ? 0 : 1) - (b.status === 'OPEN' ? 0 : 1) || b.at.localeCompare(a.at); });
     $('#alert-rows').innerHTML = list.map(function (a) {
       const done = a.status === 'DONE';
-      return '<tr' + (done ? '' : ' class="is-alert"') + '><td class="nowrap num-left">' + C.fmtDateTime(a.at) + '</td>' +
+      return '<tr' + (done ? '' : ' class="is-alert"') + '><td class="num-left">' + C.fmtDateTime(a.at) + '</td>' +
         '<td class="nowrap"><span class="cell-strong">' + esc(C.userName(a.userId)) + '님</span><span class="cell-meta">' + esc((D.USERS[a.userId] || {}).dept || '') + '</span></td>' +
         '<td><span class="cell-strong">' + esc(D.SEC_ALERT_KINDS[a.kind]) + '</span><span class="cell-meta">' + esc(a.detail) + '</span>' +
           (done ? '<span class="cell-meta">결과: ' + esc(a.action) + ' (' + esc(C.userName(a.doneBy)) + '님, ' + C.fmtDateTime(a.doneAt) + ')</span>' : '') + '</td>' +
@@ -117,7 +117,7 @@
   function reviewRow(label, due, rec, ended, btnAttr, notYet, word) {
     const late = !rec && ended && D.TODAY > due;
     return '<tr' + (late ? ' class="is-alert"' : '') + '><td class="nowrap cell-strong">' + esc(label) + '</td>' +
-      '<td class="nowrap num-left">' + C.fmtDate(due) + (late ? '<span class="cell-meta">기한 지남</span>' : '') + '</td>' +
+      '<td class="num-left">' + C.fmtDate(due) + (late ? '<span class="cell-meta">기한 지남</span>' : '') + '</td>' +
       '<td class="nowrap">' + (rec ? esc(C.userName(rec.by)) + '님<span class="cell-meta">' + C.fmtDateTime(rec.at) + '</span>' : ended ? word + ' 전' : '-') + '</td>' +
       '<td class="nowrap">' + (rec ? resultBadge(rec) : ended ? C.badge('line', word + ' 전') : C.badge('line', '예정')) + '</td>' +
       '<td>' + (rec ? esc(rec.note) + (rec.action ? '<span class="cell-meta">조치: ' + esc(rec.action) + '</span>' : '') : ended ? '-' : esc(notYet)) + '</td>' +
@@ -142,7 +142,7 @@
         '<div class="choice-row"><label class="choice"><input type="radio" name="result" value="OK">' + esc(okLabel) + '</label>' +
         '<label class="choice"><input type="radio" name="result" value="ACTION">조치함</label></div><p class="field-error" hidden></p></fieldset>' +
       C.fieldHtml({ name: 'note', label: '확인한 내용', type: 'textarea', required: true }) +
-      C.fieldHtml({ name: 'act', label: '조치', type: 'textarea', help: '조치함을 고르면 꼭 적습니다. 예: 퇴사자 계정 사용 중지 요청(관리자, 10.2 처리)' });
+      C.fieldHtml({ name: 'act', label: '조치', type: 'textarea', help: '조치함을 고르면 꼭 적습니다. 예: 퇴사자 계정 사용 중지 요청(관리자, 10. 2. 처리)' });
   }
   function checkResult(f) {
     const r = f.querySelector('[name="result"]:checked');
@@ -245,7 +245,7 @@
     const from = (page - 1) * PAGE_SIZE, rows = list.slice(from, from + PAGE_SIZE);
     $('#list-count').innerHTML = C.meta(['<strong>' + (list.length !== logs.length ? '검색 결과 ' : '전체 ') + list.length + '건</strong>', '고치거나 지울 수 없음, 영구 보관']);
     $('#log-rows').innerHTML = rows.length ? rows.map(function (l) {
-      return '<tr><td class="nowrap num-left">' + C.fmtDateTime(l.at) + '</td><td class="nowrap">' + esc(C.userName(l.userId)) + '</td>' +
+      return '<tr><td class="num-left">' + C.fmtDateTime(l.at) + '</td><td class="nowrap">' + esc(C.userName(l.userId)) + '</td>' +
         '<td class="nowrap">' + esc(ACTS[l.act]) + '</td><td>' + esc(l.target) + '</td><td class="nowrap">' + esc(l.place) + '</td></tr>';
     }).join('') : '<tr><td class="empty-row" colspan="5">조건에 맞는 기록이 없습니다.</td></tr>';
     $('#pagination').innerHTML = C.pagerHtml(page, pages, list.length, from, rows.length, PAGE_SIZE, '건');

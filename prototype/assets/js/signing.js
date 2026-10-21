@@ -84,7 +84,7 @@
         '<td class="col-service">' + (visible ? service : '-') + '</td>' +
         '<td class="nowrap">' + stepCell + '</td>' +
         (seeAll ? '<td class="nowrap">' + esc(C.userName(x.c.requesterId)) + '</td>' : '') +
-        '<td class="nowrap num-left">' + C.fmtDate(x.c.approvedAt) + '</td>' +
+        '<td class="num-left">' + C.fmtDate(x.c.approvedAt) + '</td>' +
         '<td class="num"><span' + (x.days >= LONG ? ' class="wait-long"' : '') + '>' + x.days + '일</span></td>' +
       '</tr>';
     }).join('') : '<tr><td class="empty-row" colspan="' + cols + '">' + (all.length ? '조건에 맞는 건이 없습니다.' : '체결을 기다리는 계약이 없습니다.') + '</td></tr>';

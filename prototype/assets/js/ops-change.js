@@ -55,7 +55,7 @@
     info('고객사', esc(root.counterparty)),
     info('계약번호', '<a href="' + back + '">' + esc(b.id) + '</a>' + (b.current !== root ? ' (지금 유효: ' + esc(b.current.id) + ')' : '')),
     info('서비스', esc(C.serviceLabel(root.services))),
-    info('계약 기간', C.fmtDate(b.start) + ' ~ ' + C.fmtDate(b.end)),
+    info('계약 기간', C.fmtPeriod(b.start, b.end)),
     info('영업 대표', esc(C.userName(root.requesterId)) + '님'),
     info('진행 중인 일', b.open.length ? b.open.map(function (o) { return esc(o.id + ' ' + C.kindLabel(o)); }).join('<br>') : '없음'),
   ].join('');

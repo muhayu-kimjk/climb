@@ -55,7 +55,7 @@
       return '<tr><td><span class="cell-strong">' + esc(any.name) + '</span>' +
           '<span class="cell-meta">' + esc(code + ', ' + (D.SERVICES[any.service] || any.service) + ', ' + any.unit) + '</span>' + plan + '</td>' +
         (r ? '<td class="num">' + won(r.listPrice) + '</td><td class="num">' + pct(r.discountCap) + '</td>' +
-          '<td class="nowrap num-left">' + C.fmtDate(r.validFrom) + '</td><td class="nowrap">' + docLink(r) + '</td>'
+          '<td class="num-left">' + C.fmtDate(r.validFrom) + '</td><td class="nowrap">' + docLink(r) + '</td>'
           : '<td class="num" colspan="4">아직 적용 전</td>') +
         (canEdit ? '<td class="col-action"><button type="button" class="link-act" data-change="' + esc(code) + '" aria-label="' + esc(any.name) + ' 가격 기준 바꾸기">바꾸기</button></td>' : '') +
       '</tr>';
@@ -66,7 +66,7 @@
     $('#history').innerHTML = rows.map(function (r) {
       const state = r.validFrom > D.TODAY ? C.badge('line', '예정') : current(r.code) === r ? C.badge('success', '적용 중') : C.badge('neutral', '지난 기준');
       return '<tr' + (r.validFrom <= D.TODAY && current(r.code) !== r ? ' class="is-muted"' : '') + '>' +
-        '<td class="nowrap num-left">' + C.fmtDate(r.validFrom) + '<span class="cell-meta">' + state + '</span></td>' +
+        '<td class="num-left">' + C.fmtDate(r.validFrom) + '<span class="cell-meta">' + state + '</span></td>' +
         '<td><span class="cell-strong">' + esc(r.name) + '</span><span class="cell-meta">' + esc(r.code) + '</span></td>' +
         '<td class="num">' + won(r.listPrice) + '<span class="cell-meta">한도 ' + pct(r.discountCap) + '</span></td>' +
         '<td class="col-wide">' + esc(r.reason) + '<span class="cell-meta">품의 ' + docLink(r) + '</span></td>' +

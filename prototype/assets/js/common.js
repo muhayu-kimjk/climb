@@ -67,6 +67,8 @@ window.CLIMB = (function () {
     help: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
     check: '<circle cx="12" cy="12" r="10"/><path d="m8 12.5 2.8 2.8L16.5 9.5"/>',
     arrowUp: '<path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>',
+    external: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
   };
   function icon(name, size) {
     const cls = 'icon' + (size ? ' icon--' + size : '');
@@ -136,9 +138,18 @@ window.CLIMB = (function () {
   }
   function daysSince(s) { return daysBetween(parseDate(s), TODAY); }
   function daysUntil(s) { return daysBetween(TODAY, parseDate(s)); }
-  function fmtDate(s) { return s ? String(s).slice(0, 10).replace(/-/g, '.') : '-'; }
-  // 'YYYY-MM-DD HH:MM(:SS)' → '2026.10.15 09:40'
-  function fmtDateTime(s) { return s ? String(s).slice(0, 16).replace(/-/g, '.') : '-'; }
+  // 날짜 표기는 문장 부호 규정(마침표)을 따름: 'YYYY-MM-DD' → '2026. 10. 5.' (어문 규범 검토 v0.31, 예전 '2026.10.05')
+  function fmtDate(s) {
+    if (!s) return '-';
+    const p = String(s).slice(0, 10).split('-');
+    // 날짜 안에서는 줄이 바뀌지 않게 점 뒤 칸을 줄바꿈 없는 빈칸(NBSP)으로 씀. 날짜와 시각 사이, 물결표 뒤에서는 줄이 바뀔 수 있음
+    return p.length < 3 ? String(s) : Number(p[0]) + '.\u00a0' + Number(p[1]) + '.\u00a0' + Number(p[2]) + '.';
+  }
+  // 'YYYY-MM-DD HH:MM(:SS)' → '2026. 10. 15. 09:40'
+  function fmtDateTime(s) { return s ? fmtDate(s) + (String(s).length > 10 ? ' ' + String(s).slice(11, 16) : '') : '-'; }
+  // 기간: 물결표 앞뒤를 붙여 씀 → '2026. 10. 24.~2027. 10. 23.' (문장 부호 규정 물결표, v0.31)
+  //   표 칸이 좁으면 물결표 뒤에서 줄이 바뀌도록 폭 없는 빈칸(ZWSP)을 둠
+  function fmtPeriod(a, b) { return fmtDate(a) + '~\u200b' + fmtDate(b); }
   function fmtToday() {
     const w = '일월화수목금토'.charAt(TODAY.getDay());
     return TODAY.getFullYear() + '년 ' + (TODAY.getMonth() + 1) + '월 ' + TODAY.getDate() + '일(' + w + ')';
@@ -156,9 +167,57 @@ window.CLIMB = (function () {
 
   /* ---------- 계약·결재 관련 ---------- */
   function roleLabel(role) { return D.ROLES[role] || role; }
+  // 받침에 맞는 조사를 붙여 돌려줌: josa('갱신 검토', '은', '는') → '갱신 검토는', josa('재무', '이', '가') → '재무가'
+  //   '으로'는 ㄹ 받침 뒤에서 '로' (한글 맞춤법). 글자를 이어 붙여 만드는 문장에 씀 (어문 규범 검토 v0.31)
+  function josa(word, withFinal, withoutFinal) {
+    const code = String(word).charCodeAt(String(word).length - 1) - 0xAC00;
+    const jong = code >= 0 && code < 11172 ? code % 28 : 0;
+    const has = withFinal === '으로' ? jong && jong !== 8 : jong;
+    return word + (has ? withFinal : withoutFinal);
+  }
   // 결재란과 현재 진행 칸에 쓰는 짧은 이름: 담당자는 분야 이름만("영업", "법무"), 리더와 임원은 등급까지("영업 리더")
   function roleShort(role) { return D.ROLE_SHORT[role] || role; }
   function userName(id) { return D.USERS[id] ? D.USERS[id].name : '-'; }
+  // 영업 대표 표기: "조직 이름" (님 없이, 기획자 요청 v0.32. 예: 경영지원유닛 원지안)
+  function ownerLabel(id) { const u = D.USERS[id]; return u ? (u.dept ? u.dept + ' ' : '') + u.name : '-'; }
+
+  /* ---------- 사업자등록번호 (거래처 검색, v0.32) ----------
+   * 형식 000-00-00000, 끝자리는 검증 숫자: 앞 9자리에 1,3,7,1,3,7,1,3,5를 곱해 더하고 9번째 자리 x 5의 십의 자리를 더한 뒤 10에서 뺀 끝자리
+   * 실제 시스템은 직접 입력한 번호를 국세청 사업자등록 상태 조회로 계속, 휴업, 폐업까지 확인 [가정] */
+  function isBizNo(v) {
+    const d = String(v || '').replace(/-/g, '');
+    if (!/^\d{10}$/.test(d)) return false;
+    const w = [1, 3, 7, 1, 3, 7, 1, 3, 5];
+    let sum = 0;
+    for (let i = 0; i < 9; i++) sum += Number(d[i]) * w[i];
+    sum += Math.floor(Number(d[8]) * 5 / 10);
+    return (10 - sum % 10) % 10 === Number(d[9]);
+  }
+  // 거래처 검색: 상호 일부나 사업자등록번호 일부로 우리 거래처(C)와 사업자 정보 DB(R)를 함께 찾음. 거래처를 먼저, 최대 n건
+  function searchBusinesses(q, n) {
+    const text = String(q || '').trim().toLowerCase();
+    const digits = text.replace(/[^0-9]/g, '');
+    if (!text) return [];
+    const hit = function (name, bizNo) {
+      return name.toLowerCase().indexOf(text) > -1 || (digits.length >= 3 && bizNo.replace(/-/g, '').indexOf(digits) > -1);
+    };
+    const mine = D.CUSTOMERS.filter(function (cu) { return cu.use && hit(cu.name, cu.bizNo); })
+      .map(function (cu) { return { kind: 'C', key: 'C:' + cu.id, name: cu.name, bizNo: cu.bizNo }; });
+    const known = D.CUSTOMERS.map(function (cu) { return cu.bizNo; });
+    const reg = D.BIZ_REGISTRY.filter(function (r) { return known.indexOf(r.bizNo) < 0 && hit(r.name, r.bizNo); })
+      .map(function (r) { return { kind: 'R', key: 'R:' + r.bizNo, name: r.name, bizNo: r.bizNo }; });
+    return mine.concat(reg).slice(0, n || 8);
+  }
+
+  /* ---------- 판다(CRM) 영업기회번호 (기획자 지정 v0.32) ----------
+   * 연도 2자리, 월 2자리, 영문 2자리, 일련번호 3자리 (예: 2610SU067). 링크는 https://panda.muhayu.com/sales/opp/번호 */
+  const OPP_RE = /^\d{2}(0[1-9]|1[0-2])[A-Z]{2}\d{3}$/;
+  function isOppNo(v) { return OPP_RE.test(String(v || '')); }
+  function pandaUrl(v) { return 'https://panda.muhayu.com/sales/opp/' + encodeURIComponent(v); }
+  function pandaLink(v) {
+    return isOppNo(v) ? '<a class="ext-link" href="' + pandaUrl(v) + '" target="_blank" rel="noopener noreferrer">' + esc(v) +
+      icon('external', 'sm') + '<span class="sr-only">(판다에서 열기, 새 창)</span></a>' : esc(v || '-');
+  }
   // 서비스 이름: 계약명은 따로 두지 않고 고객사와 서비스로 계약을 구분 (v0.12)
   //   codes: ['CK', 'HR'] 같은 서비스 코드 목록 → "카피킬러, HR 서비스"
   function serviceLabel(codes) {
@@ -229,8 +288,8 @@ window.CLIMB = (function () {
     if (isShort(c)) {
       const what = c.kind === 'TERMINATE' ? '해지 기안' : '갱신 검토';
       return {
-        S02: [false, what + '은 체크리스트 검토 없음'], S03: [true, '영업 리더 승인'],
-        S04: [true, '법무 승인'], S05: [false, what + '은 개인정보 검토 없음'],
+        S02: [false, josa(what, '은', '는') + ' 체크리스트 검토 없음'], S03: [true, '영업 리더 승인'],
+        S04: [true, '법무 승인'], S05: [false, josa(what, '은', '는') + ' 개인정보 검토 없음'],
       };
     }
     const ck = c.checklist || {};
@@ -609,6 +668,8 @@ window.CLIMB = (function () {
     const entry = Object.assign({
       contractId: c.id, step: s.step, action: action, at: nowStamp(), comment: comment || '',
       actorId: user.id, onBehalfOf: s.userId !== user.id ? s.userId : null,
+      // 처리한 사람의 그때 조직 이름. 나중에 조직 개편으로 이름이 바뀌어도 기록에는 그때 이름이 남음 (v0.31)
+      actorDept: (D.USERS[user.id] || {}).dept || '',
       delegationId: dl ? dl.id : null, basis: dl ? dl.reason : '', round: c.round || 1,
     }, extra || {});
     const list = loadDemoActions();
@@ -714,6 +775,14 @@ window.CLIMB = (function () {
       if (op.set.status) a.status = op.set.status;
       if (op.set.roles || op.set.status) a.roleChangedAt = day; // 권한 변경일: 역할이나 사용 여부를 바꾼 날
       if (D.USERS[a.id]) { D.USERS[a.id].dept = a.dept; D.USERS[a.id].role = a.roles[0]; }
+    } else if (op.k === 'ACCOUNTS_MOVE') {
+      // 조직 옮기기: 여러 사람을 한 번에 다른 조직으로. 역할은 그대로 (조직 개편 v0.31)
+      op.emails.forEach(function (email) {
+        const a = findBy(D.ACCOUNTS, 'email', email);
+        if (!a) return;
+        a.dept = op.to;
+        if (D.USERS[a.id]) D.USERS[a.id].dept = op.to;
+      });
     } else if (op.k === 'RESTRICT') {
       D.CONTRACTS.forEach(function (c) { if (c.id === op.id) c.restricted = op.on; });
     } else if (op.k === 'PRICE') {
@@ -745,11 +814,22 @@ window.CLIMB = (function () {
       // 프로토타입은 사용자 부서와 계약 유형을 이름으로 저장하므로 이름을 바꾸면 기록의 이름도 바꿔 보여 줌 (실제 시스템은 코드로 저장)
       if (op.set.label && op.set.label !== c.label) {
         const old = c.label;
-        if (op.group === 'DEPT') D.ACCOUNTS.forEach(function (a) { if (a.dept === old) { a.dept = op.set.label; if (D.USERS[a.id]) D.USERS[a.id].dept = op.set.label; } });
+        if (op.group === 'DEPT') {
+          D.ACCOUNTS.forEach(function (a) { if (a.dept === old) { a.dept = op.set.label; if (D.USERS[a.id]) D.USERS[a.id].dept = op.set.label; } });
+          // 조직 이름을 바꿔도 ③ 유닛별 리더가 이어지게 리더 표와 바꾼 이력의 유닛 이름도 함께 바꿈 (v0.31, 조직 개편)
+          if (Object.prototype.hasOwnProperty.call(D.TEAM_LEADERS, old)) {
+            // 표의 순서를 지키며 이름만 바꿈
+            const keep = Object.keys(D.TEAM_LEADERS).map(function (k) { return [k === old ? op.set.label : k, D.TEAM_LEADERS[k]]; });
+            Object.keys(D.TEAM_LEADERS).forEach(function (k) { delete D.TEAM_LEADERS[k]; });
+            keep.forEach(function (p) { D.TEAM_LEADERS[p[0]] = p[1]; });
+          }
+          D.ASSIGNEE_CHANGES.forEach(function (x) { if (x.step === 'S03:' + old) x.step = 'S03:' + op.set.label; });
+        }
         if (op.group === 'CONTRACT_TYPE') D.CONTRACTS.forEach(function (x) { if (x.type === old) x.type = op.set.label; });
       }
       if (op.set.label) c.label = op.set.label;
       if (typeof op.set.use === 'boolean') c.use = op.set.use;
+      if (op.set.parent) c.parent = op.set.parent; // 상위 조직(상위 코드) 바꾸기 (조직 개편 v0.31)
       refreshCodes();
     } else if (op.k === 'LOG_REVIEW') D.LOG_REVIEWS.push(Object.assign({ by: e.by, at: e.at }, op.r));
     else if (op.k === 'ACCESS_REVIEW') D.ACCESS_REVIEWS.push(Object.assign({ by: e.by, at: e.at }, op.r));
@@ -1026,13 +1106,13 @@ window.CLIMB = (function () {
 
   // 보안 안내 문구 (REQ-UI-15): 기획자 초안을 법령, 시스템 요구사항, 어문 규범에 맞게 다듬은 문장
   //   모든 화면의 푸터와 로그인 화면(로그인 버튼 아래)에 같은 문장을 씀
-  //   가운뎃점(·)은 쓰지 않음 (REQ-UI-08). 법령 이름은 홑낫표(「」)로 묶고 공식 제명 그대로 씀
-  //   "접속 기록과 작업 내역" 기록은 REQ-AUTH-13을 따름
+  //   (v0.31 기획자 문구) 가운뎃점은 짝을 이루는 말(복제·출력·배포·반출)과 공통 성분 줄임(민·형사상)에 씀 (REQ-UI-08 개정)
+  //   법령 이름은 홑낫표(「」)로 묶고 공식 제명 그대로 씀. "접속 기록과 작업 내역" 기록은 REQ-AUTH-13을 따름
   const SECURITY_NOTICE = [
     '본 시스템은 인가된 사용자만 접근할 수 있으며, 접속 기록과 작업 내역은 관계 법령과 회사 보안 정책에 따라 기록되고 보관됩니다.',
     '본 시스템에는 「부정경쟁방지 및 영업비밀보호에 관한 법률」에 따라 보호되는 영업비밀 등 회사의 기밀 정보와 「개인정보 보호법」에 따라 보호되는 개인정보가 포함되어 있습니다.',
-    '허용된 권한을 넘어 열람하거나, 업무 목적 밖에서 복제, 출력, 배포, 반출하거나, 제3자에게 제공하는 행위는 엄격히 금지됩니다.',
-    '이를 위반하면 사규에 따라 징계를 받을 수 있으며, 「정보통신망 이용촉진 및 정보보호 등에 관한 법률」 등 관계 법령에 따라 민사상, 형사상 책임을 질 수 있습니다.',
+    '허용된 권한을 넘어 열람하거나, 업무 목적 밖에서 복제·출력·배포·반출하거나, 제3자에게 제공하는 행위는 엄격히 금지됩니다.',
+    '이를 위반하면 사규에 따라 징계를 받을 수 있으며, 「정보통신망 이용촉진 및 정보보호 등에 관한 법률」 등 관계 법령에 따라 민·형사상 책임을 질 수 있습니다.',
   ].join(' ');
 
   function renderFooter() {
@@ -1248,7 +1328,7 @@ window.CLIMB = (function () {
       '<table class="tbl tbl--compact tbl--history"><caption class="sr-only">' + esc(caption) + ': 일시, 대상, 바뀐 내용, 사유, 바꾼 사람</caption>' +
       '<thead><tr><th scope="col">일시</th><th scope="col">대상</th><th scope="col">바뀐 내용</th><th scope="col">사유</th><th scope="col">바꾼 사람</th></tr></thead><tbody>' +
       (list.length ? list.map(function (e) {
-        return '<tr><td class="nowrap num-left">' + fmtDateTime(e.at) + '</td><td>' + esc(e.target) + '</td><td>' + esc(e.change) + '</td>' +
+        return '<tr><td class="num-left">' + fmtDateTime(e.at) + '</td><td>' + esc(e.target) + '</td><td>' + esc(e.change) + '</td>' +
           '<td>' + esc(e.reason) + '</td><td class="nowrap">' + esc(userName(e.by)) + '님</td></tr>';
       }).join('') : '<tr><td class="empty-row" colspan="5">아직 바꾼 기록이 없습니다.</td></tr>') + '</tbody></table></div>';
   }
@@ -1324,8 +1404,9 @@ window.CLIMB = (function () {
 
   return {
     init: init, getRole: getRole, saveRole: saveRole, currentUser: currentUser,
-    daysSince: daysSince, daysUntil: daysUntil, fmtDate: fmtDate, fmtDateTime: fmtDateTime, fmtToday: fmtToday, fmtKRW: fmtKRW,
-    roleLabel: roleLabel, roleShort: roleShort, hasRole: hasRole, userName: userName, serviceLabel: serviceLabel, stepLabel: stepLabel,
+    daysSince: daysSince, daysUntil: daysUntil, fmtDate: fmtDate, fmtDateTime: fmtDateTime, fmtPeriod: fmtPeriod, fmtToday: fmtToday, fmtKRW: fmtKRW,
+    roleLabel: roleLabel, roleShort: roleShort, josa: josa, ownerLabel: ownerLabel,
+    isBizNo: isBizNo, searchBusinesses: searchBusinesses, isOppNo: isOppNo, pandaUrl: pandaUrl, pandaLink: pandaLink, hasRole: hasRole, userName: userName, serviceLabel: serviceLabel, stepLabel: stepLabel,
     currentStep: currentStep, pendingSteps: pendingSteps, routedSteps: routedSteps, stepPosition: stepPosition, waitDays: waitDays,
     stepDots: stepDots, progressText: progressText, actionLabel: actionLabel, opsChecks: opsChecks, isReviewStep: isReviewStep, routedReview: routedReview,
     isShort: isShort, opsChecksFor: opsChecksFor, stepIng: stepIng, kindLabel: kindLabel,

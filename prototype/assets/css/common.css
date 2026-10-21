@@ -353,8 +353,8 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
 .login-brand { display: flex; flex-direction: column; align-items: center; gap: 0.8rem; }
 .login-brand .brand-title { font-size: var(--fs-heading-large); }
 .login-brand .brand-en { font-size: var(--fs-body-small); }
-.login-guide { margin: 3.2rem 0 1.6rem; font-size: var(--fs-body-medium); color: var(--text-subtle); }
-.btn--google { width: 100%; background: var(--surface-white); border-color: var(--border-gray); color: var(--text-basic); font-weight: 500; }
+/* (v0.31) 로그인 안내 문장을 빼서 이름과 로그인 버튼 사이 간격을 버튼에 둠 */
+.btn--google { width: 100%; margin-top: 3.2rem; background: var(--surface-white); border-color: var(--border-gray); color: var(--text-basic); font-weight: 500; }
 .btn--google:hover { background: var(--surface-gray-subtler); }
 .login-help { margin-top: 1.6rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
 /* 보안 안내 문구 (REQ-UI-15): 로그인 버튼 아래, 구분선 뒤에 작은 글자. 긴 문장이라 양쪽 정렬 (푸터와 같음) */

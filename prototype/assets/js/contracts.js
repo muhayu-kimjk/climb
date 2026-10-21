@@ -77,8 +77,8 @@
       return '<tr' + (b.status === 'REJECTED' ? ' class="is-alert"' : '') + '>' +
         '<td>' + cust + '</td>' +
         '<td class="col-service">' + (visible ? service : '-') + '</td>' +
-        '<td class="nowrap">' + C.badge(st.tone, st.label) + open + '</td>' +
-        '<td class="nowrap num-left">' + (b.start ? C.fmtDate(b.start) + ' ~ ' + C.fmtDate(b.end) : '-') + '</td>' +
+        '<td>' + C.badge(st.tone, st.label) + open + '</td>' +
+        '<td class="num-left">' + (b.start ? C.fmtPeriod(b.start, b.end) : '-') + '</td>' +
         '<td class="nowrap">' + (visible ? esc(childText(b)) : '-') + '</td>' +
         '<td class="nowrap">' + esc(C.userName(c.requesterId)) + '</td>' +
       '</tr>';

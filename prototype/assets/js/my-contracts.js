@@ -88,17 +88,18 @@
     const cols = seeAll ? 7 : 6;
     $('#rows').innerHTML = rows.length ? rows.map(function (c) {
       // 작성 중은 계약 등록 화면으로, 그 밖에는 결재 문서로
+      // 계약번호는 날짜처럼 한 줄로 (CT-2026-0011-R01이 마지막 하이픈에서 끊기지 않게)
       const link = c.status === 'DRAFT'
         ? '<a class="cell-title" href="new-contract.html?id=' + encodeURIComponent(c.draftKey) + '">' + esc(c.counterparty) + '</a><span class="cell-meta">임시 저장</span>'
-        : '<a class="cell-title" href="review.html?id=' + encodeURIComponent(c.id) + '">' + esc(c.counterparty) + '</a><span class="cell-meta">' + esc(c.id) + (c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span>';
+        : '<a class="cell-title" href="review.html?id=' + encodeURIComponent(c.id) + '">' + esc(c.counterparty) + '</a><span class="cell-meta"><span class="nowrap">' + esc(c.id) + '</span>' + (c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span>';
       return '<tr' + (c.status === 'REJECTED' ? ' class="is-alert"' : '') + '>' +
         '<td>' + link + '</td>' +
-        '<td class="nowrap">' + esc(C.kindLabel(c)) + '</td>' +
+        '<td>' + esc(C.kindLabel(c)) + '</td>' +
         '<td class="nowrap">' + C.statusBadge(c) + '</td>' +
         '<td>' + C.progressText(c) + '</td>' +
         (seeAll ? '<td class="nowrap">' + esc(C.userName(c.requesterId)) + '</td>' : '') +
-        '<td class="nowrap num-left">' + C.fmtDate(dateOf(c)) + '</td>' +
-        '<td class="nowrap">' + todo(c) + '</td>' +
+        '<td class="num-left">' + C.fmtDate(dateOf(c)) + '</td>' +
+        '<td>' + todo(c) + '</td>' +
       '</tr>';
     }).join('') : '<tr><td class="empty-row" colspan="' + cols + '">' + (all.length ? '조건에 맞는 계약이 없습니다.' : '등록한 계약이 없습니다.') + '</td></tr>';
     $('#pagination').innerHTML = C.pagerHtml(page, pages, list.length, from, rows.length, PAGE_SIZE, '건');

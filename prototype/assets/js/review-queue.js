@@ -81,7 +81,7 @@
           (!showWho && x.s.userId !== me.id ? '<span class="cell-meta">' + esc(C.userName(x.s.userId)) + '님 대신 (대리 지정)</span>' : '') + '</td>' +
         (showWho ? '<td class="nowrap">' + esc(C.userName(x.s.userId)) + '</td>' : '') +
         '<td class="nowrap">' + esc(C.userName(x.c.requesterId)) + '</td>' +
-        '<td class="nowrap num-left">' + C.fmtDate(x.c.requestedAt) + '</td>' +
+        '<td class="num-left">' + C.fmtDate(x.c.requestedAt) + '</td>' +
         '<td class="num"><span' + (x.wait >= LONG ? ' class="wait-long"' : '') + '>' + x.wait + '일</span></td>' +
       '</tr>';
     }).join('') : '<tr><td class="empty-row" colspan="' + cols + '">' + (all.length ? '조건에 맞는 건이 없습니다.' : '지금 차례인 결재가 없습니다.') + '</td></tr>';

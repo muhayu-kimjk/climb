@@ -79,13 +79,27 @@
 
           <!-- 계약명 칸은 두지 않음: 계약은 거래처(고객사)와 서비스로 구분하고 계약번호로 식별 (v0.12) -->
 
-          <!-- 거래처: 자유 입력 대신 거래처 목록에서 고름 (REQ-REG-18, 데이터 정의서 D-01. 시안 v0.25)
-               고르면 상호와 사업자등록번호가 채워지고 고칠 수 없음. 목록에 없으면 "새 거래처 등록"을 골라 직접 넣음
-               같은 사업자등록번호는 두 번 등록할 수 없음. 거래처를 고치거나 합치는 것은 관리자(거래처 관리 SCR-55) -->
+          <!-- 거래처: 검색해서 고름 (REQ-REG-18, 기획자 요청 v0.32)
+               상호나 사업자등록번호로 우리 거래처 목록과 사업자 정보 DB(공공데이터를 내재화)를 함께 찾고, 고르면 상호와 사업자등록번호가 채워짐
+               검색 결과가 없으면 "직접 입력"으로 상호와 사업자등록번호를 넣음(검증 숫자 확인, 거래처 목록과 중복 불가)
+               거래처를 고치거나 합치는 것은 관리자(거래처 관리 SCR-55) -->
           <div class="field" data-field="customer">
-            <label class="field-label" for="f-customer">거래처<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
-            <select class="select" id="f-customer" name="customer"></select>
-            <p class="field-help" id="customer-help">거래처 목록에서 고릅니다. 상호와 사업자등록번호는 목록에서 채워집니다.</p>
+            <label class="field-label" for="f-customer-q">거래처<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+            <div class="combo" id="customer-combo">
+              <span class="combo-icon" aria-hidden="true" id="customer-icon"></span>
+              <input class="input combo-input" id="f-customer-q" type="text" autocomplete="off" role="combobox" aria-autocomplete="list"
+                aria-expanded="false" aria-controls="customer-list" placeholder="예: 한빛대학교 또는 134-82">
+              <div class="combo-panel" id="customer-panel" hidden>
+                <ul class="combo-list" id="customer-list" role="listbox" aria-label="거래처 검색 결과"></ul>
+                <div class="combo-empty" id="customer-empty" hidden>
+                  <p id="customer-empty-text"></p>
+                  <button type="button" class="btn btn--tertiary btn--sm" id="customer-manual">직접 입력하기</button>
+                </div>
+              </div>
+            </div>
+            <input type="hidden" name="customer" id="f-customer">
+            <p class="field-help" id="customer-help"></p>
+            <p class="sr-only" id="customer-status" aria-live="polite"></p>
             <p class="field-error" hidden></p>
           </div>
 
@@ -102,16 +116,25 @@
             </div>
           </div>
 
+          <!-- 영업 대표: 로그인한 사람, "조직 이름"으로 (님 없이, v0.32) -->
           <div class="field-row">
             <div class="field">
               <label class="field-label" for="f-owner">영업 대표</label>
               <input class="input" id="f-owner" type="text" readonly>
               <p class="field-help">로그인한 사람으로 자동 입력됩니다.</p>
             </div>
+          </div>
+          <!-- 영업기회번호(붙여 씀, 필수): 영업 대표 아래 줄. 판다(CRM) 번호 규칙 연도 2자리, 월 2자리, 영문 2자리, 일련번호 3자리 (v0.32)
+               규칙에 맞으면 판다의 영업 기회 화면(https://panda.muhayu.com/sales/opp/번호)으로 가는 링크가 생김 -->
+          <div class="field-row">
             <div class="field" data-field="opportunity">
-              <label class="field-label" for="f-opportunity">영업 기회 번호 <span class="opt">(선택)</span></label>
-              <input class="input" id="f-opportunity" name="opportunity" type="text" placeholder="예: OPP-2026-0123">
-              <p class="field-help">기존 CRM의 영업 기회 번호를 넣으면 연결됩니다.</p>
+              <label class="field-label" for="f-opportunity">영업기회번호<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+              <div class="input-with-link">
+                <input class="input" id="f-opportunity" name="opportunity" type="text" placeholder="예: 2610SU067" maxlength="9" autocomplete="off">
+                <span id="opp-link"></span>
+              </div>
+              <p class="field-help">기존 판다(CRM)의 영업기회번호를 넣으면 연결됩니다.</p>
+              <p class="field-error" hidden></p>
             </div>
           </div>
 
@@ -250,7 +273,7 @@
 
           <fieldset class="field check-q" data-field="standard">
             <legend class="field-label">1. 표준계약서를 사용하나요?<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
-            <p class="field-help">조항이 담긴 일반사항을 한 줄이라도 바꿨다면 "아니오"입니다.</p><!-- REQ-CHK-03 -->
+            <p class="field-help">조항이 담긴 일반 사항을 한 줄이라도 바꿨다면 "아니오"입니다.</p><!-- REQ-CHK-03 -->
             <div class="choice-row">
               <label class="choice"><input type="radio" name="standard" value="YES">예</label>
               <label class="choice"><input type="radio" name="standard" value="NO">아니오</label>
@@ -355,7 +378,7 @@
         <!-- ============ 5. 결재선 (자동, REQ-CHK-05) ============ -->
         <section class="panel" aria-labelledby="sec-route">
           <h2 class="section-title" id="sec-route"><span class="num">5</span>결재선</h2>
-          <p class="section-desc">체크리스트 답과 개인정보 처리 여부에 따라 자동으로 정해집니다. 금액에 따른 결재는 위임전결규정을 받은 뒤 추가합니다.</p>
+          <p class="section-desc">체크리스트 답과 개인정보 처리 여부에 따라 자동으로 정해집니다. 금액에 따라 결재선이 바뀌지는 않습니다.</p>
           <div id="route" aria-live="polite"></div>
         </section>
 

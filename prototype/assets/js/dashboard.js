@@ -237,7 +237,7 @@
           const dueText = !a.due ? (a.todo ? '바로' : '-') : C.fmtDate(a.due) + (a.todo ? ' (' + (late ? '기한 지남' : 'D-' + C.daysUntil(a.due)) + ')' : '');
           return '<tr' + (late ? ' class="is-alert"' : '') + '><td><a class="cell-title" href="admin-logs.html">' + esc(a.what) + '</a></td>' +
             '<td class="nowrap">' + C.badge(a.todo ? (a.what.indexOf('알림') > -1 ? 'danger' : 'attention') : 'line', a.state) + '</td>' +
-            '<td class="nowrap num-left">' + dueText + '</td></tr>';
+            '<td class="num-left">' + dueText + '</td></tr>';
         }).join('') + '</tbody></table></div>';
   }
 

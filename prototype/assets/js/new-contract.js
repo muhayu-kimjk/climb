@@ -65,7 +65,7 @@
   }
 
   /* ---------- 선택지 채우기 (3.4) ---------- */
-  $('#f-owner').value = me.name + '님 (' + me.dept + ')';
+  $('#f-owner').value = C.ownerLabel(me.id); // "경영지원유닛 원지안" (님 없이, v0.32)
   $('#f-type').innerHTML = '<option value="">고르세요</option>' +
     D.CONTRACT_TYPES.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('');
   // 계약 유형, 계약 방식, 정산 방식: 코드 관리(SCR-56)에서 사용 중인 코드만 고름
@@ -75,34 +75,104 @@
   $('#settlement-choices').innerHTML = C.codeList('SETTLEMENT').map(function (c) {
     return '<label class="choice"><input type="radio" name="settlement" value="' + c.code + '">' + esc(c.label) + '</label>';
   }).join('');
-  /* 거래처 목록 (REQ-REG-18, D-01): 사용 중인 거래처를 상호 순서로. 맨 끝은 새 거래처 등록
-   * 프로토타입: 새 거래처는 기안할 때 함께 등록되는 것으로 안내만 함. 실제 시스템은 서버가 사업자등록번호 중복을 다시 검사 */
+  /* 거래처 검색 (REQ-REG-18, 기획자 요청 v0.32)
+   *   상호나 사업자등록번호 일부로 우리 거래처 목록과 사업자 정보 DB(공공데이터 내재화)를 함께 찾음 (C.searchBusinesses)
+   *   고르면 상호와 사업자등록번호가 채워지고 잠김. DB에서 고른 곳은 기안할 때 거래처 목록에 함께 등록
+   *   검색 결과가 없으면 "직접 입력하기"로 상호와 사업자등록번호를 넣음
+   *   선택 값(name="customer"): 'C:거래처 번호' 우리 거래처 / 'R:사업자등록번호' DB / 'NEW' 직접 입력
+   * 프로토타입: 새 거래처는 기안할 때 함께 등록되는 것으로 안내만 함. 실제 시스템은 서버가 사업자등록번호 중복과 상태를 다시 검사 */
   const NEW_CUSTOMER = 'NEW';
-  const customers = D.CUSTOMERS.filter(function (cu) { return cu.use; }).sort(function (a, b) { return a.name.localeCompare(b.name, 'ko'); });
-  $('#f-customer').innerHTML = '<option value="">고르세요</option>' + customers.map(function (cu) {
-    return '<option value="' + esc(cu.id) + '">' + esc(cu.name + ' (' + cu.bizNo + ')') + '</option>';
-  }).join('') + '<option value="' + NEW_CUSTOMER + '">목록에 없음: 새 거래처 등록</option>';
-  function findCustomer(id) { return customers.filter(function (cu) { return cu.id === id; })[0] || null; }
-  // 거래처를 고르면 상호와 사업자등록번호를 채우고 잠금. 새 거래처면 비우고 직접 넣게 함
-  function onCustomerChange() {
-    const v = $('#f-customer').value, cu = findCustomer(v), isNew = v === NEW_CUSTOMER;
-    $('#f-counterparty').readOnly = !isNew;
-    $('#f-bizno').readOnly = !isNew;
-    $('#f-counterparty').value = cu ? cu.name : '';
-    $('#f-bizno').value = cu ? cu.bizNo : '';
+  const HELP_SEARCH = '상호나 사업자등록번호 일부를 넣어 찾습니다. 우리 거래처와 사업자 정보 DB(' + D.BIZ_REGISTRY_INFO.source + ', ' +
+    C.fmtDate(D.BIZ_REGISTRY_INFO.refreshedAt) + ' 기준)를 함께 찾고, 고르면 상호와 사업자등록번호가 채워집니다.';
+  const qInput = $('#f-customer-q'), panel = $('#customer-panel'), list = $('#customer-list');
+  $('#customer-icon').innerHTML = C.icon('search', 'sm');
+  $('#customer-help').textContent = HELP_SEARCH;
+  let results = [], active = -1;
+  function setCustomer(key, name, bizNo) {
+    $('#f-customer').value = key;
+    const manual = key === NEW_CUSTOMER;
+    $('#f-counterparty').readOnly = !manual;
+    $('#f-bizno').readOnly = !manual;
+    $('#f-counterparty').value = name || '';
+    $('#f-bizno').value = bizNo || '';
     // 지시문은 예시 글자에 두지 않고 거래처 칸 도움말에 둠 (KRDS, v0.28)
-    $('#f-counterparty').placeholder = isNew ? '예: 사업자등록증의 상호' : '';
-    $('#customer-help').textContent = isNew
-      ? '기안하면 이 상호와 사업자등록번호로 거래처 목록에 함께 등록됩니다. 같은 사업자등록번호는 두 번 등록할 수 없습니다.'
-      : '거래처 목록에서 고릅니다. 상호와 사업자등록번호는 목록에서 채워집니다.';
+    $('#f-counterparty').placeholder = manual ? '예: 사업자등록증의 상호' : '';
+    $('#customer-help').innerHTML = !key ? esc(HELP_SEARCH)
+      : manual ? '검색되지 않는 거래처라 사업자등록증을 보고 직접 넣습니다. 기안하면 거래처 목록에 함께 등록됩니다. <button type="button" class="btn-text" id="customer-research">다시 검색</button>'
+      : key.indexOf('R:') === 0 ? '사업자 정보 DB에서 찾은 곳입니다. 아직 우리 거래처가 아니라서 기안하면 거래처 목록에 함께 등록됩니다.'
+      : '우리 거래처 목록에 있는 곳입니다.';
   }
-  // 상호로 거래처 고르기 (미리 채우기). 목록에 없으면 새 거래처로
+  function closePanel() {
+    panel.hidden = true;
+    qInput.setAttribute('aria-expanded', 'false');
+    qInput.removeAttribute('aria-activedescendant');
+    active = -1;
+  }
+  function renderResults() {
+    const q = qInput.value.trim();
+    results = C.searchBusinesses(q, 8);
+    active = -1;
+    qInput.removeAttribute('aria-activedescendant');
+    if (!q) { closePanel(); $('#customer-status').textContent = ''; return; }
+    list.innerHTML = results.map(function (r, i) {
+      return '<li role="option" id="cu-opt-' + i + '" class="combo-option" data-i="' + i + '" aria-selected="false">' +
+        '<span class="combo-name">' + esc(r.name) + '</span><span class="combo-meta">' + esc(r.bizNo) + '</span>' +
+        C.badge(r.kind === 'C' ? 'success' : 'line', r.kind === 'C' ? '거래처' : '사업자 DB') + '</li>';
+    }).join('');
+    list.hidden = !results.length;
+    $('#customer-empty').hidden = !!results.length;
+    $('#customer-empty-text').textContent = '"' + q + '" 검색 결과가 없습니다. 사업자등록증을 보고 직접 넣을 수 있습니다.';
+    panel.hidden = false;
+    qInput.setAttribute('aria-expanded', 'true');
+    $('#customer-status').textContent = results.length ? '검색 결과 ' + results.length + '건. 위아래 화살표로 고릅니다.' : '검색 결과가 없습니다.';
+  }
+  function choose(i) {
+    const r = results[i];
+    if (!r) return;
+    qInput.value = r.name;
+    setCustomer(r.key, r.name, r.bizNo);
+    closePanel();
+    clearError(qInput);
+    refresh();
+  }
+  function moveActive(step) {
+    if (!results.length) return;
+    active = (active + step + results.length) % results.length;
+    Array.prototype.forEach.call(list.children, function (li, i) { li.setAttribute('aria-selected', String(i === active)); });
+    qInput.setAttribute('aria-activedescendant', 'cu-opt-' + active);
+    list.children[active].scrollIntoView({ block: 'nearest' });
+  }
+  function startManual() {
+    qInput.value = '';
+    setCustomer(NEW_CUSTOMER, '', '');
+    closePanel();
+    $('#f-counterparty').focus();
+  }
+  qInput.addEventListener('input', function () {
+    // 검색어를 바꾸면 고른 거래처를 지움
+    if ($('#f-customer').value) setCustomer('', '', '');
+    renderResults();
+  });
+  qInput.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); if (panel.hidden) renderResults(); moveActive(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); moveActive(-1); }
+    else if (e.key === 'Enter' && !panel.hidden) { e.preventDefault(); if (active > -1) choose(active); else if (results.length === 1) choose(0); }
+    else if (e.key === 'Escape' && !panel.hidden) { e.stopPropagation(); closePanel(); }
+  });
+  list.addEventListener('mousedown', function (e) { e.preventDefault(); }); // 고르기 전에 입력 칸 포커스가 빠지지 않게
+  list.addEventListener('click', function (e) { const li = e.target.closest('[data-i]'); if (li) choose(Number(li.getAttribute('data-i'))); });
+  $('#customer-manual').addEventListener('click', startManual);
+  $('#customer-help').addEventListener('click', function (e) {
+    if (e.target.id === 'customer-research') { setCustomer('', '', ''); qInput.value = ''; qInput.focus(); }
+  });
+  document.addEventListener('click', function (e) { if (!e.target.closest('#customer-combo')) closePanel(); });
+  // 상호로 거래처 고르기 (이어서 작성, 재기안, 원계약에서 미리 채우기). 없으면 직접 입력으로
   function pickCustomerByName(name, bizNo) {
     if (!name) return;
-    const cu = customers.filter(function (x) { return x.name === name; })[0];
-    $('#f-customer').value = cu ? cu.id : NEW_CUSTOMER;
-    onCustomerChange();
-    if (!cu) { $('#f-counterparty').value = name; $('#f-bizno').value = bizNo || ''; }
+    const r = C.searchBusinesses(name, 50).filter(function (x) { return x.name === name; })[0];
+    qInput.value = r ? r.name : '';
+    if (r) setCustomer(r.key, r.name, r.bizNo);
+    else { setCustomer(NEW_CUSTOMER, name, bizNo || ''); }
   }
   // 원계약 후보: 보관함의 계약 완료 묶음(원계약 번호) 중 볼 수 있는 것
   const origins = D.CONTRACTS.filter(function (c) { return c.status === 'ACTIVE' && !c.parentId && C.canView(c, me); });
@@ -219,8 +289,8 @@
     const list = $('#yearly-list');
     const old = $$('.yearly-input', list).map(function (i) { return i.value; });
     list.innerHTML = years.map(function (y, i) {
-      return '<div class="year-row"><label class="year-label" for="y-' + i + '"><strong>' + (i + 1) + '년차</strong>' +
-        C.fmtDate(y.from) + ' ~ ' + C.fmtDate(y.to) + '</label>' +
+      return '<div class="year-row"><label class="year-label" for="y-' + i + '"><strong>' + (i + 1) + '년 차</strong>' +
+        C.fmtPeriod(y.from, y.to) + '</label>' +
         '<div class="input-unit"><input class="input yearly-input" id="y-' + i + '" inputmode="numeric" value="' + (old[i] || '') + '"><span class="unit">원</span></div></div>';
     }).join('') + '<p class="year-sum" id="year-sum"></p>';
     updateYearSum();
@@ -287,7 +357,7 @@
     const req = { requesterId: (source && source.requesterId) || me.id };
     const name = function (code) { return C.userName(C.stepUserNow(code, req)); };
     return [
-      { stage: '2단계 계약 검토 (② 다음 ③, 그 다음 ④와 ⑤ 동시)', items: [
+      { stage: '2단계 계약 검토 (② 다음 ③, 그다음 ④와 ⑤ 동시)', items: [
         { no: '②', name: '체크리스트 검토', who: '영업지원', state: 'go', reason: '어떤 경우에도 생략하지 않음' }, // REQ-CHK-02
         { no: '③', name: '영업 검토', who: '영업 리더 ' + name('S03'), state: sales[0], reason: sales[1] }, // 가격 예외 승인, 법무보다 먼저 (v0.20)
         { no: '④', name: '법무 검토', who: '법무 ' + name('S04'), state: legal[0], reason: legal[1] },
@@ -365,8 +435,15 @@
     $('#route').innerHTML = routeHtml(route);
     current = { route: route, pc: pc, q1: q1, total: total };
   }
+  // 영업기회번호: 영문은 대문자로, 규칙에 맞으면 판다 링크 (v0.32)
+  function updateOppLink() {
+    const v = $('#f-opportunity').value;
+    $('#opp-link').innerHTML = C.isOppNo(v)
+      ? '<a class="btn btn--tertiary btn--md ext-btn" href="' + C.pandaUrl(v) + '" target="_blank" rel="noopener noreferrer">' + C.icon('external', 'sm') + '판다에서 열기<span class="sr-only">(새 창)</span></a>' : '';
+  }
   form.addEventListener('input', function (e) {
     if (e.target.id === 'f-bizno') e.target.value = formatBizNo(e.target.value);
+    if (e.target.id === 'f-opportunity') { e.target.value = e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, ''); updateOppLink(); }
     clearError(e.target);
     refresh();
     updateYearSum();
@@ -375,7 +452,6 @@
     clearError(e.target);
     if (e.target.name === 'kind') onKindChange();
     if (e.target.id === 'f-origin') onOriginChange();
-    if (e.target.id === 'f-customer') onCustomerChange();
     if (e.target.id === 'f-service-diff') $('#service-fields').hidden = !e.target.checked;
     if (e.target.name === 'autoRenew') $('#notice-days-field').hidden = val('autoRenew') !== 'YES';
     refresh();
@@ -474,13 +550,20 @@
     const kind = val('kind');
     need(!!kind, 'kind', '계약 구분을 고르세요.');
     if (kind && kind !== 'NEW') need(!!$('#f-origin').value, 'origin', '원계약을 고르세요.');
-    need(!!val('customer'), 'customer', '거래처를 고르세요. 목록에 없으면 새 거래처 등록을 고릅니다.');
+    need(!!val('customer'), 'customer', '거래처를 검색해 고르세요. 검색 결과가 없으면 직접 입력합니다.', qInput);
     if (val('customer') === NEW_CUSTOMER) {
       need(!!val('counterparty'), 'counterparty', '거래처 상호를 입력하세요.');
-      const dupCu = D.CUSTOMERS.filter(function (cu) { return cu.bizNo === val('bizNo'); })[0];
-      need(/^\d{3}-\d{2}-\d{5}$/.test(val('bizNo')), 'bizNo', '사업자등록번호 10자리를 입력하세요.');
-      if (/^\d{3}-\d{2}-\d{5}$/.test(val('bizNo'))) need(!dupCu, 'bizNo', '이미 등록된 사업자등록번호입니다(' + (dupCu ? dupCu.name : '') + '). 거래처 목록에서 고르세요.');
+      const no = val('bizNo');
+      const dupCu = D.CUSTOMERS.filter(function (cu) { return cu.bizNo === no; })[0];
+      const inDb = D.BIZ_REGISTRY.filter(function (r) { return r.bizNo === no; })[0];
+      need(/^\d{3}-\d{2}-\d{5}$/.test(no), 'bizNo', '사업자등록번호 10자리를 입력하세요.');
+      // 검증 숫자 규칙 (실제 시스템은 국세청 상태 조회로 휴업, 폐업도 확인 [가정])
+      if (/^\d{3}-\d{2}-\d{5}$/.test(no)) need(C.isBizNo(no), 'bizNo', '사업자등록번호가 맞지 않습니다. 사업자등록증의 숫자를 다시 확인하세요.');
+      if (C.isBizNo(no)) need(!dupCu && !inDb, 'bizNo', '이미 ' + (dupCu ? '거래처 목록' : '사업자 정보 DB') + '에 있는 번호입니다(' + (dupCu || inDb || {}).name + '). 거래처 칸에서 검색해 고르세요.');
     }
+    // 영업기회번호: 필수, 판다 번호 규칙 (v0.32 기획자 요청)
+    need(!!val('opportunity'), 'opportunity', '영업기회번호를 입력하세요.');
+    if (val('opportunity')) need(C.isOppNo(val('opportunity')), 'opportunity', '영업기회번호는 연도 2자리, 월 2자리, 영문 2자리, 일련번호 3자리입니다(예: 2610SU067).');
     need(!!val('type'), 'type', '계약 유형을 고르세요.');
     need(!!val('method'), 'method', '계약 방식을 고르세요.');
     need(!!val('contractDate'), 'contractDate', '계약일을 입력하세요.');
@@ -569,10 +652,10 @@
       g.items.forEach(function (i) { if (g.stage.indexOf('2단계') === 0 && i.state === 'go') goes.push(i.no + ' ' + i.name); });
     });
     const rows = [
-      ['거래처', val('counterparty')],
+      ['거래처', val('counterparty') + (val('bizNo') ? ' (' + val('bizNo') + ')' : '')],
       ['서비스', serviceOfProducts()],
       ['계약 금액', current.total ? won(current.total) + ' (부가세 별도)' : '금액 없음'],
-      ['계약 기간', C.fmtDate(val('startDate')) + ' ~ ' + C.fmtDate(val('endDate'))],
+      ['계약 기간', C.fmtPeriod(val('startDate'), val('endDate'))],
       ['계약 검토', goes.join(', ')],
       ['재무 알림', val('accounting') === 'YES' ? '재무에 이메일로 알림 (결재선 아님)' : '없음'],
       ['기안 차수', round + '차' + (val('restricted') ? ', 열람 제한' : '')],
@@ -626,6 +709,7 @@
     setRadio('kind', source.kind || 'NEW');
     pickCustomerByName(source.counterparty, f.bizNo);
     $('#f-opportunity').value = f.opportunity || '';
+    updateOppLink();
     $('#f-type').value = source.type || '';
     setRadio('method', f.method);
     $('#f-contract-date').value = f.contractDate || '';

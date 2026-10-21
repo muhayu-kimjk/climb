@@ -81,6 +81,7 @@
     startDate: startDate, endDate: endDate,
     autoRenew: c.autoRenew || f.autoRenew || 'NO', noticeDays: c.noticeDays || f.noticeDays,
     memo: c.memo || f.memo || '',
+    opportunity: c.opportunity || f.opportunity || '', // 판다(CRM) 영업기회번호 (v0.32)
   };
   // 제품 줄: 예시 데이터에 없으면 서비스별 기본 제품을 표준 단가 그대로 넣은 줄을 만듦
   function productRows() {
@@ -132,7 +133,7 @@
   // 대리 지정으로 대신 처리하는 단계면 "최민준님 대신 (대리 지정 10.19 ~ 10.23)" 안내
   function behalfText(s) {
     const dl = s.userId !== me.id ? C.activeDelegation(s.userId, me.id) : null;
-    return dl ? esc(C.userName(s.userId)) + '님 대신 (대리 지정 ' + C.fmtDate(dl.from) + ' ~ ' + C.fmtDate(dl.to) + ')' : '';
+    return dl ? esc(C.userName(s.userId)) + '님 대신 (대리 지정 ' + C.fmtPeriod(dl.from, dl.to) + ')' : '';
   }
 
   // 내 차례일 때 할 일 안내 (단계마다)
@@ -194,10 +195,10 @@
       // 해지 기안이 끝났거나(해지 기안 문서), 해지된 원계약
       html = isTerm
         ? notice('success', '해지 완료', (c.completedAt ? C.fmtDateTime(c.completedAt) + '에 재무 확인까지 끝나 ' : '') + '원계약(' + esc(c.parentId) + ')이 해지 상태가 되었습니다. 해지일: ' + C.fmtDate(c.terminateDate))
-        : notice('', '해지된 계약입니다', '해지일 ' + C.fmtDate(c.terminateDate) + '. 해지 기안은 계약 묶음에서 볼 수 있습니다.');
+        : notice('', '해지된 계약입니다', '해지일 ' + C.fmtDate(c.terminateDate) + ' 해지 기안은 계약 묶음에서 볼 수 있습니다.');
     } else if (c.status === 'ACTIVE') {
       html = notice('success', '계약 완료',
-        (c.completedAt ? C.fmtDateTime(c.completedAt) + '에 재무 확인까지 끝나 보관함에 들어갔습니다. ' : '') + '계약 기간: ' + C.fmtDate(detail.startDate) + ' ~ ' + C.fmtDate(detail.endDate));
+        (c.completedAt ? C.fmtDateTime(c.completedAt) + '에 재무 확인까지 끝나 보관함에 들어갔습니다. ' : '') + '계약 기간: ' + C.fmtPeriod(detail.startDate, detail.endDate));
     }
     $('#notice').innerHTML = html;
   }
@@ -244,11 +245,11 @@
       boxHtml(steps.filter(function (s) { return s.phase > 2; }), false);
     const routed = C.routedReview(c).map(function (s) { return D.STEPS[s.step].no; }).join(', ');
     $('#box-desc').textContent = change
-      ? '운영 변경은 ' + (C.changeSales(c)[0] ? '③ 영업 리더가 승인한 뒤 ' : '') + '⑨ ' + (hrChange ? '재무' : '고객지원') +
-        '이 반영하면 끝납니다. 체크리스트, 법무, 날인, 체결본, 재무 확인은 없습니다.'
+      ? '운영 변경은 ' + (C.changeSales(c)[0] ? '③ 영업 리더가 승인한 뒤 ' : '') + '⑨ ' + C.josa(hrChange ? '재무' : '고객지원', '이', '가') +
+        ' 반영하면 끝납니다. 체크리스트, 법무, 날인, 체결본, 재무 확인은 없습니다.'
       : short
-      ? (isTerm ? '해지 기안' : '갱신 검토') + '은 ③ 영업 리더, ④ 법무가 승인한 뒤 ⑨ 고객지원 ' + (isTerm ? '운영 종료' : '기간 연장') + ', ⑩ 재무 확인을 거칩니다. 체크리스트, 날인, 체결본은 없습니다.'
-      : '거치는 단계: ' + routed + '. ② 다음 ③을 검토하고, 그 다음 ④와 ⑤를 동시에 검토합니다. 생략한 단계는 체크리스트 답에 따른 것입니다. ' +
+      ? C.josa(isTerm ? '해지 기안' : '갱신 검토', '은', '는') + ' ③ 영업 리더, ④ 법무가 승인한 뒤 ⑨ 고객지원 ' + (isTerm ? '운영 종료' : '기간 연장') + ', ⑩ 재무 확인을 거칩니다. 체크리스트, 날인, 체결본은 없습니다.'
+      : '거치는 단계: ' + routed + '. ② 다음 ③을 검토하고, 그다음 ④와 ⑤를 동시에 검토합니다. 생략한 단계는 체크리스트 답에 따른 것입니다. ' +
         '승인 뒤에는 ⑥ 인장 날인부터 ⑩ 재무 확인까지 하나씩 차례로 거칩니다.';
   }
 
@@ -260,12 +261,14 @@
       info('계약 구분', esc(kindText)),
       info('고객사', esc(c.counterparty)),
       info('사업자등록번호', esc(detail.bizNo)),
-      info('영업 대표', esc(C.userName(c.requesterId)) + '님'),
+      info('영업 대표', esc(C.ownerLabel(c.requesterId))), // 조직 이름 (v0.32)
+      // 판다(CRM) 영업기회번호: 규칙에 맞으면 판다로 가는 링크 (v0.32)
+      info('영업기회번호', detail.opportunity ? C.pandaLink(detail.opportunity) : '-'),
       info('계약 유형', esc(c.type)),
       info('계약 방식', esc(D.METHODS[detail.method])),
       info('정산 방식', esc(D.SETTLEMENTS[detail.settlement])),
       info('계약일', C.fmtDate(detail.contractDate)),
-      info('계약 기간', C.fmtDate(detail.startDate) + ' ~ ' + C.fmtDate(detail.endDate)),
+      info('계약 기간', C.fmtPeriod(detail.startDate, detail.endDate)),
       info('자동갱신', detail.autoRenew === 'YES' ? '있음 (해지 통지: 만료 ' + (detail.noticeDays || '-') + '일 전)' : '없음'),
       info('개인정보 처리', c.personalData ? '있음' : '없음'),
       info('열람 제한', c.restricted ? C.icon('lock', 'sm') + '있음' : '없음'),
@@ -303,7 +306,7 @@
       ] : [
         dd('원계약', '<a href="contract.html?id=' + encodeURIComponent(rootId) + '">' + esc(c.parentId) + '</a>'),
         dd('검토 결과', '그대로 자동갱신 (금액과 조건 그대로)'),
-        dd('새 계약 기간', C.fmtDate(c.startDate) + ' ~ ' + C.fmtDate(c.endDate)),
+        dd('새 계약 기간', C.fmtPeriod(c.startDate, c.endDate)),
         dd('계약 금액', c.amount ? won(c.amount) + ' (부가세 별도)' : '금액 없음'),
         dd('그대로 연장하는 이유', esc(c.reason || '-')),
       ]).join('') + '</dl>';
@@ -341,7 +344,7 @@
       return;
     }
     if (short) {
-      $('#checklist').innerHTML = '<p class="empty">' + (isTerm ? '해지 기안' : '갱신 검토') + '은 체크리스트 없이 ③ 영업 리더와 ④ 법무가 결재합니다.</p>';
+      $('#checklist').innerHTML = '<p class="empty">' + C.josa(isTerm ? '해지 기안' : '갱신 검토', '은', '는') + ' 체크리스트 없이 ③ 영업 리더와 ④ 법무가 결재합니다.</p>';
       return;
     }
     const ck = c.checklist || {};
@@ -387,12 +390,14 @@
       '<tbody>' + rows.map(function (h) {
         const a = D.APPROVAL_ACTIONS[h.action];
         // 대신 처리한 기록: 대리 지정이면 "대리 지정"과 근거, 최고관리자 시연이면 "시연"
-        const who = esc(C.userName(h.actorId)) + '님' + (h.onBehalfOf ? ' <span class="behalf">(' + esc(C.userName(h.onBehalfOf)) + '님 대신, ' + (h.delegationId ? '대리 지정' : '시연') + ')</span>' : '');
+        // 그때 조직: 기록에 남은 이름(actorDept). 예시 데이터처럼 없으면 지금 조직 (v0.31)
+        const dept = h.actorDept || (D.USERS[h.actorId] || {}).dept || '';
+        const who = esc(C.userName(h.actorId)) + '님' + (dept ? '<span class="cell-meta">' + esc(dept) + '</span>' : '') + (h.onBehalfOf ? ' <span class="behalf">(' + esc(C.userName(h.onBehalfOf)) + '님 대신, ' + (h.delegationId ? '대리 지정' : '시연') + ')</span>' : '');
         // 체결본 등록은 올린 파일 이름도 함께
         const extra = [h.fileName ? '파일: ' + esc(h.fileName) : '', h.basis ? '대리 근거: ' + esc(h.basis) : '',
           h.action === 'RESUBMIT' ? (h.restart ? '금액이나 체크리스트 답을 바꿔 계약 검토를 처음부터 다시' : '요청한 단계부터 이어서 결재') : ''].filter(Boolean);
         const note = (h.comment ? esc(h.comment) : '') + (extra.length ? (h.comment ? '<br>' : '') + '<span class="behalf">' + extra.join('<br>') + '</span>' : '');
-        return '<tr><td class="nowrap num-left">' + C.fmtDateTime(h.at) + '</td><td class="num">' + (h.round || 1) + '차</td>' +
+        return '<tr><td class="num-left">' + C.fmtDateTime(h.at) + '</td><td class="num">' + (h.round || 1) + '차</td>' +
           '<td class="nowrap">' + esc(D.STEPS[h.step].no + ' ' + D.STEPS[h.step].short) + '</td>' +
           '<td class="nowrap">' + C.badge(a.tone, C.actionLabel(h, c)) + '</td><td class="nowrap">' + who + '</td><td>' + (note || '-') + '</td></tr>';
       }).join('') + '</tbody>';
@@ -491,7 +496,7 @@
           : '완료하면 재무 확인 차례가 됩니다.', legend: '서비스에 한 일 (모두 확인)', checks: ops },
       S10: { title: '재무 확인을 완료할까요?', label: '메모 (선택)', btn: '재무 확인 완료', required: false, tone: 'primary',
         desc: isTerm ? '완료하면 해지가 끝나 원계약이 해지 상태가 됩니다. 환불과 위약금: ' + (c.refundNote || '없음')
-          : c.renewMode === 'AUTO' ? '완료하면 갱신이 끝나 새 계약 기간(' + C.fmtDate(c.startDate) + ' ~ ' + C.fmtDate(c.endDate) + ')이 적용됩니다.'
+          : c.renewMode === 'AUTO' ? '완료하면 갱신이 끝나 새 계약 기간(' + C.fmtPeriod(c.startDate, c.endDate) + ')이 적용됩니다.'
           : '완료하면 계약 완료로 보관함에 들어갑니다. ' + (acc
             ? '체크리스트 4번 회계 영향 조건: ' + (c.checklist.accountingNote || '비고 없음')
             : '체크리스트 4번 회계 영향 조건은 없습니다.') },

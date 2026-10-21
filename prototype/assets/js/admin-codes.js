@@ -6,7 +6,8 @@
  *   1. 코드표 고르기: 조직, 서비스, 계약 유형, 계약 방식, 정산 방식, 사후관리 기록 종류
  *   2. 코드 표: 코드, 화면 이름, (조직과 서비스는 단계와 상위), 쓰는 곳, 상태, 고치기
  *   3. 코드 추가: 코드(영문 대문자, 숫자, 밑줄. 그 코드표 안에서 중복 불가), 화면 이름, 조직과 서비스는 단계와 상위 코드
- *   4. 고치기: 화면 이름, 사용 여부. 코드는 바꿀 수 없음. 사용 안 함은 새로 고르는 목록에서만 빠짐
+ *   4. 고치기: 화면 이름, 사용 여부, (단계가 있는 코드표의 2단계 이하) 상위. 코드는 바꿀 수 없음. 사용 안 함은 새로 고르는 목록에서만 빠짐
+ *      조직 개편(v0.31): 상위 조직을 바꿀 수 있고, 사람이나 사용 중인 하위가 남은 코드는 사용 안 함으로 돌릴 수 없음
  *   5. 변경 이력
  * 프로토타입: 바꾼 내용은 이 브라우저에만 저장(시연 기록)
  * ===================================================================== */
@@ -63,8 +64,8 @@
     $('#rows').innerHTML = ordered().map(function (c) {
       return '<tr' + (c.use ? '' : ' class="is-muted"') + '><td class="nowrap"><code>' + esc(c.code) + '</code></td>' +
         '<td class="cell-strong' + (svc ? ' nowrap' : '') + '">' + (svc && c.level > 1 ? '<span aria-hidden="true">' + new Array(c.level).join('　') + '└ </span>' : '') + esc(c.label) + '</td>' +
-        (svc ? '<td class="nowrap">' + esc(LEVEL[c.level]) + '</td><td class="nowrap">' + (c.parent ? esc(serviceLabel(c.parent)) : '-') + '</td>' : '') +
-        '<td class="nowrap">' + esc(usage(c)) + '</td>' +
+        (svc ? '<td class="nowrap">' + esc(LEVEL[c.level]) + '</td><td>' + (c.parent ? esc(serviceLabel(c.parent)) : '-') + '</td>' : '') +
+        '<td>' + esc(usage(c)) + '</td>' +
         '<td class="nowrap">' + (c.use ? C.badge('success', '사용 중') : C.badge('neutral', '사용 안 함')) + '</td>' +
         '<td class="col-action"><button type="button" class="link-act" data-edit="' + esc(c.code) + '" aria-label="' + esc(c.label) + ' 고치기">고치기</button></td></tr>';
     }).join('');
@@ -78,21 +79,33 @@
       desc: '화면 이름을 바꾸면 이 코드를 쓰는 모든 곳에 새 이름이 보입니다. 사용 안 함으로 돌리면 새로 고르는 목록에서만 빠지고, 이미 저장된 기록에는 그대로 보입니다.',
       body: '<p class="modal-info">코드 ' + esc(c.code) + ' (코드는 바꿀 수 없습니다), 쓰는 곳: ' + esc(usage(c)) + '</p>' +
         C.fieldHtml({ name: 'label', label: '화면 이름', required: true, value: c.label }) +
+        // 상위 바꾸기: 단계가 있는 코드표의 2단계 이하 (조직 개편으로 유닛이 다른 실 아래로 갈 때, v0.31)
+        (levels() && c.level > 1 ? C.fieldHtml({ name: 'parent', label: '상위', type: 'select', required: true, value: c.parent || '',
+          options: C.codeList(group, true).filter(function (x) { return x.level === c.level - 1 && (x.use || x.code === c.parent); }).map(function (x) { return [x.code, x.label]; }) }) : '') +
         C.fieldHtml({ name: 'use', label: '상태', type: 'select', value: String(c.use), options: [['true', '사용 중'], ['false', '사용 안 함']] }) +
         C.fieldHtml({ name: 'reason', label: '고치는 사유', type: 'textarea', required: true, placeholder: '예: 조직 개편으로 조직 이름 변경' }),
       btn: '저장',
       check: function (f) {
         const label = val(f, 'label'), use = val(f, 'use') === 'true';
+        const parent = f.elements.parent ? val(f, 'parent') : c.parent;
         const dup = D.CODES.some(function (x) { return x.group === group && x !== c && x.label === label; });
+        // 사용 안 함으로 돌릴 때: 그 조직에 사람이 남았거나 사용 중인 하위가 있으면 먼저 옮겨야 함
+        const off = c.use && !use;
+        const people = off && group === 'DEPT' ? D.ACCOUNTS.filter(function (a) { return a.dept === c.label && a.status !== 'SUSPENDED'; }).length : 0;
+        const kids = off ? D.CODES.filter(function (x) { return x.group === group && x.parent === c.code && x.use; }).length : 0;
         return {
-          label: !label ? '화면 이름을 넣으세요.' : dup ? '같은 화면 이름이 이미 있습니다.' : label === c.label && use === c.use ? '바뀐 내용이 없습니다.' : '',
+          label: !label ? '화면 이름을 넣으세요.' : dup ? '같은 화면 이름이 이미 있습니다.' : label === c.label && use === c.use && parent === c.parent ? '바뀐 내용이 없습니다.' : '',
+          use: people ? '이 조직에 사람이 ' + people + '명 있습니다. 먼저 사용자 권한 관리의 조직 옮기기로 다른 조직에 옮기세요.'
+            : kids ? '아래에 사용 중인 코드가 ' + kids + '개 있습니다. 먼저 그 코드의 상위를 바꾸거나 사용 안 함으로 돌리세요.' : '',
           reason: val(f, 'reason') ? '' : '고치는 사유를 적으세요.',
         };
       },
       done: function (f) {
         const set = { label: val(f, 'label'), use: val(f, 'use') === 'true' };
+        if (f.elements.parent && val(f, 'parent') !== c.parent) set.parent = val(f, 'parent');
         const parts = [];
         if (set.label !== c.label) parts.push('화면 이름: ' + c.label + ' → ' + set.label);
+        if (set.parent) parts.push('상위: ' + serviceLabel(c.parent) + ' → ' + serviceLabel(set.parent));
         if (set.use !== c.use) parts.push('상태: ' + (c.use ? '사용 중 → 사용 안 함' : '사용 안 함 → 사용 중'));
         C.adminSave('CODE', g.name + ' ' + c.code, parts.join(', '), val(f, 'reason'), { k: 'CODE_EDIT', group: group, code: c.code, set: set });
         render();

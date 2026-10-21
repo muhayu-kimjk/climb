@@ -27,13 +27,13 @@
 
   /* ---------- 단계마다 거치는 조건 (REQ-CHK-05, REQ-SIGN-01, REQ-ARC-06, 07) ---------- */
   const ROWS = [
-    ['S02', '모든 계약 (해지, 그대로 연장, 운영 변경은 없음). 기안자가 담당자면 재무 담당이 대신 검토'],
+    ['S02', '모든 계약 (해지, 그대로 연장, 운영 변경은 없음). 기안자가 담당자면 재무 담당자가 대신 검토'],
     ['S03', '할인율 한도를 넘긴 계약, 해지, 그대로 연장, 운영 변경(기간 2개월 넘게 바뀜, 무상 충전 50건 초과). 구성원 계약은 유닛 리더(아래 표), 리더 본인 계약은 영업 임원'],
     ['S04', '표준계약서를 바꾼 계약, 해지, 그대로 연장'],
     ['S05', '개인정보를 처리하는 계약 (해지, 그대로 연장, 운영 변경은 없음)'],
     ['S06', '모든 계약 (해지, 그대로 연장, 운영 변경은 없음)'],
     ['S07', '모든 계약 (해지, 그대로 연장, 운영 변경은 없음)'],
-    ['S08', '모든 계약 (해지, 그대로 연장, 운영 변경은 없음). 기안자가 담당자면 재무 담당이 대신 확인'],
+    ['S08', '모든 계약 (해지, 그대로 연장, 운영 변경은 없음). 기안자가 담당자면 재무 담당자가 대신 확인'],
     ['S09', '모든 계약. 운영 변경의 HR 충전은 재무(⑩ 담당자)가 반영'],
     ['S10', '모든 계약 (운영 변경은 없음)'],
   ];
@@ -58,8 +58,16 @@
   // 이 사람이 지금 맡은 결재 담당 (예: 배수아님은 ②와 ⑧, 최민준님은 ③ 비즈니스1유닛 리더)
   function dutyNames(id) { return C.duties(id).map(function (x) { return x.label; }).join(', '); }
   function dutyNos(id) { return C.duties(id).map(function (x) { return x.label.charAt(0) + (x.key.indexOf(':') > -1 ? '(' + x.key.split(':')[1] + ')' : ''); }).join(', '); }
-  const TEAMS = Object.keys(D.TEAM_LEADERS);
-  function period(d) { return C.fmtDate(d.from) + ' ~ ' + C.fmtDate(d.to); }
+  // 유닛별 리더 표의 유닛: 처음 설정(TEAM_LEADERS)과 관리자가 더한 유닛 (조직 개편 v0.31)
+  function teams() {
+    const out = Object.keys(D.TEAM_LEADERS);
+    D.ASSIGNEE_CHANGES.forEach(function (x) {
+      const t = x.step.indexOf('S03:') === 0 ? x.step.slice(4) : '';
+      if (t && out.indexOf(t) < 0) out.push(t);
+    });
+    return out;
+  }
+  function period(d) { return C.fmtPeriod(d.from, d.to); }
   const DL_STATE = { PLANNED: ['line', '예정'], ACTIVE: ['progress', '대리 중'], ENDED: ['neutral', '끝남'] };
 
   /* ---------- 1. 단계별 담당자 ---------- */
@@ -86,7 +94,7 @@
         '<td class="col-action">' + (fixed ? '-' : '<button type="button" class="link-act" data-change="' + code + '" aria-label="' + esc(stepName(code)) + ' 담당자 바꾸기">바꾸기</button>') + '</td></tr>';
     }).join('');
     // ③ 영업 검토 유닛별 리더 (재무 문서: 소속 유닛원의 계약은 소속 리더가 승인)
-    $('#leader-rows').innerHTML = TEAMS.map(function (team) {
+    $('#leader-rows').innerHTML = teams().map(function (team) {
       const id = C.leaderAt(team, '9999');
       const list = C.pendingQueue(me, true, ['S03']).filter(function (x) { return C.teamOf(x.c.requesterId) === team; });
       const others = list.filter(function (x) { return x.s.userId !== id; }).length;
@@ -113,6 +121,31 @@
           { k: 'ASSIGNEE', step: 'S03:' + team, to: to });
         render();
         C.toast(team + ' 리더를 ' + C.userName(to) + '님으로 바꿨습니다.');
+      },
+    });
+  }
+  // 유닛 추가: 조직 개편으로 새 유닛이 생기면 표에 더하고 리더를 정함 (v0.31)
+  function openAddUnit() {
+    const cur = teams();
+    const units = C.codeList('DEPT').filter(function (x) { return cur.indexOf(x.label) < 0; });
+    if (!units.length) { C.toast('더할 수 있는 유닛이 없습니다. 새 유닛은 코드 관리에서 먼저 추가하세요.', true); return; }
+    const opts = candidates('HEAD').map(function (a) { return [a.id, a.name + ' (' + a.dept + ')']; });
+    C.formModal({
+      title: '유닛별 리더 표에 유닛을 더할까요?',
+      desc: '더하면 그 유닛 사람이 기안하는 계약의 ③ 영업 검토가 정한 리더에게 갑니다. 표에 없는 유닛의 계약은 영업 임원이 검토합니다.',
+      body: C.fieldHtml({ name: 'unit', label: '유닛', type: 'select', required: true, options: [['', '고르세요']].concat(units.map(function (x) { return [x.label, x.label]; })),
+          help: '조직 목록(코드 관리)에 있는 조직 중 아직 표에 없는 것만 고를 수 있습니다.' }) +
+        C.fieldHtml({ name: 'to', label: '리더', type: 'select', required: true, options: [['', '고르세요']].concat(opts), help: '영업 리더 역할이 있는 사람만 고를 수 있습니다.' }) +
+        C.fieldHtml({ name: 'reason', label: '더하는 사유', type: 'textarea', required: true, placeholder: '예: 2027년 1월 조직 개편으로 비즈니스4유닛 신설' }),
+      btn: '유닛 추가',
+      check: function (f) {
+        return { unit: val(f, 'unit') ? '' : '유닛을 고르세요.', to: val(f, 'to') ? '' : '리더를 고르세요.', reason: val(f, 'reason') ? '' : '더하는 사유를 적으세요.' };
+      },
+      done: function (f) {
+        const unit = val(f, 'unit'), to = val(f, 'to');
+        C.adminSave('RULE', stepName('S03') + '(' + unit + ' 리더)', '유닛 추가, 리더: ' + C.userName(to), val(f, 'reason'), { k: 'ASSIGNEE', step: 'S03:' + unit, to: to });
+        render();
+        C.toast(C.josa(unit, '을', '를') + ' 더하고 리더를 ' + C.userName(to) + '님으로 정했습니다.');
       },
     });
   }
@@ -153,9 +186,9 @@
       const state = C.delegationState(d), tag = DL_STATE[state];
       const steps = dutyNos(d.absentId);
       return '<tr' + (state === 'ENDED' ? ' class="is-muted"' : '') + '>' +
-        '<td class="nowrap">' + person(d.absentId) + (steps ? '<span class="cell-meta">맡은 단계 ' + esc(steps) + '</span>' : '') + '</td>' +
-        '<td class="nowrap">' + person(d.delegateId) + '</td>' +
-        '<td class="nowrap num-left">' + C.fmtDate(d.from) + '<br>~ ' + C.fmtDate(d.to) + (d.endedAt ? '<span class="cell-meta">' + C.fmtDate(d.endedAt) + ' 끝냄</span>' : '') + '</td>' +
+        '<td>' + person(d.absentId) + (steps ? '<span class="cell-meta">맡은 단계 ' + esc(steps) + '</span>' : '') + '</td>' +
+        '<td>' + person(d.delegateId) + '</td>' +
+        '<td class="num-left">' + C.fmtDate(d.from) + '<br>~ ' + C.fmtDate(d.to) + (d.endedAt ? '<span class="cell-meta">' + C.fmtDate(d.endedAt) + ' 끝냄</span>' : '') + '</td>' +
         '<td class="col-wide">' + esc(d.reason) + '</td>' +
         '<td class="nowrap">' + C.badge(tag[0], tag[1]) + '</td>' +
         '<td class="col-action">' + (state === 'ENDED' ? '-' : '<button type="button" class="link-act link-act--danger" data-end="' + esc(d.id) + '">' + (state === 'ACTIVE' ? '끝내기' : '취소') + '</button>') + '</td></tr>';
@@ -185,7 +218,7 @@
           C.fieldHtml({ name: 'to', label: '종료일', type: 'date', required: true, attrs: ' min="' + D.TODAY + '"' }) +
         '</div>' +
         C.fieldHtml({ name: 'reason', label: '근거', type: 'textarea', required: true,
-          placeholder: '예: 고은성님 해외 출장(10.19~10.23). 위임전결규정에 따라 영업 임원이 대신 결재', help: '휴가, 출장 같은 사유와 대신 결재하는 근거를 적습니다. 결재 기록에 함께 남습니다.' }),
+          placeholder: '예: 고은성님 해외 출장(10. 19.~10. 23.). 위임전결규정에 따라 영업 임원이 대신 결재', help: '휴가, 출장 같은 사유와 대신 결재하는 근거를 적습니다. 결재 기록에 함께 남습니다.' }),
       btn: '대리 지정',
       open: function (f) {
         f.elements.absent.addEventListener('change', function () {
@@ -288,6 +321,7 @@
     const b = e.target.closest('button');
     if (!b) return;
     if (b.id === 'btn-delegate') openDelegate();
+    else if (b.id === 'btn-unit') openAddUnit();
     else if (b.getAttribute('data-change')) openChange(b.getAttribute('data-change'));
     else if (b.getAttribute('data-end')) openEnd(b.getAttribute('data-end'));
     else if (b.getAttribute('data-rule')) openRule(b.getAttribute('data-rule'));
