@@ -35,7 +35,8 @@
   const inReview = byStatus(all, 'IN_REVIEW');
   const active = byStatus(all, 'ACTIVE');
   // 만료 임박: 계약 묶음의 지금 유효한 계약 기준 (조건 그대로 연장한 기록이 있으면 그 기간, common.js expiringBundles)
-  const expiring = C.expiringBundles(90).map(function (b) { return Object.assign({}, b.root, { endDate: b.end }); });
+  //   해지 통지 기한이 90일 안에 오는 자동갱신 계약도 넣음 (v0.53, REQ-FLOW-32). bundle: 통지 기한 계산용
+  const expiring = C.expiringBundles(90, true).map(function (b) { return Object.assign({}, b.root, { endDate: b.end, bundle: b }); });
   const restricted = all.filter(function (c) { return c.restricted && c.status !== 'DRAFT'; });
   const myActions = C.myActions(me);
 
@@ -250,12 +251,52 @@
         }).join('') + '</tbody></table></div>';
   }
 
+  /* ---------- 3-1. 챙길 의무 (v0.53 기획자 결정, REQ-FLOW-35) ----------
+   * 체결 후 의무를 맡는 분야(정보보호, 고객지원, 재무의 담당자와 리더)와 최고관리자에게만
+   * 내 분야의 의무 중 기한이 지났거나 14일 안인 것. 열람 제한 계약은 고객사를 가림 */
+  function renderObligations() {
+    const el = document.getElementById('obligations');
+    const areas = Object.keys(D.OBLIGATION_KINDS).map(function (k) { return D.OBLIGATION_KINDS[k].owner; })
+      .filter(function (r) { return me.role === 'SUPER' || C.hasRole(me, [r]); });
+    if (!areas.length) return;
+    el.hidden = false;
+    const list = D.OBLIGATIONS.filter(function (o) {
+      const s = C.obligationState(o);
+      return areas.indexOf(C.obligationOwner(o)) > -1 && ['LATE', 'SOON'].indexOf(s.code) > -1 && C.canSeeObligation(me, o);
+    }).sort(function (a, b) { return C.obligationState(a).next.localeCompare(C.obligationState(b).next); });
+    const late = list.filter(function (o) { return C.obligationState(o).code === 'LATE'; }).length;
+    el.innerHTML = panelHead('obligations-title', '챙길 의무', list.length + '건', '의무 관리로', 'SCR-48', 'obligations.html') +
+      '<p class="panel-desc">' + (me.role === 'SUPER' ? '모든 분야' : areas.map(function (r) { return D.ROLE_AREA[r]; }).join(', ') + ' 분야') +
+        '가 맡은 체결 후 의무 가운데 기한이 지났거나 ' + R.obligationSoonDays + '일 안인 것입니다.' + (late ? ' 기한이 지난 의무가 ' + late + '건 있습니다.' : '') + '</p>' +
+      (list.length ? '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
+        '<caption class="sr-only">챙길 의무: 기한, 의무, 고객사, 맡은 분야</caption>' +
+        '<thead><tr><th scope="col">기한</th><th scope="col">의무</th><th scope="col">고객사</th><th scope="col" class="col-owner">맡은 분야</th></tr></thead>' +
+        '<tbody>' + list.map(function (o) {
+          const s = C.obligationState(o);
+          const root = D.CONTRACTS.find(function (c) { return c.id === o.bundle; });
+          const cust = root && C.canView(root, me)
+            ? '<a class="cell-title" href="contract.html?id=' + encodeURIComponent(o.bundle) + '">' + esc(root.counterparty) + '</a>'
+            : '<span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>';
+          return '<tr' + (s.code === 'LATE' ? ' class="is-alert"' : '') + '>' +
+            '<td class="center nowrap">' + C.fmtDate(s.next) + '<span class="cell-meta">' + C.badge(s.tone, s.label) + '</span></td>' +
+            '<td><a href="obligations.html">' + esc(o.title) + '</a><span class="cell-meta">' + esc((D.OBLIGATION_KINDS[o.kind] || {}).label) + '</span></td>' +
+            '<td>' + cust + '<span class="cell-sub">' + esc(C.obligationOwnerLabel(o)) + '</span></td>' +
+            '<td class="center col-owner">' + esc(C.obligationOwnerLabel(o)) + '</td></tr>';
+        }).join('') + '</tbody></table></div>'
+        : '<p class="empty">' + R.obligationSoonDays + '일 안에 챙길 의무가 없습니다.</p>');
+  }
+
   /* ---------- 4. 만료 임박 (REQ-DASH-07) ----------
    * 표로 보여 줍니다: 남은 일자, 고객사, 서비스, 만료일, 담당자 (v0.14)
    * 고객사, 서비스 칸 너비는 진행 상세 표와 같게 맞춤 */
   function renderExpiring() {
+    const soon = expiring.filter(function (c) {
+      const n = C.noticeDate(c.bundle);
+      return n && C.daysUntil(n) >= 0 && C.daysUntil(n) <= D.ALERT_RULES.noticeSoonDays && C.canView(c, me);
+    }).length;
     const head = panelHead('expiring-title', '만료 임박', null, '전체 보기', 'SCR-43', 'expiring.html') +
-      '<p class="panel-desc">90일 이내에 만료되는 계약입니다.</p>';
+      '<p class="panel-desc">90일 이내에 만료되거나 해지 통지 기한이 오는 계약입니다.' +
+      (soon ? ' 해지 통지 기한이 ' + D.ALERT_RULES.noticeSoonDays + '일 안에 오는 자동갱신 계약이 <a href="expiring.html?view=notice">' + soon + '건</a> 있습니다. 연장하지 않으려면 기한까지 상대방에게 알려야 합니다.' : '') + '</p>';
     if (!expiring.length) {
       document.getElementById('expiring').innerHTML = head + '<p class="empty">90일 이내에 만료되는 계약이 없습니다.</p>';
       return;
@@ -271,7 +312,9 @@
         '<td class="num">' + dday + '</td>' + // 숫자라 오른쪽 정렬 (REQ-UI-16)
         customerCells(c) +
         // 휴대폰에서는 담당자 칸을 감추고 만료일 아래 작은 글자로 보여줌 (REQ-ENV-08)
-        '<td class="nowrap">' + C.fmtDate(c.endDate) + (C.canView(c, me) ? '<span class="cell-sub">담당 ' + owner + '</span>' : '') + '</td>' +
+        // 자동갱신 계약은 해지 통지 기한을 만료일 아래에 (30일 안이거나 지났으면 강조)
+        '<td class="nowrap">' + C.fmtDate(c.endDate) + (C.canView(c, me) && C.noticeDate(c.bundle) ? '<span class="cell-meta">' + C.noticeText(c.bundle) + '</span>' : '') +
+          (C.canView(c, me) ? '<span class="cell-sub">담당 ' + owner + '</span>' : '') + '</td>' +
         '<td class="center col-owner">' + owner + '</td>' +
       '</tr>';
     }).join('');
@@ -288,5 +331,6 @@
   renderProgress();
   renderMyReviews();
   renderAudit();
+  renderObligations();
   renderExpiring();
 })();

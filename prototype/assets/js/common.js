@@ -40,6 +40,12 @@ window.CLIMB = (function () {
     { label: '보관함', children: [
       { label: '전체 계약', scr: 'SCR-41', href: 'contracts.html' },
       { label: '만료 예정 계약', scr: 'SCR-43', href: 'expiring.html' },
+      // 의무 관리(v0.53 기획자 결정): 체결 후 의무(보안 의무, SLA, 청구 일정)를 기한과 맡은 분야로. 모두 봄(열람 제한 건은 고객사 가림)
+      { label: '의무 관리', scr: 'SCR-48', href: 'obligations.html' },
+      // 표준계약서(v0.53 기획자 요청): 모두가 지금 판을 보고 내려받음. 새 판은 법무, 관리자, 최고관리자가 올림
+      { label: '표준계약서', scr: 'SCR-45', href: 'templates.html' },
+      // 통계와 보고서(v0.53 기획자 요청): 체결 금액과 건수, 결재 단계마다 걸린 날, 체크리스트 예외. 모두 봄(열람 제한 건은 빼고 셈)
+      { label: '통계와 보고서', scr: 'SCR-46', href: 'stats.html' },
     ] },
     // 관리자 메뉴는 관리자(와 최고관리자)에게만 보임 (REQ-AUTH-02)
     //   접속 기록 점검(SCR-57)만 정보보호 담당자와 리더가 씀. 관리자가 자기 작업 기록을 스스로 점검하지 않게
@@ -81,8 +87,9 @@ window.CLIMB = (function () {
   }
 
   // 시스템 이름 표기 (REQ-NAME-03~04, REQ-UI-03)
-  //   헤더: [무하유 심볼] CLIMB / 둘째 줄 MUHAYU Contract Lifecycle Management Base (v0.22, 한글 이름은 뺌)
-  //   푸터: [무하유 심볼] CLIMB / 무하유 계약 관리 플랫폼 / 영문 이름, 세 줄 (v0.22 심볼, v0.44 세로선 없이 줄 바꿈)
+  //   헤더: [무하유 심볼] CLIMB / 둘째 줄 무하유 계약 관리 플랫폼 (v0.53 기획자 요청. 예전에는 영문 이름)
+  //   푸터: [무하유 심볼] CLIMB / 무하유 계약 관리 플랫폼 / Contract Lifecycle Intelligent Management Base, 세 줄
+  //         (v0.22 심볼, v0.44 세로선 없이 줄 바꿈, v0.53 MUHAYU를 빼 한 줄에 들어가게. 저작권 줄은 MUHAYU Inc.)
   //   로그인 화면: 심볼 없이 글자로만 (바꾸지 않음)
   //   opt.mark: CLIMB 앞에 심볼(파비콘과 같은 파일) / opt.ko: 한글 이름 붙이기 (기본 true)
   //   세로선은 글자가 아닌 선으로 그려 화면낭독기는 "CLIMB 무하유 계약 관리 플랫폼"으로 읽음
@@ -191,6 +198,28 @@ window.CLIMB = (function () {
     if (!u) return '-';
     const d = dept != null && dept !== '' ? dept : u.dept;
     return (d ? d + ' ' : '') + u.name;
+  }
+
+  /* ---------- 표준계약서와 판 (v0.53 기획자 요청, REQ-CHK-09, SCR-45) ----------
+   * 그날 쓰던 판: 적용 시작일이 그날 이전인 판 중 가장 늦은 것. 계약에는 기안할 때 고른 표준계약서와 판을 남김
+   * 예시 계약처럼 고른 기록이 없으면 서비스로 맞는 표준계약서의 기안일 판으로 봄 [시안] */
+  function templateVersionAt(t, day) {
+    const vs = (t.versions || []).filter(function (v) { return v.from <= day; });
+    return vs.length ? vs[vs.length - 1] : null;
+  }
+  function templateOf(c) {
+    const pick = c.template || (c.form && c.form.template);
+    if (pick && pick.id === 'OWN') return { own: true };
+    const day = (c.requestedAt || D.TODAY).slice(0, 10);
+    const t = pick ? D.TEMPLATES.filter(function (x) { return x.id === pick.id; })[0]
+      : D.TEMPLATES.filter(function (x) { return x.service && (c.services || []).indexOf(x.service) > -1; })[0];
+    if (!t) return null;
+    const v = pick && pick.no ? t.versions.filter(function (x) { return x.no === pick.no; })[0] : templateVersionAt(t, day);
+    return v ? { t: t, v: v } : null;
+  }
+  function templateLabel(c) {
+    const x = templateOf(c);
+    return !x ? '-' : x.own ? '상대방 양식(표준계약서 없음)' : x.t.name + ' 판 ' + x.v.no;
   }
 
   /* ---------- 사업자등록번호 (거래처 검색, v0.32) ----------
@@ -759,7 +788,8 @@ window.CLIMB = (function () {
     return entry;
   }
   // 시연으로 만든 계약(해지 기안, 연장 검토), 사후관리 기록, 지운 임시 저장 (프로토타입 전용, REQ-ARC-04~07)
-  const DEMO_KEYS = { contracts: 'climb.demoContracts', notes: 'climb.demoNotes', deleted: 'climb.demoDeleted', admin: 'climb.demoAdmin', mail: 'climb.demoMail' };
+  const DEMO_KEYS = { contracts: 'climb.demoContracts', notes: 'climb.demoNotes', deleted: 'climb.demoDeleted', admin: 'climb.demoAdmin', mail: 'climb.demoMail', theme: 'climb.demoTheme' /* 화면 설정(v0.53, theme.js) */,
+    obligations: 'climb.demoObligations' /* 체결 후 의무(v0.53) */ };
   // 받을 이메일 설정(내 계정, v0.45): { 사용자 id: { 알림 코드: 켬/끔 } }. 실제 시스템은 서버의 사용자 설정
   function mailPrefs(userId) {
     let all = {};
@@ -781,7 +811,7 @@ window.CLIMB = (function () {
     list.push(item);
     try { localStorage.setItem(DEMO_KEYS[key], JSON.stringify(list)); } catch (e) { /* 저장소를 못 쓰면 이 화면에서만 반영 */ }
   }
-  function demoCount() { return loadDemoActions().length + loadDemo('contracts').length + loadDemo('notes').length + loadDemo('deleted').length + loadDemo('admin').length; }
+  function demoCount() { return loadDemoActions().length + loadDemo('contracts').length + loadDemo('notes').length + loadDemo('deleted').length + loadDemo('admin').length + loadDemo('obligations').length; }
   // 새 계약 기록 저장 (해지 기안, 연장 검토). 실제 시스템에서는 서버에 저장
   function saveDemoContract(c) {
     pushDemo('contracts', c);
@@ -811,6 +841,85 @@ window.CLIMB = (function () {
     const i = D.CONTRACTS.findIndex(function (x) { return x.draftKey === key; });
     if (i > -1) D.CONTRACTS.splice(i, 1);
   });
+
+  /* ---------- 체결 후 의무 (v0.53 기획자 결정, 요구사항 정의서 REQ-FLOW-33~36) ----------
+   * 의무 하나: mock-data.js OBLIGATIONS. 시연으로 더한 의무, 이행 기록, 끝냄은 이 브라우저에만 저장(climb.demoObligations)
+   * 실제 시스템에서는 서버의 obligation, obligation_record에 저장하고 기한 알림(OBLIGATION 이메일)은 서버가 매일 보냄 */
+  // 맡는 분야의 역할(PRIVACY, CEM, FINANCE). 분야 이름은 ROLE_AREA(정보보호, 고객지원, 재무)
+  function obligationOwner(o) { return o.owner || (D.OBLIGATION_KINDS[o.kind] || {}).owner; }
+  function obligationOwnerLabel(o) { return (D.ROLE_AREA[obligationOwner(o)] || '-'); }
+  // 되풀이 의무의 기한들: first부터 everyMonths달마다, 계약 묶음이 끝나는 날까지(끝을 모르면 3년까지만 셈)
+  function obligationDues(o) {
+    if (o.when === 'ONCE') return o.due ? [o.due] : [];
+    if (o.when !== 'REPEAT' || !o.first || !o.everyMonths) return [];
+    const b = bundleOf(o.bundle);
+    const end = (b && b.end) || monthsLater(o.first, 36);
+    const out = [];
+    for (let i = 0, d = o.first; d <= end && i < 120; i++, d = monthsLater(o.first, o.everyMonths * i)) out.push(d);
+    return out;
+  }
+  // 지금 상태 { code, label, tone, next(아직 하지 않은 가장 이른 기한), days, done, total }
+  //   LATE 기한 지남 / SOON 기한 14일 이내 / PLANNED 예정 / EVENT 일이 생기면 / DONE 모두 함 / ENDED 끝냄
+  function obligationState(o) {
+    const recs = o.records || [];
+    if (o.endedAt) return { code: 'ENDED', label: '끝냄', tone: 'neutral', done: recs.length };
+    if (o.when === 'EVENT') return { code: 'EVENT', label: '일이 생기면', tone: 'line', done: recs.length };
+    const dues = obligationDues(o);
+    const doneFor = recs.map(function (r) { return r.for; });
+    const open = dues.filter(function (d) { return doneFor.indexOf(d) < 0; });
+    const base = { done: dues.length - open.length, total: dues.length };
+    if (!open.length) return Object.assign({ code: 'DONE', label: '모두 함', tone: 'success' }, base);
+    const next = open[0], d = daysUntil(next);
+    if (d < 0) return Object.assign({ code: 'LATE', label: '기한 지남', tone: 'danger', next: next, days: d }, base);
+    if (d <= D.ALERT_RULES.obligationSoonDays) return Object.assign({ code: 'SOON', label: d ? 'D-' + d : '오늘', tone: 'attention', next: next, days: d }, base);
+    return Object.assign({ code: 'PLANNED', label: '예정', tone: 'progress', next: next, days: d }, base);
+  }
+  // 언제 하는지 한 줄: "2026-10-30" / "1달마다(2026-06-05부터)" / "일이 생기면: 알게 된 때부터 4시간 안"
+  function obligationWhenText(o) {
+    if (o.when === 'ONCE') return '한 번: ' + fmtDate(o.due);
+    if (o.when === 'REPEAT') return (o.everyMonths === 12 ? '해마다' : o.everyMonths === 3 ? '분기마다' : o.everyMonths === 1 ? '달마다' : o.everyMonths + '달마다') + '(' + fmtDate(o.first) + '부터)';
+    return '일이 생기면: ' + (o.within || '-');
+  }
+  // 맡은 분야의 사람(담당자와 리더, 임원). 지정 열람자처럼 사람이 아니라 분야로 맡김
+  function isObligationOwner(user, o) { return hasRole(user, [obligationOwner(o)]); }
+  // 체결본이 등록된 묶음부터 의무를 더함
+  function canHaveObligations(b) {
+    return !!b && (['ACTIVE', 'EXPIRED', 'TERMINATED'].indexOf(b.status) > -1 ||
+      b.items.some(function (c) { return (c.history || []).some(function (h) { return h.action === 'REGISTER'; }); }));
+  }
+  // 더하기 [가정]: 영업대표(본인 계약), 법무, 관리자, 최고관리자, 그 종류를 맡는 분야(kind를 주면 그 분야만)
+  function canAddObligation(user, root, kind) {
+    if (root.requesterId === user.id || hasRole(user, ['LEGAL']) || user.role === 'ADMIN' || user.role === 'SUPER') return true;
+    return Object.keys(D.OBLIGATION_KINDS).some(function (k) { return (!kind || k === kind) && hasRole(user, [D.OBLIGATION_KINDS[k].owner]); });
+  }
+  // 이행 기록: 맡은 분야, 관리자, 최고관리자 / 끝내기: 거기에 법무도 [가정]
+  //   영업대표는 더할 수는 있어도 끝내지는 못함(끝내면 기한 알림이 멈추므로 맡은 분야나 법무가 판단)
+  function canRecordObligation(user, o) { return isObligationOwner(user, o) || user.role === 'ADMIN' || user.role === 'SUPER'; }
+  function canEndObligation(user, o) { return canRecordObligation(user, o) || hasRole(user, ['LEGAL']); }
+  // 볼 수 있는 의무: 계약을 볼 수 있거나 맡은 분야(열람 제한 계약이면 고객사는 가림)
+  function canSeeObligation(user, o) {
+    const root = D.CONTRACTS.find(function (c) { return c.id === o.bundle; });
+    return !!root && (canView(root, user) || isObligationOwner(user, o));
+  }
+  function obligationsOf(bundleId) { return D.OBLIGATIONS.filter(function (o) { return o.bundle === bundleId; }); }
+  // 시연 기록(climb.demoObligations): { type: 'ADD', ob } / { type: 'RECORD', id, rec } / { type: 'END', id, at, by, reason }
+  function applyObligationEvent(e) {
+    if (e.type === 'ADD') { if (!D.OBLIGATIONS.some(function (o) { return o.id === e.ob.id; })) D.OBLIGATIONS.push(e.ob); return; }
+    const o = D.OBLIGATIONS.find(function (x) { return x.id === e.id; });
+    if (!o) return;
+    if (e.type === 'RECORD') o.records = (o.records || []).concat([e.rec]);
+    if (e.type === 'END') { o.endedAt = e.at; o.endedBy = e.by; o.endReason = e.reason; }
+  }
+  function saveObligationEvent(e) { pushDemo('obligations', e); applyObligationEvent(e); }
+  function addObligation(ob, user) {
+    const n = D.OBLIGATIONS.reduce(function (m, o) { return Math.max(m, Number(String(o.id).replace(/\D/g, '')) || 0); }, 0) + 1;
+    const full = Object.assign({ id: 'OB-' + String(n).padStart(4, '0'), by: user.id, at: nowStamp().slice(0, 16), records: [] }, ob);
+    saveObligationEvent({ type: 'ADD', ob: full });
+    return full;
+  }
+  function recordObligation(o, forDue, note, user) { saveObligationEvent({ type: 'RECORD', id: o.id, rec: { for: forDue || null, at: nowStamp().slice(0, 16), by: user.id, note: note } }); }
+  function endObligation(o, reason, user) { saveObligationEvent({ type: 'END', id: o.id, at: nowStamp().slice(0, 16), by: user.id, reason: reason }); }
+  loadDemo('obligations').forEach(applyObligationEvent);
 
   /* ---------- 관리자 설정 (SCR-51~57, 기획자 결정 v0.25) ----------
    * 관리자 화면에서 바꾼 것은 변경 이력(D.ADMIN_LOG)에 한 줄씩 남습니다: 누가, 언제, 무엇을, 사유(필수). 고치거나 지우지 않습니다.
@@ -882,6 +991,13 @@ window.CLIMB = (function () {
       });
     } else if (op.k === 'RESTRICT') {
       D.CONTRACTS.forEach(function (c) { if (c.id === op.id) c.restricted = op.on; });
+    } else if (op.k === 'TEMPLATE_ADD') {
+      // 표준계약서 더하기 (v0.53): 첫 판과 함께
+      D.TEMPLATES.push({ id: op.t.id, name: op.t.name, service: op.t.service || '', versions: [Object.assign({ no: 1, by: e.by, at: e.at, basis: e.reason }, op.v)] });
+    } else if (op.k === 'TEMPLATE_VERSION') {
+      // 표준계약서 새 판 (v0.53): 앞 판은 지우지 않음
+      const t = findBy(D.TEMPLATES, 'id', op.id);
+      if (t) t.versions.push(Object.assign({ no: t.versions.length + 1, by: e.by, at: e.at, basis: e.reason }, op.v));
     } else if (op.k === 'VIEWER_ADD') {
       // 지정 열람자 더하기 (v0.52): 원계약(묶음)에 둠. 사람은 지정할 때 조직을 함께 남김
       const c = findBy(D.CONTRACTS, 'id', op.id);
@@ -1098,12 +1214,34 @@ window.CLIMB = (function () {
     return roots.concat(orphans).map(function (c) { return bundleOf(c.id); }).filter(Boolean);
   }
   // 만료 예정: 지금 유효한 계약이 계약 완료이고 days일 안에 끝나는 묶음 (REQ-FLOW-07, REQ-DASH-07)
-  function expiringBundles(days) {
+  // 해지 통지 기한 (REQ-FLOW-32): 자동갱신 계약은 만료일에서 통지 일수를 뺀 날까지 상대방에게 알려야 연장을 막을 수 있음
+  //   b: 묶음(autoRenew, noticeDays, end). 자동갱신이 아니거나 통지 일수가 없으면 null
+  function noticeDate(b) {
+    if (!b || b.autoRenew !== 'YES' || !b.noticeDays || !b.end) return null;
+    return addDays(b.end, -b.noticeDays);
+  }
+  // 만료 예정: 지금 유효한 계약이 days일 안에 끝나는 묶음
+  //   withNotice(v0.53): 해지 통지 기한이 days일 안에 오는 자동갱신 계약도 넣음(만료는 더 멀어도 기한을 놓치지 않게)
+  //   순서: 다음에 오는 날(아직 지나지 않은 통지 기한, 아니면 만료일)이 가까운 순서
+  function expiringBundles(days, withNotice) {
+    function next(b) { const n = noticeDate(b); return n && daysUntil(n) >= 0 ? n : b.end; }
     return bundles().filter(function (b) {
       if (b.status !== 'ACTIVE' || !b.end) return false;
-      const d = daysUntil(b.end);
-      return d >= 0 && d <= days;
-    }).sort(function (a, b) { return a.end.localeCompare(b.end); });
+      const d = daysUntil(b.end), n = noticeDate(b);
+      return (d >= 0 && d <= days) || (withNotice && n && daysUntil(n) >= 0 && daysUntil(n) <= days);
+    }).sort(function (a, b) { return next(a).localeCompare(next(b)) || a.end.localeCompare(b.end); });
+  }
+  // 해지 통지 기한 한 줄: "해지 통지 기한 2026-11-01 D-13" / 지났으면 "해지 통지 기한 2026-09-15 지남"
+  //   ALERT_RULES.noticeSoonDays(30일) 안이거나 지났으면 "D-13", "지남"만 강조 글자(wait-long). 좁은 칸에서도 덩어리가 짧게
+  //   label: 앞 글자(자동갱신 칸 안에서는 "통지 기한"으로 줄임). 이메일은 noticeMailDays(30일, 7일) 전에 영업대표에게
+  function noticeText(b, label) {
+    const n = noticeDate(b);
+    if (!n) return '';
+    const d = daysUntil(n);
+    const tag = d < 0 ? '지남' : d ? 'D-' + d : '오늘';
+    // 날짜와 D-day는 한 덩어리(keep)로: 좁은 칸에서 날짜 가운데가 끊기지 않게
+    return (label || '해지 통지 기한') + ' <span class="keep">' + fmtDate(n) + ' ' +
+      (d <= D.ALERT_RULES.noticeSoonDays ? '<span class="wait-long">' + tag + '</span>' : tag) + '</span>';
   }
 
   // 다음 화면에서 한 번 보여 줄 안내 (예: 승인한 뒤 목록으로 돌아갔을 때)
@@ -1165,7 +1303,7 @@ window.CLIMB = (function () {
   }
 
   // 메뉴에 없는 화면은 어느 메뉴 아래인지 (현재 메뉴 표시, KRDS 메인 메뉴: 지금 위치를 분명히) v0.28
-  const MENU_PARENT = { 'SCR-23': 'SCR-20', 'SCR-42': 'SCR-41', 'SCR-13': 'SCR-41', 'SCR-14': 'SCR-41', 'SCR-44': 'SCR-43', 'SCR-92': 'SCR-91' };
+  const MENU_PARENT = { 'SCR-23': 'SCR-20', 'SCR-42': 'SCR-41', 'SCR-47': 'SCR-41','SCR-13': 'SCR-41', 'SCR-14': 'SCR-41', 'SCR-44': 'SCR-43', 'SCR-92': 'SCR-91' };
   function renderHeader(user, pageId) {
     const el = document.getElementById('site-header');
     if (!el) return;
@@ -1196,7 +1334,8 @@ window.CLIMB = (function () {
 
     /* 헤더 구성 (REQ-UI-13)
      *   1줄: [CLIMB | 무하유 계약 관리 플랫폼]
-     *   2줄: [MUHAYU Contract Lifecycle Management Base]     [비즈니스1유닛 이도윤님 | (아이콘)로그아웃]
+     *   2줄: [무하유 계약 관리 플랫폼]     [비즈니스1유닛 이도윤님 | (아이콘)로그아웃]
+     *   (v0.53 기획자 요청: 머리글 둘째 줄은 한글 이름. 영문 이름은 푸터와 로그인에만)
      * 오른쪽 한 줄은 왼쪽 둘째 줄과 글자 밑선(baseline)을 맞추고, 오른쪽 끝은 본문 오른쪽 끝에 맞춥니다. (v0.15)
      * 화면 알림(종 모양, 알림 숫자)은 두지 않습니다. 알림은 이메일로 보냅니다. (REQ-ENV-09) */
     el.className = 'site-header';
@@ -1213,7 +1352,7 @@ window.CLIMB = (function () {
           '<span class="util-divider" aria-hidden="true"></span>' +
           '<a class="util-link logout-link" href="login.html">' + icon('logout', 'sm') + '로그아웃</a>' +
         '</div>' +
-        '<span class="brand-en">' + esc(D.BRAND.en) + '</span>' +
+        '<span class="brand-en is-ko">' + esc(D.BRAND.ko) + '</span>' + // 둘째 줄은 한글 이름 (v0.53 기획자 요청. is-ko: 한글은 Noto Sans KR, v0.54)
         // 인쇄할 때만 보이는 출력 정보 (REQ-UI-11). 실제 시스템은 출력하는 순간의 날짜와 시각을 씁니다.
         '<p class="print-meta">' + meta(['출력일 ' + fmtDate(D.TODAY), '출력자 ' + esc((user.dept ? user.dept + ' ' : '') + user.name)]) + '</p>' +
       '</div></div>' +
@@ -1307,11 +1446,13 @@ window.CLIMB = (function () {
     if (!el) return;
     el.className = 'site-footer';
     el.innerHTML =
-      // 푸터: 시스템 이름 세 줄(v0.44) + 보안 안내 문구 + 저작권. 이용 안내는 메뉴 줄로 옮기고 시스템 문의는 뺌 (REQ-UI-14, 15)
+      // 푸터: 시스템 이름 + 보안 안내 문구 + 저작권. 이용 안내는 메뉴 줄로 옮기고 시스템 문의는 뺌 (REQ-UI-14, 15)
+      //   시스템 이름은 머리글과 같은 모양(v0.54 기획자 요청): [심볼] climb / 무하유 계약 관리 플랫폼(작게), 그 아래 영문 이름(작게). 영어는 SUITE, 한글은 Noto Sans KR
       '<div class="inner">' +
-        '<div class="footer-brand">' + brandText('p', { mark: true }) + '</div>' +
+        '<div class="footer-brand"><p class="brand-title">' + brandTitleHtml({ mark: true, ko: false }) + '</p>' +
+          '<span class="brand-en is-ko">' + esc(D.BRAND.ko) + '</span><span class="brand-en">' + esc(D.BRAND.en) + '</span></div>' +
         '<p class="footer-notice">' + esc(SECURITY_NOTICE) + '</p>' +
-        '<p class="footer-copy">' + meta(['© 2026 MUHAYU. All rights reserved.', '프로토타입 v0.1']) + '</p>' +
+        '<p class="footer-copy">' + meta(['© 2026 ' + D.BRAND.company + ' All rights reserved.', '프로토타입 v0.1']) + '</p>' +
       '</div>';
   }
 
@@ -1490,7 +1631,8 @@ window.CLIMB = (function () {
       (opt.desc ? '<p class="modal-desc">' + esc(opt.desc) + '</p>' : '') +
       '<form class="modal-body modal-form" id="fm-form" novalidate>' + (opt.body || '') + '</form>' +
       '<div class="modal-actions"><button type="button" class="btn btn--tertiary btn--md" data-act="close">닫기</button>' +
-      '<button type="submit" form="fm-form" class="btn btn--' + (opt.tone || 'primary') + ' btn--md">' + esc(opt.btn || '저장') + '</button></div></div>';
+      // btn: false면 보기만 하는 창(예: 이메일 미리 보기, v0.53). 닫기만 둠
+      (opt.btn === false ? '' : '<button type="submit" form="fm-form" class="btn btn--' + (opt.tone || 'primary') + ' btn--md">' + esc(opt.btn || '저장') + '</button>') + '</div></div>';
     const form = el.querySelector('#fm-form');
     form.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -1503,7 +1645,7 @@ window.CLIMB = (function () {
       });
       if (first) { first.focus(); return; }
       closeFormModal();
-      opt.done(form);
+      if (opt.done) opt.done(form);
     });
     el.hidden = false;
     wireFields(form);
@@ -1929,10 +2071,16 @@ window.CLIMB = (function () {
     currentStep: currentStep, pendingSteps: pendingSteps, routedSteps: routedSteps, stepPosition: stepPosition, waitDays: waitDays,
     stepDots: stepDots, progressText: progressText, actionLabel: actionLabel, opsChecks: opsChecks, isReviewStep: isReviewStep, routedReview: routedReview,
     isShort: isShort, opsChecksFor: opsChecksFor, stepIng: stepIng, kindLabel: kindLabel,
-    rootOf: rootOf, bundleOf: bundleOf, bundles: bundles, expiringBundles: expiringBundles, nextChildId: nextChildId, startOf: startOf, endOf: endOf,
+    rootOf: rootOf, bundleOf: bundleOf, bundles: bundles, expiringBundles: expiringBundles, noticeDate: noticeDate, noticeText: noticeText, nextChildId: nextChildId, startOf: startOf, endOf: endOf,
     saveDemoContract: saveDemoContract, addNote: addNote, deleteDraft: deleteDraft, nowStamp: nowStamp,
     reviewRoute: reviewRoute, canAct: canAct, canCancel: canCancel, pendingQueue: pendingQueue, recordAction: recordAction, flash: flash, pagerHtml: pagerHtml,
     canView: canView, myActions: myActions,
+    templateVersionAt: templateVersionAt, templateOf: templateOf, templateLabel: templateLabel, // 표준계약서 (v0.53)
+    // 체결 후 의무 (v0.53)
+    obligationOwner: obligationOwner, obligationOwnerLabel: obligationOwnerLabel, obligationDues: obligationDues, obligationState: obligationState,
+    obligationWhenText: obligationWhenText, isObligationOwner: isObligationOwner, canHaveObligations: canHaveObligations, canAddObligation: canAddObligation,
+    canRecordObligation: canRecordObligation, canEndObligation: canEndObligation, canSeeObligation: canSeeObligation, obligationsOf: obligationsOf,
+    addObligation: addObligation, recordObligation: recordObligation, endObligation: endObligation,
     viewersOf: viewersOf, viewerState: viewerState, viewerKey: viewerKey, viewerLabel: viewerLabel, viewerText: viewerText, // 지정 열람자 (v0.52)
     esc: esc, badge: badge, statusBadge: statusBadge, todoAttrs: todoAttrs, icon: icon, brandText: brandText, meta: meta, toast: toast,
     securityNotice: SECURITY_NOTICE, addDays: addDays, daysBetween: daysBetween,

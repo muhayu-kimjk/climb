@@ -67,15 +67,15 @@
 .choice { display: inline-flex; align-items: center; gap: 0.8rem; min-height: var(--touch-min); font-size: var(--fs-body-medium); color: var(--text-basic); cursor: pointer; }
 .choice input { appearance: none; flex-shrink: 0; display: grid; place-content: center; width: 2.4rem; height: 2.4rem; margin: 0; border: 1px solid var(--border-gray); background: var(--surface-white); cursor: pointer; }
 .choice input[type="radio"] { border-radius: 50%; }
-.choice input[type="radio"]::before { content: ""; width: 1.2rem; height: 1.2rem; border-radius: 50%; background: var(--mh-dark-green); transform: scale(0); transition: transform 0.1s ease; }
-.choice input[type="radio"]:checked { border: 0.2rem solid var(--mh-dark-green); }
+.choice input[type="radio"]::before { content: ""; width: 1.2rem; height: 1.2rem; border-radius: 50%; background: var(--control-checked); transform: scale(0); transition: transform 0.1s ease; }
+.choice input[type="radio"]:checked { border: 0.2rem solid var(--control-checked); }
 .choice input[type="radio"]:checked::before { transform: scale(1); }
 .choice input[type="checkbox"] { border-radius: var(--radius-sm); }
 .choice input[type="checkbox"]::before {
-  content: ""; width: 1.6rem; height: 1.6rem; background: var(--white); transform: scale(0); transition: transform 0.1s ease;
+  content: ""; width: 1.6rem; height: 1.6rem; background: var(--control-checked-text); transform: scale(0); transition: transform 0.1s ease;
   clip-path: polygon(14% 52%, 0 66%, 38% 100%, 100% 22%, 86% 8%, 38% 72%);
 }
-.choice input[type="checkbox"]:checked { border-color: var(--mh-dark-green); background: var(--mh-dark-green); }
+.choice input[type="checkbox"]:checked { border-color: var(--control-checked); background: var(--control-checked); }
 .choice input[type="checkbox"]:checked::before { transform: scale(1); }
 .choice input:focus-visible { box-shadow: var(--focus-ring); }
 .is-invalid .choice input { border-color: var(--status-danger-fill); }
@@ -85,7 +85,7 @@
   padding: 2.4rem; border: 1px dashed var(--border-gray); border-radius: var(--radius-lg);
   background: var(--surface-gray-subtler); text-align: center;
 }
-.file-drop.is-dragover { border-color: var(--mh-dark-green); background: var(--surface-primary-subtler); }
+.file-drop.is-dragover { border-color: var(--action-active); background: var(--surface-primary-subtler); }
 .file-drop p { margin-bottom: 1.2rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
 .file-drop input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; }
 /* 키보드로 숨은 파일 칸에 오면 "파일 선택" 버튼에 포커스 링을 보여 줌 (KRDS 파일 업로드, v0.28) */
@@ -145,7 +145,7 @@
 .combo-list { margin: 0; padding: 0.4rem 0; list-style: none; }
 .combo-option { display: flex; align-items: center; gap: 1.2rem; min-height: var(--touch-min); padding: 0.6rem 1.6rem; cursor: pointer; font-size: var(--fs-body-medium); }
 .combo-option:hover, .combo-option[aria-selected="true"] { background: var(--surface-gray-subtler); }
-.combo-option[aria-selected="true"] { box-shadow: inset 0.3rem 0 0 var(--mh-dark-green); }
+.combo-option[aria-selected="true"] { box-shadow: inset 0.3rem 0 0 var(--action-active); }
 .combo-name { flex: 1; color: var(--text-bolder); }
 .combo-meta { font-size: var(--fs-body-small); color: var(--text-subtle); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .combo-empty { padding: 1.6rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
@@ -219,8 +219,8 @@
 .cal-day.is-today { font-weight: 700; }
 .cal-day.is-today::after { content: ""; position: absolute; left: 50%; bottom: 0.3rem; width: 0.4rem; height: 0.4rem; margin-left: -0.2rem; border-radius: 50%; background: var(--mh-pink); }
 /* 고른 날짜: 진한 초록 원 + 흰 글자 */
-.cal-day.is-selected, .cal-day.is-selected:hover { background: var(--mh-dark-green); color: var(--text-inverse); font-weight: 700; }
-.cal-day.is-selected.is-today::after { background: var(--text-inverse); }
+.cal-day.is-selected, .cal-day.is-selected:hover { background: var(--control-checked); color: var(--control-checked-text); font-weight: 700; }
+.cal-day.is-selected.is-today::after { background: var(--control-checked-text); }
 /* 고를 수 없는 날(min, max 밖): 흐리게 + 줄 */
 .cal-day[aria-disabled="true"], .cal-day[aria-disabled="true"]:hover { color: var(--text-disabled); text-decoration: line-through; cursor: not-allowed; background: transparent; }
 /* 고를 수 없는 날을 눌렀을 때 알림 (v0.38): 오류 글자색, 날짜 표 아래 */

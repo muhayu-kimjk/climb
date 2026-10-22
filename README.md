@@ -1,6 +1,6 @@
-# CLIMB | 무하유 계약 관리 플랫폼 프로토타입
+# climb | 무하유 계약 관리 플랫폼 프로토타입
 
-MUHAYU Contract Lifecycle Management Base. 계약 등록, 계약 검토, 계약 체결, 운영 검토, 계약 완료 5단계로 계약을 관리하는 사내 시스템의 **화면 시안**입니다.
+climb(Contract Lifecycle Intelligent Management Base, 무하유 계약 관리 플랫폼. 로고 글자는 소문자 climb을 SUITE 글꼴로, 화면 글에는 이름을 쓰지 않음). 계약 등록, 계약 검토, 계약 체결, 운영 검토, 계약 완료 5단계로 계약을 관리하는 사내 시스템의 **화면 시안**입니다.
 실제 시스템은 사내 개발팀이 이 시안과 아래 문서를 바탕으로 구현합니다.
 
 ## 프로토타입 보는 법
@@ -56,6 +56,10 @@ Projects/CLM
    ├─ contract.html        SCR-42 계약 상세 (묶음 한 장, ?id=묶음 번호)
    ├─ expiring.html        SCR-43 만료 예정 계약
    ├─ renewal.html         SCR-44 연장 검토 (자동갱신, ?origin=원계약 번호)
+   ├─ templates.html       SCR-45 표준계약서 (지금 판 내려받기, 새 판 올리기, 판 이력)
+   ├─ stats.html           SCR-46 통계와 보고서 (체결 금액과 건수, 결재 단계마다 걸린 날, 보고서 인쇄)
+   ├─ contract-print.html  SCR-47 계약 요약서 (계약 묶음 한 벌을 A4로, ?id=묶음 번호)
+   ├─ obligations.html     SCR-48 의무 관리 (체결 후 의무: 보안 의무, SLA, 청구 일정의 기한과 이행 기록)
    ├─ admin-users.html     SCR-51 사용자 권한 관리 (사용자 추가, 권한 수정, 권한 변경 이력)
    ├─ admin-rules.html     SCR-52 결재선 규칙 (단계별 담당자, 대리 지정, 독촉 기준 일수)
    ├─ admin-restrict.html  SCR-53 열람 제한 관리
@@ -67,7 +71,7 @@ Projects/CLM
    ├─ help.html            SCR-90 이용 안내
    ├─ notices.html         SCR-91 공지사항 (공지와 릴리즈, 쓰기는 관리자)
    ├─ notice.html          SCR-92 공지 보기 (?id=글 번호)
-   ├─ account.html         SCR-93 내 계정 (머리글의 이름을 누르면, 받을 이메일)
+   ├─ account.html         SCR-93 내 계정 (머리글의 이름을 누르면, 화면 밝기, 받을 이메일과 미리 보기)
    └─ assets/
       ├─ css/tokens.css    색, 글자, 크기 값 (회사 컬러는 여기만 바꾸면 됨)
       ├─ css/common.css    모든 화면 공통 스타일 (KRDS 구조)
@@ -96,7 +100,7 @@ Projects/CLM
       ├─ js/notices.js     공지사항 목록 화면 로직
       ├─ js/notice.js      공지 보기 화면 로직 (고치기, 내리기)
       ├─ js/notice-form.js 공지 글쓰기와 고치기 창 (목록과 보기가 함께 씀)
-      ├─ js/account.js     내 계정 화면 로직 (받을 이메일 저장)
+      ├─ js/account.js     내 계정 화면 로직 (화면 밝기, 받을 이메일 저장과 미리 보기)
       ├─ js/progress.js    전체 진행 현황 화면 로직
       ├─ js/review-queue.js 검토 대기 화면 로직
       ├─ js/review-done.js 검토 완료 화면 로직
@@ -110,6 +114,13 @@ Projects/CLM
       ├─ js/terminate.js   해지 기안 화면 로직
       ├─ js/ops-change.js  운영 변경 기안 화면 로직
       ├─ js/renewal.js     연장 검토 화면 로직
+      ├─ js/templates.js   표준계약서 화면 로직 (새 판 올리기, 표준계약서 추가)
+      ├─ js/stats.js       통계와 보고서 화면 로직 (세는 법, 그래프, 표로 보기)
+      ├─ js/contract-print.js 계약 요약서 화면 로직
+      ├─ js/obligations.js 의무 관리 화면 로직 (거르기, 기한 순서)
+      ├─ js/obligation-ui.js 체결 후 의무 창(더하기, 이행 기록, 끝내기, 기록 보기). 의무 관리와 계약 상세가 함께 씀
+      ├─ js/theme.js       밝은 화면과 어두운 화면 (페이지를 그리기 전에 정함, 모든 HTML의 <head>에서 불러옴)
+      ├─ css/stats.css     통계와 보고서 전용 스타일 (막대 그래프, 숫자 상자)
       └─ img/favicon.svg   브라우저 탭 아이콘 (무하유 심볼 Black 원본. favicon.png는 SVG를 못 읽는 브라우저용)
 ```
 

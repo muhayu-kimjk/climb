@@ -66,6 +66,15 @@ p.check-effect { margin-top: 1.2rem; }
 .doc-files > li + li { margin-top: 0.8rem; }
 .doc-files .file-name { font-weight: 700; color: var(--text-basic); overflow-wrap: anywhere; }
 .doc-files .file-size { margin-left: 0.6rem; font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
+/* 판(버전) 관리 (v0.53): 크기, 올린 때와 사람, 지문은 이름 아래 한 줄. 이전 판은 접어 두고 흐리게 */
+.doc-files .file-info .file-size { display: block; margin: 0.4rem 0 0; }
+.doc-files .file-info .badge + .badge { margin-left: 0.4rem; }
+.doc-files > li.is-old { background: var(--surface-gray-subtler); }
+.doc-files > li.is-old .file-name { color: var(--text-subtle); font-weight: 500; }
+.doc-files > li.file-older { display: block; padding: 0; border: 0; }
+.doc-files > li.file-older summary { padding: 0.4rem 0.2rem; font-size: var(--fs-body-small); color: var(--text-primary); cursor: pointer; }
+.doc-files > li.file-older .doc-files { margin-top: 0.6rem; }
+@media print { .doc-files > li.file-older details { display: block; } .doc-files > li.file-older summary { list-style: none; } }
 .file-acts { display: inline-flex; gap: 0.8rem; }
 .mobile-only { display: none; } /* 휴대폰에서만 보이는 안내 */
 .memo-label { margin-top: 2rem; }
@@ -115,8 +124,19 @@ p.check-effect { margin-top: 1.2rem; }
   .mobile-only { display: inline; }
 }
 
+/* ---------- 계약 요약서 (SCR-47, v0.53 기획자 요청) ----------
+ * 계약 상세의 "계약 요약서" 버튼, 요약서의 차수마다 결재 기록 제목, 맨 아래 안내 */
+.doc-tools { display: flex; flex-wrap: wrap; gap: 0.8rem; }
+.round-title { margin: 2.4rem 0 0.8rem; font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); text-align: left; }
+.round-title:first-child { margin-top: 0; }
+.round-sub { margin-left: 0.4rem; font-size: var(--fs-body-small); font-weight: 500; color: var(--text-subtle); }
+.doc-endnote { font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
+
 @media print {
   .action-bar, .file-acts, .bundle-actions, .note-form { display: none !important; }
+  /* 긴 묶음(결재 기록)은 쪽을 넘겨도 되게. 차수 제목은 표와 떨어지지 않게 */
+  .doc-stack .panel.panel--flow { break-inside: auto; }
+  .round-title { margin: 4mm 0 1.5mm; font-size: 10pt; break-after: avoid; }
   .approval-box { min-width: 0; font-size: 8pt; }
   .box-subtitle { margin: 3mm 0 1.5mm; font-size: 9pt; }
   .approval-box-wrap { overflow: visible; }

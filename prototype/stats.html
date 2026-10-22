@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 브라우저 탭 제목: CLIMB (REQ-NAME-02) -->
+  <title>climb</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <!-- 로고 글자 climb만 SUITE 글꼴 (v0.53 기획자 요청, OFL 무료 글꼴) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sun-typeface/SUITE@2/fonts/static/woff2/SUITE.css">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <script src="assets/js/theme.js"></script><!-- 밝은 화면, 어두운 화면 (v0.53) -->
+  <link rel="stylesheet" href="assets/css/common.css">
+  <link rel="stylesheet" href="assets/css/form.css">
+  <link rel="stylesheet" href="assets/css/list.css">
+  <link rel="stylesheet" href="assets/css/admin.css">
+  <link rel="stylesheet" href="assets/css/stats.css">
+</head>
+<!-- =====================================================================
+  SCR-46 통계와 보고서 (docs/02_화면목록.md, 요구사항 정의서 REQ-DASH-17~21, v0.53 기획자 요청)
+  - 보관함 메뉴. 체결한 계약의 금액과 건수, 결재에 걸린 날, 체크리스트 예외 비율
+  - 금액과 건수는 체결본을 등록한 날(⑦) 기준. 열람 제한 계약 중 볼 수 없는 건은 넣지 않음
+  - 기간, 서비스, 영업 유닛으로 좁혀 보고, 그래프마다 "표로 보기"가 있음
+  - 보고서 인쇄: 이 화면을 A4로 인쇄(고른 조건이 맨 위에 찍힘)
+  - 동작은 assets/js/stats.js
+====================================================================== -->
+<body data-page="SCR-46">
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <div id="demo-bar"></div>
+
+  <div class="sheet">
+  <header id="site-header"></header>
+
+  <main id="main" class="page" tabindex="-1">
+    <div class="inner">
+      <div class="page-head page-head--sub">
+        <h1 class="page-title">통계와 보고서</h1>
+      </div>
+      <div class="page-intro">
+        <p>체결한 계약의 금액과 건수, 결재에 걸린 날을 봅니다. 금액과 건수는 체결본을 등록한 날(⑦)을 기준으로 셉니다.</p>
+        <p class="sub" id="intro-sub"></p>
+      </div>
+
+      <form class="filter-bar filter-bar--stats" id="filter" aria-label="통계 조건">
+        <div class="field">
+          <label class="field-label field-label--sm" for="f-period">기간</label>
+          <select class="select" id="f-period"></select>
+        </div>
+        <div class="field">
+          <label class="field-label field-label--sm" for="f-service">서비스</label>
+          <select class="select" id="f-service"></select>
+        </div>
+        <div class="field">
+          <label class="field-label field-label--sm" for="f-unit">영업 유닛</label>
+          <select class="select" id="f-unit"></select>
+        </div>
+        <button type="button" class="btn btn--secondary btn--md filter-reset" id="btn-print">보고서 인쇄</button>
+      </form>
+      <!-- 인쇄할 때만: 고른 조건 -->
+      <p class="stats-cond" id="cond"></p>
+
+      <div id="content" class="admin-stack">
+        <section class="panel" aria-labelledby="sec-sum">
+          <div class="panel-head"><h2 class="panel-title" id="sec-sum">한눈에 보기</h2></div>
+          <div class="stat-row" id="tiles"></div>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-month">
+          <div class="panel-head"><h2 class="panel-title" id="sec-month">달마다 체결 금액</h2></div>
+          <p class="panel-desc" id="month-desc"></p>
+          <div id="month-chart"></div>
+          <details class="chart-table">
+            <summary>표로 보기</summary>
+            <div class="tbl-scroll" tabindex="0" role="region" aria-label="달마다 체결 금액 표">
+              <table class="tbl tbl--compact">
+                <caption class="sr-only">달마다 체결 금액: 달, 건수, 금액</caption>
+                <thead><tr><th scope="col">달</th><th scope="col" class="num">건수</th><th scope="col" class="num">금액</th></tr></thead>
+                <tbody id="month-rows"></tbody>
+              </table>
+            </div>
+          </details>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-split">
+          <div class="panel-head"><h2 class="panel-title" id="sec-split">나눠 보기</h2></div>
+          <div class="split-2">
+            <div>
+              <h3 class="chart-title">서비스마다</h3>
+              <div id="service-chart"></div>
+            </div>
+            <div>
+              <h3 class="chart-title">영업 유닛마다</h3>
+              <div id="unit-chart"></div>
+            </div>
+          </div>
+          <details class="chart-table">
+            <summary>표로 보기</summary>
+            <div class="tbl-scroll" tabindex="0" role="region" aria-label="서비스와 영업 유닛마다 체결 금액 표">
+              <table class="tbl tbl--compact">
+                <caption class="sr-only">서비스와 영업 유닛마다 체결 금액: 나눈 기준, 이름, 건수, 금액</caption>
+                <thead><tr><th scope="col">나눈 기준</th><th scope="col">이름</th><th scope="col" class="num">건수</th><th scope="col" class="num">금액</th></tr></thead>
+                <tbody id="split-rows"></tbody>
+              </table>
+            </div>
+          </details>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-step">
+          <div class="panel-head"><h2 class="panel-title" id="sec-step">결재 단계마다 걸린 날</h2></div>
+          <p class="panel-desc" id="step-desc"></p>
+          <div id="step-chart"></div>
+          <details class="chart-table">
+            <summary>표로 보기</summary>
+            <div class="tbl-scroll" tabindex="0" role="region" aria-label="결재 단계마다 걸린 날 표">
+              <table class="tbl tbl--compact">
+                <caption class="sr-only">결재 단계마다 걸린 날: 단계, 처리한 수, 평균, 가장 길었던 날</caption>
+                <thead><tr><th scope="col">단계</th><th scope="col" class="num">처리한 수</th><th scope="col" class="num">평균</th><th scope="col" class="num">가장 길었던 날</th></tr></thead>
+                <tbody id="step-rows"></tbody>
+              </table>
+            </div>
+          </details>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-check">
+          <div class="panel-head"><h2 class="panel-title" id="sec-check">체크리스트 예외</h2></div>
+          <p class="panel-desc">체결한 계약 가운데 계약 등록 체크리스트에서 "아니요"(기준과 다름)로 답한 계약의 비율입니다.</p>
+          <div class="meter-list" id="check-meters"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+  </div><!-- /.sheet -->
+
+  <!-- 막대에 마우스를 올리면 보이는 설명 (값은 막대 옆 글자와 "표로 보기"에도 있음) -->
+  <div class="chart-tip" id="chart-tip" role="presentation" hidden></div>
+
+  <script src="assets/js/mock-data.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/stats.js"></script>
+</body>
+</html>

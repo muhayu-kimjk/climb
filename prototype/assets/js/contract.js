@@ -38,6 +38,9 @@
   const st = D.STATUS[b.status];
   $('#doc-title').textContent = root.counterparty;
   $('#doc-meta').innerHTML = C.meta([esc(b.id), esc(C.serviceLabel(root.services)), esc(root.type), C.badge(st.tone, st.label) + (root.restricted ? ' ' + C.icon('lock', 'sm') : '')]);
+  // 계약 요약서(SCR-47, v0.53): 이 묶음을 A4 한 벌로. 볼 수 있는 사람은 이 화면과 같음
+  $('#btn-summary').href = 'contract-print.html?id=' + encodeURIComponent(b.id);
+  $('#doc-tools').hidden = false;
 
   // 진행 중인 변경, 연장, 해지 안내
   if (b.open.length) {
@@ -69,12 +72,10 @@
   /* ---------- 1. 지금 유효한 계약 ---------- */
   const cur = b.current;
   function info(label, value) { return '<div><dt>' + esc(label) + '</dt><dd>' + value + '</dd></div>'; }
+  // 해지 통지 기한: 만료 n일 전. 30일 안이거나 지났으면 강조 (v0.53, REQ-FLOW-32)
   function notice60() {
-    if (b.autoRenew !== 'YES' || !b.noticeDays || !b.end) return '';
-    const d = new Date(b.end.replace(/-/g, '/'));
-    d.setDate(d.getDate() - b.noticeDays);
-    const iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-    return ' (해지 통지 기한: 만료 ' + b.noticeDays + '일 전, ' + C.fmtDate(iso) + ')';
+    if (!C.noticeDate(b)) return '';
+    return '<span class="cell-meta">' + C.noticeText(b) + '<br>만료 ' + b.noticeDays + '일 전까지 상대방에게 알려야 연장되지 않음</span>';
   }
   $('#now').innerHTML = [
     info('계약번호', '<a href="review.html?id=' + encodeURIComponent(cur.id) + '">' + esc(cur.id) + '</a>'),
@@ -135,7 +136,32 @@
         : '프로토타입: 실제 시스템에서는 새 창에서 파일 미리보기가 열립니다.');
   });
 
-  /* ---------- 4. 사후관리 기록 (REQ-FLOW-06, 19, REQ-SEC-09) ---------- */
+  /* ---------- 4. 체결 후 의무 (v0.53 기획자 결정, REQ-FLOW-33~36) ----------
+   * 이 묶음의 의무: 다음 기한과 상태, 의무(종류, 언제, 근거 조항, 청구 금액), 맡은 분야, 할 일
+   * 더하기는 체결본이 등록된 묶음부터, 영업대표(본인 계약), 법무, 관리자, 그 종류를 맡는 분야 [가정] */
+  const OB = window.CLIMB_OB;
+  function renderObligations() {
+    const list = C.obligationsOf(root.id).slice().sort(function (a, b) {
+      const sa = C.obligationState(a), sb = C.obligationState(b);
+      return (sa.code === 'ENDED') - (sb.code === 'ENDED') || String(sa.next || '9').localeCompare(String(sb.next || '9'));
+    });
+    $('#obligations').innerHTML = '<caption class="sr-only">체결 후 의무: 다음 기한과 상태, 의무, 맡은 분야, 할 일</caption>' +
+      '<thead><tr><th scope="col">다음 기한</th><th scope="col">의무</th><th scope="col" class="col-owner">맡은 분야</th><th scope="col" class="col-action">할 일</th></tr></thead>' +
+      '<tbody>' + (list.length ? list.map(function (o) {
+        const s = C.obligationState(o);
+        return '<tr' + (s.code === 'LATE' ? ' class="is-alert"' : s.code === 'ENDED' ? ' class="is-muted"' : '') + '>' +
+          '<td class="center nowrap">' + OB.dueHtml(o) + '</td><td>' + OB.titleHtml(o) + '<span class="cell-sub">맡은 분야 ' + esc(C.obligationOwnerLabel(o)) + '</span></td>' +
+          '<td class="center nowrap col-owner">' + esc(C.obligationOwnerLabel(o)) + '</td><td class="col-action">' + OB.actionsHtml(o, me, root) + '</td></tr>';
+      }).join('') : '<tr><td class="empty-row" colspan="4">' + (C.canHaveObligations(b) ? '아직 더한 의무가 없습니다.' : '체결본이 등록되면 의무를 더할 수 있습니다.') + '</td></tr>') + '</tbody>';
+  }
+  renderObligations();
+  OB.wire($('#obligations'), me, renderObligations);
+  if (C.canHaveObligations(b) && C.canAddObligation(me, root)) {
+    $('#btn-ob-add').hidden = false;
+    $('#btn-ob-add').addEventListener('click', function () { OB.openAdd(root, me, renderObligations); });
+  }
+
+  /* ---------- 5. 사후관리 기록 (REQ-FLOW-06, 19, REQ-SEC-09) ---------- */
   function renderNotes() {
     const list = (root.notes || []).slice().sort(function (x, y) { return y.at.localeCompare(x.at); });
     $('#notes').innerHTML = '<caption class="sr-only">사후관리 기록: 일시, 종류, 내용, 남긴 사람</caption>' +

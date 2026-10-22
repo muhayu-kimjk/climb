@@ -59,7 +59,7 @@
   border-radius: var(--radius-md); font-size: var(--fs-body-small); color: var(--text-basic); font-variant-numeric: tabular-nums;
 }
 .page-btn:hover:not(:disabled):not(.is-current) { background: var(--surface-gray-subtler); }
-.page-btn.is-current { background: var(--mh-dark-green); color: var(--text-inverse); font-weight: 700; }
+.page-btn.is-current { background: var(--control-checked); color: var(--control-checked-text); font-weight: 700; }
 .page-btn:disabled { color: var(--text-disabled); cursor: default; }
 .page-range { margin-top: 0.8rem; font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
 
@@ -69,10 +69,10 @@
    * 흰 덮개(local)는 표와 함께 움직이고 그림자(scroll)는 제자리에 있어, 끝까지 밀면 그 쪽 그림자가 가려짐 */
   .tbl-scroll {
     background:
-      linear-gradient(to right, var(--surface-white) 30%, rgba(255, 255, 255, 0)) left center / 2.4rem 100% no-repeat local,
-      linear-gradient(to left, var(--surface-white) 30%, rgba(255, 255, 255, 0)) right center / 2.4rem 100% no-repeat local,
-      radial-gradient(farthest-side at 0 50%, rgba(2, 24, 33, 0.22), rgba(2, 24, 33, 0)) left center / 1.2rem 100% no-repeat scroll,
-      radial-gradient(farthest-side at 100% 50%, rgba(2, 24, 33, 0.22), rgba(2, 24, 33, 0)) right center / 1.2rem 100% no-repeat scroll;
+      linear-gradient(to right, var(--surface-white) 30%, transparent) left center / 2.4rem 100% no-repeat local,
+      linear-gradient(to left, var(--surface-white) 30%, transparent) right center / 2.4rem 100% no-repeat local,
+      radial-gradient(farthest-side at 0 50%, var(--scroll-shadow), transparent) left center / 1.2rem 100% no-repeat scroll,
+      radial-gradient(farthest-side at 100% 50%, var(--scroll-shadow), transparent) right center / 1.2rem 100% no-repeat scroll;
     background-color: var(--surface-white);
   }
   .filter-bar { grid-template-columns: 1fr 1fr; padding: 1.6rem; }

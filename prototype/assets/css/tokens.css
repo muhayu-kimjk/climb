@@ -112,6 +112,18 @@
   --action-active: var(--mh-dark-green);    /* 현재 메뉴 밑줄: 흰 바탕 5.5:1 (KRDS 비텍스트 대비 3:1 이상, v0.28. Green은 2.4:1) */
   --icon-muted: var(--mh-gray);
   --focus-ring: 0 0 0 0.3rem var(--mh-blue);  /* 키보드 이동 표시 (흰 바탕 4.2:1) */
+  /* 고른 것(체크한 칸, 고른 날짜, 지금 쪽 번호, 눌린 단추)의 채움과 그 위 글자 (v0.53: 어두운 화면에서 바꾸려고 이름을 따로 둠) */
+  --control-checked: var(--mh-dark-green);
+  --control-checked-text: var(--white);
+  --scroll-shadow: rgba(2, 24, 33, 0.22);   /* 옆으로 밀어 보는 표의 가장자리 그림자 */
+  --brand-mark-filter: none;                /* 머리글 심볼(검은 그림). 어두운 화면에서는 흰색으로 */
+
+  /* 그래프 (v0.53 통계와 보고서, SCR-46)
+   * 막대 하나의 색은 한 가지(많고 적음만 봄). 흰 바탕 5.5:1이라 Green(2.4:1)보다 잘 보임. 값은 늘 글자로도 씀 */
+  --chart-bar: var(--mh-dark-green);
+  --chart-track: var(--dark-green-14);      /* 비율 막대의 빈 칸: 같은 색의 연한 단계 */
+  --chart-grid: var(--gray-14);             /* 눈금선: 바탕과 한 단계만 다르게(1px) */
+  --chart-ref: var(--mh-black);             /* 기준선(예: 오래 머묾 5일) */
 
   /* 결재 단계 점 */
   --step-done: var(--mh-green);
@@ -125,6 +137,7 @@
   /* 반려, D-30 이내 — Pink. 핑크 바탕에는 흰 글자 (REQ-UI-09)
    * 원래 Pink(#FF258E) 위 흰 글자는 3.6:1로 기준(4.5:1) 미달 → 바탕만 살짝 진한 핑크 사용 */
   --status-danger-fill: var(--pink-strong);
+  --status-danger-text: var(--white);       /* 진한 핑크 바탕 위 글자: 밝은 화면, 어두운 화면 모두 흰색 */
   --status-danger-line: var(--mh-pink);
   --status-danger-row: var(--pink-5);       /* 반려 건 표 줄 강조 */
   --status-attention-bg: var(--purple-8);   /* 체결본 대기, D-60 이내 — Purple */
@@ -149,6 +162,8 @@
    *    글꼴: Noto Sans KR (REQ-UI-02, KRDS 기본 Pretendard GOV 대신)
    * --------------------------------------------------------------- */
   --font-family: "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Malgun Gothic", "맑은 고딕", sans-serif;
+  /* 로고 글자 "climb"만 SUITE(v0.53 기획자 요청, 요구사항 정의서 REQ-NAME-06). 글꼴은 jsDelivr의 sun-typeface/SUITE(OFL) */
+  --font-brand: "SUITE", var(--font-family);
 
   --fs-display-small: 3.6rem;
   --fs-heading-xlarge: 4rem;
@@ -183,6 +198,67 @@
   --page-height: 297mm;         /* A4 세로 */
   --page-margin: 10mm;          /* 화면 좌우 여백 = 인쇄 좌우 여백 */
   --desk-bg: var(--gray-14);    /* 종이 바깥 바탕 (화면 전용) */
+  color-scheme: light;
+}
+
+/* ---------------------------------------------------------------
+ * 6. 어두운 화면 (다크모드, v0.53 기획자 요청, 요구사항 정의서 REQ-UI-31)
+ *    - 처음에는 기기 설정(PC, 휴대폰의 다크모드)을 따르고, 내 계정에서 "기기 설정대로, 밝게, 어둡게" 중 고름
+ *    - theme.js가 <head>에서 고른 값과 기기 설정을 보고 <html data-theme="dark|light">를 붙임(화면이 깜박이지 않게)
+ *    - 'screen' 조건이라 인쇄는 늘 밝은 화면(A4 문서)
+ *    - 색은 여기서도 무하유 8가지만: 어두운 바탕은 Black에 흰색을 조금 섞고, 연한 상태 바탕은 브랜드 색을 Black에 섞음
+ *      (이름 뒤 숫자 = 섞은 비율 %). 글자 대비 4.5:1 이상 유지
+ *    - 고른 것(체크, 고른 날짜 등)은 Dark Green 대신 Green 바탕 + Black 글자(7.6:1). 강조 글자도 Green(어두운 바탕 6:1 이상)
+ * --------------------------------------------------------------- */
+@media screen {
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    /* 글자 */
+    --text-bolder: var(--white);
+    --text-basic: #E6E8E9;              /* Black에 흰색 90% */
+    --text-subtle: #B3BABC;             /* 흰색 70% (회색 바탕에서도 7:1) */
+    --text-primary: var(--mh-green);
+    --text-inverse: var(--mh-black);    /* 밝은 토스트 위 글자 */
+    /* 바탕 */
+    --surface-white: #0C212A;           /* 종이, 상자, 입력 칸: 흰색 4% */
+    --surface-gray-subtler: #162B33;    /* 흰색 8% */
+    --surface-primary-subtler: #042F30; /* Green 14% */
+    --surface-secondary-subtler: #15333B; /* Dark Green 30%: 표 머리글 */
+    --surface-warm: #25363C;            /* Beige 14% */
+    --surface-inverse: #E6E8E9;         /* 토스트, 건너뛰기 링크 */
+    --desk-bg: var(--mh-black);
+    /* 테두리 */
+    --border-gray-light: #2B3D45;       /* 흰색 16% */
+    --border-primary-light: #074A41;    /* Green 30% */
+    --border-secondary-light: #15333B;
+    /* 버튼 (주 버튼 Green + Black 글자, 경고 버튼 진한 핑크 + 흰 글자는 그대로) */
+    --button-secondary-fill: #042F30;
+    --button-secondary-fill-hover: #053D38; /* Green 22% */
+    --button-secondary-text: var(--mh-green);
+    /* 메뉴, 고른 것 */
+    --action-hover: #162B33;
+    --action-active: var(--mh-green);
+    --control-checked: var(--mh-green);
+    --control-checked-text: var(--mh-black);
+    --scroll-shadow: rgba(255, 255, 255, 0.16);
+    --brand-mark-filter: brightness(0) invert(1);
+    /* 그래프: 막대는 Green(어두운 바탕 6.9:1), 빈 칸은 Green 30% */
+    --chart-bar: var(--mh-green);
+    --chart-track: #074A41;
+    --chart-grid: #2B3D45;
+    --chart-ref: #E6E8E9;
+    /* 결재 단계 점 */
+    --step-current: #8CAAAE;            /* Dark Green에 흰색 40% */
+    --step-waiting: #3F4F56;            /* 흰색 24% */
+    /* 상태 배지 바탕 (테두리는 브랜드 원색 그대로) */
+    --status-progress-bg: #022B4D;      /* Blue 20% */
+    --status-danger-row: #1B192C;       /* Pink 10% */
+    --status-attention-bg: #1F1D4D;     /* Purple 20% */
+    --status-success-bg: #042F30;       /* Green 14% */
+    --status-neutral-bg: #162B33;
+    --status-notice-bg: #25363C;
+    --shadow-1: 0 0 0.2rem 0 rgba(2, 24, 33, 0.6), 0 0.4rem 0.8rem 0 rgba(2, 24, 33, 0.6);
+  }
 }
 
 /* ---------------------------------------------------------------

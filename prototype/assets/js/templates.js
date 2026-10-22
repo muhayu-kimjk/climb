@@ -1,0 +1,134 @@
+/* =====================================================================
+ * SCR-45 표준계약서 화면 로직 (templates.js, v0.53 기획자 요청, 요구사항 정의서 REQ-CHK-09)
+ * ---------------------------------------------------------------------
+ * 하는 일
+ *   1. 지금 쓰는 표준계약서: 이름과 지금 판의 바뀐 조항, 서비스, 지금 판(예정 판이 있으면 함께), 적용 시작일, 쓴 계약 수, 내려받기
+ *   2. 새 판 올리기, 표준계약서 추가(법무, 관리자, 최고관리자): 적용 시작일(오늘 이후), 바뀐 조항(필수), 근거(필수)
+ *      앞 판은 지우지 않음. 관리자 변경 이력(TEMPLATE)에 남음
+ *   3. 판 이력: 모든 판(지난 판, 지금 판, 예정)
+ * 볼 수 있는 사람: 모두(계약서를 쓰는 영업이 내려받음)
+ * 프로토타입: 파일은 열리지 않고 안내만. 바꾼 내용은 이 브라우저에만 저장(시연 기록)
+ * ===================================================================== */
+(function () {
+  const D = window.CLIMB_DATA;
+  const C = window.CLIMB;
+  const me = C.init();
+  const esc = C.esc;
+  const $ = function (s) { return document.querySelector(s); };
+  const canEdit = me.role === 'SUPER' || C.hasRole(me, ['LEGAL', 'ADMIN']);
+  $('#btn-add').hidden = !canEdit;
+  if (!canEdit) $('#intro-sub').textContent = '판은 지우거나 덮어쓰지 않고 쌓여, 지난 계약이 어느 판을 썼는지 남습니다. 새 판은 법무와 관리자가 올립니다.';
+
+  function val(f, n) { return (f.elements[n].value || '').trim(); }
+  function find(id) { return D.TEMPLATES.filter(function (t) { return t.id === id; })[0]; }
+  function serviceName(t) { return t.service ? (D.SERVICES[t.service] || t.service) : '모든 서비스'; }
+  function planned(t) { return t.versions.filter(function (v) { return v.from > D.TODAY; }); }
+  // 이 표준계약서를 쓴 계약(작성 중 빼고). 판마다 셈
+  function usage(t) {
+    const by = {};
+    D.CONTRACTS.forEach(function (c) {
+      if (c.status === 'DRAFT') return;
+      const x = C.templateOf(c);
+      if (x && !x.own && x.t.id === t.id) by[x.v.no] = (by[x.v.no] || 0) + 1;
+    });
+    return by;
+  }
+
+  function render() {
+    $('#count').textContent = D.TEMPLATES.length + '종';
+    $('#rows').innerHTML = D.TEMPLATES.map(function (t) {
+      const now = C.templateVersionAt(t, D.TODAY), next = planned(t), use = usage(t);
+      const total = Object.keys(use).reduce(function (a, k) { return a + use[k]; }, 0);
+      return '<tr><td class="col-main"><span class="cell-strong">' + esc(t.name) + '</span>' +
+          '<span class="cell-meta">' + esc(now ? now.summary : '아직 적용 전') + '</span>' +
+          next.map(function (v) { return '<span class="cell-meta">' + C.badge('line', '예정') + ' 판 ' + v.no + ', ' + C.fmtDate(v.from) + '부터: ' + esc(v.summary) + '</span>'; }).join('') + '</td>' +
+        '<td class="nowrap">' + esc(serviceName(t)) + '</td>' +
+        '<td class="nowrap">' + (now ? C.badge('success', '판 ' + now.no) : '-') + '</td>' +
+        '<td class="num-left nowrap">' + (now ? C.fmtDate(now.from) : '-') + '</td>' +
+        '<td class="num">' + total + '건' + (Object.keys(use).length > 1 ? Object.keys(use).map(function (k) { return '<span class="cell-meta">판 ' + k + ': ' + use[k] + '건</span>'; }).join('') : '') + '</td>' +
+        '<td class="col-action"><button type="button" class="link-act" data-dl="' + esc(t.id) + '" aria-label="' + esc(t.name) + ' 지금 판 내려받기">내려받기</button>' +
+          (canEdit ? '<button type="button" class="link-act" data-ver="' + esc(t.id) + '" aria-label="' + esc(t.name) + ' 새 판 올리기">새 판</button>' : '') + '</td></tr>';
+    }).join('');
+
+    const rows = [];
+    D.TEMPLATES.forEach(function (t) { t.versions.forEach(function (v) { rows.push({ t: t, v: v }); }); });
+    rows.sort(function (a, b) { return b.v.from.localeCompare(a.v.from) || b.v.at.localeCompare(a.v.at); });
+    $('#history').innerHTML = rows.map(function (r) {
+      const now = C.templateVersionAt(r.t, D.TODAY);
+      const state = r.v.from > D.TODAY ? C.badge('line', '예정') : now === r.v ? C.badge('success', '지금 판') : C.badge('neutral', '지난 판');
+      return '<tr' + (r.v.from <= D.TODAY && now !== r.v ? ' class="is-muted"' : '') + '><td class="num-left">' + C.fmtDate(r.v.from) + '<span class="cell-meta">' + state + '</span></td>' +
+        '<td><span class="cell-strong">' + esc(r.t.name) + '</span><span class="cell-meta">판 ' + r.v.no + '</span></td>' +
+        '<td>' + esc(r.v.summary) + '</td><td>' + esc(r.v.basis || '-') + '</td>' +
+        '<td class="center">' + esc(C.ownerLabel(r.v.by)) + '<span class="cell-meta">' + C.fmtDateTime(r.v.at) + '</span></td></tr>';
+    }).join('');
+  }
+
+  // 새 판과 첫 판에 함께 쓰는 칸
+  function versionFields() {
+    return C.fieldHtml({ name: 'from', label: '적용 시작일', type: 'date', required: true, attrs: ' min="' + D.TODAY + '"',
+        help: '이날부터 계약서를 쓸 때 이 판을 씁니다. 오늘 이후 날짜만 고를 수 있습니다.' }) +
+      C.fieldHtml({ name: 'summary', label: '바뀐 조항', type: 'textarea', required: true, placeholder: '예: 제12조 손해배상 한도를 연간 이용료 총액으로 분명히 함' }) +
+      C.fieldHtml({ name: 'basis', label: '근거', required: true, placeholder: '예: 법무 검토 기록 2026-10-20', help: '새 판을 정한 법무 검토나 품의 기록을 적습니다.' }) +
+      C.fieldHtml({ name: 'file', label: '표준계약서 파일', type: 'file', help: '워드나 한글 파일(시안에서는 올리지 않아도 됨)' });
+  }
+  function checkVersion(f, t) {
+    const from = val(f, 'from');
+    const dup = t && from && t.versions.some(function (v) { return v.from === from; });
+    return {
+      from: !from ? '적용 시작일을 고르세요.' : from < D.TODAY ? '적용 시작일은 오늘(' + C.fmtDate(D.TODAY) + ') 이후여야 합니다.' : dup ? '이 날짜에 시작하는 판이 이미 있습니다.' : '',
+      summary: val(f, 'summary') ? '' : '바뀐 조항을 적으세요.',
+      basis: val(f, 'basis') ? '' : '근거를 적으세요.',
+    };
+  }
+  function openVersion(id) {
+    const t = find(id), now = C.templateVersionAt(t, D.TODAY);
+    C.formModal({
+      title: t.name + ' 새 판을 올릴까요?',
+      desc: '적용 시작일부터 새 판을 씁니다. 지금 판은 지우지 않고 이력으로 남습니다.',
+      body: '<p class="modal-info">지금: 판 ' + (now ? now.no + ' (' + C.fmtDate(now.from) + '부터)' : '없음') + '</p>' + versionFields(),
+      btn: '새 판 올리기',
+      check: function (f) { return checkVersion(f, t); },
+      done: function (f) {
+        const no = t.versions.length + 1;
+        C.adminSave('TEMPLATE', t.name, '새 판: 판 ' + no + ' (' + C.fmtDate(val(f, 'from')) + '부터) ' + val(f, 'summary'), val(f, 'basis'),
+          { k: 'TEMPLATE_VERSION', id: t.id, v: { from: val(f, 'from'), summary: val(f, 'summary') } });
+        render();
+        C.toast(t.name + ' 판 ' + no + '이 ' + C.fmtDate(val(f, 'from')) + '부터 적용됩니다.');
+      },
+    });
+  }
+  function openAdd() {
+    const services = [['', '모든 서비스']].concat(Object.keys(D.SERVICES).map(function (k) { return [k, D.SERVICES[k]]; }));
+    C.formModal({
+      title: '표준계약서를 추가할까요?',
+      desc: '적용 시작일부터 계약 등록의 "기준 표준계약서"에 나옵니다.',
+      body: '<div class="field-row">' +
+          C.fieldHtml({ name: 'tname', label: '표준계약서 이름', required: true, placeholder: '예: 카피킬러 리셀러 계약서' }) +
+          C.fieldHtml({ name: 'service', label: '서비스', type: 'select', options: services }) +
+        '</div>' + versionFields(),
+      btn: '표준계약서 추가',
+      check: function (f) {
+        const name = val(f, 'tname');
+        return Object.assign(checkVersion(f, null), {
+          tname: !name ? '이름을 넣으세요.' : D.TEMPLATES.some(function (t) { return t.name === name; }) ? '같은 이름의 표준계약서가 있습니다.' : '',
+        });
+      },
+      done: function (f) {
+        const id = 'TPL-' + String(D.TEMPLATES.length + 1).padStart(2, '0');
+        C.adminSave('TEMPLATE', val(f, 'tname'), '표준계약서 추가: 판 1 (' + C.fmtDate(val(f, 'from')) + '부터) ' + val(f, 'summary'), val(f, 'basis'),
+          { k: 'TEMPLATE_ADD', t: { id: id, name: val(f, 'tname'), service: val(f, 'service') }, v: { from: val(f, 'from'), summary: val(f, 'summary') } });
+        render();
+        C.toast(val(f, 'tname') + ' 판 1을 올렸습니다.');
+      },
+    });
+  }
+
+  $('#content').addEventListener('click', function (e) {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.id === 'btn-add') openAdd();
+    else if (b.getAttribute('data-ver')) openVersion(b.getAttribute('data-ver'));
+    else if (b.getAttribute('data-dl')) C.toast('실제 시스템에서는 지금 판의 원본(워드)을 내려받고, 받은 기록이 남습니다(시안).');
+  });
+  render();
+})();

@@ -100,22 +100,66 @@
       return { product: p, qty: r.qty, amount: r.amount, std: std, discount: Math.max(0, (std - r.amount) / std) };
     });
   }
-  // 첨부 파일 (데이터 정의서 attachment). 예시 이름은 고객사 이름으로 만듦
+  /* 첨부 파일과 판(버전) 관리 (데이터 정의서 attachment, v0.53 기획자 요청 REQ-REV-13). 예시 이름은 고객사 이름으로 만듦
+   *   - 계약서 초안과 조항 대비표: 차수마다 새 판(1차 기안 = 판 1, 반려 뒤 2차 기안 = 다음 판, 보완 완료로 다시 올려도 다음 판)
+   *   - 체결본: ⑦에서 올릴 때마다 새 판. 다시 등록 요청으로 바뀐 앞 판도 지우지 않음(REQ-FLOW-22)
+   *   - 판마다 올린 사람, 일시, 파일 지문(SHA-256 앞 8자리. 시안은 가짜 값)을 남기고 지우거나 덮어쓰지 않음
+   *   - 계약 검토(②~⑤)가 끝난 판에 "결재한 판", ⑧에서 확인한 체결본에 "확인한 체결본"
+   *   - 결재 기록에는 결재자가 그때 본 판을 함께 남김(감사 때 결재한 계약서와 체결한 계약서를 맞춰 볼 수 있게) */
+  function fingerprint(s) {
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return ('00000000' + (h >>> 0).toString(16).toUpperCase()).slice(-8);
+  }
+  const PASSED = ['APPROVED', 'OPS_REVIEW', 'ACTIVE', 'EXPIRED', 'TERMINATED'].indexOf(c.status) > -1; // 계약 검토를 마침
+  // 계약서 초안의 판: 차수마다 기안한 때 + 보완 완료로 다시 올린 때
+  function draftVersions() {
+    const hist = c.history || [], last = c.round || 1, out = [];
+    for (let k = 1; k <= last; k++) {
+      const inRound = hist.filter(function (h) { return (h.round || 1) === k; });
+      const sub = inRound.filter(function (h) { return h.action === 'SUBMIT'; })[0];
+      out.push({ round: k, at: k === 1 ? c.requestedAt : (sub || inRound[0] || { at: c.requestedAt }).at, by: c.requesterId, why: k + '차 기안' });
+      inRound.filter(function (h) { return h.action === 'RESUBMIT'; }).forEach(function (h) {
+        out.push({ round: k, at: h.at, by: h.actorId || c.requesterId, why: k + '차 보완 완료' });
+      });
+    }
+    out.sort(function (a, b) { return a.at.localeCompare(b.at); });
+    out.forEach(function (v, i) { v.no = i + 1; });
+    if (PASSED && out.length) out[out.length - 1].approved = true;
+    return out;
+  }
+  // 체결본의 판: ⑦에서 올린 때마다. ⑧ 확인(승인)을 받은 마지막 판은 "확인한 체결본"
+  function signedVersions() {
+    const hist = (c.history || []).filter(function (h) { return (h.round || 1) === (c.round || 1); });
+    const out = hist.filter(function (h) { return h.action === 'REGISTER'; }).map(function (h, i) {
+      return { no: i + 1, at: h.at, by: h.actorId || c.requesterId, why: i ? '다시 등록' : '체결본 등록', name: h.fileName || c.counterparty + '_체결본.pdf' };
+    });
+    const lastReg = out.length ? out[out.length - 1].at : null;
+    if (lastReg && hist.some(function (h) { return h.step === 'S08' && h.action === 'APPROVE' && h.at >= lastReg; })) out[out.length - 1].checked = true;
+    return out;
+  }
   function files() {
     // 해지 기안과 연장 검토는 계약서 초안 없이 기안할 때 올린 서류(해지 관련 서류)만
     if (change) return []; // 운영 변경은 첨부 없음(사유는 CRM 영업활동 링크)
-    const list = short ? (c.files || []).map(function (x, i) { return { kind: x.kind, name: x.name, size: 320000 + i * 1000 }; })
-      : [{ kind: 'DRAFT_DOC', name: c.counterparty + '_계약서_초안_' + (c.round || 1) + '차.docx', size: 84000 + seq * 13 }];
-    // 조항 대비표: 표준계약서를 바꾼 계약 (v0.27, C-20)
-    if (legalNote) list.push({ kind: 'CLAUSE_DIFF', name: c.counterparty + '_조항대비표_' + (c.round || 1) + '차.docx', size: 36000 + seq * 5 });
+    const one = function (kind, name, size, at) { return { kind: kind, versions: [{ no: 1, name: name, size: size, at: at || c.requestedAt, by: c.requesterId, why: '기안' }] }; };
+    if (short) return (c.files || []).map(function (x, i) { return one(x.kind, x.name, 320000 + i * 1000); });
+    const dv = draftVersions();
+    const list = [{ kind: 'DRAFT_DOC', versions: dv.map(function (v) { return Object.assign({ name: c.counterparty + '_계약서_초안_판' + v.no + '.docx', size: 84000 + seq * 13 + v.no * 977 }, v); }) }];
+    // 조항 대비표: 표준계약서를 바꾼 계약 (v0.27, C-20). 계약서 초안과 같이 판이 바뀜
+    if (legalNote) list.push({ kind: 'CLAUSE_DIFF', versions: dv.map(function (v) { return Object.assign({ name: c.counterparty + '_조항대비표_판' + v.no + '.docx', size: 36000 + seq * 5 + v.no * 311 }, v, { approved: false }); }) });
     // 부속 서류: 비밀유지계약서처럼 계약에 딸린 서류 (v0.41)
-    (c.annex || []).forEach(function (name, i) { list.push({ kind: 'ANNEX', name: name, size: 152000 + seq * 3 + i * 1000 }); });
-    if (c.amount && !short) list.push({ kind: 'QUOTE', name: c.counterparty + '_최종견적서.pdf', size: 212000 + seq * 7 });
-    // 체결본: ⑦에서 올린 파일. 다시 등록 요청으로 다시 올려도 앞 파일은 지우지 않고 남김 (REQ-FLOW-22)
-    (c.history || []).filter(function (h) { return h.action === 'REGISTER' && (h.round || 1) === (c.round || 1); }).forEach(function (h, i) {
-      list.push({ kind: 'SIGNED', name: h.fileName || c.counterparty + '_체결본.pdf', size: 1840000 + seq * 11 + i * 3000, at: h.at });
-    });
+    (c.annex || []).forEach(function (name, i) { list.push(one('ANNEX', name, 152000 + seq * 3 + i * 1000)); });
+    if (c.amount) list.push(one('QUOTE', c.counterparty + '_최종견적서.pdf', 212000 + seq * 7));
+    const sv = signedVersions();
+    if (sv.length) list.push({ kind: 'SIGNED', versions: sv.map(function (v) { return Object.assign({ size: 1840000 + seq * 11 + v.no * 3000 }, v); }) });
+    list.forEach(function (g) { g.versions.forEach(function (v) { v.hash = fingerprint(v.name + v.at); }); });
     return list;
+  }
+  // 그 시각에 결재자가 본 판 (결재 기록에 남김)
+  function versionAt(kind, at) {
+    const g = files().filter(function (x) { return x.kind === kind; })[0];
+    const seen = g ? g.versions.filter(function (v) { return v.at <= at; }) : [];
+    return seen.length ? seen[seen.length - 1] : null;
   }
 
   /* ---------- 2. 머리와 안내 ---------- */
@@ -366,7 +410,9 @@
     $('#checklist').innerHTML = '<ul class="doc-checks">' + q.map(function (x, i) {
       const r = route[x[3]];
       const effect = i === 1 ? '' : '<span class="check-effect">' + esc(D.STEPS[x[3]].no + ' ' + D.STEPS[x[3]].name + (r[0] ? ' 거침' : ' 생략') + ': ' + r[1]) + '</span>';
-      return '<li><p class="check-q-text">' + esc(x[0]) + ' ' + answer(x[1]) + '</p>' +
+      // 1번에는 기준 표준계약서와 그 판 (v0.53, REQ-CHK-09)
+      const tpl = i === 0 ? '<p class="check-note">기준 표준계약서: ' + esc(C.templateLabel(c)) + '</p>' : '';
+      return '<li><p class="check-q-text">' + esc(x[0]) + ' ' + answer(x[1]) + '</p>' + tpl +
         '<p class="check-note">비고: ' + (x[2] ? esc(x[2]) : '없음') + '</p>' + effect + '</li>';
     }).join('') + '</ul>' +
     '<p class="check-effect">' + esc(D.STEPS.S05.no + ' ' + D.STEPS.S05.name) + ' ' + (route.S05[0] ? '거침' : '생략') + ': ' + esc(route.S05[1]) + '</p>' +
@@ -381,12 +427,23 @@
   const canOriginal = me.id === c.requesterId || ['LEGAL', 'ADMIN', 'SUPER'].indexOf(me.role) > -1;
   function renderFiles() {
     const fmtSize = function (b) { return b >= 1048576 ? (b / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(b / 1024)) + 'KB'; };
-    $('#files').innerHTML = files().map(function (x) {
-      return '<li><span class="file-info">' + C.badge('line', D.FILE_KINDS[x.kind]) + ' <span class="file-name">' + esc(x.name) + '</span>' +
-        '<span class="file-size">' + fmtSize(x.size) + ', ' + (x.at ? C.fmtDateTime(x.at) + ' 등록' : round + '차 기안') + '</span></span>' +
-        '<span class="file-acts"><button type="button" class="btn-text" data-file="preview">미리보기</button>' +
-        '<button type="button" class="btn-text file-dl" data-file="pdf">PDF 내려받기</button>' +
-        (canOriginal ? '<button type="button" class="btn-text file-dl" data-file="original">원본 내려받기</button>' : '') + '</span></li>';
+    const acts = '<span class="file-acts"><button type="button" class="btn-text" data-file="preview">미리보기</button>' +
+      '<button type="button" class="btn-text file-dl" data-file="pdf">PDF 내려받기</button>' +
+      (canOriginal ? '<button type="button" class="btn-text file-dl" data-file="original">원본 내려받기</button>' : '') + '</span>';
+    // 한 판: [종류] [판 N] [결재한 판] 파일 이름 / 크기, 올린 때와 사람(까닭), 지문
+    function line(g, v, now) {
+      const versioned = g.kind === 'DRAFT_DOC' || g.kind === 'CLAUSE_DIFF' || g.kind === 'SIGNED';
+      return '<li' + (now ? '' : ' class="is-old"') + '><span class="file-info">' + C.badge('line', D.FILE_KINDS[g.kind]) +
+        (versioned ? ' ' + C.badge(now ? 'progress' : 'neutral', '판 ' + v.no) : '') +
+        (v.approved ? ' ' + C.badge('success', '결재한 판') : '') + (v.checked ? ' ' + C.badge('success', '확인한 체결본') : '') +
+        ' <span class="file-name">' + esc(v.name) + '</span>' +
+        '<span class="file-size">' + fmtSize(v.size) + ', ' + C.fmtDateTime(v.at) + ' ' + esc(C.ownerLabel(v.by)) + ' 올림(' + esc(v.why) + '), 지문 ' + v.hash + '</span></span>' +
+        acts + '</li>';
+    }
+    $('#files').innerHTML = files().map(function (g) {
+      const vs = g.versions, now = vs[vs.length - 1], old = vs.slice(0, -1).reverse();
+      return line(g, now, true) + (old.length ? '<li class="file-older"><details><summary>' + esc(D.FILE_KINDS[g.kind]) + ' 이전 판 ' + old.length + '개</summary>' +
+        '<ul class="doc-files">' + old.map(function (v) { return line(g, v, false); }).join('') + '</ul></details></li>' : '');
     }).join('');
     $('#memo').textContent = detail.memo || '없음';
   }
@@ -403,7 +460,11 @@
         const dept = h.actorDept || (D.USERS[h.actorId] || {}).dept || '';
         const who = esc(C.ownerLabel(h.actorId, dept)) + (h.onBehalfOf ? ' <span class="behalf">(' + esc(C.ownerLabel(h.onBehalfOf)) + ' 대신, ' + (h.delegationId ? '대리 지정' : '시연') + ')</span>' : '');
         // 체결본 등록은 올린 파일 이름도 함께
-        const extra = [h.fileName ? '파일: ' + esc(h.fileName) : '', h.basis ? '대리 근거: ' + esc(h.basis) : '',
+        // 결재자가 그때 본 판 (v0.53): 계약 검토(②~⑤)는 계약서 초안, ⑧ 체결본 확인은 체결본
+        const seenKind = ['S02', 'S03', 'S04', 'S05'].indexOf(h.step) > -1 && h.action !== 'RESUBMIT' ? 'DRAFT_DOC' : h.step === 'S08' ? 'SIGNED' : '';
+        const seen = seenKind ? versionAt(seenKind, h.at) : null;
+        const extra = [seen ? '본 판: ' + D.FILE_KINDS[seenKind] + ' 판 ' + seen.no + '(지문 ' + seen.hash + ')' : '',
+          h.fileName ? '파일: ' + esc(h.fileName) : '', h.basis ? '대리 근거: ' + esc(h.basis) : '',
           h.action === 'RESUBMIT' ? (h.restart ? '금액이나 체크리스트 답을 바꿔 계약 검토를 처음부터 다시' : '요청한 단계부터 이어서 결재') : ''].filter(Boolean);
         const note = (h.comment ? esc(h.comment) : '') + (extra.length ? (h.comment ? '<br>' : '') + '<span class="behalf">' + extra.join('<br>') + '</span>' : '');
         return '<tr><td class="num-left">' + C.fmtDateTime(h.at) + '</td><td class="num">' + (h.round || 1) + '차</td>' +

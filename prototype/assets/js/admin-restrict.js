@@ -45,7 +45,7 @@
     D.CONTRACTS.forEach(function (c) {
       (c.viewers || []).forEach(function (v) {
         if (!v.releasedAt || v.removedAt) return;
-        released.push({ at: v.releasedAt, by: null, byLabel: 'CLIMB(자동)', target: label(c),
+        released.push({ at: v.releasedAt, by: null, byLabel: '플랫폼(자동)', target: label(c),
           change: '열람자 지정 풀림: ' + C.viewerLabel(v) + '(사람)', reason: '인사이동으로 조직이 바뀜(' + v.deptAtGrant + ' → ' + v.releasedTo + '). 관리자에게 이메일로 알림' });
       });
     });

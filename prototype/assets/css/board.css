@@ -56,6 +56,26 @@ a.board-title:hover { color: var(--text-primary); text-decoration: underline; te
 .mail-state { grid-column: 2; grid-row: 1 / span 2; align-self: center; white-space: nowrap; }
 .mail-to { text-align: left; }
 .mail-list > li.is-not-mine .mail-name { color: var(--text-subtle); font-weight: 500; }
+/* 이메일 미리 보기 (v0.53): 목록의 "미리 보기"와 창 안의 메일 한 통 */
+/*   "미리 보기"는 오른쪽 상태 표시 아래(줄을 늘리지 않게). 상태는 윗줄에 붙임 */
+.mail-list > li:has(.mail-preview-btn) .mail-state { grid-row: 1; align-self: start; }
+.mail-preview-btn { grid-column: 2; grid-row: 2; justify-self: end; min-height: 0; }
+.mail-head { display: grid; gap: 0.4rem; padding: 1.2rem 1.6rem; border-radius: var(--radius-lg) var(--radius-lg) 0 0; background: var(--surface-gray-subtler); font-size: var(--fs-body-small); text-align: left; }
+.mail-head > div { display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: 0.8rem; }
+.mail-head dt { color: var(--text-subtle); }
+.mail-head dd { color: var(--text-basic); overflow-wrap: anywhere; }
+.mail-body { padding: 2rem 1.6rem; border: 1px solid var(--border-gray-light); border-top: 0; border-radius: 0 0 var(--radius-lg) var(--radius-lg); font-size: var(--fs-body-small); text-align: left; }
+.mail-body > p + p, .mail-body > p + table, .mail-body > table + p { margin-top: 1.2rem; }
+.mail-brand { padding-bottom: 1.2rem; border-bottom: 2px solid var(--border-primary); font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
+.mail-brand span:not(.brand-name) { margin-left: 0.6rem; font-size: var(--fs-body-xsmall); font-weight: 500; color: var(--text-subtle); }
+.mail-hello { font-weight: 700; color: var(--text-bolder); }
+.mail-facts { width: 100%; border-collapse: collapse; }
+.mail-facts th, .mail-facts td { padding: 0.8rem 1rem; border-bottom: 1px solid var(--border-gray-light); vertical-align: top; text-align: left; }
+.mail-facts th { width: 11rem; font-weight: 500; color: var(--text-subtle); background: var(--surface-gray-subtler); }
+.mail-facts td { color: var(--text-basic); }
+.mail-cta { margin-top: 2rem !important; }
+.mail-note { margin-top: 2rem !important; padding-top: 1.2rem; border-top: 1px solid var(--border-gray-light); font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
+
 .mail-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1.2rem; margin-top: 2rem; }
 
 /* 스마트폰(v0.50부터 태블릿은 PC 화면): 글 보기와 계정 정보를 한 줄씩 */
@@ -67,4 +87,5 @@ a.board-title:hover { color: var(--text-primary); text-decoration: underline; te
   .account-info dd { margin-bottom: 1rem; }
   .post-nav dt { width: 5.2rem; }
   .post-actions .btn { flex: 1 1 0; }
+  .mail-preview-btn { min-height: var(--touch-min); } /* 손가락으로 누르기 쉬운 크기 */
 }

@@ -12,12 +12,16 @@ window.CLIMB_DATA = (function () {
   const TODAY = '2026-10-19';
 
   // 시스템 명칭 (REQ-NAME-01~05)
-  //   화면 표기 첫 줄: CLIMB | 무하유 계약 관리 플랫폼 / 둘째 줄: MUHAYU Contract Lifecycle Management Base
+  //   CLIMB = Contract Lifecycle Intelligent Management Base (v0.53 기획자 요청: I는 Intelligent, B는 Base)
+  //   머리글(맨 위) 둘째 줄: 한글 이름 "무하유 계약 관리 플랫폼" (v0.53 기획자 요청)
+  //   푸터(맨 아래)와 로그인 화면: "Contract Lifecycle Intelligent Management Base" (MUHAYU를 붙이면 한 줄을 넘어 뺌, v0.53)
+  //   회사 이름은 저작권 줄에만: "© 2026 MUHAYU Inc."
   const BRAND = {
-    name: 'CLIMB',                 // 브라우저 탭 제목, 시스템 이름 첫 줄 앞부분
-    ko: '무하유 계약 관리 플랫폼',   // 시스템 이름 첫 줄 뒷부분 (세로선 뒤)
-    // 마지막 글자 B는 Base (REQ-NAME-05 확정). 첫 줄에 CLIMB이 있으므로 둘째 줄 끝의 (CLIMB)은 뺌
-    en: 'MUHAYU Contract Lifecycle Management Base',
+    name: 'climb',                 // 로고 글자(소문자, SUITE 글꼴)와 브라우저 탭 제목 (v0.53 기획자 요청: 대문자 CLIMB에서 바꿈. 본문 글에는 이름을 쓰지 않고 필요하면 "플랫폼")
+    ko: '무하유 계약 관리 플랫폼',   // 머리글 둘째 줄, 푸터 둘째 줄, 로그인 첫 줄
+    // 첫 줄에 CLIMB이 있으므로 영문 이름 끝의 (CLIMB)은 뺌
+    en: 'Contract Lifecycle Intelligent Management Base',
+    company: 'MUHAYU Inc.',        // 저작권 줄 (v0.53 기획자 요청)
   };
 
 
@@ -134,6 +138,29 @@ window.CLIMB_DATA = (function () {
    * 서비스는 계약에 넣은 제품이 속한 서비스로 저절로 정해집니다(v0.49: 제품에 서비스가 붙어 있음). 서비스 목록은 코드 관리(SCR-56)에서 관리 */
   const SERVICES = { CK: '카피킬러', HR: 'HR 서비스' };
 
+  /* ---------- 표준계약서와 그 판 (v0.53 기획자 요청, SCR-45 표준계약서, REQ-CHK-09) ----------
+   * 법무가 정한 표준계약서마다 판(버전)을 쌓음. 적용 시작일이 오늘 이전인 판 중 가장 늦은 것이 "지금 판", 오늘 뒤면 "예정"
+   * 판은 지우거나 덮어쓰지 않음(지난 계약이 어느 판을 썼는지 남게). 새 판은 법무와 관리자, 최고관리자가 올리고 사유와 근거를 남김
+   * 계약 등록의 체크리스트 1번에서 "기준 표준계약서"를 고르면 그때의 판이 계약에 남음(상대방 양식이면 OWN)
+   * service: 주로 쓰는 서비스(없으면 모든 서비스) / versions: no, from(적용 시작일), summary(바뀐 조항), basis(근거), by, at, file
+   * 시연용 가상 값입니다. 실제 표준계약서와 조항 번호가 아닙니다. */
+  const TEMPLATES = [
+    { id: 'TPL-CK', name: '카피킬러 SaaS 이용계약서', service: 'CK', versions: [
+      { no: 1, from: '2026-09-01', summary: '플랫폼 도입: 지금 쓰는 표준계약서를 그대로 올림', basis: '법무 검토 기록 2026-08-28', by: 'u_legal', at: '2026-09-01 09:00' },
+      { no: 2, from: '2026-10-01', summary: '제12조 손해배상 한도를 "연간 이용료 총액"으로 분명히 함, 제15조 개인정보 처리 조항을 개정 법령에 맞춤', basis: '법무 검토 기록 2026-09-24', by: 'u_legal', at: '2026-09-25 14:00' },
+    ] },
+    { id: 'TPL-HR', name: 'HR 서비스 이용계약서', service: 'HR', versions: [
+      { no: 1, from: '2026-09-01', summary: '플랫폼 도입: 지금 쓰는 표준계약서를 그대로 올림', basis: '법무 검토 기록 2026-08-28', by: 'u_legal', at: '2026-09-01 09:00' },
+    ] },
+    { id: 'TPL-DPA', name: '개인정보 처리위탁 계약서', service: '', versions: [
+      { no: 1, from: '2026-09-01', summary: '플랫폼 도입: 지금 쓰는 표준계약서를 그대로 올림', basis: '정보보호유닛 검토 2026-08-27', by: 'u_legal', at: '2026-09-01 09:00' },
+      { no: 2, from: '2026-11-01', summary: '제7조 재위탁 사전 동의 절차와 제10조 파기 확인서 서식을 더함', basis: '정보보호유닛 검토 2026-10-15', by: 'u_legal', at: '2026-10-16 11:00' },
+    ] },
+    { id: 'TPL-SLA', name: '서비스 수준 협약서(SLA)', service: '', versions: [
+      { no: 1, from: '2026-09-01', summary: '플랫폼 도입: 지금 쓰는 표준 협약서를 그대로 올림', basis: '법무 검토 기록 2026-08-28', by: 'u_legal', at: '2026-09-01 09:00' },
+    ] },
+  ];
+
   /* ---------- 제품과 기능 (v0.47 기획자 요청, v0.49 두 단계로 줄임. SCR-58 제품과 기능 관리) ----------
    * v0.49 기획자 결정: 서비스 → 제품 → 기능 → 플랜은 위계가 복잡해 **제품 → 기능** 두 단계만 둠
    *   - 플랜은 없앰. 가격(표준 단가, 할인율 한도)은 기능마다 하나(아래 PRICE_ROWS)
@@ -169,14 +196,14 @@ window.CLIMB_DATA = (function () {
    *   HR 추가 모듈 = 프리즘 표절검사 등)을 기능에 하나씩 붙임. 프리즘 GPT Killer의 두 플랜(v0.47)은 하나로 합침 */
   const PRICE_DOC = 'https://gw.muhayu.com/approval/';
   const PRICE_ROWS = [
-    { feature: 'CK_CAMPUS_PLAG', product: 'CK_CAMPUS', service: 'CK', unit: '기관, 1년', listPrice: 12000000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { feature: 'CK_CAMPUS_USER', product: 'CK_CAMPUS', service: 'CK', unit: '100명, 1년', listPrice: 1400000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { feature: 'CK_CAMPUS_GPTK', product: 'CK_CAMPUS', service: 'CK', unit: '기관, 1년', listPrice: 2400000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { feature: 'CK_CAMPUS_API', product: 'CK_CAMPUS', service: 'CK', unit: '1식, 1년', listPrice: 6000000, discountCap: 0.10, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { feature: 'HR_PRISM_DEFECT', product: 'HR_PRISM', service: 'HR', unit: '기관, 1년', listPrice: 9600000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { feature: 'HR_PRISM_PLAG', product: 'HR_PRISM', service: 'HR', unit: '기관, 1년', listPrice: 3600000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { feature: 'HR_PRISM_BLIND_A', product: 'HR_PRISM', service: 'HR', unit: '기관, 1년', listPrice: 3000000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { feature: 'HR_PRISM_GPTK', product: 'HR_PRISM', service: 'HR', unit: '기관, 1년', listPrice: 4800000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { feature: 'CK_CAMPUS_PLAG', product: 'CK_CAMPUS', service: 'CK', unit: '기관, 1년', listPrice: 12000000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '플랫폼 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { feature: 'CK_CAMPUS_USER', product: 'CK_CAMPUS', service: 'CK', unit: '100명, 1년', listPrice: 1400000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '플랫폼 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { feature: 'CK_CAMPUS_GPTK', product: 'CK_CAMPUS', service: 'CK', unit: '기관, 1년', listPrice: 2400000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '플랫폼 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { feature: 'CK_CAMPUS_API', product: 'CK_CAMPUS', service: 'CK', unit: '1식, 1년', listPrice: 6000000, discountCap: 0.10, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '플랫폼 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { feature: 'HR_PRISM_DEFECT', product: 'HR_PRISM', service: 'HR', unit: '기관, 1년', listPrice: 9600000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '플랫폼 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { feature: 'HR_PRISM_PLAG', product: 'HR_PRISM', service: 'HR', unit: '기관, 1년', listPrice: 3600000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '플랫폼 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { feature: 'HR_PRISM_BLIND_A', product: 'HR_PRISM', service: 'HR', unit: '기관, 1년', listPrice: 3000000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '플랫폼 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { feature: 'HR_PRISM_GPTK', product: 'HR_PRISM', service: 'HR', unit: '기관, 1년', listPrice: 4800000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '플랫폼 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
     // 바뀐 예: 카피킬러 캠퍼스 추가 이용자 단가 인상(10월 1일부터)
     { feature: 'CK_CAMPUS_USER', product: 'CK_CAMPUS', service: 'CK', unit: '100명, 1년', listPrice: 1500000, discountCap: 0.15, validFrom: '2026-10-01', docUrl: PRICE_DOC + '2026-0915', docNo: '경영지원-2026-0915', reason: '추가 이용자 단가 인상(서버 비용 반영)', by: 'u_admin', at: '2026-09-24 15:10' },
     // 예정된 예: 프리즘 표절검사 할인율 한도를 내년부터 넓힘 (아직 적용 전)
@@ -329,7 +356,10 @@ window.CLIMB_DATA = (function () {
       checklist: { standard: 'NO', standardNote: '대학 요청으로 지식재산권 조항 일부 수정', price: 'NO', priceNote: '학과 단위 추가 이용자 묶음 할인', cap: 'YES' },
       products: [{ feature: 'CK_CAMPUS_PLAG', qty: 3, amount: 32400000 }, { feature: 'CK_CAMPUS_USER', qty: 12, amount: 15600000 }],
       memo: '지식재산권 조항 수정본을 첨부했습니다.',
-      history: [ev('S02', 'APPROVE', '2026-10-15 09:40')],
+      // 판 관리 예시 (v0.53): 법무가 보완을 요청해 영업이 계약서를 다시 올림 → 계약서 초안 판 1, 판 2
+      history: [ev('S02', 'APPROVE', '2026-10-15 09:40'),
+        ev('S04', 'SUPPLEMENT', '2026-10-15 16:00', '지식재산권 조항 수정본에 대학 쪽 서명란이 빠졌습니다. 서명란을 넣은 계약서를 다시 올려 주세요.'),
+        ev('S01', 'RESUBMIT', '2026-10-16 10:30', '서명란을 넣은 계약서를 다시 올렸습니다.', 'u_sales1')],
     },
     {
       // 승인 취소 기록이 남은 예시: ② 승인 → 취소 → 다시 승인. 지금 ③ 영업 검토 차례
@@ -366,6 +396,7 @@ window.CLIMB_DATA = (function () {
       amount: 9600000, requesterId: 'u_sales1', requestedAt: '2026-10-18 10:30', restricted: false, personalData: false,
       status: 'IN_REVIEW',
       checklist: { standard: 'NO', standardNote: '상대방 양식 계약서', price: 'YES', cap: 'YES' },
+      template: { id: 'OWN' }, // 기준 표준계약서 없음: 상대방 양식 (v0.53)
       products: [{ feature: 'HR_PRISM_DEFECT', qty: 1, amount: 9600000 }],
       annex: ['단비소프트_비밀유지계약서.pdf'],
       // 보완 요청 예시(v0.26): ④ 법무가 기안자에게 보완을 요청. 기안자가 고치면 ④부터 이어서 결재
@@ -441,7 +472,8 @@ window.CLIMB_DATA = (function () {
       id: '2609CL004', counterparty: '마루중학교', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 13200000, requesterId: 'u_sales1', requestedAt: '2026-09-18 10:00', restricted: false, personalData: false,
       status: 'OPS_REVIEW', approvedAt: '2026-09-24 15:00', signedAt: '2026-10-14', postAt: 'S09', autoHistory: true,
-      checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
+      // 표준계약서를 그대로 쓴 예시(④ 법무 검토 생략). 통계와 보고서의 체크리스트 예외 비율이 고르게 보이게 (v0.53)
+      checklist: { standard: 'YES', price: 'YES', cap: 'YES' },
       startDate: '2026-11-01', endDate: '2027-10-31',
     },
     {
@@ -485,6 +517,8 @@ window.CLIMB_DATA = (function () {
       id: '2601CL001', counterparty: '누리교육재단', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 60000000, requesterId: 'u_sales2', requestedAt: '2026-01-06 10:00', restricted: false, personalData: false,
       status: 'ACTIVE', approvedAt: '2026-01-09 15:00', autoHistory: true, startDate: '2026-01-15', endDate: '2026-12-31',
+      // 해지 통지 기한이 다가오는 예시 (v0.53): 만료 60일 전인 2026-11-01까지 알려야 함 → 오늘(10-19) D-13, 30일 전 이메일은 10-02에 감
+      autoRenew: 'YES', noticeDays: 60,
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
     },
     {
@@ -499,7 +533,8 @@ window.CLIMB_DATA = (function () {
       id: '2602CL001', counterparty: '가온테크', services: ['CK'], type: '리셀러 계약', kind: 'NEW',
       amount: 120000000, requesterId: 'u_sales2', requestedAt: '2026-02-10 10:00', restricted: false, personalData: false,
       status: 'ACTIVE', approvedAt: '2026-02-16 15:00', autoHistory: true, startDate: '2026-03-01', endDate: '2028-02-29',
-      checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
+      // 할인율 한도를 넘어 ③ 영업 검토를 거친 예시 (v0.53)
+      checklist: { standard: 'NO', price: 'YES', cap: 'NO', capNote: '총판 공급가 30% 할인(한도 20%), 2년 최소 구매 약정 조건' },
     },
     {
       id: '2604CL001', counterparty: '이음병원', sla: 'YES', services: ['HR'], type: 'SaaS 이용계약', kind: 'NEW',
@@ -529,7 +564,7 @@ window.CLIMB_DATA = (function () {
       id: '2606CL001', counterparty: '해랑출판', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 15600000, requesterId: 'u_sales2', requestedAt: '2026-06-15 10:00', restricted: false, personalData: false,
       status: 'ACTIVE', approvedAt: '2026-06-19 15:00', autoHistory: true, startDate: '2026-07-01', endDate: '2027-06-30',
-      checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
+      checklist: { standard: 'YES', price: 'YES', cap: 'YES' }, // 표준계약서 그대로 (v0.53)
     },
 
     /* ----- 만료 (EXPIRED) ----- */
@@ -537,7 +572,7 @@ window.CLIMB_DATA = (function () {
       id: '2508CL001', counterparty: '별빛어학원', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 8400000, requesterId: 'u_sales2', requestedAt: '2025-08-18 10:00', restricted: false, personalData: false,
       status: 'EXPIRED', approvedAt: '2025-08-22 15:00', autoHistory: true, startDate: '2025-09-01', endDate: '2026-08-31',
-      checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
+      checklist: { standard: 'YES', price: 'YES', cap: 'YES' }, // 표준계약서 그대로 (v0.53)
     },
 
     /* ----- 운영 변경 (CHANGE, v0.26 재무 문서 반영) -----
@@ -570,7 +605,71 @@ window.CLIMB_DATA = (function () {
   const ALERT_RULES = {
     approvalDelayDays: 5,    // 한 결재 단계에 머문 기간: 내가 검토할 계약의 대기 일수 강조 (REQ-DASH-05)
     signDelayDays: 14,       // 승인 후 체결이 끝나지 않은 기간: 체결 대기 목록 강조, 기안자 독촉 이메일 (REQ-ENV-10)
+    // 해지 통지 기한 (v0.53 기획자 요청, REQ-FLOW-32): 자동갱신 계약의 만료일 - 통지 일수
+    noticeSoonDays: 30,      // 기한이 이 날수 안이면 개요, 만료 예정, 계약 상세에서 강조하고 만료 예정 목록에 넣음
+    noticeMailDays: [30, 7], // 기한 30일 전과 7일 전에 영업대표에게 이메일(NOTICE_DEADLINE)
+    // 체결 후 의무 (v0.53 기획자 결정, REQ-FLOW-33~36) [가정]
+    obligationSoonDays: 14,      // 기한이 이 날수 안이면 "D-n"으로 강조하고 개요 "챙길 의무"에 넣음
+    obligationMailDays: [14, 3], // 기한 14일 전과 3일 전에 맡은 분야에 이메일(OBLIGATION). 지나면 다음 날 그 분야 리더에게도
   };
+
+  /* ---------- 체결 후 의무 (v0.53 기획자 결정, 요구사항 정의서 REQ-FLOW-33~36, 데이터 정의서 obligation) ----------
+   * Ironclad와 SAP를 견줘 본 뒤 받아들인 기능. 계약을 맺은 뒤 지켜야 할 약속을 담당 분야와 기한으로 챙김
+   * 범위(기획자 결정): 보안 의무(개인정보 파기, 사고 통지, 보안 감사 협조), SLA, 청구 일정
+   * - 계약 묶음(원계약 번호, bundle)에 붙음. 체결본을 등록한 계약부터 더할 수 있음
+   * - 맡는 분야(owner)는 종류마다 정해 둔 역할: 사람이 아니라 분야라 인사이동이 저절로 반영됨(지정 열람자와 같은 생각)
+   * - when: ONCE 한 번(due) / REPEAT 되풀이(first부터 everyMonths달마다, 계약이 끝나는 날까지) / EVENT 일이 생기면(within 안에)
+   * - records: 이행 기록 { for: 어느 기한의 것(일이 생기면 null), at, by, note }. 고치거나 지울 수 없음
+   * - 끝냄: 더 챙기지 않을 때 사유를 적어 끝냄(endedAt, endedBy, endReason). 지우지 않음 */
+  const OBLIGATION_KINDS = {
+    SECURITY: { label: '보안 의무', owner: 'PRIVACY', tone: 'attention' },
+    SLA: { label: 'SLA', owner: 'CEM', tone: 'progress' },
+    BILLING: { label: '청구 일정', owner: 'FINANCE', tone: 'success' },
+  };
+  const OBLIGATION_WHEN = { ONCE: '한 번', REPEAT: '되풀이', EVENT: '일이 생기면' };
+  // 자주 쓰는 의무: 의무 더하기 창에서 고르면 칸이 채워짐 [가정: 법무 확인 전 예시 문구. 기한과 시간은 계약서 조항을 따름]
+  const OBLIGATION_PRESETS = [
+    { kind: 'SECURITY', title: '계약이 끝난 뒤 위탁받은 개인정보를 파기하고 확인서 보내기', when: 'ONCE', afterEndDays: 5 },
+    { kind: 'SECURITY', title: '개인정보 사고를 알게 되면 고객에게 바로 알리기', when: 'EVENT', within: '알게 된 때부터 24시간 안' },
+    { kind: 'SECURITY', title: '고객의 수탁자 점검(보안 감사)에 자료 내기', when: 'EVENT', within: '요청받은 날부터 10일 안' },
+    { kind: 'SECURITY', title: '해마다 수탁자 보안 교육 이수 확인서 보내기', when: 'REPEAT', everyMonths: 12 },
+    { kind: 'SLA', title: '달마다 SLA 보고서(가용률) 보내기', when: 'REPEAT', everyMonths: 1 },
+    { kind: 'SLA', title: '장애가 나면 1차 대응하기', when: 'EVENT', within: '알게 된 때부터 4시간 안' },
+    { kind: 'BILLING', title: '분할 청구하기', when: 'ONCE' },
+    { kind: 'BILLING', title: '분기마다 청구하기', when: 'REPEAT', everyMonths: 3 },
+  ];
+  function rec(forDue, at, by, note) { return { for: forDue, at: at, by: by, note: note }; }
+  const OBLIGATIONS = [
+    // 이음병원(2604CL001, 개인정보 처리위탁, SLA 있음): 10월 SLA 보고서가 기한을 넘긴 예시
+    { id: 'OB-0001', bundle: '2604CL001', kind: 'SLA', title: '달마다 SLA 보고서(가용률 99.5%) 보내기', clause: 'SLA 제4조', when: 'REPEAT', first: '2026-06-05', everyMonths: 1,
+      by: 'u_sales1', at: '2026-05-02 10:00',
+      records: [rec('2026-06-05', '2026-06-04 17:20', 'u_cem', '5월 가용률 99.92% 보고서 보냄'), rec('2026-07-05', '2026-07-03 16:10', 'u_cem', '6월 가용률 99.88% 보고서 보냄'),
+        rec('2026-08-05', '2026-08-05 10:30', 'u_cem', '7월 가용률 99.95% 보고서 보냄'), rec('2026-09-05', '2026-09-04 15:00', 'u_cem', '8월 가용률 99.61% 보고서 보냄(8-21 장애 반영)')] },
+    { id: 'OB-0002', bundle: '2604CL001', kind: 'SLA', title: '장애가 나면 1차 대응하기', clause: 'SLA 제6조', when: 'EVENT', within: '알게 된 때부터 4시간 안',
+      by: 'u_sales1', at: '2026-05-02 10:00',
+      records: [rec(null, '2026-09-12 11:40', 'u_cem', '09:50 접속 지연 신고를 받고 10:30 원인 확인과 1차 조치(40분 걸림)')] },
+    { id: 'OB-0003', bundle: '2604CL001', kind: 'SECURITY', title: '고객의 수탁자 점검(보안 감사)에 자료 내기', clause: '개인정보 처리위탁 계약 제7조', when: 'EVENT', within: '요청받은 날부터 10일 안',
+      by: 'u_legal', at: '2026-05-04 09:30',
+      records: [rec(null, '2026-08-20 11:00', 'u_privacy', '병원 정보보호팀 감사 요청(08-14)에 CEM유닛과 함께 접속 기록 사본 냄')] },
+    { id: 'OB-0004', bundle: '2604CL001', kind: 'SECURITY', title: '계약이 끝난 뒤 위탁받은 개인정보를 파기하고 확인서 보내기', clause: '개인정보 처리위탁 계약 제9조', when: 'ONCE', due: '2027-05-05',
+      by: 'u_legal', at: '2026-05-04 09:30', records: [] },
+    // 온새미로대학교(2512CL001): 2차 분할 청구가 11일 남은 예시, 해마다 교육 확인서는 이 계약 기간에는 모두 함
+    { id: 'OB-0005', bundle: '2512CL001', kind: 'BILLING', title: '1차 분할 청구(선금 50%)', clause: '이용계약 제5조', when: 'ONCE', due: '2026-01-15', amount: 36000000,
+      by: 'u_sales1', at: '2026-01-05 10:00', records: [rec('2026-01-15', '2026-01-14 15:00', 'u_finance', '세금계산서 발행(2026-01-14)')] },
+    { id: 'OB-0006', bundle: '2512CL001', kind: 'BILLING', title: '2차 분할 청구(잔금 50%)', clause: '이용계약 제5조', when: 'ONCE', due: '2026-10-30', amount: 36000000,
+      by: 'u_sales1', at: '2026-01-05 10:00', records: [] },
+    { id: 'OB-0007', bundle: '2512CL001', kind: 'SECURITY', title: '해마다 수탁자 보안 교육 이수 확인서 보내기', clause: '개인정보 처리위탁 계약 제6조', when: 'REPEAT', first: '2026-03-31', everyMonths: 12,
+      by: 'u_legal', at: '2026-01-06 11:00', records: [rec('2026-03-31', '2026-03-27 14:00', 'u_privacy', '2026년 보안 교육 이수 확인서(12명) 보냄')] },
+    // 한결대학교(2511CL001): 계약이 끝나면 파기
+    { id: 'OB-0008', bundle: '2511CL001', kind: 'SECURITY', title: '계약이 끝난 뒤 위탁받은 개인정보를 파기하고 확인서 보내기', clause: '이용계약 제14조', when: 'ONCE', due: '2026-11-19',
+      by: 'u_legal', at: '2025-11-14 10:00', records: [] },
+    // 청람컨설팅(2609CL001): 체크리스트 4번 특수 조건(첫해 2개월 무상)과 이어지는 청구
+    { id: 'OB-0009', bundle: '2609CL001', kind: 'BILLING', title: '무상 사용 2개월이 끝나 첫 청구하기', clause: '이용계약 제5조 2항', when: 'ONCE', due: '2026-12-15', amount: 1600000,
+      by: 'u_sales2', at: '2026-10-03 09:00', records: [] },
+    // 푸른솔아카데미(2511CL002, 열람 제한): 맡은 분야는 고객사를 못 봐도 의무는 챙김
+    { id: 'OB-0010', bundle: '2511CL002', kind: 'BILLING', title: '남은 이용료 청구(2회차)', clause: '이용계약 제5조', when: 'ONCE', due: '2026-10-25', amount: 15000000,
+      by: 'u_sales2', at: '2025-12-10 10:00', records: [] },
+  ];
 
 
   /* ---------- 공지사항과 릴리즈 (SCR-91, SCR-92, v0.45 기획자 요청) ----------
@@ -583,8 +682,8 @@ window.CLIMB_DATA = (function () {
   const NOTICE_KINDS = { NOTICE: '공지', RELEASE: '릴리즈' };
   const RELEASE_PARTS = [['added', '새 기능'], ['improved', '개선'], ['changed', '바뀐 규칙'], ['fixed', '고친 문제']];
   const NOTICES = [
-    { id: 'N-0001', kind: 'NOTICE', important: true, title: 'CLIMB 시범 운영 시작', at: '2026-10-19 09:00', by: 'u_super',
-      body: ['오늘부터 계약 등록과 결재를 CLIMB에서 시범 운영합니다. 기존 전자결재로 올리던 계약 품의는 CLIMB으로 올려 주세요.',
+    { id: 'N-0001', kind: 'NOTICE', important: true, title: '플랫폼 시범 운영 시작', at: '2026-10-19 09:00', by: 'u_super',
+      body: ['오늘부터 계약 등록과 결재를 이 플랫폼에서 시범 운영합니다. 기존 전자결재로 올리던 계약 품의는 이 플랫폼으로 올려 주세요.',
         '로그인은 회사 Google 계정으로 하고, 사내망이나 VPN에서만 접속할 수 있습니다.',
         '쓰다가 불편한 점은 경영지원유닛 원지안에게 알려 주세요. 고친 내용은 이 게시판의 릴리즈로 알려 드립니다.'] },
     { id: 'N-0002', kind: 'NOTICE', important: false, title: '휴대폰에서 결재하는 방법', at: '2026-10-19 09:30', by: 'u_super',
@@ -668,6 +767,34 @@ window.CLIMB_DATA = (function () {
           '조직으로 지정하는 것이 기본이라 인사이동이 저절로 반영됩니다. 사람으로 지정하면 그 사람이 다른 조직으로 옮길 때 지정이 풀리고 관리자에게 알립니다.'],
         improved: ['계약 상세와 결재 문서의 "열람 제한" 칸에 지정 열람자가 보입니다.', '변경, 연장, 해지 기안도 지정 열람자를 그대로 이어받습니다.'],
       } },
+    // v0.9.7~v0.9.9 (요구사항 정의서 v0.53 기획자 요청)
+    { id: 'N-0014', kind: 'RELEASE', version: 'v0.9.7', title: '어두운 화면', at: '2026-10-22 23:40', by: 'u_super',
+      items: {
+        added: ['어두운 화면(다크모드)을 씁니다. 처음에는 PC나 휴대폰의 설정을 따르고, 내 계정의 "화면"에서 밝게, 어둡게를 고를 수 있습니다. 인쇄는 언제나 밝게 나옵니다.'],
+        changed: ['머리글 둘째 줄을 "무하유 계약 관리 플랫폼"으로, 바닥글의 영문 이름을 "Contract Lifecycle Intelligent Management Base"로, 저작권 줄을 "MUHAYU Inc."로 바꿨습니다.'],
+      } },
+    { id: 'N-0015', kind: 'RELEASE', version: 'v0.9.8', title: '판 관리와 표준계약서', at: '2026-10-22 23:50', by: 'u_super',
+      items: {
+        added: ['보관함에 "표준계약서"를 더했습니다. 지금 판을 내려받고, 법무와 관리자는 적용 시작일과 바뀐 조항, 근거를 적어 새 판을 올립니다.',
+          '계약 등록에서 체크리스트 1번과 함께 "기준 표준계약서"를 고릅니다. 고른 표준계약서와 판이 결재 문서에 남습니다.'],
+        improved: ['결재 문서의 계약서 초안과 체결본에 판 번호와 파일 지문이 붙고, 이전 판은 접어 둡니다. 결재 기록에는 결재자가 본 판이 남습니다.'],
+      } },
+    { id: 'N-0016', kind: 'RELEASE', version: 'v0.9.9', title: '통계와 계약 요약서', at: '2026-10-22 23:55', by: 'u_super',
+      items: {
+        added: ['보관함에 "통계와 보고서"를 더했습니다. 체결 금액과 건수, 결재 단계마다 걸린 날, 체크리스트 예외 비율을 보고 A4로 인쇄합니다.',
+          '계약 상세의 "계약 요약서"로 계약 한 묶음(개요, 금액, 결재 기록, 체결본, 사후관리)을 A4 문서로 뽑습니다.',
+          '자동갱신 계약의 해지 통지 기한 30일 전과 7일 전에 영업대표에게 이메일을 보냅니다.'],
+        improved: ['개요와 만료 예정 계약에 해지 통지 기한과 남은 날을 보여 주고, 30일 안이면 강조합니다.',
+          '내 계정의 받을 이메일에서 알림마다 "미리 보기"로 예시 메일을 볼 수 있습니다.'],
+      } },
+    // v0.10.0 (요구사항 정의서 v0.54): 체결 후 의무 관리, 로고 글자 climb
+    { id: 'N-0017', kind: 'RELEASE', version: 'v0.10.0', title: '체결 후 의무 관리', at: '2026-10-22 23:58', by: 'u_super',
+      items: {
+        added: ['보관함에 "의무 관리"를 더했습니다. 계약을 맺은 뒤 지켜야 할 보안 의무, SLA, 청구 일정을 기한과 맡은 분야로 챙깁니다.',
+          '계약 상세의 "체결 후 의무"에서 의무를 더하고, 맡은 분야는 하고 나서 이행 기록을 남깁니다. 기한 14일 전과 3일 전에 이메일로 알려 드립니다.',
+          '정보보호, 고객지원, 재무의 개요에 "챙길 의무"가 보입니다.'],
+        changed: ['로고 글자를 소문자 "climb"으로 바꾸고 SUITE 글꼴을 씁니다. 화면의 안내 글에는 이름 대신 "플랫폼"이라고 씁니다.'],
+      } },
   ];
 
   /* ---------- 이메일 알림 (내 계정 SCR-93, v0.45 기획자 요청. 보내는 때는 요구사항 정의서 REQ-ENV-10) ----------
@@ -679,6 +806,10 @@ window.CLIMB_DATA = (function () {
     { code: 'SIGN_READY', name: '체결 대기', when: '내가 기안한 계약의 계약 검토가 끝났을 때', must: true, roles: ['SALES'] },
     { code: 'REMIND', name: '독촉', when: '내 차례가 5일 넘게 머물거나, 승인 뒤 14일 동안 체결본이 없을 때', must: true },
     { code: 'EXPIRY', name: '만료 임박', when: '내가 맡은 계약이 끝나기 60일 전과 30일 전', must: true, roles: ['SALES'] },
+    // 해지 통지 기한 (v0.53 기획자 요청, REQ-FLOW-32): 연장하지 않으려면 기한까지 상대방에게 알려야 하므로 따로 알림
+    { code: 'NOTICE_DEADLINE', name: '해지 통지 기한', when: '내가 맡은 자동갱신 계약의 해지 통지 기한 30일 전과 7일 전', must: true, roles: ['SALES'] },
+    // 체결 후 의무 (v0.53 기획자 결정, REQ-FLOW-36): 맡은 분야(정보보호, 고객지원, 재무)에게. 지나면 리더에게도
+    { code: 'OBLIGATION', name: '챙길 의무', when: '내 분야가 맡은 체결 후 의무의 기한 14일 전과 3일 전, 기한이 지나면 다음 날', must: true, roles: ['PRIVACY', 'CEM', 'FINANCE'] },
     { code: 'ACCOUNTING', name: '회계 영향 조건', when: '체크리스트 4번이 "예"인 계약이 기안됐을 때', must: true, roles: ['FINANCE'] },
     { code: 'SECURITY', name: '이상 행위', when: '접속 기록에서 이상 행위가 감지됐을 때', must: true, roles: ['PRIVACY'] },
     { code: 'NOTICE_IMPORTANT', name: '중요 공지', when: '관리자가 중요 공지를 올렸을 때', must: true },
@@ -688,6 +819,71 @@ window.CLIMB_DATA = (function () {
     { code: 'PROGRESS', name: '내 기안 진행 소식', when: '내가 기안한 계약이 다음 결재 단계로 넘어갈 때마다', must: false, on: false, roles: ['SALES'] },
     { code: 'NOTICE_ALL', name: '일반 공지와 릴리즈', when: '중요 공지가 아닌 공지와 릴리즈가 올라왔을 때', must: false, on: false },
   ];
+
+  /* ---------- 이메일 미리 보기 예시 (v0.53 기획자 요청, 요구사항 정의서 REQ-ENV-14, 내 계정에서 알림마다 "미리 보기") ----------
+   * 위 예시 계약으로 채운 메일 한 통씩. 실제 메일도 같은 틀: 제목 "[계약 관리 플랫폼] ...", 인사, 한두 문장, 사실 표, 버튼 하나, 바닥글
+   * 이메일에 넣지 않는 것 [가정, 보안]: 계약 금액, 첨부 파일, 고객 담당자 개인정보. 열람 제한 계약은 고객사 대신 계약번호만
+   * to: 받는 사람 id(또는 '전체 사용자' 같은 글) / at: 보낸 때 / facts: [항목, 값]. 값이 '@사람 id'면 "조직 이름"으로 바꿔 보여 줌
+   * button: [글자, 연결 화면] — 메일 안의 버튼은 플랫폼 화면으로만 연결(로그인 필요) */
+  const MAIL_SAMPLES = {
+    TURN: { to: 'u_legal', at: '2026-10-16 10:30', subject: '결재 차례: 한빛대학교 계약 ④ 법무 검토',
+      intro: '검토할 계약이 있습니다. 결재 문서에서 승인, 보완 요청, 반려 중 하나를 골라 주세요.',
+      facts: [['계약번호', '2610CL005'], ['고객사', '한빛대학교(중앙도서관)'], ['서비스', '카피킬러'], ['계약종류', '신규'], ['기안', '@u_sales1'], ['차례가 된 때', '2026-10-16 10:30']],
+      button: ['결재 문서 열기', 'review.html?id=2610CL005'] },
+    REJECT: { to: 'u_sales1', at: '2026-10-10 15:30', subject: '반려: 소담에듀 계약 ④ 법무 검토',
+      intro: '기안한 계약이 반려됐습니다. 사유를 확인하고 고쳐서 다시 기안해 주세요.',
+      facts: [['계약번호', '2610CL001'], ['고객사', '소담에듀'], ['반려한 단계', '④ 법무 검토'], ['반려한 사람', '@u_legal'], ['사유', '손해배상 한도 조항이 표준계약서 기준을 벗어납니다. 수정 후 다시 요청해 주세요.']],
+      button: ['결재 문서 열기', 'review.html?id=2610CL001'] },
+    SIGN_READY: { to: 'u_sales1', at: '2026-10-16 11:00', subject: '계약 검토 끝: 다온컨설팅 계약을 체결해 주세요',
+      intro: '계약 검토가 끝났습니다. 총무의 인장 날인(⑥) 뒤 상대방 서명을 받아 체결본을 올려 주세요.',
+      facts: [['계약번호', '2610CL004'], ['고객사', '다온컨설팅'], ['서비스', 'HR 서비스'], ['승인일', '2026-10-16 11:00'], ['체결본 기한', '승인 뒤 14일(2026-10-30)까지 올리지 않으면 독촉 메일']],
+      button: ['체결 대기 보기', 'signing.html'] },
+    REMIND: { to: 'u_privacy', at: '2026-10-14 09:00', subject: '6일째 기다리는 결재: 미래로병원 계약 ⑤ 개인정보 검토',
+      intro: '차례가 된 지 5일이 넘었습니다. 오늘 처리하기 어려우면 결재 문서에 보완 요청을 남겨 주세요.',
+      facts: [['계약번호', '2610CL002'], ['고객사', '미래로병원'], ['단계', '⑤ 개인정보 검토'], ['차례가 된 때', '2026-10-08 16:20'], ['기안', '@u_sales2']],
+      button: ['결재 문서 열기', 'review.html?id=2610CL002'] },
+    EXPIRY: { to: 'u_sales1', at: '2026-10-15 09:00', subject: '만료 30일 전: 한결대학교 계약(2026-11-14 만료)',
+      intro: '맡은 계약이 30일 뒤에 끝납니다. 이어 가려면 연장 검토나 연장 기안을, 끝내려면 해지 기안을 올려 주세요.',
+      facts: [['계약번호', '2511CL001'], ['고객사', '한결대학교'], ['서비스', '카피킬러'], ['계약 기간', '2025-11-15~2026-11-14'], ['자동갱신', '있음(해지 통지 기한 2026-09-15 지남)']],
+      button: ['만료 예정 계약 보기', 'expiring.html'] },
+    NOTICE_DEADLINE: { to: 'u_sales2', at: '2026-10-02 09:00', subject: '해지 통지 기한 30일 전: 누리교육재단 계약(2026-11-01까지)',
+      intro: '자동갱신 계약입니다. 연장하지 않으려면 2026-11-01까지 상대방에게 해지를 알려야 합니다. 이날이 지나면 같은 조건으로 연장됩니다.',
+      facts: [['계약번호', '2601CL001'], ['고객사', '누리교육재단'], ['서비스', '카피킬러'], ['계약 기간', '2026-01-15~2026-12-31'], ['해지 통지 기한', '2026-11-01(만료 60일 전)']],
+      button: ['연장 검토 열기', 'renewal.html?origin=2601CL001'] },
+    OBLIGATION: { to: 'u_finance', at: '2026-10-16 09:00', subject: '챙길 의무 14일 전: 온새미로대학교 계약 2차 분할 청구(2026-10-30까지)',
+      intro: '맡은 분야의 체결 후 의무 기한이 다가옵니다. 하고 나면 의무 관리에서 이행 기록을 남겨 주세요.',
+      facts: [['계약번호', '2512CL001'], ['고객사', '온새미로대학교'], ['의무', '2차 분할 청구(잔금 50%)'], ['종류', '청구 일정'], ['근거 조항', '이용계약 제5조'], ['기한', '2026-10-30']],
+      button: ['의무 관리 열기', 'obligations.html'] },
+    ACCOUNTING: { to: 'u_finance', at: '2026-09-08 10:00', subject: '회계 영향 조건이 있는 계약: 청람컨설팅',
+      intro: '체크리스트 4번(회계에 영향을 주는 특수 조건)이 "예"인 계약이 기안됐습니다. ⑩ 재무 확인 전에 미리 살펴 주세요.',
+      facts: [['계약번호', '2609CL001'], ['고객사', '청람컨설팅'], ['서비스', 'HR 서비스'], ['특수 조건', '첫해 2개월 무상 사용 후 과금 시작'], ['기안', '@u_sales2']],
+      button: ['결재 문서 열기', 'review.html?id=2609CL001'] },
+    SECURITY: { to: 'u_privacy', at: '2026-10-15 09:20', subject: '이상 행위 감지: 짧은 시간에 많은 열람',
+      intro: '접속 기록에서 이상 행위가 감지됐습니다. 접속 기록 점검에서 확인하고 결과를 남겨 주세요.',
+      facts: [['감지한 때', '2026-10-15 09:20'], ['종류', '짧은 시간에 많은 열람'], ['누가', '@u_jiho_yoo'], ['내용', '10분 동안 계약 18건 열람, 첨부 PDF 6건 내려받기']],
+      button: ['접속 기록 점검 열기', 'admin-logs.html'] },
+    NOTICE_IMPORTANT: { to: '전체 사용자', at: '2026-10-21 15:10', subject: '중요 공지: 계약번호 규칙 변경',
+      intro: '관리자가 중요 공지를 올렸습니다. 업무 방식이 바뀌는 내용이니 꼭 읽어 주세요.',
+      facts: [['제목', '계약번호 규칙 변경'], ['올린 사람', '@u_super'], ['올린 때', '2026-10-21 15:10']],
+      button: ['공지 읽기', 'notice.html?id=N-0005'] },
+    VIEWER: { to: 'u_cem', at: '2026-10-08 09:30', subject: '열람자로 지정됐습니다: 열람 제한 계약 2511CL002',
+      intro: 'CEM유닛이 열람 제한 계약의 열람자로 지정됐습니다. 조직으로 지정돼 CEM유닛에 있는 동안 볼 수 있습니다.',
+      facts: [['계약번호', '2511CL002(열람 제한이라 고객사는 적지 않음)'], ['지정 범위', 'CEM유닛(조직)'], ['지정한 사람', '@u_admin'], ['이유', '연장 검토 전에 고객지원이 사용 현황을 미리 확인']],
+      button: ['계약 상세 열기', 'contract.html?id=2511CL002'] },
+    VIEWER_RELEASED: { to: 'u_admin', at: '2026-10-12 11:00', subject: '열람자 지정이 풀렸습니다: 열람 제한 계약 2511CL002',
+      intro: '사람으로 지정한 열람자가 다른 조직으로 옮겨 지정이 저절로 풀렸습니다. 계속 봐야 하면 열람 제한 관리에서 다시 지정해 주세요.',
+      facts: [['계약번호', '2511CL002'], ['풀린 사람', '@u_dain_seok'], ['옮긴 조직', '비즈니스2유닛에서 세일즈어드민유닛으로'], ['풀린 때', '2026-10-12 11:00']],
+      button: ['열람 제한 관리 열기', 'admin-restrict.html'] },
+    PROGRESS: { to: 'u_sales1', at: '2026-10-15 09:40', subject: '진행 소식: 한빛대학교 계약이 ④ 법무 검토와 ⑤ 개인정보 검토로 넘어갔습니다',
+      intro: '기안한 계약이 다음 단계로 넘어갔습니다. 이 메일은 내 계정에서 끌 수 있습니다.',
+      facts: [['계약번호', '2610CL005'], ['고객사', '한빛대학교(중앙도서관)'], ['끝난 단계', '② 체크리스트 검토(@u_sadmin)'], ['지금 단계', '④ 법무 검토, ⑤ 개인정보 검토(동시)']],
+      button: ['결재 문서 열기', 'review.html?id=2610CL005'] },
+    NOTICE_ALL: { to: '전체 사용자', at: '2026-10-22 23:30', subject: '릴리즈 v0.9.6: 열람자 지정',
+      intro: '새 릴리즈가 올라왔습니다. 이 메일은 내 계정에서 끌 수 있습니다.',
+      facts: [['제목', '열람자 지정'], ['구분', '릴리즈 v0.9.6'], ['올린 때', '2026-10-22 23:30']],
+      button: ['공지사항에서 보기', 'notice.html?id=N-0013'] },
+  };
+  EMAIL_TYPES.forEach(function (t) { t.sample = MAIL_SAMPLES[t.code] || null; });
 
   /* ---------- 사용자 계정 목록: 사용자 권한 관리(SCR-51) ----------
    * 시연용 가상 사람입니다. 이름과 이메일은 실제 직원이 아닙니다.
@@ -876,9 +1072,9 @@ window.CLIMB_DATA = (function () {
    * area: USER 사용자 권한 / RULE 결재선 규칙 / RESTRICT 열람 제한 / CUSTOMER 거래처 / CODE 코드 / PRODUCT 제품과 기능(v0.47) / AUDIT 기록 점검
    * 아래는 이미 반영된 예시 기록입니다(시연으로 바꾼 것은 common.js가 이 브라우저에 저장해 더함). 가격 기준 이력은 PRICE_ROWS에 있습니다. */
   const ADMIN_LOG = [
-    { at: '2026-09-01 09:00', by: 'u_super', area: 'RULE', target: '결재선 규칙', change: '처음 설정: ② 배수아, ③ 유닛 리더(비즈니스1유닛 최민준, 비즈니스2유닛 고은성, 비즈니스3유닛 차유나, 리더 본인 계약은 문태호), ④ 김지우, ⑤ 한서연, ⑥ 노은채, ⑧ 배수아, ⑨ 임하준, ⑩ 오현우, 결재 대기 독촉 5일, 체결 지연 독촉 14일', reason: 'CLIMB 도입' },
-    { at: '2026-09-01 09:00', by: 'u_super', area: 'CUSTOMER', target: '거래처 13곳', change: '거래처 추가: 한결대학교 외 12곳', reason: 'CLIMB 도입: 기존 계약관리대장에서 옮김' },
-    { at: '2026-09-01 09:00', by: 'u_super', area: 'CODE', target: '코드표 6개', change: '처음 등록: 조직, 서비스, 계약 유형, 계약 방식, 정산 방식, 사후관리 기록 종류', reason: 'CLIMB 도입' },
+    { at: '2026-09-01 09:00', by: 'u_super', area: 'RULE', target: '결재선 규칙', change: '처음 설정: ② 배수아, ③ 유닛 리더(비즈니스1유닛 최민준, 비즈니스2유닛 고은성, 비즈니스3유닛 차유나, 리더 본인 계약은 문태호), ④ 김지우, ⑤ 한서연, ⑥ 노은채, ⑧ 배수아, ⑨ 임하준, ⑩ 오현우, 결재 대기 독촉 5일, 체결 지연 독촉 14일', reason: '플랫폼 도입' },
+    { at: '2026-09-01 09:00', by: 'u_super', area: 'CUSTOMER', target: '거래처 13곳', change: '거래처 추가: 한결대학교 외 12곳', reason: '플랫폼 도입: 기존 계약관리대장에서 옮김' },
+    { at: '2026-09-01 09:00', by: 'u_super', area: 'CODE', target: '코드표 6개', change: '처음 등록: 조직, 서비스, 계약 유형, 계약 방식, 정산 방식, 사후관리 기록 종류', reason: '플랫폼 도입' },
     { at: '2026-10-02 09:30', by: 'u_admin', area: 'USER', target: '기태민 (taemin.ki@muhayu.com)', change: '상태: 사용 중 → 사용 중지', reason: '9월 30일 퇴사(인사 담당 퇴사 통보 2026-10-01)' },
     { at: '2026-10-02 10:20', by: 'u_admin', area: 'RULE', target: '④ 법무 검토 대리 지정', change: '대리 지정: 김지우 → 송민재 (2026-10-05~2026-10-07)', reason: '김지우님 연차(2026-10-05~2026-10-07). 같은 법무 담당자 송민재님이 법무 검토를 대신함' },
     { at: '2026-10-06 14:10', by: 'u_super', area: 'USER', target: '송민재 (minjae.song@muhayu.com)', change: '권한: 법무 담당자 → 법무 담당자, 관리자', reason: '관리자 부재에 대비해 법무 담당자 송민재님을 관리자로 함께 지정(경영지원유닛 요청)' },
@@ -897,8 +1093,8 @@ window.CLIMB_DATA = (function () {
   ];
   // 열람 제한을 건 기록 (계약을 등록할 때 영업이 건 것). 관리자가 바꾼 것은 ADMIN_LOG의 RESTRICT
   const RESTRICT_LOG = [
-    { at: '2026-09-01 09:00', by: 'u_super', id: '2511CL002', on: true, reason: 'CLIMB 도입 때 기존 계약을 옮기며 설정(기존 계약관리대장의 비공개 표시)' },
-    { at: '2026-09-01 09:00', by: 'u_super', id: '2606CL001', on: true, reason: 'CLIMB 도입 때 기존 계약을 옮기며 설정(기존 계약관리대장의 비공개 표시)' },
+    { at: '2026-09-01 09:00', by: 'u_super', id: '2511CL002', on: true, reason: '플랫폼 도입 때 기존 계약을 옮기며 설정(기존 계약관리대장의 비공개 표시)' },
+    { at: '2026-09-01 09:00', by: 'u_super', id: '2606CL001', on: true, reason: '플랫폼 도입 때 기존 계약을 옮기며 설정(기존 계약관리대장의 비공개 표시)' },
     { at: '2026-10-17 14:00', by: 'u_sales1', id: '2610CL007', on: true, reason: '계약을 등록하며 영업이 설정' },
   ];
 
@@ -923,6 +1119,7 @@ window.CLIMB_DATA = (function () {
 
   return { TODAY, BRAND, ROLES, ROLE_AREAS, ROLE_SHORT, ROLE_AREA, ROLE_BASE, STEP_LEADS, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, CONTRACT_TYPES, METHODS, SETTLEMENTS, PRICE_BOOK, STEPS, REVIEW_GROUPS, POST_GROUPS, PROCESS_ROLES, STEP_ASSIGNEE, APPROVAL_STATE, APPROVAL_ACTIONS, SEAL_CHECKS, OPS_CHECKS, OPS_CHECKS_END, OPS_CHECKS_EXTEND, AFTERCARE_TYPES, FILE_KINDS, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS,
     CHANGE_TYPES, CHANGE_RULES, OPS_CHECKS_PERIOD, TEAM_LEADERS,
-    PRODUCTS, FEATURES, PRICE_ROWS, currentPrices, CUSTOMERS, BIZ_REGISTRY, BIZ_REGISTRY_INFO, NTS_STATUS, CODE_GROUPS, CODES, DELEGATIONS, ASSIGNEE_CHANGES, ADMIN_LOG, RESTRICT_LOG,
-    LOG_REVIEWS, ACCESS_REVIEWS, SEC_ALERT_KINDS, SEC_ALERTS, NOTICE_KINDS, RELEASE_PARTS, NOTICES, EMAIL_TYPES };
+    PRODUCTS, FEATURES, TEMPLATES, PRICE_ROWS, currentPrices, CUSTOMERS, BIZ_REGISTRY, BIZ_REGISTRY_INFO, NTS_STATUS, CODE_GROUPS, CODES, DELEGATIONS, ASSIGNEE_CHANGES, ADMIN_LOG, RESTRICT_LOG,
+    LOG_REVIEWS, ACCESS_REVIEWS, SEC_ALERT_KINDS, SEC_ALERTS, NOTICE_KINDS, RELEASE_PARTS, NOTICES, EMAIL_TYPES,
+    OBLIGATION_KINDS, OBLIGATION_WHEN, OBLIGATION_PRESETS, OBLIGATIONS };
 })();

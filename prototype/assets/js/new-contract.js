@@ -73,6 +73,18 @@
   $('#settlement-choices').innerHTML = C.codeList('SETTLEMENT').map(function (c) {
     return '<label class="choice"><input type="radio" name="settlement" value="' + c.code + '">' + esc(c.label) + '</label>';
   }).join('');
+  // 기준 표준계약서 (v0.53, REQ-CHK-09): 지금 판이 있는 표준계약서 + 상대방 양식. 기안하면 고른 것과 오늘의 판이 계약에 남음
+  function templatePick() {
+    const id = val('template');
+    if (!id) return null;
+    if (id === 'OWN') return { id: 'OWN' };
+    const t = D.TEMPLATES.filter(function (x) { return x.id === id; })[0], v = t && C.templateVersionAt(t, D.TODAY);
+    return t && v ? { id: id, no: v.no, label: t.name + ' 판 ' + v.no } : null;
+  }
+  $('#f-template').innerHTML = '<option value="">고르세요</option>' + D.TEMPLATES.map(function (t) {
+    const v = C.templateVersionAt(t, D.TODAY);
+    return v ? '<option value="' + esc(t.id) + '">' + esc(t.name + ' (판 ' + v.no + ', ' + C.fmtDate(v.from) + '부터)') + '</option>' : '';
+  }).join('') + '<option value="OWN">상대방 양식(표준계약서 없음)</option>';
   /* 거래처 검색 (REQ-REG-18, 기획자 요청 v0.32)
    *   상호나 사업자등록번호 일부로 우리 거래처 목록과 사업자 정보 DB(공공데이터 내재화)를 함께 찾음 (C.searchBusinesses)
    *   고르면 상호와 사업자등록번호가 채워지고 잠김. DB에서 고른 곳은 기안할 때 거래처 목록에 함께 등록
@@ -656,6 +668,8 @@
 
     // 체크리스트: 1번은 직접 답, "아니오"인 문항은 비고(사유) 필수 (panda p.9)
     need(!!val('standard'), 'standard', '체크리스트 1번에 답하세요.');
+    need(!!val('template'), 'template', '기준 표준계약서를 고르세요. 상대방 양식이면 "상대방 양식"을 고릅니다.');
+    if (val('template') === 'OWN' && val('standard') === 'YES') need(false, 'template', '상대방 양식이면 체크리스트 1번은 "아니오"입니다.');
     if (val('standard') === 'NO') need(!!val('standardNote'), 'standardNote', '1번이 "아니오"이면 비고에 바꾼 조항과 이유를 적으세요.');
     if (current.pc.q2 === 'NO') need(!!val('priceNote'), 'priceNote', '2번이 "아니오"이면 비고에 표준 단가와 다르게 정한 이유를 적으세요.');
     if (current.pc.q3 === 'NO') need(!!val('capNote'), 'capNote', '3번이 "아니오"이면 비고에 할인율 한도를 넘긴 영업적 사유를 적으세요.');
@@ -715,6 +729,7 @@
       ['계약 금액', current.total ? won(current.total) + ' (부가세 별도)' : '금액 없음'],
       ['계약 기간', C.fmtPeriod(val('startDate'), val('endDate'))],
       ['서비스 수준 협약(SLA)', val('sla') === 'YES' ? '있음' : '없음'],
+      ['기준 표준계약서', templatePick() ? (templatePick().id === 'OWN' ? '상대방 양식(표준계약서 없음)' : templatePick().label) : '-'], // v0.53
       ['계약 검토', goes.join(', ')],
       ['재무 알림', val('accounting') === 'YES' ? '재무에 이메일로 알림 (결재선 아님)' : '없음'],
       ['기안 차수', round + '차' + (val('restricted') ? ', 열람 제한' : '')],
@@ -781,6 +796,8 @@
     setRadio('settlement', f.settlement);
     if (f.checklist) {
       setRadio('standard', f.checklist.standard); $('#f-standard-note').value = f.checklist.standardNote || '';
+      const tp = source.template || f.template; // 기준 표준계약서 (v0.53)
+      if (tp) $('#f-template').value = tp.id;
       setRadio('accounting', f.checklist.accounting); $('#f-accounting-note').value = f.checklist.accountingNote || '';
     }
     $('#f-memo').value = f.memo || '';

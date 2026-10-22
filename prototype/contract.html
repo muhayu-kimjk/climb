@@ -4,17 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <!-- 브라우저 탭 제목: CLIMB (REQ-NAME-02) -->
-  <title>CLIMB</title>
+  <title>climb</title>
   <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
   <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <!-- 로고 글자 climb만 SUITE 글꼴 (v0.53 기획자 요청, OFL 무료 글꼴) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sun-typeface/SUITE@2/fonts/static/woff2/SUITE.css">
   <link rel="stylesheet" href="assets/css/tokens.css">
+  <script src="assets/js/theme.js"></script><!-- 밝은 화면, 어두운 화면 (v0.53) -->
   <link rel="stylesheet" href="assets/css/common.css">
   <link rel="stylesheet" href="assets/css/form.css">
   <link rel="stylesheet" href="assets/css/list.css">
   <link rel="stylesheet" href="assets/css/review.css">
+  <link rel="stylesheet" href="assets/css/admin.css"><!-- 표 안의 글자 버튼(link-act), 제목 옆 버튼 (v0.53 체결 후 의무) -->
 </head>
 <!-- =====================================================================
   SCR-42 계약 상세 (docs/02_화면목록.md)
@@ -42,6 +46,10 @@
           <h1 class="page-title" id="doc-title">계약 상세</h1>
           <p class="doc-meta" id="doc-meta"></p>
         </div>
+        <!-- 계약 요약서(SCR-47, v0.53): 이 묶음을 A4 문서 한 벌로 보고 인쇄 -->
+        <div class="doc-tools no-print" id="doc-tools" hidden>
+          <a class="btn btn--tertiary btn--md" id="btn-summary" href="contract-print.html">계약 요약서</a>
+        </div>
       </div>
 
       <div id="notice"></div>
@@ -65,8 +73,18 @@
           <ul class="doc-files" id="signed"></ul>
         </section>
 
+        <!-- 체결 후 의무 (v0.53 기획자 결정, REQ-FLOW-33~36): 보안 의무, SLA, 청구 일정. 체결본이 등록된 계약부터 더함 -->
+        <section class="panel" aria-labelledby="ob-title">
+          <div class="panel-head panel-head--act">
+            <h2 class="section-title" id="ob-title"><span class="num">4</span>체결 후 의무</h2>
+            <button type="button" class="btn btn--secondary btn--md" id="btn-ob-add" hidden>의무 더하기</button>
+          </div>
+          <p class="section-desc" id="ob-desc">계약을 맺은 뒤 지켜야 할 약속(보안 의무, SLA, 청구 일정)입니다. 맡은 분야가 기한 전에 이메일을 받고, 하고 나면 이행 기록을 남깁니다. 의무와 기록은 지우지 않습니다.</p>
+          <div class="tbl-wrap"><table class="tbl tbl--compact" id="obligations"></table></div>
+        </section>
+
         <section class="panel" aria-labelledby="notes-title">
-          <h2 class="section-title" id="notes-title"><span class="num">4</span>사후관리 기록</h2>
+          <h2 class="section-title" id="notes-title"><span class="num">5</span>사후관리 기록</h2>
           <p class="section-desc">계약 완료 뒤 담당자 변경과 특이사항을 결재 없이 남깁니다. 남긴 기록은 고치거나 지울 수 없습니다.</p>
           <div class="tbl-wrap"><table class="tbl tbl--compact" id="notes"></table></div>
           <form class="note-form" id="note-form" hidden novalidate>
@@ -92,6 +110,7 @@
 
   <script src="assets/js/mock-data.js"></script>
   <script src="assets/js/common.js"></script>
+  <script src="assets/js/obligation-ui.js"></script>
   <script src="assets/js/contract.js"></script>
 </body>
 </html>

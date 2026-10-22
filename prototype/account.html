@@ -4,13 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <!-- 브라우저 탭 제목: CLIMB (REQ-NAME-02) -->
-  <title>CLIMB</title>
+  <title>climb</title>
   <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
   <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <!-- 로고 글자 climb만 SUITE 글꼴 (v0.53 기획자 요청, OFL 무료 글꼴) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sun-typeface/SUITE@2/fonts/static/woff2/SUITE.css">
   <link rel="stylesheet" href="assets/css/tokens.css">
+  <script src="assets/js/theme.js"></script><!-- 밝은 화면, 어두운 화면 (v0.53) -->
   <link rel="stylesheet" href="assets/css/common.css">
   <link rel="stylesheet" href="assets/css/form.css">
   <link rel="stylesheet" href="assets/css/admin.css">
@@ -20,7 +23,8 @@
   SCR-93 내 계정 (docs/02_화면목록.md, 요구사항 정의서 REQ-UI-30, v0.45 기획자 요청)
   - 머리글의 내 이름을 누르면 들어옴. 메뉴에는 없음
   - 1. 계정 정보: 이름, 이메일, 조직, 역할, 상태, 최초 접속, 최종 로그인 (보기만. 조직과 역할은 관리자가 사용자 권한 관리에서 바꿈)
-  - 2. 받을 이메일: 알림 종류마다 언제 오는지와 받기. 꼭 받는 알림은 끌 수 없고(기획자 확인 C-26), 선택 알림만 켜고 끔. 내 역할에 오지 않는 알림은 흐리게
+  - 2. 화면(v0.53 기획자 요청, REQ-UI-31): 기기 설정대로(처음 값), 밝게, 어둡게. 고르면 바로 바뀜(theme.js)
+  - 3. 받을 이메일: 알림 종류마다 언제 오는지와 받기. 꼭 받는 알림은 끌 수 없고(기획자 확인 C-26), 선택 알림만 켜고 끔. 내 역할에 오지 않는 알림은 흐리게
 ====================================================================== -->
 <body data-page="SCR-93">
   <a class="skip-link" href="#main">본문 바로가기</a>
@@ -36,7 +40,7 @@
         <h1 class="page-title">내 계정</h1>
       </div>
       <div class="page-intro">
-        <p>내 계정 정보와 CLIMB에서 받을 이메일을 봅니다.</p>
+        <p>내 계정 정보와 받을 이메일을 봅니다.</p>
         <p class="sub">알림은 화면 안에 띄우지 않고 회사 이메일로 보냅니다.</p>
       </div>
 
@@ -45,6 +49,19 @@
           <div class="panel-head"><h2 class="panel-title" id="sec-info">계정 정보</h2></div>
           <dl class="account-info" id="account-info"></dl>
           <p class="panel-desc account-note">조직과 역할은 관리자가 사용자 권한 관리에서 바꿉니다. 바뀌어야 하면 관리자에게 알려 주세요.</p>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-theme">
+          <div class="panel-head"><h2 class="panel-title" id="sec-theme">화면</h2></div>
+          <fieldset class="field">
+            <legend class="field-label">밝기</legend>
+            <div class="choice-row" id="theme-choices">
+              <label class="choice"><input type="radio" name="theme" value="auto">기기 설정대로</label>
+              <label class="choice"><input type="radio" name="theme" value="light">밝게</label>
+              <label class="choice"><input type="radio" name="theme" value="dark">어둡게</label>
+            </div>
+            <p class="field-help" id="theme-help">처음에는 PC나 휴대폰의 다크모드 설정을 따릅니다. 고르면 바로 바뀌고, 인쇄는 언제나 밝게 나옵니다.</p>
+          </fieldset>
         </section>
 
         <section class="panel" aria-labelledby="sec-mail">

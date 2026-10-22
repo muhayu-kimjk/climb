@@ -1,0 +1,106 @@
+/* =====================================================================
+ * 통계와 보고서 스타일 (stats.css, SCR-46, v0.53)
+ * 그래프는 그림 파일 없이 HTML 막대로 그림. 휴대폰에서도 글자 크기가 줄지 않게(SVG 축소 대신)
+ *   - 막대: 한 색(--chart-bar), 두께 24px 이하, 값 쪽 끝만 4px 둥글게, 바닥은 반듯하게
+ *   - 눈금선: 1px 실선, 바탕과 한 단계만 다르게(--chart-grid)
+ *   - 글자는 늘 글자 색(막대 색으로 쓰지 않음)
+ * ===================================================================== */
+
+/* ---------- 조건 줄: 선택 셋 + 보고서 인쇄 ---------- */
+.filter-bar--stats .field:first-child, .filter-bar--stats .filter-reset { grid-column: auto; grid-row: auto; }
+.stats-cond { display: none; }
+
+/* ---------- 한눈에 보기 ---------- */
+.stat-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.2rem; }
+.stat-tile { padding: 1.6rem; border-radius: var(--radius-lg); background: var(--surface-gray-subtler); text-align: left; } /* 좁은 칸이라 양쪽 맞춤 대신 왼쪽 */
+.stat-label { font-size: var(--fs-body-small); color: var(--text-subtle); }
+.stat-value { margin-top: 0.4rem; font-size: var(--fs-heading-xsmall); font-weight: 700; line-height: 1.35; color: var(--text-bolder); word-break: keep-all; }
+.stat-sub { margin-top: 0.4rem; font-size: var(--fs-body-xsmall); color: var(--text-subtle); word-break: keep-all; }
+
+/* ---------- 그래프 공통 ---------- */
+.chart-title { margin-bottom: 1.2rem; font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
+.chart-empty { padding: 2.4rem 1.6rem; border-radius: var(--radius-lg); background: var(--surface-gray-subtler); text-align: center; font-size: var(--fs-body-small); color: var(--text-subtle); }
+.chart-table { margin-top: 1.6rem; }
+.chart-table summary { cursor: pointer; width: fit-content; font-size: var(--fs-body-small); font-weight: 500; color: var(--text-primary); }
+.chart-table summary:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
+.chart-table[open] summary { margin-bottom: 1.2rem; }
+.row-total th, .row-total td { font-weight: 700; background: var(--surface-gray-subtler); }
+.split-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2.4rem; }
+
+/* 마우스를 올리면 보이는 설명 */
+.chart-tip {
+  position: fixed; z-index: 300; max-width: 28rem; padding: 0.6rem 1rem; border-radius: var(--radius-md);
+  background: var(--surface-inverse); color: var(--text-inverse); font-size: var(--fs-body-xsmall); line-height: 1.5;
+  pointer-events: none; box-shadow: var(--shadow-1);
+}
+
+/* ---------- 세로 막대 (달마다) ----------
+ * 왼쪽 5.6rem에 눈금 글자, 위 2.4rem은 가장 높은 막대 위 글자 자리 */
+.colchart { padding: 2.4rem 0 0 5.6rem; }
+.colchart-plot { position: relative; height: 22rem; }
+.colchart-grid { position: absolute; left: 0; right: 0; height: 0; border-top: 1px solid var(--chart-grid); }
+.colchart-grid.is-base { border-top-color: var(--border-gray-light); }
+.colchart-grid em {
+  position: absolute; right: calc(100% + 0.8rem); top: 0; transform: translateY(-50%);
+  font-style: normal; font-size: var(--fs-body-xsmall); color: var(--text-subtle); white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.colchart-bars { position: absolute; inset: 0; display: flex; }
+.colchart-bars li { position: relative; flex: 1 1 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; min-width: 0; }
+.colchart-bar { width: min(2.4rem, 64%); border-radius: 0.4rem 0.4rem 0 0; background: var(--chart-bar); }
+.colchart-val { margin-bottom: 0.4rem; font-size: var(--fs-body-xsmall); font-weight: 700; color: var(--text-bolder); white-space: nowrap; }
+/* 맨 끝 달의 글자는 그래프 밖으로 나가지 않게 오른쪽에 맞춤 */
+.colchart-bars li:last-child .colchart-val { align-self: flex-end; }
+.colchart-bars li:hover .colchart-bar { filter: brightness(1.12); }
+.colchart-x { display: flex; margin-top: 0.6rem; }
+.colchart-x li { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; font-size: var(--fs-body-xsmall); color: var(--text-subtle); white-space: nowrap; }
+.colchart-x .y { font-size: 1.2rem; }
+
+/* ---------- 가로 막대 (서비스, 영업 유닛, 결재 단계) ----------
+ * 칸: 이름(--label-w) | 막대와 값. 막대 길이 = (칸 폭 - 값 자리 --val-w) x 비율(--p) */
+.hbar-row { display: grid; grid-template-columns: var(--label-w, 9rem) minmax(0, 1fr); gap: 1.2rem; align-items: stretch; min-height: 3.6rem; }
+.hbar-label { align-self: center; font-size: var(--fs-body-small); color: var(--text-basic); word-break: keep-all; }
+.hbar-track { position: relative; display: flex; align-items: center; min-width: 0; }
+.hbar-fill { flex: none; width: calc((100% - var(--val-w, 11rem)) * var(--p)); height: 2rem; border-radius: 0 0.4rem 0.4rem 0; background: var(--chart-bar); }
+.hbar-val { flex: none; margin-left: 0.8rem; font-size: var(--fs-body-small); color: var(--text-basic); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.hbar-val strong { font-size: var(--fs-body-xsmall); font-weight: 700; color: var(--text-bolder); }
+.hbar-row:hover .hbar-fill { filter: brightness(1.12); }
+/* 기준선: 줄이 붙어 있어 하나의 세로선으로 보임. ⑦처럼 기준이 다른 줄은 비움 */
+.hbar--ref .hbar-track::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: calc((100% - var(--val-w, 11rem)) * var(--ref)); width: 0;
+  border-left: 1px solid var(--chart-ref);
+}
+.hbar--ref .hbar-track.no-ref::after { display: none; }
+.hbar-refhead { min-height: 2.4rem; }
+.hbar-reflabel {
+  position: absolute; bottom: 0.4rem; left: calc((100% - var(--val-w, 11rem)) * var(--ref)); transform: translateX(-50%);
+  font-size: var(--fs-body-xsmall); font-weight: 500; color: var(--text-basic); white-space: nowrap;
+}
+.hbar-refhead .hbar-track::after { top: auto; height: 0.4rem; }
+
+/* ---------- 비율 막대 (체크리스트 예외) ---------- */
+.meter-list { display: flex; flex-direction: column; gap: 1.6rem; }
+.meter-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1.2rem; margin-bottom: 0.6rem; }
+.meter-label { font-size: var(--fs-body-small); color: var(--text-basic); word-break: keep-all; }
+.meter-sub { margin-left: 0.6rem; font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
+.meter-val { flex: none; font-size: var(--fs-body-small); font-weight: 700; color: var(--text-bolder); font-variant-numeric: tabular-nums; }
+.meter-track { display: block; height: 0.8rem; border-radius: var(--radius-max); background: var(--chart-track); overflow: hidden; }
+.meter-fill { display: block; height: 100%; border-radius: var(--radius-max); background: var(--chart-bar); }
+
+/* ---------- 휴대폰 ---------- */
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
+  .filter-bar--stats { grid-template-columns: 1fr 1fr; }
+  .filter-bar--stats .field:first-child, .filter-bar--stats .filter-reset { grid-column: 1 / -1; }
+  .stat-row { grid-template-columns: 1fr 1fr; }
+  .split-2 { grid-template-columns: 1fr; }
+  .colchart-plot { height: 18rem; }
+  /* 12달 글자가 겹치지 않게 "월"을 빼고 숫자만. 해는 첫 달과 1월 아래에 */
+  .colchart-x .m-unit { display: none; }
+  .meter-head { flex-direction: column; gap: 0.2rem; }
+}
+
+/* ---------- 인쇄: A4 보고서 ---------- */
+@media print {
+  .stats-cond { display: block; margin-bottom: 1.6rem; font-size: var(--fs-body-small); color: var(--text-basic); }
+  .filter-bar--stats, .chart-table, .chart-tip { display: none !important; }
+  .panel { break-inside: avoid; }
+}

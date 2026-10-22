@@ -34,6 +34,10 @@ body {
 }
 /* 화면 제목과 묶음 제목은 양쪽 정렬하지 않음(두 줄로 넘어갈 때 낱말 사이가 크게 벌어지지 않게, v0.45) */
 .page-title, .panel-title, .section-title { text-align: left; }
+/* 한 덩어리로 둘 글(예: 날짜와 D-day): 줄이 바뀌어도 가운데가 끊기지 않게 (v0.53) */
+.keep { white-space: nowrap; }
+/* 정보 칸 아래 작은 줄(예: 해지 통지 기한)은 양쪽 정렬하지 않음 */
+.info-grid dd .cell-meta { text-align: left; }
 /* 입력 칸에 쓰는 글은 양쪽 정렬하지 않음 (쓰는 중에 낱말 사이가 벌어지지 않게) */
 input, textarea { text-align: start; }
 /* 휴대폰: 양쪽 정렬로 낱말 사이가 크게 벌어지지 않게 글자 단위로 줄을 넘김 (기획자 결정 v0.36)
@@ -115,7 +119,7 @@ svg { flex-shrink: 0; }
 /* ---------- 3. 헤더 (KRDS 헤더) ----------
  * 구성 (REQ-UI-13)
  *   1줄: [CLIMB | 무하유 계약 관리 플랫폼]
- *   2줄: [MUHAYU Contract Lifecycle Management Base]            [영업 이도윤님 | 로그아웃]
+ *   2줄: [무하유 계약 관리 플랫폼(v0.53)]              [영업 이도윤님 | 로그아웃]
  * 오른쪽 한 줄은 왼쪽 둘째 줄(영문 이름)과 글자 밑선(baseline)을 맞추고, 본문 오른쪽 끝에 딱 붙입니다. (v0.15)
  * 화면 알림(종 모양, 알림 숫자)은 두지 않음. 알림은 이메일로 보냄 (REQ-ENV-09) */
 .site-header { position: relative; z-index: 20; background: var(--surface-white); border-bottom: 1px solid var(--border-gray-light); }
@@ -132,8 +136,15 @@ svg { flex-shrink: 0; }
  * 헤더와 푸터는 CLIMB 앞에 무하유 심볼(파비콘과 같은 파일)을 글자 높이에 맞춰 둠 (v0.22)
  * 푸터 첫 줄 "CLIMB | 무하유 계약 관리 플랫폼"의 세로선은 글자 대신 얇은 선(Gray)으로 그림 */
 .brand-title { font-size: var(--fs-heading-medium); font-weight: 700; line-height: 1.3; color: var(--text-bolder); }
-.brand-mark { display: inline-block; width: 0.95em; height: 0.95em; margin-right: 0.35em; vertical-align: -0.12em; }
+.brand-mark { display: inline-block; width: 0.95em; height: 0.95em; margin-right: 0.35em; vertical-align: -0.12em; filter: var(--brand-mark-filter); } /* 어두운 화면에서는 흰 심볼 (v0.53) */
 .brand-name, .brand-ko { white-space: nowrap; }
+/* 로고 글자 "climb": 소문자, SUITE 글꼴을 얇게(Light 300) (v0.53 기획자 요청, REQ-NAME-06). 본문 글은 Noto Sans KR 그대로 */
+/*   얇은 글자가 심볼보다 작아 보여 1.15배로 살짝 키움(기획자 요청: 로고에 맞게). 줄 높이는 그대로 */
+.brand-name { font-family: var(--font-brand); font-weight: 300; font-size: 1.15em; line-height: 1; letter-spacing: 0; }
+/* 시스템 이름 묶음의 글꼴(v0.54 기획자 결정): 영어(로고 climb, 영문 이름)는 SUITE, 한글(무하유 계약 관리 플랫폼)은 Noto Sans KR.
+ * 로고 묶음에만 적용하고 보안 안내 문구 같은 본문 글은 그대로. 크기는 작게(머리글 둘째 줄 크기) */
+.brand-en { font-family: var(--font-brand); }
+.brand-en.is-ko { font-family: var(--font-family); } /* 둘째 줄이 한글 이름일 때 */
 .brand-sep { display: inline-block; width: 1px; height: 0.8em; margin: 0 0.6em; background: var(--mh-gray); vertical-align: -0.05em; }
 /* 로그인 화면: 카드 폭이 좁아 첫 줄이 한 줄에 들어가지 않으므로 세로선 없이 CLIMB과 한글 이름을 위아래로 (REQ-NAME-04, v0.14) */
 .login-brand .brand-name { display: block; }
@@ -256,7 +267,7 @@ a.user-name:hover, a.user-name[aria-current] { color: var(--text-primary); text-
 /* 상태 배지 [가정]: 연한 바탕 + 브랜드 색 테두리 + Black 글자 (tokens.css 3. 계약 상태 배지) */
 .badge--progress { background: var(--status-progress-bg); border-color: var(--status-progress-line); color: var(--text-basic); }
 /* Pink는 진한 핑크 바탕 + 흰 글자 (REQ-UI-09) */
-.badge--danger { background: var(--status-danger-fill); border-color: var(--status-danger-fill); color: var(--text-inverse); }
+.badge--danger { background: var(--status-danger-fill); border-color: var(--status-danger-fill); color: var(--status-danger-text); }
 .badge--attention { background: var(--status-attention-bg); border-color: var(--status-attention-line); color: var(--text-basic); }
 .badge--success { background: var(--status-success-bg); border-color: var(--status-success-line); color: var(--text-basic); }
 .badge--neutral { background: var(--status-neutral-bg); border-color: var(--status-neutral-line); color: var(--text-basic); }
@@ -325,7 +336,7 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
 
 /* ---------- 목록 표 공통 (개요, 진행 현황, 검토 대기, 검토 완료) ---------- */
 /* 한 단계에 오래 머문 건: 진한 핑크 바탕 + 흰 굵은 글자 (REQ-UI-09) */
-.wait-long { display: inline-block; padding: 0 0.6rem; border-radius: var(--radius-sm); background: var(--status-danger-fill); color: var(--text-inverse); font-weight: 700; }
+.wait-long { display: inline-block; padding: 0 0.6rem; border-radius: var(--radius-sm); background: var(--status-danger-fill); color: var(--status-danger-text); font-weight: 700; }
 
 /* 고객사 칸과 서비스 칸 너비 (REQ-DASH-06): 고객사 이름은 짧으므로 고객사 칸은 좁히고,
  * 서비스는 여러 개(예: 카피킬러, HR 서비스)가 들어갈 수 있으므로 서비스 칸을 넉넉하게 둠 */
@@ -362,11 +373,14 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
 .site-footer { background: var(--surface-gray-subtler); border-top: 1px solid var(--border-gray-light); }
 .site-footer .inner { display: flex; flex-direction: column; gap: 1.2rem; padding-top: 4rem; padding-bottom: 4.8rem; }
 .footer-brand { display: flex; flex-direction: column; gap: 0.2rem; }
-.footer-brand .brand-title { font-size: var(--fs-heading-small); }
+/* 머리글과 같은 모양(v0.54 기획자 요청): 로고 크기와 둘째 줄(무하유 계약 관리 플랫폼) 크기, 색을 머리글과 맞춤 */
+.footer-brand .brand-title { font-size: var(--fs-heading-medium); margin-bottom: 0.3rem; } /* climb과 둘째 줄 사이를 머리글과 같게(약 3px) */
 /* 푸터 시스템 이름은 세 줄: [심볼] CLIMB / 무하유 계약 관리 플랫폼 / 영문 이름. 세로선 없이 줄을 바꿈 (v0.44 기획자 요청, PC, 휴대폰, 태블릿 모두) */
 .footer-brand .brand-sep { display: none; }
 .footer-brand .brand-ko { display: block; }
-.footer-brand .brand-en { font-size: var(--fs-body-small); }
+.footer-brand .brand-en { font-size: var(--fs-body-xsmall); } /* 머리글 둘째 줄과 같은 크기 */
+/* 영문 이름(SUITE)은 소문자가 작고 가늘어 읽기 어려워 14px, 중간 굵기(500)로 (v0.54 기획자 선택: 보기 E) */
+.footer-brand .brand-en:not(.is-ko) { font-size: 1.4rem; font-weight: 500; }
 /* 보안 안내 문구 (REQ-UI-15): 영문 이름 줄 아래, 저작권 줄 위. 작은 글자로 읽기 좋게 줄 간격을 넉넉히, 양쪽 정렬 */
 .footer-notice { font-size: var(--fs-body-xsmall); line-height: 1.7; color: var(--text-subtle); text-align: justify; }
 .footer-copy { font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
@@ -414,10 +428,10 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
   .sheet { margin: 0 auto; min-height: 100vh; box-shadow: none; } /* 가로로 눕힌 스마트폰에서도 가운데 (v0.43, 태블릿은 v0.50부터 PC 화면) */
 
   /* 헤더: 폭이 좁아 조직명을 감춤 (이름 | 로그아웃)
-   * 영문 이름 줄(MUHAYU Contract Lifecycle Management Base)도 감추고, 사용자 줄을 CLIMB과 같은 줄 가운데에 맞춤
+   * 둘째 줄(무하유 계약 관리 플랫폼, v0.53)도 감추고, 사용자 줄을 CLIMB과 같은 줄 가운데에 맞춤
    * (기획자 요청 v0.36: 오른쪽 사용자 줄과 균형. 푸터와 로그인 화면의 영문 이름은 그대로) */
   .header-top .inner { min-height: 6.4rem; padding-top: 1.2rem; padding-bottom: 1.2rem; column-gap: 1.2rem; align-items: center; }
-  .header-top .brand-title { font-size: var(--fs-body-large); }
+  .header-top .brand-title, .footer-brand .brand-title { font-size: var(--fs-body-large); } /* 푸터 로고도 머리글과 같은 크기 (v0.54) */
   .header-top .brand-en { display: none; }
   .header-top .user-line { grid-row: 1; }
   .user-line .user-org { display: none; }
@@ -470,7 +484,7 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
 @page {
   size: A4 portrait;
   margin: 10mm 10mm 14mm;
-  @bottom-left { content: "CLIMB | 무하유 계약 관리 플랫폼"; font: 8pt "Noto Sans KR", sans-serif; color: #49595F; }
+  @bottom-left { content: "무하유 계약 관리 플랫폼"; /* v0.53: 이름(climb)은 로고에만, 쪽 아래는 한글 이름만 */ font: 8pt "Noto Sans KR", sans-serif; color: #49595F; }
   /* 대외비 문구: 인쇄할 때는 푸터(보안 안내 문구)가 빠지므로 쪽마다 짧게 찍음 (REQ-UI-15, v0.17 확정) */
   @bottom-center { content: "대외비: 무단 복제와 외부 제공 금지"; font: 700 8pt "Noto Sans KR", sans-serif; color: #021821; }
   @bottom-right { content: counter(page) " / " counter(pages); font: 8pt "Noto Sans KR", sans-serif; color: #49595F; }
@@ -546,7 +560,7 @@ a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: under
   content: counter(flow); display: flex; align-items: center; justify-content: center;
   border: 0.2rem solid var(--border-gray); font-size: var(--fs-body-xsmall); font-weight: 700; color: var(--text-subtle);
 }
-.step-wrap--flow > li.has-items .step-body::before { border-color: var(--mh-dark-green); color: var(--mh-dark-green); }
+.step-wrap--flow > li.has-items .step-body::before { border-color: var(--text-primary); color: var(--text-primary); }
 .step-wrap--flow .step-tit { color: var(--text-bolder); }
 
 /* KRDS 브레드크럼: 하위 화면에서 지금 위치 (예: 개요 > 계약 등록 > 새 계약 등록) */

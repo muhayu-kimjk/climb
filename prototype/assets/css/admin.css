@@ -18,6 +18,15 @@
 .link-act + .link-act { margin-left: 1rem; }
 .link-act--danger { color: var(--status-danger-fill); }
 .link-act:disabled { color: var(--text-disabled); text-decoration: none; cursor: default; }
+/* 체결 후 의무의 할 일(이행 기록, 기록 보기, 끝내기): 좁은 칸에서 한 줄에 하나씩 (v0.53) */
+.ob-acts { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 0.2rem; }
+.ob-acts .link-act { min-height: 2.8rem; margin-left: 0; }
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
+  .ob-acts .link-act { min-height: var(--touch-min); } /* 휴대폰은 손가락 크기 */
+}
+.ob-info { display: grid; grid-template-columns: 8rem minmax(0, 1fr); gap: 0.6rem 1.2rem; margin-bottom: 1.6rem; font-size: var(--fs-body-small); text-align: left; }
+.ob-info dt { color: var(--text-subtle); }
+.ob-info > div { display: contents; }
 
 /* 표 안의 굵은 주 정보와 흐린 줄(사용 안 함, 끝남) */
 .tbl .cell-strong { font-weight: 700; color: var(--text-basic); }
@@ -63,7 +72,7 @@
 .seg { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1.6rem; }
 .seg button { min-height: var(--touch-min); padding: 0 1.6rem; border: 1px solid var(--border-gray); border-radius: 99rem; background: var(--surface-white); font-size: var(--fs-body-small); color: var(--text-basic); }
 .seg button:hover { background: var(--surface-gray-subtler); }
-.seg button[aria-pressed="true"] { border-color: var(--mh-dark-green); background: var(--mh-dark-green); color: var(--text-inverse); font-weight: 700; }
+.seg button[aria-pressed="true"] { border-color: var(--control-checked); background: var(--control-checked); color: var(--control-checked-text); font-weight: 700; }
 @media print { .seg { display: none; } }
 
 /* 입력 창 안의 세로 선택지 (예: 합칠 때 남길 거래처) */
