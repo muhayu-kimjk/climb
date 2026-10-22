@@ -23,7 +23,8 @@
     const top = s.next ? '<span class="keep">' + C.fmtDate(s.next) + '</span>' : s.code === 'EVENT' ? '상시' : '-';
     const sub = s.code === 'EVENT' ? '기록 ' + s.done + '건'
       : s.total > 1 ? s.done + '/' + s.total + '번 함' : '';
-    return top + '<span class="cell-meta">' + C.badge(s.tone, s.label) + (sub ? ' ' + esc(sub) : '') + '</span>';
+    // 배지와 "4/11번 함"은 줄을 나눠 좁은 칸(휴대폰)에서도 칸이 넓어지지 않게
+    return top + '<span class="cell-meta">' + C.badge(s.tone, s.label) + '</span>' + (sub ? '<span class="cell-meta">' + esc(sub) + '</span>' : '');
   }
   // 의무 칸: 이름, 종류, 근거 조항, 언제, 청구 금액
   function titleHtml(o) {

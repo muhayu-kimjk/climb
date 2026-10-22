@@ -63,7 +63,7 @@
     $('#rows').innerHTML = list.length ? list.map(function (o) {
       const s = C.obligationState(o);
       return '<tr' + (s.code === 'LATE' ? ' class="is-alert"' : s.code === 'ENDED' ? ' class="is-muted"' : '') + '>' +
-        '<td class="center nowrap">' + OB.dueHtml(o) + '</td>' +
+        '<td class="center">' + OB.dueHtml(o) + '</td>' +
         '<td class="col-main">' + OB.titleHtml(o) + '</td>' +
         // 휴대폰에서는 맡은 분야 칸을 감추고 계약 아래 작은 줄로 (REQ-ENV-08과 같은 방식)
         '<td>' + contractCell(o) + '<span class="cell-sub">맡은 분야 ' + esc(C.obligationOwnerLabel(o)) + '</span></td>' +

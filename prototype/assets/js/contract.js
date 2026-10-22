@@ -150,7 +150,7 @@
       '<tbody>' + (list.length ? list.map(function (o) {
         const s = C.obligationState(o);
         return '<tr' + (s.code === 'LATE' ? ' class="is-alert"' : s.code === 'ENDED' ? ' class="is-muted"' : '') + '>' +
-          '<td class="center nowrap">' + OB.dueHtml(o) + '</td><td>' + OB.titleHtml(o) + '<span class="cell-sub">맡은 분야 ' + esc(C.obligationOwnerLabel(o)) + '</span></td>' +
+          '<td class="center">' + OB.dueHtml(o) + '</td><td>' + OB.titleHtml(o) + '<span class="cell-sub">맡은 분야 ' + esc(C.obligationOwnerLabel(o)) + '</span></td>' +
           '<td class="center nowrap col-owner">' + esc(C.obligationOwnerLabel(o)) + '</td><td class="col-action">' + OB.actionsHtml(o, me, root) + '</td></tr>';
       }).join('') : '<tr><td class="empty-row" colspan="4">' + (C.canHaveObligations(b) ? '아직 더한 의무가 없습니다.' : '체결본이 등록되면 의무를 더할 수 있습니다.') + '</td></tr>') + '</tbody>';
   }
