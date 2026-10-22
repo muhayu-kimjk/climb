@@ -131,28 +131,54 @@ window.CLIMB_DATA = (function () {
 
   /* ---------- 서비스 [가정] ----------
    * 계약명은 따로 두지 않고, 계약은 고객사와 서비스로 구분합니다. (v0.12 확정)
-   * 서비스는 계약에 넣은 제품(가격 기준의 service)에서 정해집니다. 서비스 이름과 목록은 기획자 확인 필요 */
+   * 서비스는 계약에 넣은 플랜(가격 기준)의 제품이 속한 서비스에서 정해집니다. 서비스 목록은 코드 관리(SCR-56)에서 관리 */
   const SERVICES = { CK: '카피킬러', HR: 'HR 서비스' };
 
-  /* ---------- 가격 기준: 표준단가표와 할인율 한도(cap) (REQ-SCOPE-02, REQ-CHK-04, REQ-CHK-07) ----------
+  /* ---------- 제품과 기능 (v0.47 기획자 요청, SCR-58 제품과 기능 관리) ----------
+   * 서비스 → 제품 → 기능 → 플랜. 같은 제품이라도 기능마다 플랜(가격)이 다를 수 있어 제품과 기능을 나눔
+   *   기획자 예시: 제품 프리즘, 기능 결함검사, 표절검사, 블라인드 A, 블라인드 B, GPT Killer, BP 평가, RP 매칭, PAC
+   * 관리자와 최고관리자가 제품과 기능 관리(SCR-58)에서 넣고 고침. 지우지 않고 사용 안 함으로 돌림(지난 계약의 뜻이 남게)
+   * 플랜(이름, 단위, 표준 단가, 할인율 한도)은 가격 기준 관리(SCR-54)에서 기능마다 정함(아래 PRICE_ROWS)
+   * PRODUCTS: id, service(서비스 코드), name, use / FEATURES: id, product(제품 id), name, use
+   * 제품 id는 v0.46까지 코드 관리에 있던 서비스 중분류, 소분류 코드를 그대로 씀. 프리즘Q(예전 소분류)도 제품으로 둠 [가정]
+   * 프리즘 말고 다른 제품의 기능은 시연용 가상 값입니다. */
+  const PRODUCTS = [
+    ['CK_CAMPUS', 'CK', '카피킬러 캠퍼스'], ['CK_SCHOOL', 'CK', '카피킬러 스쿨'], ['CK_CONTEST', 'CK', '카피킬러 콘테스트'],
+    ['HR_PRISM', 'HR', '프리즘'], ['HR_PRISM_Q', 'HR', '프리즘Q'], ['HR_MONSTER', 'HR', '몬스터'],
+  ].map(function (r) { return { id: r[0], service: r[1], name: r[2], use: true }; });
+  const FEATURES = [
+    ['CK_CAMPUS_PLAG', 'CK_CAMPUS', '표절검사'], ['CK_CAMPUS_GPTK', 'CK_CAMPUS', 'GPT Killer'], ['CK_CAMPUS_API', 'CK_CAMPUS', 'API 연동'],
+    ['HR_PRISM_DEFECT', 'HR_PRISM', '결함검사'], ['HR_PRISM_PLAG', 'HR_PRISM', '표절검사'], ['HR_PRISM_BLIND_A', 'HR_PRISM', '블라인드 A'],
+    ['HR_PRISM_BLIND_B', 'HR_PRISM', '블라인드 B'], ['HR_PRISM_GPTK', 'HR_PRISM', 'GPT Killer'], ['HR_PRISM_BP', 'HR_PRISM', 'BP 평가'],
+    ['HR_PRISM_RP', 'HR_PRISM', 'RP 매칭'], ['HR_PRISM_PAC', 'HR_PRISM', 'PAC'],
+  ].map(function (r) { return { id: r[0], product: r[1], name: r[2], use: true }; });
+
+  /* ---------- 가격 기준: 플랜마다 표준 단가와 할인율 한도(cap) (REQ-SCOPE-02, REQ-CHK-04, REQ-CHK-07) ----------
    * 시연용 가상 값입니다. 실제 단가가 아닙니다.
    * 관리자가 "가격 기준 관리"(SCR-54)에서 관리하고, 영업, 영업지원, 관리자만 볼 수 있습니다.
    * PRICE_ROWS: 바뀐 이력 전체. 값을 바꿀 때는 기존 줄을 고치지 않고 새 적용 시작일로 새 줄을 더합니다(데이터 정의서 8장).
+   *   code: 플랜 코드 / product, feature: 플랜이 속한 제품과 기능(v0.47) / name: 플랜 이름(예: 기본 플랜, 스탠다드)
    *   service: 제품이 속한 서비스(SERVICES) / listPrice: 표준 단가(원, 부가세 별도) / discountCap: 할인율 한도(이 비율까지 할인 가능)
    *   validFrom: 적용 시작일(이날 이후 기안하는 계약부터) / docUrl: 사내 품의 문서 링크(필수) / docNo: 품의 번호 / reason: 변경 사유
    *   by, at: 바꾼 사람과 일시. 품의 문서 주소와 번호는 가상입니다.
-   * PRICE_BOOK: 오늘 적용되는 줄만 모은 표. 계약 등록 화면이 씁니다(common.js가 관리자 변경을 반영해 다시 만듦). */
+   * PRICE_BOOK: 오늘 적용되는 줄만 모은 표. 계약 등록 화면이 씁니다(common.js가 관리자 변경을 반영해 다시 만듦).
+   * v0.47: 예전 제품 줄(CK 기관 라이선스 등)은 코드를 그대로 두고 제품, 기능, 플랜으로 나눔. 프리즘 GPT Killer처럼 기능마다 플랜이 여럿인 예를 더함 */
   const PRICE_DOC = 'https://gw.muhayu.com/approval/';
   const PRICE_ROWS = [
-    { code: 'CK-ORG', service: 'CK', name: 'CK 기관 라이선스', unit: '기관, 1년', listPrice: 12000000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { code: 'CK-USER', service: 'CK', name: 'CK 추가 이용자', unit: '100명, 1년', listPrice: 1400000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { code: 'CK-API', service: 'CK', name: 'CK API 연동', unit: '1식, 1년', listPrice: 6000000, discountCap: 0.10, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { code: 'HR-BASE', service: 'HR', name: 'HR 서비스 기본', unit: '기관, 1년', listPrice: 9600000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { code: 'HR-ADD', service: 'HR', name: 'HR 추가 모듈', unit: '모듈, 1년', listPrice: 3600000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    // 바뀐 예: 추가 이용자 단가 인상(10월 1일부터)
-    { code: 'CK-USER', service: 'CK', name: 'CK 추가 이용자', unit: '100명, 1년', listPrice: 1500000, discountCap: 0.15, validFrom: '2026-10-01', docUrl: PRICE_DOC + '2026-0915', docNo: '경영지원-2026-0915', reason: '추가 이용자 단가 인상(서버 비용 반영)', by: 'u_admin', at: '2026-09-24 15:10' },
-    // 예정된 예: 추가 모듈 할인율 한도를 내년부터 넓힘 (아직 적용 전)
-    { code: 'HR-ADD', service: 'HR', name: 'HR 추가 모듈', unit: '모듈, 1년', listPrice: 3600000, discountCap: 0.20, validFrom: '2027-01-01', docUrl: PRICE_DOC + '2026-1007', docNo: '경영지원-2026-1007', reason: '추가 모듈 판매 촉진: 할인율 한도 15%에서 20%로', by: 'u_admin', at: '2026-10-14 11:30' },
+    { code: 'CK-ORG', service: 'CK', product: 'CK_CAMPUS', feature: 'CK_CAMPUS_PLAG', name: '기관 라이선스', unit: '기관, 1년', listPrice: 12000000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { code: 'CK-USER', service: 'CK', product: 'CK_CAMPUS', feature: 'CK_CAMPUS_PLAG', name: '추가 이용자', unit: '100명, 1년', listPrice: 1400000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { code: 'CK-GPTK', service: 'CK', product: 'CK_CAMPUS', feature: 'CK_CAMPUS_GPTK', name: '기본 플랜', unit: '기관, 1년', listPrice: 2400000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { code: 'CK-API', service: 'CK', product: 'CK_CAMPUS', feature: 'CK_CAMPUS_API', name: '기본 플랜', unit: '1식, 1년', listPrice: 6000000, discountCap: 0.10, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { code: 'HR-BASE', service: 'HR', product: 'HR_PRISM', feature: 'HR_PRISM_DEFECT', name: '기본 플랜', unit: '기관, 1년', listPrice: 9600000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { code: 'HR-ADD', service: 'HR', product: 'HR_PRISM', feature: 'HR_PRISM_PLAG', name: '기본 플랜', unit: '기관, 1년', listPrice: 3600000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { code: 'HR-BLIND-A', service: 'HR', product: 'HR_PRISM', feature: 'HR_PRISM_BLIND_A', name: '기본 플랜', unit: '기관, 1년', listPrice: 3000000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    // 같은 기능에 플랜이 둘인 예: 프리즘 GPT Killer 스탠다드, 프로 (v0.47)
+    { code: 'HR-GPTK-STD', service: 'HR', product: 'HR_PRISM', feature: 'HR_PRISM_GPTK', name: '스탠다드', unit: '기관, 1년', listPrice: 4800000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { code: 'HR-GPTK-PRO', service: 'HR', product: 'HR_PRISM', feature: 'HR_PRISM_GPTK', name: '프로', unit: '기관, 1년', listPrice: 7200000, discountCap: 0.10, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    // 바뀐 예: 카피킬러 캠퍼스 표절검사 추가 이용자 단가 인상(10월 1일부터)
+    { code: 'CK-USER', service: 'CK', product: 'CK_CAMPUS', feature: 'CK_CAMPUS_PLAG', name: '추가 이용자', unit: '100명, 1년', listPrice: 1500000, discountCap: 0.15, validFrom: '2026-10-01', docUrl: PRICE_DOC + '2026-0915', docNo: '경영지원-2026-0915', reason: '추가 이용자 단가 인상(서버 비용 반영)', by: 'u_admin', at: '2026-09-24 15:10' },
+    // 예정된 예: 프리즘 표절검사 할인율 한도를 내년부터 넓힘 (아직 적용 전)
+    { code: 'HR-ADD', service: 'HR', product: 'HR_PRISM', feature: 'HR_PRISM_PLAG', name: '기본 플랜', unit: '기관, 1년', listPrice: 3600000, discountCap: 0.20, validFrom: '2027-01-01', docUrl: PRICE_DOC + '2026-1007', docNo: '경영지원-2026-1007', reason: '프리즘 표절검사 판매 촉진: 할인율 한도 15%에서 20%로', by: 'u_admin', at: '2026-10-14 11:30' },
   ];
   // 오늘 적용되는 줄: 제품마다 적용 시작일이 오늘 이전인 줄 중 가장 늦은 것
   function currentPrices(rows, today) {
@@ -533,49 +559,69 @@ window.CLIMB_DATA = (function () {
   };
 
 
-  /* ---------- 공지사항과 릴리즈 노트 (SCR-91, SCR-92, v0.45 기획자 요청) ----------
-   * 한 게시판에 구분 두 가지: 공지(NOTICE), 릴리즈 노트(RELEASE). 읽기는 모두, 쓰기는 관리자와 최고관리자
-   * 릴리즈 노트는 게임 패치 노트처럼 버전과 날짜, 새 기능 / 개선 / 바뀐 규칙 / 고친 문제로 나눠 씀(items)
+  /* ---------- 공지사항과 릴리즈 (SCR-91, SCR-92, v0.45 기획자 요청) ----------
+   * 한 게시판에 구분 두 가지: 공지(NOTICE), 릴리즈(RELEASE). 읽기는 모두, 쓰기는 관리자와 최고관리자
+   * 릴리즈는 게임 패치 노트처럼 버전과 날짜, 새 기능 / 개선 / 바뀐 규칙 / 고친 문제로 나눠 씀(items)
    * important: 중요 공지. 올리면 전체 사용자에게 이메일로 알림(REQ-ENV-10 ⑧). 개요 맨 위에는 가장 최근 글 한 줄
-   * 아래 릴리즈 노트는 이 시안에서 실제로 바뀐 내용과 날짜입니다(요구사항 정의서 변경 이력과 같은 날짜) */
-  const NOTICE_KINDS = { NOTICE: '공지', RELEASE: '릴리즈 노트' };
+   * 아래 릴리즈는 이 시안에서 실제로 바뀐 내용과 날짜입니다(요구사항 정의서 변경 이력과 같은 날짜)
+   * v0.47 기획자 요청: "릴리즈 노트"를 "릴리즈"로 줄임. 제목은 휴대폰(아이폰 18 Pro) 개요 한 줄에 다 보이게 짧게
+   *   (10자 안팎. 릴리즈는 버전을 빼고. 중요 공지는 "중요" 표시가 붙어 공지보다 짧아야 함) */
+  const NOTICE_KINDS = { NOTICE: '공지', RELEASE: '릴리즈' };
   const RELEASE_PARTS = [['added', '새 기능'], ['improved', '개선'], ['changed', '바뀐 규칙'], ['fixed', '고친 문제']];
   const NOTICES = [
-    { id: 'N-0001', kind: 'NOTICE', important: true, title: 'CLIMB 시범 운영을 시작합니다', at: '2026-10-19 09:00', by: 'u_super',
+    { id: 'N-0001', kind: 'NOTICE', important: true, title: 'CLIMB 시범 운영 시작', at: '2026-10-19 09:00', by: 'u_super',
       body: ['오늘부터 계약 등록과 결재를 CLIMB에서 시범 운영합니다. 기존 전자결재로 올리던 계약 품의는 CLIMB으로 올려 주세요.',
         '로그인은 회사 Google 계정으로 하고, 사내망이나 VPN에서만 접속할 수 있습니다.',
-        '쓰다가 불편한 점은 경영지원유닛 원지안에게 알려 주세요. 고친 내용은 이 게시판의 릴리즈 노트로 알려 드립니다.'] },
+        '쓰다가 불편한 점은 경영지원유닛 원지안에게 알려 주세요. 고친 내용은 이 게시판의 릴리즈로 알려 드립니다.'] },
     { id: 'N-0002', kind: 'NOTICE', important: false, title: '휴대폰에서 결재하는 방법', at: '2026-10-19 09:30', by: 'u_super',
       body: ['휴대폰에서도 결재 문서를 열어 승인, 보완 요청, 반려를 할 수 있습니다. 결재 차례가 되면 오는 이메일의 링크를 누르면 됩니다.',
         '첨부 파일은 휴대폰에서 미리보기만 됩니다. 내려받기는 PC에서 해 주세요.'] },
-    { id: 'N-0003', kind: 'RELEASE', version: 'v0.6.0', title: '계약 등록 정리와 새 달력', at: '2026-10-21 10:00', by: 'u_super',
+    { id: 'N-0003', kind: 'RELEASE', version: 'v0.6.0', title: '새 달력과 계약 등록', at: '2026-10-21 10:00', by: 'u_super',
       items: {
         added: ['모든 날짜 칸에 큰 달력을 붙였습니다(KRDS). 이전 달, 다음 달, 연도와 월을 고를 수 있습니다.'],
         improved: ['날짜를 2027-01-01처럼 씁니다.', '글은 양쪽 정렬로 보여 줍니다. 휴대폰에서는 글자 단위로 줄을 바꿔 낱말 사이가 벌어지지 않습니다.'],
         changed: ['"계약 구분"을 "계약종류"(신규, 변경, 연장)로 바꿨습니다. "갱신"은 "연장"으로 부릅니다.', '계약 유형을 없애고 계약 방식(직접, 조달, 간접)을 버튼으로 고릅니다.', '계약일과 서비스 기간 칸을 뺐습니다. 계약 시작일과 종료일만 넣습니다.'],
       } },
-    { id: 'N-0004', kind: 'RELEASE', version: 'v0.7.0', title: '계약번호 새 규칙과 거래처 기관', at: '2026-10-21 15:00', by: 'u_super',
+    { id: 'N-0004', kind: 'RELEASE', version: 'v0.7.0', title: '계약번호 새 규칙', at: '2026-10-21 15:00', by: 'u_super',
       items: {
         added: ['거래처 아래에 기관(부서)을 둘 수 있습니다. 예: 한 대학의 중앙도서관, 대학원'],
         improved: ['직접 넣은 사업자등록번호는 국세청에 폐업, 휴업을 조회합니다.', '종료일 달력에서는 시작일보다 앞선 날을 고를 수 없습니다.', '휴대폰 머리글을 한 줄로 줄였습니다.'],
         changed: ['계약번호가 2610CL001처럼 바뀝니다(기안 연월 + CL + 일련번호).', '열람 제한 계약의 변경, 연장 기안은 열람 제한을 이어받습니다.'],
       } },
-    { id: 'N-0005', kind: 'NOTICE', important: true, title: '계약번호 규칙이 바뀝니다', at: '2026-10-21 15:10', by: 'u_super',
+    { id: 'N-0005', kind: 'NOTICE', important: true, title: '계약번호 규칙 변경', at: '2026-10-21 15:10', by: 'u_super',
       body: ['계약번호를 판다 영업기회번호와 같은 꼴로 바꿨습니다. 기안한 연월 4자리 + CL + 그 달 일련번호 3자리입니다(예: 2610CL001).',
         '변경, 연장, 해지, 운영 변경 기안은 원계약 번호 뒤에 -A01, -R01, -T01, -C01이 붙습니다.',
         '이미 등록된 계약도 새 번호로 바꿔 보여 줍니다.'] },
-    { id: 'N-0006', kind: 'RELEASE', version: 'v0.8.0', title: '날짜 입력, SLA, 부속 서류', at: '2026-10-21 17:00', by: 'u_super',
+    { id: 'N-0006', kind: 'RELEASE', version: 'v0.8.0', title: '날짜 입력과 SLA', at: '2026-10-21 17:00', by: 'u_super',
       items: {
         added: ['계약 등록에 "서비스 수준 협약(SLA)"을 이 계약과 별도로 체결하는지 넣었습니다.', '첨부에 "부속 서류"를 올릴 수 있습니다. 비밀유지계약서 같은 서류를 함께 올립니다.'],
         improved: ['날짜 칸은 숫자만 넣으면 넣는 대로 "-"가 붙습니다.'],
         changed: ['금전 거래가 있는 계약만 등록합니다. 비밀유지계약은 따로 등록하지 않고 부속 서류로 올립니다.'],
         fixed: ['없는 날짜(13월, 2월 30일 등)를 넣으면 칸을 떠날 때 바로 알려 줍니다.'],
       } },
-    { id: 'N-0007', kind: 'RELEASE', version: 'v0.9.0', title: '휴대폰과 태블릿 화면, 공지사항, 내 계정', at: '2026-10-22 18:00', by: 'u_super',
+    { id: 'N-0007', kind: 'RELEASE', version: 'v0.9.0', title: '공지사항과 내 계정', at: '2026-10-22 18:00', by: 'u_super',
       items: {
-        added: ['공지사항 메뉴를 새로 만들었습니다. 공지와 릴리즈 노트를 한곳에서 봅니다.', '이름을 누르면 내 계정 화면으로 갑니다. 받을 이메일을 고를 수 있습니다.'],
+        added: ['공지사항 메뉴를 새로 만들었습니다. 공지와 릴리즈를 한곳에서 봅니다.', '이름을 누르면 내 계정 화면으로 갑니다. 받을 이메일을 고를 수 있습니다.'],
         improved: ['휴대폰과 태블릿에서는 메뉴를 한 줄로 두고 옆으로 밀어 봅니다. 메뉴가 더 있으면 끝이 흐려지고 화살표가 보입니다.',
           '태블릿도 휴대폰과 같은 화면을 씁니다.', '휴대폰에서 개요의 계약 진행 현황을 단계마다 한 줄로 보여 줍니다.', '화면 맨 아래 시스템 이름을 세 줄로 바꿨습니다.'],
+      } },
+    // v0.9.1 (요구사항 정의서 v0.46): 기관 또는 부서명 직접 입력, 달력 두 번 눌러 입력
+    { id: 'N-0008', kind: 'RELEASE', version: 'v0.9.1', title: '기관명 입력과 달력', at: '2026-10-22 19:00', by: 'u_super',
+      items: {
+        improved: ['달력에서 고른 날짜를 한 번 더 누르면 확인을 누르지 않아도 바로 입력됩니다. 달력의 "오늘" 아래에 작게 알려 줍니다.'],
+        changed: ['"기관(부서)"를 "기관 또는 부서명"으로 바꾸고, 고르지 않고 직접 적습니다. 기관 이름은 사업자등록번호처럼 확인할 고유 번호가 없기 때문입니다.',
+          '거래처마다 두던 기관 목록을 없앴습니다. 거래처 검색에서도 기관 이름으로는 찾지 않습니다. 이미 등록한 계약의 기관 이름은 그대로 남습니다.'],
+      } },
+    // v0.9.2 (요구사항 정의서 v0.47): 제품과 기능을 나눔, 제품과 기능 관리 화면
+    { id: 'N-0009', kind: 'RELEASE', version: 'v0.9.2', title: '제품과 기능 관리', at: '2026-10-22 20:00', by: 'u_super',
+      items: {
+        added: ['관리자 메뉴에 "제품과 기능 관리"를 새로 만들었습니다. 관리자와 최고관리자가 제품(예: 프리즘)과 그 기능(예: 결함검사, 표절검사, GPT Killer)을 넣고 고칩니다.',
+          '기능은 한 줄에 하나씩 적어 여러 개를 한 번에 넣을 수 있습니다.'],
+        changed: ['계약 등록의 "금액과 제품"을 "제품과 금액"으로 바꿨습니다. 줄마다 제품, 기능, 플랜을 차례로 고릅니다.',
+          '같은 제품이라도 기능마다 플랜(가격)이 다를 수 있습니다. 가격 기준 관리에서는 기능마다 플랜을 추가합니다.',
+          '코드 관리의 서비스는 한 단계만 둡니다. 카피킬러 캠퍼스, 프리즘 같은 이름은 제품으로 옮겼습니다.',
+          // 원래 세션의 요청(요구사항 정의서 v0.48): 공지사항 구분 이름 바꿈도 이 릴리즈에 함께 알림
+          "'릴리즈 노트'를 '릴리즈'로 줄였습니다. 제목은 휴대폰 한 줄에 들어가게 짧게 씁니다."],
       } },
   ];
 
@@ -592,7 +638,7 @@ window.CLIMB_DATA = (function () {
     { code: 'SECURITY', name: '이상 행위', when: '접속 기록에서 이상 행위가 감지됐을 때', must: true, roles: ['PRIVACY'] },
     { code: 'NOTICE_IMPORTANT', name: '중요 공지', when: '관리자가 중요 공지를 올렸을 때', must: true },
     { code: 'PROGRESS', name: '내 기안 진행 소식', when: '내가 기안한 계약이 다음 결재 단계로 넘어갈 때마다', must: false, on: false, roles: ['SALES'] },
-    { code: 'NOTICE_ALL', name: '일반 공지와 릴리즈 노트', when: '중요 공지가 아닌 공지와 릴리즈 노트가 올라왔을 때', must: false, on: false },
+    { code: 'NOTICE_ALL', name: '일반 공지와 릴리즈', when: '중요 공지가 아닌 공지와 릴리즈가 올라왔을 때', must: false, on: false },
   ];
 
   /* ---------- 사용자 계정 목록: 사용자 권한 관리(SCR-51) ----------
@@ -683,9 +729,9 @@ window.CLIMB_DATA = (function () {
    * 프로토타입은 계약의 상호(counterparty)로 거래처를 연결합니다. 실제 시스템은 거래처 번호(customer_id)로 연결합니다.
    * use: 사용 여부 / mergedInto: 다른 거래처로 합쳐졌으면 남긴 거래처 번호
    * C-0001~0013: CLIMB 도입 때 기존 계약관리대장에서 옮긴 거래처 / 그 뒤: 영업이 계약을 등록하며 새로 등록 */
-  // 거래처 아래 기관(부서) (C-24 v0.39 기획자 결정): 사업자등록번호 하나에 거래처 하나를 두고, 실제로 계약하는 기관이나 부서가 여럿이면 여기에 둠
-  //   예: 한 대학(사업자등록번호 하나)의 중앙도서관과 대학원이 따로 계약. 계약에는 거래처와 기관(unit)을 함께 남김
-  const CUSTOMER_UNITS = { 'C-0017': ['중앙도서관', '대학원'], 'C-0001': ['교수학습개발센터'] };
+  // 기관 또는 부서명 (C-24 v0.39, v0.46 기획자 결정): 사업자등록번호 하나에 거래처 하나. 그 안에서 따로 계약하는 기관이나 부서는
+  //   계약마다 이름을 직접 적어 계약에만 남김(contract.unit). 기관 이름은 고유 번호가 없어 확인할 수 없으므로 거래처에 목록으로 두지 않음
+  //   (v0.39의 거래처별 기관 목록 CUSTOMER_UNITS는 v0.46에서 없앰)
   const CUSTOMERS = [
     // [번호, 상호, 사업자등록번호, 등록한 사람, 등록일]
     ['C-0001', '한결대학교', '119-82-04515', 'u_super', '2026-09-01'],
@@ -712,7 +758,7 @@ window.CLIMB_DATA = (function () {
     ['C-0021', '바름고등학교', '214-82-10457', 'u_sales1', '2026-10-18'],
     ['C-0022', '새봄평생교육원', '211-91-40314', 'u_sales1', '2026-10-16'],
   ].map(function (r) {
-    return { id: r[0], name: r[1], bizNo: r[2], registeredBy: r[3], registeredAt: r[4], use: true, mergedInto: null, units: CUSTOMER_UNITS[r[0]] || [] };
+    return { id: r[0], name: r[1], bizNo: r[2], registeredBy: r[3], registeredAt: r[4], use: true, mergedInto: null };
   });
 
   /* ---------- 사업자 정보 DB: 거래처 검색 (기획자 요청 v0.32, 요구사항 정의서 REQ-REG-18) ----------
@@ -736,11 +782,11 @@ window.CLIMB_DATA = (function () {
   /* ---------- 관리자가 관리하는 코드표: 코드 관리(SCR-56) (데이터 정의서 9장) ----------
    * 화면 이름을 바꿔도 코드는 그대로입니다. 쓰지 않는 코드는 지우지 않고 "사용 안 함"으로 돌립니다(지난 기록의 뜻을 지키려고).
    * 사용 안 함인 코드는 새로 고르는 목록에서만 빠지고, 이미 저장된 기록에는 그대로 보입니다.
-   * 서비스는 대분류, 중분류, 소분류 3단계(level 1~3, parent 상위 코드). 중분류, 소분류는 기획자가 든 예 (D-09 목록 전달 예정) */
+   * 서비스는 한 단계(v0.47). v0.46까지의 중분류, 소분류(카피킬러 캠퍼스, 프리즘 등)는 제품으로 옮겨 제품과 기능 관리(SCR-58)에서 관리 */
   const CODE_GROUPS = {
-    // levels: 단계가 있는 코드표의 단계 이름 (조직은 실과 그 아래 유닛, 서비스는 3단계)
+    // levels: 단계가 있는 코드표의 단계 이름 (조직은 실과 그 아래 유닛)
     DEPT: { name: '조직', table: 'CODE-DEPT', note: '사용자 권한 관리에서 고르는 조직(실, 유닛). 화면 맨 위 이름 앞에 보임', levels: { 1: '1단계', 2: '2단계' } },
-    SERVICE: { name: '서비스', table: 'CODE-SERVICE', note: '대분류, 중분류, 소분류 3단계. 제품(가격 기준)이 속하는 서비스', levels: { 1: '대분류', 2: '중분류', 3: '소분류' } },
+    SERVICE: { name: '서비스', table: 'CODE-SERVICE', note: '계약을 구분하는 서비스. 그 아래 제품과 기능은 제품과 기능 관리에서 관리' },
     // 계약 유형(CONTRACT_TYPE)은 v0.34에서 없애 코드 관리에 보이지 않음. 코드 줄은 예전 기록을 읽을 때만 씀
     METHOD: { name: '계약 방식', table: 'CODE-METHOD', note: '계약 등록에서 고르는 방식' },
     SETTLEMENT: { name: '정산 방식', table: 'CODE-SETTLEMENT', note: '계약 등록에서 고르는 방식' },
@@ -754,9 +800,7 @@ window.CLIMB_DATA = (function () {
     ['DEPT', 'BIZ', '비즈니스유닛', 1], ['DEPT', 'BIZ_1', '비즈니스1유닛', 2, 'BIZ'], ['DEPT', 'BIZ_2', '비즈니스2유닛', 2, 'BIZ'],
     ['DEPT', 'BIZ_3', '비즈니스3유닛', 2, 'BIZ'], ['DEPT', 'SALES_ADMIN', '세일즈어드민유닛', 2, 'BIZ'], ['DEPT', 'CEM', 'CEM유닛', 1], // C-21 ② v0.39: 어느 실에도 속하지 않는 1단계 조직
     ['DEPT', 'INFOSEC', '정보보호유닛', 1],
-    ['SERVICE', 'CK', SERVICES.CK, 1], ['SERVICE', 'HR', SERVICES.HR, 1], ['SERVICE', 'ETC', '기타', 1],
-    ['SERVICE', 'CK_CAMPUS', '카피킬러 캠퍼스', 2, 'CK'], ['SERVICE', 'CK_SCHOOL', '카피킬러 스쿨', 2, 'CK'], ['SERVICE', 'CK_CONTEST', '카피킬러 콘테스트', 2, 'CK'],
-    ['SERVICE', 'HR_PRISM', '프리즘', 2, 'HR'], ['SERVICE', 'HR_MONSTER', '몬스터', 2, 'HR'], ['SERVICE', 'HR_PRISM_Q', '프리즘Q', 3, 'HR_PRISM'],
+    ['SERVICE', 'CK', SERVICES.CK], ['SERVICE', 'HR', SERVICES.HR], ['SERVICE', 'ETC', '기타'], // 중분류, 소분류는 v0.47에 제품(PRODUCTS)으로 옮김
     ['CONTRACT_TYPE', 'SAAS', 'SaaS 이용계약'], ['CONTRACT_TYPE', 'NDA', '비밀유지계약(NDA)'], ['CONTRACT_TYPE', 'RESELLER', '리셀러 계약'],
     ['CONTRACT_TYPE', 'DPA', '개인정보 처리위탁 계약'], ['CONTRACT_TYPE', 'ETC', '기타'],
     ['METHOD', 'DIRECT', '직접'], ['METHOD', 'PROCURE', '조달'], ['METHOD', 'INDIRECT', '간접'],
@@ -781,7 +825,7 @@ window.CLIMB_DATA = (function () {
 
   /* ---------- 관리자 변경 이력 (SCR-51~56, REQ-SEC-05, REQ-AUTH-10, REQ-CHK-07) ----------
    * 관리자 화면에서 바꾼 것은 모두 한 줄씩 남기고 고치거나 지우지 않습니다(영구 보관). 사유는 필수입니다.
-   * area: USER 사용자 권한 / RULE 결재선 규칙 / RESTRICT 열람 제한 / CUSTOMER 거래처 / CODE 코드 / AUDIT 기록 점검
+   * area: USER 사용자 권한 / RULE 결재선 규칙 / RESTRICT 열람 제한 / CUSTOMER 거래처 / CODE 코드 / PRODUCT 제품과 기능(v0.47) / AUDIT 기록 점검
    * 아래는 이미 반영된 예시 기록입니다(시연으로 바꾼 것은 common.js가 이 브라우저에 저장해 더함). 가격 기준 이력은 PRICE_ROWS에 있습니다. */
   const ADMIN_LOG = [
     { at: '2026-09-01 09:00', by: 'u_super', area: 'RULE', target: '결재선 규칙', change: '처음 설정: ② 배수아, ③ 유닛 리더(비즈니스1유닛 최민준, 비즈니스2유닛 고은성, 비즈니스3유닛 차유나, 리더 본인 계약은 문태호), ④ 김지우, ⑤ 한서연, ⑥ 노은채, ⑧ 배수아, ⑨ 임하준, ⑩ 오현우, 결재 대기 독촉 5일, 체결 지연 독촉 14일', reason: 'CLIMB 도입' },
@@ -826,6 +870,6 @@ window.CLIMB_DATA = (function () {
 
   return { TODAY, BRAND, ROLES, ROLE_AREAS, ROLE_SHORT, ROLE_AREA, ROLE_BASE, STEP_LEADS, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, CONTRACT_TYPES, METHODS, SETTLEMENTS, PRICE_BOOK, STEPS, REVIEW_GROUPS, POST_GROUPS, PROCESS_ROLES, STEP_ASSIGNEE, APPROVAL_STATE, APPROVAL_ACTIONS, SEAL_CHECKS, OPS_CHECKS, OPS_CHECKS_END, OPS_CHECKS_EXTEND, AFTERCARE_TYPES, FILE_KINDS, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS,
     CHANGE_TYPES, CHANGE_RULES, OPS_CHECKS_PERIOD, TEAM_LEADERS,
-    PRICE_ROWS, currentPrices, CUSTOMERS, BIZ_REGISTRY, BIZ_REGISTRY_INFO, NTS_STATUS, CODE_GROUPS, CODES, DELEGATIONS, ASSIGNEE_CHANGES, ADMIN_LOG, RESTRICT_LOG,
+    PRODUCTS, FEATURES, PRICE_ROWS, currentPrices, CUSTOMERS, BIZ_REGISTRY, BIZ_REGISTRY_INFO, NTS_STATUS, CODE_GROUPS, CODES, DELEGATIONS, ASSIGNEE_CHANGES, ADMIN_LOG, RESTRICT_LOG,
     LOG_REVIEWS, ACCESS_REVIEWS, SEC_ALERT_KINDS, SEC_ALERTS, NOTICE_KINDS, RELEASE_PARTS, NOTICES, EMAIL_TYPES };
 })();

@@ -122,14 +122,16 @@
             </div>
           </div>
 
-          <!-- 기관(부서) (C-24 v0.39 기획자 결정): 같은 사업자등록번호 안에서 실제로 계약하는 기관이나 부서. 선택
-               거래처의 기관을 고르거나 새로 넣음(새 기관은 기안하면 거래처에 함께 등록) -->
-          <div class="field" data-field="unit">
-            <label class="field-label" for="f-unit-pick">기관(부서) <span class="opt">(선택)</span></label>
-            <select class="select" id="f-unit-pick" disabled><option value="">거래처를 먼저 고르세요</option></select>
-            <input class="input unit-new" id="f-unit" type="text" maxlength="40" placeholder="예: 중앙도서관" aria-label="새 기관(부서) 이름" hidden>
-            <p class="field-help">한 거래처(사업자등록번호 하나) 안에서 따로 계약하는 기관이나 부서가 있으면 고릅니다. 예: 대학의 중앙도서관, 대학원</p>
-            <p class="field-error" hidden></p>
+          <!-- 기관 또는 부서명 (C-24 v0.39 기획자 결정, v0.46 바꿈): 같은 사업자등록번호 안에서 실제로 계약하는 기관이나 부서. 선택
+               v0.46 기획자 결정: 고르는 목록 없이 직접 적는 칸만 둠. 기관 이름은 사업자등록번호 같은 고유 번호가 없어 맞는지 확인할 수 없기 때문
+               적은 이름은 이 계약에만 남고, 거래처에 기관 목록으로 쌓지 않음 -->
+          <div class="field-row">
+            <div class="field" data-field="unit">
+              <label class="field-label" for="f-unit">기관 또는 부서명 <span class="opt">(선택)</span></label>
+              <input class="input" id="f-unit" name="unit" type="text" maxlength="40" placeholder="예: 중앙도서관" aria-describedby="unit-help">
+              <p class="field-help" id="unit-help">한 거래처(사업자등록번호 하나) 안에서 따로 계약하는 기관이나 부서가 있으면 이름을 적습니다. 예: 대학의 중앙도서관, 대학원</p>
+              <p class="field-error" hidden></p>
+            </div>
           </div>
 
           <!-- 영업대표: 로그인한 사람, "조직 이름"으로 (님 없이, v0.32) -->
@@ -221,10 +223,12 @@
           </div>
         </section>
 
-        <!-- ============ 2. 금액과 제품 (CPQ, 3.4) ============ -->
+        <!-- ============ 2. 제품과 금액 (CPQ, 3.4) ============
+             v0.47 기획자 요청: "금액과 제품" → "제품과 금액". 제품과 기능을 나눔(같은 제품이라도 기능마다 플랜이 다를 수 있음)
+             줄마다 제품 → 기능 → 플랜을 차례로 고르고(하나뿐이면 저절로 고름) 수량, 계약 금액을 넣음. 제품과 기능은 제품과 기능 관리(SCR-58), 플랜과 가격은 가격 기준 관리(SCR-54) -->
         <section class="panel" aria-labelledby="sec-amount">
-          <h2 class="section-title" id="sec-amount"><span class="num">2</span>금액과 제품</h2>
-          <p class="section-desc">제품마다 계약 금액을 넣으면 표준 단가와 비교해 할인율이 자동으로 계산됩니다.</p><!-- v0.42: 가격 기준을 볼 수 있는 역할 안내는 뺌(규칙 REQ-SCOPE-02는 그대로) -->
+          <h2 class="section-title" id="sec-amount"><span class="num">2</span>제품과 금액</h2>
+          <p class="section-desc">제품, 기능, 플랜을 차례로 고르고 계약 금액을 넣으면 플랜의 표준 단가와 비교해 할인율이 자동으로 계산됩니다. 같은 제품이라도 기능마다 플랜이 다를 수 있습니다.</p><!-- v0.42: 가격 기준을 볼 수 있는 역할 안내는 뺌(규칙 REQ-SCOPE-02는 그대로) -->
 
           <!-- CLIMB에는 금전 거래가 있는 계약만 등록 (v0.41 기획자 결정). 비밀유지계약 등은 아래 "부속 서류"로 첨부. v0.34의 "금액이 없는 계약" 체크는 뺌 -->
           <div class="field" data-field="products" id="products-field">

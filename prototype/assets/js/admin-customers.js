@@ -8,6 +8,8 @@
  *   3. 합치기: 둘 이상 골라 남길 거래처를 정함. 나머지의 계약은 남길 거래처로 옮기고, 나머지는 "합쳐짐"으로 남김
  *   4. 고치기(상호, 사업자등록번호, 사용 여부), 거래처 추가. 사업자등록번호는 중복 불가
  *   5. 변경 이력
+ * v0.46 기획자 결정: 거래처마다 두던 기관(부서) 목록(v0.39)을 없앰. 기관 이름은 고유 번호가 없어 맞는지 확인할 수 없으므로
+ *   계약 등록에서 "기관 또는 부서명"을 계약마다 직접 적고, 거래처에는 쌓지 않음
  * 프로토타입: 계약은 상호로 연결되어 있어 상호를 바꾸거나 합치면 계약의 상호를 바꿔 보여 줌.
  *   실제 시스템은 계약이 거래처 번호(customer_id)로 연결되므로 거래처만 바꾸면 됨. 바꾼 내용은 이 브라우저에만 저장(시연 기록)
  * ===================================================================== */
@@ -54,7 +56,7 @@
   function filtered() {
     const q = $('#f-q').value.trim().toLowerCase(), st = $('#f-use').value;
     return D.CUSTOMERS.filter(function (cu) {
-      if (q && cu.name.toLowerCase().indexOf(q) < 0 && cu.bizNo.indexOf(q) < 0 && !(cu.units || []).some(function (u) { return u.toLowerCase().indexOf(q) > -1; })) return false; // 기관 이름도 찾음 (v0.39)
+      if (q && cu.name.toLowerCase().indexOf(q) < 0 && cu.bizNo.indexOf(q) < 0) return false;
       if (st && stateOf(cu) !== st) return false;
       return true;
     });
@@ -76,8 +78,7 @@
       return '<tr' + (st !== 'USE' ? ' class="is-muted"' : '') + '>' +
         '<td class="col-action">' + (st === 'USE' ? '<label class="choice choice--only"><input type="checkbox" data-pick="' + esc(cu.id) + '"' +
           (picked.indexOf(cu.id) > -1 ? ' checked' : '') + ' aria-label="' + esc(cu.name) + ' 합치기에 고르기"></label>' : '') + '</td>' +
-        '<td><span class="cell-strong">' + esc(cu.name) + '</span><span class="cell-meta">' + esc(cu.id) + (into ? ', ' + esc(ro(into.name)) + ' 합쳐짐' : '') +
-          ((cu.units || []).length ? ', 기관: ' + esc(cu.units.join(', ')) : '') + '</span></td>' +
+        '<td><span class="cell-strong">' + esc(cu.name) + '</span><span class="cell-meta">' + esc(cu.id) + (into ? ', ' + esc(ro(into.name)) + ' 합쳐짐' : '') + '</span></td>' +
         '<td class="num-left">' + esc(cu.bizNo) + '</td>' +
         '<td class="num">' + contractsOf(cu) + '건</td>' +
         '<td class="nowrap">' + esc(C.userName(cu.registeredBy)) + '님<span class="cell-meta">' + C.fmtDate(cu.registeredAt) + '</span></td>' +
@@ -130,10 +131,6 @@
     // 숫자만 넣으면 '-'를 붙여 보여 줌 (v0.34)
     f.elements.bizNo.addEventListener('input', function (e) { e.target.value = C.fmtBizNo(e.target.value); });
   }
-  // 기관(부서): 한 줄에 하나, 빈 줄과 겹치는 이름은 뺌 (C-24 v0.39)
-  function unitsOf(f) {
-    return val(f, 'units').split('\n').map(function (x) { return x.trim(); }).filter(function (x, i, a) { return x && a.indexOf(x) === i; });
-  }
   function uniqueNote(no) { return !C.isBizNo(no) && C.isUniqueNo(no) ? ' 고유번호의 검증 숫자가 맞지 않으니 번호를 다시 확인하세요.' : ''; }
   function openEdit(id) {
     const cu = find(id);
@@ -142,13 +139,12 @@
       desc: '상호를 바꾸면 이 거래처의 모든 계약에 새 상호가 보입니다. 사용 안 함으로 돌리면 계약 등록에서 고를 수 없습니다.',
       body: C.fieldHtml({ name: 'cuName', label: '상호', required: true, value: cu.name, help: '사업자등록증의 상호' }) +
         C.fieldHtml({ name: 'bizNo', label: '사업자등록번호', required: true, value: cu.bizNo, help: "'-' 없이 숫자만 넣으면 됩니다.", attrs: ' inputmode="numeric" maxlength="12"' }) +
-        C.fieldHtml({ name: 'units', label: '기관(부서)', type: 'textarea', value: (cu.units || []).join('\n'), placeholder: '예: 중앙도서관', help: '한 줄에 하나씩 적습니다. 같은 사업자등록번호 안에서 따로 계약하는 기관이나 부서입니다(C-24). 빼도 이미 맺은 계약의 기관 이름은 남습니다.' }) +
         C.fieldHtml({ name: 'use', label: '상태', type: 'select', value: String(cu.use), options: [['true', '사용 중'], ['false', '사용 안 함']] }) +
         C.fieldHtml({ name: 'reason', label: '고치는 사유', type: 'textarea', required: true, placeholder: '예: 사업자등록증의 상호로 바로잡음' }),
       btn: '저장',
       open: formatOnInput,
       check: function (f) {
-        const same = val(f, 'cuName') === cu.name && val(f, 'bizNo') === cu.bizNo && val(f, 'use') === String(cu.use) && unitsOf(f).join('\n') === (cu.units || []).join('\n');
+        const same = val(f, 'cuName') === cu.name && val(f, 'bizNo') === cu.bizNo && val(f, 'use') === String(cu.use);
         return {
           cuName: !val(f, 'cuName') ? '상호를 넣으세요.' : same ? '바뀐 내용이 없습니다.' : '',
           bizNo: bizNoError(val(f, 'bizNo'), cu.id),
@@ -156,12 +152,11 @@
         };
       },
       done: function (f) {
-        const set = { name: val(f, 'cuName'), bizNo: val(f, 'bizNo'), use: val(f, 'use') === 'true', units: unitsOf(f) };
+        const set = { name: val(f, 'cuName'), bizNo: val(f, 'bizNo'), use: val(f, 'use') === 'true' };
         const parts = [];
         if (set.name !== cu.name) parts.push('상호: ' + cu.name + ' → ' + set.name);
         if (set.bizNo !== cu.bizNo) parts.push('사업자등록번호: ' + cu.bizNo + ' → ' + set.bizNo);
         if (set.use !== cu.use) parts.push('상태: ' + (cu.use ? '사용 중 → 사용 안 함' : '사용 안 함 → 사용 중'));
-        if (set.units.join('\n') !== (cu.units || []).join('\n')) parts.push('기관: ' + ((cu.units || []).join(', ') || '없음') + ' → ' + (set.units.join(', ') || '없음'));
         C.adminSave('CUSTOMER', tag(cu), parts.join(', '), val(f, 'reason'), { k: 'CUSTOMER_EDIT', id: cu.id, set: set });
         render();
         C.toast(set.name + ' 거래처를 고쳤습니다.' + uniqueNote(set.bizNo));

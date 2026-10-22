@@ -411,7 +411,8 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
 
   /* 메뉴: PC와 같은 순서. 한 줄로 두고 손가락으로 옆으로 밀어(스와이프) 봄. 이용 안내(?)는 오른쪽에 고정 (v0.42 기획자 요청, 예전에는 두 줄로 넘어감)
    * 밀어 볼 수 있다는 표시(v0.43 기획자 요청): 메뉴가 더 있는 쪽 끝에 넓은 흰색 그라데이션을 덮고 화살표를 둠(누르면 그쪽으로 밀림)
-   * 하위 메뉴는 메뉴 줄 아래에 폭 가득 펼침(밀어 보는 줄에 잘리지 않게 .gnb-scroll 기준으로 자리 잡음) */
+   * 하위 메뉴는 메뉴 줄 아래에 폭 가득 펼침(밀어 보는 줄에 잘리지 않게 .gnb-scroll 기준으로 자리 잡음)
+   * 기획자 요청(2026-10-22): 화살표가 메뉴 글자에 붙어 보여 그라데이션을 56px에서 80px로 넓히고, 화살표와 ?(이용 안내) 사이를 30px에서 16px로 좁힘 */
   .gnb .inner { gap: 0.4rem; }
   .gnb-scroll { display: block; position: relative; flex: 1; min-width: 0; margin-left: -1rem; }
   .gnb-list {
@@ -420,19 +421,22 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
   }
   .gnb-list::-webkit-scrollbar { display: none; }
   .gnb-more {
-    position: absolute; top: 0; bottom: 0; z-index: 1; display: none; align-items: center; width: 5.6rem; padding: 0 0.2rem;
+    position: absolute; top: 0; bottom: 0; z-index: 1; display: none; align-items: center; width: 8rem; padding: 0;
     border: 0; color: var(--text-basic); cursor: pointer;
   }
   .gnb-more .icon { width: 2rem; height: 2rem; }
-  .gnb-more--right { right: 0; justify-content: flex-end; background: linear-gradient(to right, transparent, var(--surface-white) 70%); }
-  .gnb-more--left { left: 0; justify-content: flex-start; background: linear-gradient(to left, transparent, var(--surface-white) 70%); }
+  /* 앞 60%는 글자가 서서히 흐려지고, 뒤 40%(화살표 자리)는 흰색 */
+  .gnb-more--right { right: 0; justify-content: flex-end; background: linear-gradient(to right, transparent, var(--surface-white) 60%); }
+  .gnb-more--left { left: 0; justify-content: flex-start; background: linear-gradient(to left, transparent, var(--surface-white) 60%); }
   .gnb-scroll.is-more-right .gnb-more--right, .gnb-scroll.is-more-left .gnb-more--left { display: flex; }
   .gnb-item { position: static; flex-shrink: 0; }
   .gnb-sub { left: 0; right: 0; min-width: 0; }
   .gnb-link { height: 4.8rem; padding: 0 1rem; font-size: var(--fs-body-medium); white-space: nowrap; }
   .gnb-link .icon { display: none; } /* 펼침 화살표를 감춰 메뉴 칸을 줄임 */
   .gnb-link.is-current::after { left: 1rem; right: 1rem; }
-  .gnb-aside { flex-shrink: 0; min-width: var(--touch-min); min-height: var(--touch-min); justify-content: flex-end; }
+  /* ?(이용 안내): 보이는 칸은 32px로 좁혀 화살표 가까이 두고, 누르는 영역은 오른쪽 여백까지 넓혀 44px를 지킴 */
+  .gnb-aside { position: relative; flex-shrink: 0; min-width: 3.2rem; min-height: var(--touch-min); justify-content: flex-end; }
+  .gnb-aside::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; right: -1.2rem; }
   .gnb-aside .gnb-aside-label {
     position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap;
   }

@@ -3,7 +3,10 @@
  * ---------------------------------------------------------------------
  * 관련: 요구사항 정의서 REQ-UI-29(공지사항), v0.45 기획자 결정
  *   - 쓰기, 고치기, 내리기는 관리자와 최고관리자만. 모두 관리자 변경 이력(NOTICE)에 남음
- *   - 구분: 공지(내용은 문단) / 릴리즈 노트(버전 + 새 기능, 개선, 바뀐 규칙, 고친 문제. 한 줄에 하나)
+ *   - 구분: 공지(내용은 문단) / 릴리즈(버전 + 새 기능, 개선, 바뀐 규칙, 고친 문제. 한 줄에 하나). v0.47: "릴리즈 노트"를 "릴리즈"로 줄임
+ *   - 제목(v0.47 기획자 요청): 휴대폰(아이폰 18 Pro) 개요 한 줄에 다 보이게 10자 안팎으로 짧게(릴리즈는 버전을 빼고).
+ *     402px 폭에서 재 보니 "중요" 표시가 붙은 공지는 12자면 잘리고 10자는 들어감.
+ *     막지는 않고 도움말에 지금 글자 수를 보여 줌. 아주 긴 제목만 20자에서 막음
  *   - 중요 공지: 개요 맨 위에 보이고 전체 사용자에게 이메일로 알림(REQ-ENV-10 ⑧). 시안은 보낸 것으로만 표시
  * ===================================================================== */
 (function () {
@@ -17,6 +20,7 @@
   }
   function lines(t) { return String(t || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean); }
   function canWrite(me) { return me.role === 'SUPER' || C.hasRole(me, ['ADMIN']); }
+  const TITLE_HELP = { NOTICE: '휴대폰 한 줄에 다 보이게 10자 안팎으로 짧게 씁니다.', RELEASE: '휴대폰 한 줄에 다 보이게 버전을 빼고 10자 안팎으로 짧게 씁니다.' };
   function nextId() {
     const max = D.NOTICES.reduce(function (m, n) { return Math.max(m, Number(String(n.id).slice(2)) || 0); }, 0);
     return 'N-' + String(max + 1).padStart(4, '0');
@@ -33,8 +37,8 @@
     C.formModal({
       title: isEdit ? '이 글을 고칠까요?' : '공지사항에 글을 올릴까요?',
       desc: isEdit ? '고치면 글 아래에 고친 날짜가 함께 보입니다.' : '올리면 모든 사용자가 공지사항에서 볼 수 있습니다.',
-      body: C.fieldHtml({ name: 'kind', label: '구분', type: 'select', required: true, value: n.kind, options: [['NOTICE', '공지'], ['RELEASE', '릴리즈 노트']] }) +
-        C.fieldHtml({ name: 'title', label: '제목', required: true, value: n.title || '', placeholder: '예: 계약번호 규칙이 바뀝니다' }) +
+      body: C.fieldHtml({ name: 'kind', label: '구분', type: 'select', required: true, value: n.kind, options: [['NOTICE', '공지'], ['RELEASE', '릴리즈']] }) +
+        C.fieldHtml({ name: 'title', label: '제목', required: true, value: n.title || '', placeholder: '예: 계약번호 규칙 변경', help: TITLE_HELP.NOTICE, attrs: ' maxlength="20"' }) +
         '<div class="field"><label class="choice"><input type="checkbox" name="important"' + (n.important ? ' checked' : '') + '>중요 공지</label>' +
           '<p class="field-help">체크하면 개요 맨 위에 보이고, 전체 사용자에게 이메일로 알립니다.</p></div>' +
         '<div data-kind="NOTICE">' + C.fieldHtml({ name: 'body', label: '내용', type: 'textarea', required: true, value: (n.body || []).join('\n\n'), help: '빈 줄로 문단을 나눕니다.' }) + '</div>' +
@@ -43,11 +47,17 @@
           parts + '</div>',
       btn: isEdit ? '저장' : '올리기',
       open: function (f) {
+        // 제목 도움말: 구분에 맞는 권장 길이와 지금 글자 수 (v0.47)
+        const title = f.elements.title, tHelp = title.closest('.field').querySelector('.field-help');
+        function count() { tHelp.textContent = TITLE_HELP[val(f, 'kind')] + ' 지금 ' + title.value.trim().length + '자'; }
         function sync() {
           const k = val(f, 'kind');
           f.querySelectorAll('[data-kind]').forEach(function (b) { b.hidden = b.getAttribute('data-kind') !== k; });
+          title.placeholder = k === 'RELEASE' ? '예: 제품과 기능 나누기' : '예: 계약번호 규칙 변경';
+          count();
         }
         f.elements.kind.addEventListener('change', sync);
+        title.addEventListener('input', count);
         sync();
       },
       check: function (f) {

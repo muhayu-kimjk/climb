@@ -4,7 +4,7 @@
  * 관련 요구사항: REQ-DOC-01, 02, 06, 07, REQ-STEP-04, REQ-FLOW-12, REQ-ENV-06, REQ-AUTH-09, 15, REQ-REV-02~05, REQ-SIGN-01~06
  * 하는 일
  *   1. 주소의 계약번호로 계약을 찾고, 볼 수 있는 사람인지 확인
- *   2. 결재란(②~⑤, ⑥~⑩), 기본 정보, 금액과 제품, 체크리스트, 첨부(체결본 포함), 결재 기록을 결재 문서처럼 그리기
+ *   2. 결재란(②~⑤, ⑥~⑩), 기본 정보, 제품과 금액(v0.47 이름 바꿈. 제품과 기능, 플랜), 체크리스트, 첨부(체결본 포함), 결재 기록을 결재 문서처럼 그리기
  *   3. 내 차례면 처리 막대에서 단계에 맞는 일: 승인, 보완 요청, 반려(②~⑤), 날인 완료(⑥), 체결본 등록(⑦),
  *      확인 완료와 다시 등록 요청과 반려(⑧), 운영 적용 완료(⑨), 재무 확인 완료(⑩). 내가 승인한 ②~⑤는 승인 취소
  *   4. 보완 요청을 받은 기안자는 처리 막대에서 보완 완료 (REQ-REV-11, v0.26)
@@ -262,7 +262,7 @@
       info('계약번호', esc(c.id)),
       info('계약종류', esc(kindText)),
       info('고객사', esc(c.counterparty)),
-    ].concat((c.unit || f.unit) ? [info('기관(부서)', esc(c.unit || f.unit))] : []).concat([ // 거래처 아래 기관 (C-24 v0.39)
+    ].concat((c.unit || f.unit) ? [info('기관 또는 부서명', esc(c.unit || f.unit))] : []).concat([ // 계약마다 직접 적은 기관 이름 (C-24 v0.39, 이름 v0.46)
       info('사업자등록번호', esc(C.fmtBizNo(detail.bizNo))), // 000-00-00000 (v0.34)
       info('영업대표', esc(C.ownerLabel(c.requesterId))), // 조직 이름 (v0.32)
       // 판다(CRM) 영업기회번호: 규칙에 맞으면 판다로 가는 링크 (v0.32)
@@ -322,10 +322,11 @@
     // (한도를 지켰는지는 체크리스트 3번에서 봄). 금액에는 원을 붙임 (REQ-UI-17)
     $('#amount').innerHTML =
       '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
-        '<caption class="sr-only">제품별 금액: 제품, 수량, 표준 금액, 계약 금액, 할인율</caption>' +
-        '<thead><tr><th scope="col">제품</th><th scope="col" class="num">수량</th><th scope="col" class="num">표준 금액</th><th scope="col" class="num">계약 금액</th><th scope="col" class="num">할인율</th></tr></thead>' +
+        '<caption class="sr-only">제품별 금액: 제품과 기능(플랜), 수량, 표준 금액, 계약 금액, 할인율</caption>' +
+        '<thead><tr><th scope="col">제품과 기능</th><th scope="col" class="num">수량</th><th scope="col" class="num">표준 금액</th><th scope="col" class="num">계약 금액</th><th scope="col" class="num">할인율</th></tr></thead>' +
         '<tbody>' + rows.map(function (r) {
-          return '<tr><td>' + esc(r.product.name) + '</td><td class="num">' + num(r.qty) + '</td><td class="num">' + won(r.std) + '</td>' +
+          // v0.47: "프리즘 결함검사" 아래에 플랜 이름(예: 기본 플랜)
+          return '<tr><td>' + esc(C.featureLabel(r.product)) + '<span class="plan-name">' + esc(r.product.name) + '</span></td><td class="num">' + num(r.qty) + '</td><td class="num">' + won(r.std) + '</td>' +
             '<td class="num">' + won(r.amount) + '</td><td class="num">' + (r.discount === 0 ? '표준 단가' : pct(r.discount) + ' 할인') + '</td></tr>';
         }).join('') + '</tbody>' +
         '<tfoot><tr><th scope="row">총액 (부가세 별도)</th><td></td><td class="num total">' + won(stdTotal) + '</td>' +

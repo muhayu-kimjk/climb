@@ -35,7 +35,7 @@
 
   /* ---------- 접속 기록 만들기 (시연용) ---------- */
   const ACTS = { LOGIN: '로그인', LOGOUT: '로그아웃', VIEW: '열람', SUBMIT: '기안', APPROVE: '결재', DOWNLOAD: '내려받기', NOTE: '사후관리 기록', ADMIN: '설정 변경', AUDIT: '점검 기록' };
-  const AREA = { USER: '사용자 권한', RULE: '결재선 규칙', RESTRICT: '열람 제한', PRICE: '가격 기준', CUSTOMER: '거래처', CODE: '코드', NOTICE: '공지사항' };
+  const AREA = { USER: '사용자 권한', RULE: '결재선 규칙', RESTRICT: '열람 제한', PRICE: '가격 기준', PRODUCT: '제품과 기능', CUSTOMER: '거래처', CODE: '코드', NOTICE: '공지사항' };
   function buildLogs() {
     const out = [];
     const push = function (at, userId, act, target, place) { if (at) out.push({ at: at, userId: userId, act: act, target: target || '-', place: place || '사내망' }); };
@@ -57,7 +57,7 @@
       push(e.at, e.by, e.area === 'AUDIT' ? 'AUDIT' : 'ADMIN', (AREA[e.area] ? AREA[e.area] + ': ' : '') + e.target);
     });
     push(OPENED, me.id, 'VIEW', '접속 기록 점검 화면');
-    D.PRICE_ROWS.forEach(function (r) { push(r.at, r.by, 'ADMIN', '가격 기준: ' + r.name + ' (' + C.fmtDate(r.validFrom) + '부터)'); });
+    D.PRICE_ROWS.forEach(function (r) { push(r.at, r.by, 'ADMIN', '가격 기준: ' + C.planLabel(r) + ' (' + C.fmtDate(r.validFrom) + '부터)'); }); // 플랜 이름 (v0.47)
     // 이상 행위 알림이 생긴 접속 (가상의 기록)
     D.SEC_ALERTS.forEach(function (al) {
       push(al.at, al.userId, al.kind === 'BULK' ? 'VIEW' : 'LOGIN', al.detail, al.kind === 'BULK' ? '사내망' : 'VPN');

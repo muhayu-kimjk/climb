@@ -2,8 +2,8 @@
  * SCR-91 공지사항 목록 화면 로직 (notices.js)
  * ---------------------------------------------------------------------
  * 관련: 요구사항 정의서 REQ-UI-29, v0.45 기획자 결정
- *   1. 공지와 릴리즈 노트를 최근에 올린 글부터. 내린 글은 감춤
- *   2. 구분(전체, 공지, 릴리즈 노트)과 검색(제목, 버전, 내용)으로 거름. 한 쪽에 10건
+ *   1. 공지와 릴리즈를 최근에 올린 글부터. 내린 글은 감춤
+ *   2. 구분(전체, 공지, 릴리즈)과 검색(제목, 버전, 내용)으로 거름. 한 쪽에 10건
  *   3. 관리자와 최고관리자: 글쓰기(notice-form.js), 변경 이력
  * ===================================================================== */
 (function () {
@@ -25,7 +25,7 @@
     if (n.kind === 'RELEASE') return D.RELEASE_PARTS.map(function (p) { return ((n.items || {})[p[0]] || []).join(' '); }).join(' ');
     return (n.body || []).join(' ');
   }
-  function kindBadge(n) { return n.kind === 'RELEASE' ? C.badge('success', '릴리즈 노트') : C.badge('line', '공지'); }
+  function kindBadge(n) { return n.kind === 'RELEASE' ? C.badge('success', '릴리즈') : C.badge('line', '공지'); }
   function titleHtml(n) {
     return (n.important ? C.badge('danger', '중요') : '') + (n.version ? '<span class="board-ver">' + esc(n.version) + '</span>' : '') + esc(n.title);
   }
@@ -43,7 +43,7 @@
     const from = (page - 1) * PAGE_SIZE, rows = list.slice(from, from + PAGE_SIZE);
     $('#list-count').innerHTML = C.meta(['<strong>' + (list.length !== all.length ? '검색 결과 ' : '전체 ') + list.length + '건</strong>',
       '공지 ' + list.filter(function (n) { return n.kind === 'NOTICE'; }).length + '건',
-      '릴리즈 노트 ' + list.filter(function (n) { return n.kind === 'RELEASE'; }).length + '건']);
+      '릴리즈 ' + list.filter(function (n) { return n.kind === 'RELEASE'; }).length + '건']);
     $('#rows').innerHTML = rows.length ? rows.map(function (n) {
       return '<tr><td class="col-kind">' + kindBadge(n) + '</td>' +
         '<td><a class="board-title" href="notice.html?id=' + encodeURIComponent(n.id) + '">' + titleHtml(n) + '</a></td>' +

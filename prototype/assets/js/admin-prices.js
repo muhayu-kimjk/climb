@@ -2,9 +2,12 @@
  * SCR-54 가격 기준 관리 화면 로직 (admin-prices.js)
  * ---------------------------------------------------------------------
  * 관련 요구사항: REQ-SCOPE-02(시스템에 두되 열람 제한), REQ-CHK-04(체크리스트 2, 3번 계산), REQ-CHK-07(적용 시작일, 품의 문서 링크)
+ * v0.47 기획자 요청: 제품과 기능을 나눔. 가격 기준 한 줄은 "플랜"이고 제품의 기능마다 둠(같은 기능에 플랜 여럿 가능)
+ *   예: 프리즘 GPT Killer(스탠다드), 프리즘 GPT Killer(프로). 제품과 기능은 제품과 기능 관리(SCR-58)에서 관리
  * 하는 일
- *   1. 오늘 적용되는 기준: 제품마다 적용 시작일이 오늘 이전인 줄 중 가장 늦은 것. 예정된 기준은 제품 아래에 표시
- *   2. 바꾸기, 제품 추가: 적용 시작일(오늘 이후), 품의 문서 링크(필수, https), 품의 번호(선택), 변경 사유(필수)
+ *   1. 오늘 적용되는 기준: 플랜마다 적용 시작일이 오늘 이전인 줄 중 가장 늦은 것. 예정된 기준은 플랜 아래에 표시. 제품, 기능 순서로 줄 세움
+ *   2. 바꾸기, 플랜 추가: 적용 시작일(오늘 이후), 품의 문서 링크(필수, https), 품의 번호(선택), 변경 사유(필수)
+ *      플랜 추가는 제품 → 기능(사용 중인 것만)을 고른 뒤 플랜 코드, 플랜 이름, 단위. 서비스는 제품의 서비스를 따름
  *      기존 줄은 고치지 않고 새 줄을 더함. 이미 기안한 계약은 기안할 때의 기준을 씀
  *   3. 바뀐 이력: 모든 줄(지난 기준, 적용 중, 예정)
  * 볼 수 있는 사람: 영업, 영업지원, 관리자(바꾸기는 관리자만). 최고관리자는 모두
@@ -28,10 +31,15 @@
   function val(f, n) { return (f.elements[n].value || '').trim(); }
   function won(n) { return Number(n).toLocaleString('ko-KR') + '원'; }
   function pct(r) { return Math.round(r * 1000) / 10 + '%'; }
+  // 플랜 코드 목록: 제품 → 기능 순서(제품과 기능 관리의 순서), 같은 기능 안에서는 처음 등록한 순서
   function codes() {
     const list = [];
     D.PRICE_ROWS.forEach(function (r) { if (list.indexOf(r.code) < 0) list.push(r.code); });
-    return list;
+    const first = function (code) { return D.PRICE_ROWS.filter(function (r) { return r.code === code; })[0]; };
+    const idx = function (arr, id) { const i = arr.map(function (x) { return x.id; }).indexOf(id); return i < 0 ? 9999 : i; };
+    return list.map(function (code, i) { const r = first(code); return { code: code, k: [idx(D.PRODUCTS, r.product), idx(D.FEATURES, r.feature), i] }; })
+      .sort(function (a, b) { return a.k[0] - b.k[0] || a.k[1] - b.k[1] || a.k[2] - b.k[2]; })
+      .map(function (x) { return x.code; });
   }
   function current(code) { return D.PRICE_BOOK.filter(function (r) { return r.code === code; })[0] || null; }
   function planned(code) {
@@ -51,13 +59,13 @@
       const plan = next.map(function (p) {
         return '<span class="cell-meta">' + C.badge('line', '예정') + ' ' + C.fmtDate(p.validFrom) + '부터 ' + won(p.listPrice) + ', 한도 ' + pct(p.discountCap) + '</span>';
       }).join('');
-      // 제품 칸 아래에 코드, 서비스, 단위를 함께 (A4 폭 안에 들어가게)
-      return '<tr><td><span class="cell-strong">' + esc(any.name) + '</span>' +
+      // 플랜 칸: "프리즘 결함검사(기본 플랜)" 아래에 코드, 서비스, 단위를 함께 (A4 폭 안에 들어가게)
+      return '<tr><td><span class="cell-strong">' + esc(C.planLabel(any)) + '</span>' +
           '<span class="cell-meta">' + esc(code + ', ' + (D.SERVICES[any.service] || any.service) + ', ' + any.unit) + '</span>' + plan + '</td>' +
         (r ? '<td class="num">' + won(r.listPrice) + '</td><td class="num">' + pct(r.discountCap) + '</td>' +
           '<td class="num-left">' + C.fmtDate(r.validFrom) + '</td><td class="nowrap">' + docLink(r) + '</td>'
           : '<td class="num" colspan="4">아직 적용 전</td>') +
-        (canEdit ? '<td class="col-action"><button type="button" class="link-act" data-change="' + esc(code) + '" aria-label="' + esc(any.name) + ' 가격 기준 바꾸기">바꾸기</button></td>' : '') +
+        (canEdit ? '<td class="col-action"><button type="button" class="link-act" data-change="' + esc(code) + '" aria-label="' + esc(C.planLabel(any)) + ' 가격 기준 바꾸기">바꾸기</button></td>' : '') +
       '</tr>';
     }).join('');
 
@@ -67,15 +75,15 @@
       const state = r.validFrom > D.TODAY ? C.badge('line', '예정') : current(r.code) === r ? C.badge('success', '적용 중') : C.badge('neutral', '지난 기준');
       return '<tr' + (r.validFrom <= D.TODAY && current(r.code) !== r ? ' class="is-muted"' : '') + '>' +
         '<td class="num-left">' + C.fmtDate(r.validFrom) + '<span class="cell-meta">' + state + '</span></td>' +
-        '<td><span class="cell-strong">' + esc(r.name) + '</span><span class="cell-meta">' + esc(r.code) + '</span></td>' +
+        '<td><span class="cell-strong">' + esc(C.planLabel(r)) + '</span><span class="cell-meta">' + esc(r.code) + '</span></td>' +
         '<td class="num">' + won(r.listPrice) + '<span class="cell-meta">한도 ' + pct(r.discountCap) + '</span></td>' +
         '<td class="col-wide">' + esc(r.reason) + '<span class="cell-meta">품의 ' + docLink(r) + '</span></td>' +
         '<td class="nowrap">' + esc(C.userName(r.by)) + '님<span class="cell-meta">' + C.fmtDateTime(r.at) + '</span></td></tr>';
     }).join('');
   }
 
-  /* ---------- 2. 바꾸기, 제품 추가 ---------- */
-  // 가격과 근거 입력 칸 (바꾸기와 제품 추가가 같이 씀)
+  /* ---------- 2. 바꾸기, 플랜 추가 ---------- */
+  // 가격과 근거 입력 칸 (바꾸기와 플랜 추가가 같이 씀)
   function priceFields(r) {
     return '<div class="field-row">' +
         C.fieldHtml({ name: 'price', label: '표준 단가', required: true, unit: '원', value: r ? r.listPrice : '', attrs: ' inputmode="numeric"' }) +
@@ -99,7 +107,7 @@
       price: !priceOk ? '표준 단가를 원 단위 숫자로 넣으세요.' : same ? '표준 단가나 할인율 한도 중 하나는 지금과 달라야 합니다.' : '',
       cap: capOk ? '' : '할인율 한도를 0에서 100 사이로 넣으세요(소수점 한 자리까지).',
       validFrom: !from ? '적용 시작일을 고르세요.' : from < D.TODAY ? '적용 시작일은 오늘(' + C.fmtDate(D.TODAY) + ') 이후여야 합니다.'
-        : dup ? '이 제품은 이 적용 시작일에 이미 기준이 있습니다.' : '',
+        : dup ? '이 플랜은 이 적용 시작일에 이미 기준이 있습니다.' : '',
       docUrl: /^https:\/\/\S+$/.test(val(f, 'docUrl')) ? '' : '품의 문서 링크를 https://로 시작하는 주소로 넣으세요.',
       reason: val(f, 'reason') ? '' : '변경 사유를 적으세요.',
     };
@@ -111,20 +119,21 @@
     });
   }
   function saved(row, change) {
-    C.adminSave('PRICE', row.name + ' (' + row.code + ')', change + ' (' + C.fmtDate(row.validFrom) + '부터)', row.reason, { k: 'PRICE', row: row });
+    const label = C.planLabel(row);
+    C.adminSave('PRICE', label + ' (' + row.code + ')', change + ' (' + C.fmtDate(row.validFrom) + '부터)', row.reason, { k: 'PRICE', row: row });
     render();
-    C.toast(row.validFrom === D.TODAY ? row.name + ' 기준을 오늘부터 적용합니다.' : row.name + ' 기준이 ' + C.fmtDate(row.validFrom) + '부터 적용됩니다.');
+    C.toast(row.validFrom === D.TODAY ? label + ' 기준을 오늘부터 적용합니다.' : label + ' 기준이 ' + C.fmtDate(row.validFrom) + '부터 적용됩니다.');
   }
   function openChange(code) {
     const base = current(code) || planned(code)[0];
     C.formModal({
-      title: base.name + ' 가격 기준을 바꿀까요?',
+      title: C.planLabel(base) + ' 가격 기준을 바꿀까요?',
       desc: '적용 시작일부터 기안하는 계약에 새 기준을 씁니다. 지금 기준은 지우지 않고 이력으로 남습니다.',
       body: '<p class="modal-info">지금: 표준 단가 ' + won(base.listPrice) + ', 할인율 한도 ' + pct(base.discountCap) + ' (' + C.fmtDate(base.validFrom) + '부터)</p>' + priceFields(base),
       btn: '새 기준 저장',
       check: function (f) { return checkPrice(f, code, base); },
       done: function (f) {
-        const row = rowFrom(f, { code: base.code, service: base.service, name: base.name, unit: base.unit });
+        const row = rowFrom(f, { code: base.code, service: base.service, product: base.product, feature: base.feature, name: base.name, unit: base.unit });
         const parts = [];
         if (row.listPrice !== base.listPrice) parts.push('표준 단가 ' + won(base.listPrice) + ' → ' + won(row.listPrice));
         if (Math.abs(row.discountCap - base.discountCap) > 0.0001) parts.push('할인율 한도 ' + pct(base.discountCap) + ' → ' + pct(row.discountCap));
@@ -132,32 +141,53 @@
       },
     });
   }
+  // 플랜 추가 (v0.47): 제품 → 기능을 고르고 플랜 코드, 이름, 단위. 사용 중인 제품과 기능만 고를 수 있음
+  function liveProducts() { return D.PRODUCTS.filter(function (p) { return p.use && D.SERVICES[p.service]; }); }
+  function liveFeatures(pid) { return D.FEATURES.filter(function (x) { return x.product === pid && x.use; }); }
+  function featureOptions(pid) {
+    const list = pid ? liveFeatures(pid) : [];
+    return '<option value="">' + (!pid ? '제품을 먼저 고르세요' : list.length ? '고르세요' : '이 제품에 기능이 없습니다') + '</option>' +
+      list.map(function (x) { return '<option value="' + esc(x.id) + '">' + esc(x.name) + '</option>'; }).join('');
+  }
   function openAdd() {
-    const services = C.codeList('SERVICE').filter(function (c) { return c.level === 1; }).map(function (c) { return [c.code, c.label]; });
+    const products = liveProducts().map(function (p) { return [p.id, p.name + ' (' + C.serviceLabel([p.service]) + ')']; });
     C.formModal({
-      title: '제품을 추가할까요?',
-      desc: '적용 시작일부터 계약 등록의 제품 목록에 나옵니다.',
+      title: '플랜을 추가할까요?',
+      desc: '적용 시작일부터 계약 등록에서 그 제품과 기능의 플랜으로 고를 수 있습니다.',
       body: '<div class="field-row">' +
-          C.fieldHtml({ name: 'code', label: '제품 코드', required: true, placeholder: '예: CK-EDU', help: '영문 대문자, 숫자, 하이픈. 한 번 정하면 바꾸지 않습니다.' }) +
-          C.fieldHtml({ name: 'service', label: '서비스', type: 'select', required: true, options: [['', '고르세요']].concat(services) }) +
+          C.fieldHtml({ name: 'product', label: '제품', type: 'select', required: true, options: [['', '고르세요']].concat(products) }) +
+          C.fieldHtml({ name: 'feature', label: '기능', type: 'select', required: true, options: [['', '제품을 먼저 고르세요']], attrs: ' disabled',
+            help: '제품과 기능은 제품과 기능 관리에서 넣습니다.' }) +
         '</div><div class="field-row">' +
-          C.fieldHtml({ name: 'pname', label: '제품 이름', required: true, placeholder: '예: CK 교육 패키지' }) +
+          C.fieldHtml({ name: 'pname', label: '플랜 이름', required: true, placeholder: '예: 스탠다드' }) +
           C.fieldHtml({ name: 'unit', label: '단위', required: true, placeholder: '예: 기관, 1년' }) +
-        '</div>' + priceFields(null),
-      btn: '제품 추가',
+        '</div>' +
+        C.fieldHtml({ name: 'code', label: '플랜 코드', required: true, placeholder: '예: HR-GPTK-STD', help: '영문 대문자, 숫자, 하이픈. 한 번 정하면 바꾸지 않습니다.' }) +
+        priceFields(null),
+      btn: '플랜 추가',
+      open: function (f) {
+        f.elements.product.addEventListener('change', function () {
+          const pid = f.elements.product.value;
+          f.elements.feature.innerHTML = featureOptions(pid);
+          f.elements.feature.disabled = !pid || !liveFeatures(pid).length;
+        });
+      },
       check: function (f) {
-        const code = val(f, 'code').toUpperCase();
+        const code = val(f, 'code').toUpperCase(), pid = val(f, 'product'), fid = f.elements.feature.value, name = val(f, 'pname');
+        const same = fid && name && D.PRICE_ROWS.some(function (r) { return r.feature === fid && r.name.replace(/\s+/g, '') === name.replace(/\s+/g, ''); });
         return Object.assign(checkPrice(f, code, null), {
-          code: !/^[A-Z0-9]+(-[A-Z0-9]+)*$/.test(code) ? '제품 코드를 영문 대문자, 숫자, 하이픈으로 넣으세요.'
-            : codes().indexOf(code) > -1 ? '이미 있는 제품 코드입니다.' : '',
-          service: val(f, 'service') ? '' : '서비스를 고르세요.',
-          pname: val(f, 'pname') ? '' : '제품 이름을 넣으세요.',
+          product: pid ? '' : '제품을 고르세요.',
+          feature: !pid ? '' : !liveFeatures(pid).length ? '이 제품에 사용 중인 기능이 없습니다. 제품과 기능 관리에서 먼저 기능을 넣으세요.' : fid ? '' : '기능을 고르세요.',
+          pname: !name ? '플랜 이름을 넣으세요.' : same ? '이 기능에 같은 이름의 플랜이 이미 있습니다.' : '',
           unit: val(f, 'unit') ? '' : '단위를 넣으세요.',
+          code: !/^[A-Z0-9]+(-[A-Z0-9]+)*$/.test(code) ? '플랜 코드를 영문 대문자, 숫자, 하이픈으로 넣으세요.'
+            : codes().indexOf(code) > -1 ? '이미 있는 플랜 코드입니다.' : '',
         });
       },
       done: function (f) {
-        const row = rowFrom(f, { code: val(f, 'code').toUpperCase(), service: val(f, 'service'), name: val(f, 'pname'), unit: val(f, 'unit') });
-        saved(row, '제품 추가: 표준 단가 ' + won(row.listPrice) + ', 할인율 한도 ' + pct(row.discountCap));
+        const p = D.PRODUCTS.filter(function (x) { return x.id === val(f, 'product'); })[0];
+        const row = rowFrom(f, { code: val(f, 'code').toUpperCase(), service: p.service, product: p.id, feature: f.elements.feature.value, name: val(f, 'pname'), unit: val(f, 'unit') });
+        saved(row, '플랜 추가: 표준 단가 ' + won(row.listPrice) + ', 할인율 한도 ' + pct(row.discountCap));
       },
     });
   }

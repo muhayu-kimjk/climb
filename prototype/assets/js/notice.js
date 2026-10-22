@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------
  * 관련: 요구사항 정의서 REQ-UI-29, v0.45 기획자 결정
  *   1. 글 한 편: 구분, 제목(중요 배지, 버전), 올린 날, 쓴 사람
- *   2. 공지는 문단, 릴리즈 노트는 새 기능, 개선, 바뀐 규칙, 고친 문제(있는 묶음만)
+ *   2. 공지는 문단, 릴리즈는 새 기능, 개선, 바뀐 규칙, 고친 문제(있는 묶음만)
  *   3. 이전 글, 다음 글(목록 순서), 목록으로
  *   4. 관리자와 최고관리자: 고치기(notice-form.js), 내리기(확인 창)
  * ===================================================================== */
@@ -28,7 +28,7 @@
       C.breadcrumb([['공지사항', 'notices.html'], ['글 보기']]);
       return;
     }
-    C.breadcrumb([['공지사항', 'notices.html'], [n.kind === 'RELEASE' ? '릴리즈 노트' : '공지']]);
+    C.breadcrumb([['공지사항', 'notices.html'], [n.kind === 'RELEASE' ? '릴리즈' : '공지']]);
     $('#post').hidden = false;
     $('#post-kind').textContent = D.NOTICE_KINDS[n.kind];
     $('#post-title').innerHTML = (n.important ? C.badge('danger', '중요') + ' ' : '') + (n.version ? '<span class="board-ver">' + esc(n.version) + '</span>' : '') + esc(n.title);

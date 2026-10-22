@@ -49,11 +49,13 @@ window.CLIMB = (function () {
       { label: '결재선 규칙', scr: 'SCR-52', href: 'admin-rules.html', roles: ['ADMIN'] },
       { label: '열람 제한 관리', scr: 'SCR-53', href: 'admin-restrict.html', roles: ['ADMIN'] },
       { label: '가격 기준 관리', scr: 'SCR-54', href: 'admin-prices.html', roles: ['ADMIN'] },
+      // 제품과 기능 관리 (v0.47 기획자 요청): 관리자와 최고관리자가 제품과 그 기능을 넣고 고침. 플랜과 가격은 가격 기준 관리
+      { label: '제품과 기능 관리', scr: 'SCR-58', href: 'admin-products.html', roles: ['ADMIN'] },
       { label: '거래처 관리', scr: 'SCR-55', href: 'admin-customers.html', roles: ['ADMIN'] },
       { label: '코드 관리', scr: 'SCR-56', href: 'admin-codes.html', roles: ['ADMIN'] },
       { label: '접속 기록 점검', scr: 'SCR-57', href: 'admin-logs.html', roles: ['PRIVACY'] },
     ] },
-    // 공지사항: 공지와 릴리즈 노트를 한 게시판에 (v0.45 기획자 결정: 주 메뉴 맨 끝). 읽기는 모두, 쓰기는 관리자와 최고관리자
+    // 공지사항: 공지와 릴리즈를 한 게시판에 (v0.45 기획자 결정: 주 메뉴 맨 끝). 읽기는 모두, 쓰기는 관리자와 최고관리자
     { label: '공지사항', scr: 'SCR-91', href: 'notices.html' },
   ];
 
@@ -214,15 +216,10 @@ window.CLIMB = (function () {
     const hit = function (name, bizNo) {
       return name.toLowerCase().indexOf(text) > -1 || (digits.length >= 3 && bizNo.replace(/-/g, '').indexOf(digits) > -1);
     };
-    // 우리 거래처: 상호나 번호가 맞으면 그 거래처, 기관(부서) 이름이 맞으면 "거래처 + 기관"으로 (C-24 v0.39)
-    const mine = [];
-    D.CUSTOMERS.forEach(function (cu) {
-      if (!cu.use) return;
-      if (hit(cu.name, cu.bizNo)) mine.push({ kind: 'C', key: 'C:' + cu.id, name: cu.name, bizNo: cu.bizNo });
-      (cu.units || []).forEach(function (u) {
-        if (u.toLowerCase().indexOf(text) > -1) mine.push({ kind: 'C', key: 'C:' + cu.id, name: cu.name, unit: u, bizNo: cu.bizNo });
-      });
-    });
+    // 우리 거래처: 상호나 번호가 맞으면 그 거래처. 기관 이름으로는 찾지 않음
+    //   (v0.46 기획자 결정: 기관 또는 부서명은 계약마다 직접 적고 거래처에 목록으로 두지 않음. v0.39의 기관 이름 검색은 없앰)
+    const mine = D.CUSTOMERS.filter(function (cu) { return cu.use && hit(cu.name, cu.bizNo); })
+      .map(function (cu) { return { kind: 'C', key: 'C:' + cu.id, name: cu.name, bizNo: cu.bizNo }; });
     const known = D.CUSTOMERS.map(function (cu) { return cu.bizNo; });
     const reg = D.BIZ_REGISTRY.filter(function (r) { return known.indexOf(r.bizNo) < 0 && hit(r.name, r.bizNo); })
       .map(function (r) { return { kind: 'R', key: 'R:' + r.bizNo, name: r.name, bizNo: r.bizNo }; });
@@ -243,6 +240,15 @@ window.CLIMB = (function () {
   function serviceLabel(codes) {
     return (codes || []).map(function (s) { return D.SERVICES[s] || s; }).join(', ') || '-';
   }
+  /* 제품, 기능, 플랜 이름 (v0.47 기획자 요청: 제품과 기능을 나눔, 기능마다 플랜이 다를 수 있음)
+   *   플랜은 가격 기준 한 줄(product, feature, name). 화면에는 "프리즘 결함검사(기본 플랜)"처럼 보임
+   *   프로토타입은 지금 이름으로 보여 줌. [가정] 실제 시스템은 기안할 때의 제품, 기능, 플랜 이름을 계약 줄에 함께 저장 */
+  function productName(id) { const p = findBy(D.PRODUCTS, 'id', id); return p ? p.name : (id || ''); }
+  function featureName(id) { const f = findBy(D.FEATURES, 'id', id); return f ? f.name : (id || ''); }
+  // "프리즘 결함검사" (제품과 기능만)
+  function featureLabel(r) { return r ? (productName(r.product) + ' ' + featureName(r.feature)).trim() : ''; }
+  // "프리즘 결함검사(기본 플랜)"
+  function planLabel(r) { return r ? featureLabel(r) + '(' + r.name + ')' : ''; }
   // '② 체크리스트 검토'
   // c를 주면 운영 변경의 ⑨는 "운영 변경"으로 (v0.26)
   function stepLabel(code, c) { const s = D.STEPS[code]; if (c && code === 'S09' && c.kind === 'CHANGE') return s.no + ' 운영 변경'; return s ? s.no + ' ' + s.name : code; }
@@ -767,7 +773,8 @@ window.CLIMB = (function () {
   // 코드표를 화면이 쓰는 목록에 반영. 이름표는 사용 안 함인 코드도 남겨 지난 기록이 그대로 보이게 함
   function refreshCodes() {
     D.CODES.forEach(function (c) {
-      if (c.group === 'SERVICE' && c.level === 1) D.SERVICES[c.code] = c.label;
+      // 서비스는 v0.47부터 한 단계 (예전 시연 기록의 중분류, 소분류는 서비스 이름표에 넣지 않음)
+      if (c.group === 'SERVICE' && (!c.level || c.level === 1)) D.SERVICES[c.code] = c.label;
       if (c.group === 'METHOD') D.METHODS[c.code] = c.label;
       if (c.group === 'SETTLEMENT') D.SETTLEMENTS[c.code] = c.label;
       if (c.group === 'AFTERCARE') D.AFTERCARE_TYPES[c.code] = c.label;
@@ -821,6 +828,26 @@ window.CLIMB = (function () {
     } else if (op.k === 'PRICE') {
       D.PRICE_ROWS.push(Object.assign({ by: e.by, at: e.at }, op.row));
       refreshPrices();
+    } else if (op.k === 'PRODUCT_ADD') {
+      // 제품과 기능 (v0.47): 추가, 고치기. 지우지 않고 사용 안 함으로 돌림
+      D.PRODUCTS.push(Object.assign({ use: true }, op.p));
+    } else if (op.k === 'PRODUCT_EDIT') {
+      const p = findBy(D.PRODUCTS, 'id', op.id);
+      if (!p) return;
+      if (op.set.name) p.name = op.set.name;
+      if (op.set.service) {
+        p.service = op.set.service;
+        // 서비스는 플랜이 없는 제품만 바꿀 수 있지만, 예정된 줄까지 함께 맞춤
+        D.PRICE_ROWS.forEach(function (r) { if (r.product === p.id) r.service = p.service; });
+      }
+      if (typeof op.set.use === 'boolean') p.use = op.set.use;
+    } else if (op.k === 'FEATURE_ADD') {
+      op.list.forEach(function (f) { D.FEATURES.push(Object.assign({ use: true }, f)); });
+    } else if (op.k === 'FEATURE_EDIT') {
+      const f = findBy(D.FEATURES, 'id', op.id);
+      if (!f) return;
+      if (op.set.name) f.name = op.set.name;
+      if (typeof op.set.use === 'boolean') f.use = op.set.use;
     } else if (op.k === 'NOTICE_ADD') {
       // 공지사항 (v0.45): 올림, 고침, 내림. 내린 글은 지우지 않고 감춤(기록 남김)
       D.NOTICES.push(Object.assign({ by: e.by, at: e.at.slice(0, 16) }, op.n));
@@ -831,14 +858,14 @@ window.CLIMB = (function () {
       const n = findBy(D.NOTICES, 'id', op.id);
       if (n) { n.hidden = true; n.hiddenAt = e.at.slice(0, 16); }
     } else if (op.k === 'CUSTOMER_ADD') {
-      D.CUSTOMERS.push(Object.assign({ registeredBy: e.by, registeredAt: day, use: true, mergedInto: null, units: [] }, op.cu));
+      D.CUSTOMERS.push(Object.assign({ registeredBy: e.by, registeredAt: day, use: true, mergedInto: null }, op.cu));
     } else if (op.k === 'CUSTOMER_EDIT') {
       const cu = findBy(D.CUSTOMERS, 'id', op.id);
       if (!cu) return;
       if (op.set.name && op.set.name !== cu.name) { rename(cu.name, op.set.name); cu.name = op.set.name; }
       if (op.set.bizNo) cu.bizNo = op.set.bizNo;
       if (typeof op.set.use === 'boolean') cu.use = op.set.use;
-      if (op.set.units) cu.units = op.set.units.slice(); // 기관(부서) 목록 (C-24 v0.39)
+      // v0.39의 거래처별 기관(부서) 목록(op.set.units)은 v0.46에서 없앰. 예전 시연 기록에 남아 있어도 쓰지 않음
     } else if (op.k === 'CUSTOMER_MERGE') {
       // 합치기: 남길 거래처 하나만 두고 나머지는 사용 안 함 + 합쳐진 곳 표시. 계약은 남길 거래처로 옮김
       const keep = findBy(D.CUSTOMERS, 'id', op.keep);
@@ -847,8 +874,6 @@ window.CLIMB = (function () {
         if (!cu || !keep || cu === keep) return;
         rename(cu.name, keep.name);
         cu.use = false; cu.mergedInto = keep.id;
-        // 합쳐진 거래처의 기관(부서)도 남길 거래처로 옮김 (v0.39)
-        keep.units = (keep.units || []).concat((cu.units || []).filter(function (u) { return (keep.units || []).indexOf(u) < 0; }));
       });
     } else if (op.k === 'CODE_ADD') {
       D.CODES.push(Object.assign({ level: null, parent: null, use: true }, op.c));
@@ -883,7 +908,7 @@ window.CLIMB = (function () {
       if (a) { a.status = 'DONE'; a.doneBy = e.by; a.doneAt = e.at; a.action = op.action; }
     }
   }
-  // 관리자 변경 남기기: area(USER, RULE, RESTRICT, CUSTOMER, CODE, AUDIT, NOTICE), 대상, 바뀐 내용, 사유, 반영할 내용
+  // 관리자 변경 남기기: area(USER, RULE, RESTRICT, CUSTOMER, CODE, PRODUCT, AUDIT, NOTICE), 대상, 바뀐 내용, 사유, 반영할 내용
   function adminSave(area, target, change, reason, op) {
     const e = { at: nowStamp(), by: currentUser().id, area: area, target: target, change: change, reason: reason, op: op || null };
     pushDemo('admin', e);
@@ -1473,9 +1498,11 @@ window.CLIMB = (function () {
    *     (KRDS: 달력이 있어도 직접 입력을 막지 않음, 휴대폰은 숫자 자판)
    *   - 칸 오른쪽 안의 달력 버튼(KRDS 달력 아이콘 버튼) → 달력 층: 이전 달, 연도와 월 고르기, 다음 달 / 일~토 / 날짜 / 오늘, 취소, 확인
    *     달력 폭은 날짜 칸 폭에 맞춤(PC 280~322px, 휴대폰은 칸 폭 그대로. 기획자 요청)
+   *   - 날짜를 한 번 누르면 고르고, 고른 날짜를 한 번 더 누르면 확인을 누르지 않아도 바로 입력하고 닫음(v0.46 기획자 요청).
+   *     이 동작은 "오늘" 버튼 아래 작은 글씨로 알려 줌. 확인 버튼도 그대로 둠(두 번 누르기를 모르는 사람)
    *   - 오늘은 굵은 글자와 아래 점, 고른 날짜는 진한 초록 원. 색만으로 구분하지 않고 화면낭독기에는 "오늘", "고른 날짜"를 읽어 줌
    *   - 앞뒤 달의 날짜는 흐리게 보이고 고를 수 없음(KRDS 코드). 고를 수 없는 날(min, max 밖)은 흐리고 줄을 그음
-   *   - 키보드: 화살표(하루, 한 주), Home/End(그 주 일요일, 토요일), PageUp/PageDown(이전, 다음 달), Enter(고르기), Esc(닫기),
+   *   - 키보드: 화살표(하루, 한 주), Home/End(그 주 일요일, 토요일), PageUp/PageDown(이전, 다음 달), Enter(고르기, 고른 날짜에서 한 번 더 누르면 입력), Esc(닫기),
    *     Tab은 달력 안에서만 돎. 입력 칸에서 Alt+아래 화살표로도 엶
    *   - 확인 창처럼 나중에 그려지는 날짜 칸도 같이 바꿈(MutationObserver) */
   const WEEK = ['일', '월', '화', '수', '목', '금', '토'];
@@ -1512,6 +1539,7 @@ window.CLIMB = (function () {
     el.hidden = true;
     el.setAttribute('role', 'dialog');
     el.setAttribute('aria-label', '날짜 고르기');
+    el.setAttribute('aria-describedby', 'cal-tip');
     el.innerHTML =
       '<div class="cal-head">' +
         '<button type="button" class="cal-move" data-move="-1" aria-label="이전 달">' + icon('chevronLeft') + '</button>' +
@@ -1526,6 +1554,8 @@ window.CLIMB = (function () {
       '<p class="cal-note" id="cal-note" role="alert" hidden></p>' +
       '<div class="cal-foot">' +
         '<button type="button" class="btn btn--text cal-today">오늘</button>' +
+        // 오늘 아래 작은 안내 (v0.46 기획자 요청). 줄은 CSS에서 버튼 아래로 내림
+        '<p class="cal-tip" id="cal-tip">날짜를 한 번 더 누르면 바로 입력됩니다.</p>' +
         '<button type="button" class="btn btn--tertiary cal-cancel">취소</button>' +
         '<button type="button" class="btn btn--primary cal-ok">확인</button>' +
       '</div>';
@@ -1535,14 +1565,15 @@ window.CLIMB = (function () {
     el.querySelector('#cal-month').innerHTML = months;
     el.addEventListener('click', function (e) {
       const day = e.target.closest('.cal-day');
-      if (day) { calPick(day.getAttribute('data-date')); return; }
+      // 고른 날짜를 한 번 더 누르면(Enter도 같음) 바로 입력하고 닫음 (v0.46). 처음 누르면 고르기만
+      if (day) { const s = day.getAttribute('data-date'); if (s === cal.sel && !calOutOfRange(s)) calOk(); else calPick(s); return; }
       const mv = e.target.closest('.cal-move');
       if (mv) { calGo(shiftMonth(cal.focus, Number(mv.getAttribute('data-move'))), mv); return; }
       if (e.target.closest('.cal-today')) { calPick(D.TODAY); return; }
       if (e.target.closest('.cal-cancel')) { calClose(true); return; }
       if (e.target.closest('.cal-ok')) calOk();
     });
-    el.addEventListener('dblclick', function (e) { if (e.target.closest('.cal-day:not([aria-disabled])')) calOk(); });
+    // 두 번 누르기(dblclick)는 따로 받지 않음: 첫 번째로 고르고 두 번째로 입력되므로 같은 결과 (v0.46)
     el.addEventListener('change', function (e) {
       if (e.target.id !== 'cal-year' && e.target.id !== 'cal-month') return;
       const t = parseDate(cal.focus);
@@ -1808,7 +1839,7 @@ window.CLIMB = (function () {
     daysSince: daysSince, daysUntil: daysUntil, fmtDate: fmtDate, fmtDateTime: fmtDateTime, fmtPeriod: fmtPeriod, fmtToday: fmtToday, fmtKRW: fmtKRW,
     roleLabel: roleLabel, roleShort: roleShort, josa: josa, ownerLabel: ownerLabel,
     mailPrefs: mailPrefs, saveMailPrefs: saveMailPrefs, isTouchLayout: isTouchLayout,
-    isBizNo: isBizNo, fmtBizNo: fmtBizNo, isUniqueNo: isUniqueNo, ntsStatus: ntsStatus, searchBusinesses: searchBusinesses, isOppNo: isOppNo, pandaUrl: pandaUrl, pandaLink: pandaLink, hasRole: hasRole, userName: userName, serviceLabel: serviceLabel, stepLabel: stepLabel,
+    isBizNo: isBizNo, fmtBizNo: fmtBizNo, isUniqueNo: isUniqueNo, ntsStatus: ntsStatus, searchBusinesses: searchBusinesses, isOppNo: isOppNo, pandaUrl: pandaUrl, pandaLink: pandaLink, hasRole: hasRole, userName: userName, serviceLabel: serviceLabel, productName: productName, featureName: featureName, featureLabel: featureLabel, planLabel: planLabel, stepLabel: stepLabel,
     currentStep: currentStep, pendingSteps: pendingSteps, routedSteps: routedSteps, stepPosition: stepPosition, waitDays: waitDays,
     stepDots: stepDots, progressText: progressText, actionLabel: actionLabel, opsChecks: opsChecks, isReviewStep: isReviewStep, routedReview: routedReview,
     isShort: isShort, opsChecksFor: opsChecksFor, stepIng: stepIng, kindLabel: kindLabel,

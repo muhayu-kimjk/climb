@@ -129,7 +129,7 @@
     const latest = D.NOTICES.filter(function (n) { return !n.hidden; })
       .sort(function (a, b) { return Number(String(b.id).slice(2)) - Number(String(a.id).slice(2)); })[0];
     if (latest) {
-      document.getElementById('notice-strip').innerHTML = '<p class="notice-strip"><span class="strip-label">' + (latest.kind === 'RELEASE' ? '릴리즈 노트' : '공지') + '</span>' +
+      document.getElementById('notice-strip').innerHTML = '<p class="notice-strip"><span class="strip-label">' + (latest.kind === 'RELEASE' ? '릴리즈' : '공지') + '</span>' +
         (latest.important ? C.badge('danger', '중요') : '') +
         '<a href="notice.html?id=' + encodeURIComponent(latest.id) + '">' + (latest.version ? esc(latest.version) + ' ' : '') + esc(latest.title) + '</a>' +
         '<span class="strip-date">' + C.fmtDate(latest.at) + '</span></p>';

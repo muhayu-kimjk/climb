@@ -1,7 +1,7 @@
 /* =====================================================================
  * 관리자 화면 공통 스타일 (admin.css)
  * 사용자 권한 관리(SCR-51), 결재선 규칙(SCR-52), 열람 제한 관리(SCR-53), 가격 기준 관리(SCR-54),
- * 거래처 관리(SCR-55), 코드 관리(SCR-56), 접속 기록 점검(SCR-57)이 함께 씁니다.
+ * 거래처 관리(SCR-55), 코드 관리(SCR-56), 접속 기록 점검(SCR-57), 제품과 기능 관리(SCR-58, v0.47)가 함께 씁니다.
  *   - 화면은 묶음(패널)을 위에서 아래로: 지금 설정 → 바꾸기 → 변경 이력
  *   - 바꾸기, 끝내기 같은 줄 안의 버튼과 묶음 머리의 추가 버튼은 인쇄에서 감춤
  *   - 입력 창은 common.js의 C.formModal, 변경 이력 표는 C.adminHistoryHtml
@@ -90,6 +90,12 @@
   .tbl--history { min-width: 0; }
   .admin-stack { gap: 6mm; }
 }
+
+/* 제품과 기능 관리(SCR-58, v0.47): 제품마다 묶음. 제품 줄은 옅은 회색 바탕, 그 아래 기능 줄은 들여 씀 */
+.tbl--products .prod-row th, .tbl--products .prod-row td { background: var(--surface-gray-subtler); }
+.tbl--products .prod-row th { text-align: left; font-weight: 400; }
+.tbl--products .feat-name { padding-left: 2.8rem; text-align: left; }
+.tbl--products tbody + tbody { border-top: 2px solid var(--border-gray-light); }
 
 /* 묶음 안의 작은 제목 (예: 결재선 규칙의 팀별 리더) */
 .panel .box-subtitle { margin: 2.4rem 0 0.8rem; font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }

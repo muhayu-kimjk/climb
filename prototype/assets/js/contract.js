@@ -82,7 +82,7 @@
     info('계약 기간', b.start ? C.fmtPeriod(b.start, b.end) : '-'),
     info('계약 금액', cur.amount ? Number(cur.amount).toLocaleString('ko-KR') + '원 (' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도)' : '금액 없음'),
     info('자동갱신', b.autoRenew === 'YES' ? '있음' + notice60() : '없음'),
-    root.unit ? info('기관(부서)', esc(root.unit)) : '', // 거래처 아래 기관 (C-24 v0.39)
+    root.unit ? info('기관 또는 부서명', esc(root.unit)) : '', // 계약마다 직접 적은 기관 이름 (C-24 v0.39, 이름 v0.46)
     info('영업대표', esc(C.userName(root.requesterId)) + '님'),
     info('개인정보 처리위탁 계약', root.personalData ? '있음' : '없음'),
     info('서비스 수준 협약(SLA)', root.sla === 'YES' ? '있음' : '없음'), // v0.40

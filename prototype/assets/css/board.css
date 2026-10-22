@@ -16,7 +16,7 @@ a.board-title:hover { color: var(--text-primary); text-decoration: underline; te
 .post-head { padding-bottom: 2rem; border-bottom: 1px solid var(--border-gray-light); }
 .post-body { margin-top: 2.4rem; font-size: var(--fs-body-medium); line-height: 1.7; color: var(--text-basic); }
 .post-body p + p { margin-top: 1.2rem; }
-/* 릴리즈 노트: 새 기능, 개선, 바뀐 규칙, 고친 문제 (게임 패치 노트처럼 묶음마다 배지) */
+/* 릴리즈: 새 기능, 개선, 바뀐 규칙, 고친 문제 (게임 패치 노트처럼 묶음마다 배지) */
 .release-part + .release-part { margin-top: 2.8rem; }
 .release-part h2 { display: flex; align-items: center; gap: 0.8rem; font-size: var(--fs-heading-xsmall); font-weight: 700; color: var(--text-bolder); }
 .release-part ul { margin-top: 1rem; padding-left: 2.2rem; list-style: disc; }
@@ -60,6 +60,9 @@ a.board-title:hover { color: var(--text-primary); text-decoration: underline; te
 
 /* 휴대폰, 태블릿(터치스크린): 글 보기와 계정 정보를 한 줄씩 */
 @media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) {
+  /* 공지사항 거르기: 공통 규칙(list.css)은 둘째 칸부터 반 폭이라 검색 칸이 좁아 "제목, 버전, 내용"이 잘렸음.
+     구분, 검색, 초기화를 한 줄에 하나씩 폭 가득 (2026-10-22 기획자 요청, 기준 기기 아이폰 18 Pro) */
+  .filter-bar--board .field, .filter-bar--board .filter-reset { grid-column: 1 / -1; }
   .account-info { grid-template-columns: 1fr; gap: 0.2rem; }
   .account-info dd { margin-bottom: 1rem; }
   .post-nav dt { width: 5.2rem; }

@@ -1,11 +1,12 @@
 /* =====================================================================
  * SCR-56 코드 관리 화면 로직 (admin-codes.js)
  * ---------------------------------------------------------------------
- * 관련 요구사항: 데이터 정의서 9장(관리자 관리 코드표, 코드값 원칙), REQ-ADM-09(조직 목록, 실과 유닛 2단계 v0.29), REQ-REG-17(서비스 3단계)
+ * 관련 요구사항: 데이터 정의서 9장(관리자 관리 코드표, 코드값 원칙), REQ-ADM-09(조직 목록, 실과 유닛 2단계 v0.29), REQ-REG-17(서비스)
+ * v0.47: 서비스는 한 단계로 둠. 예전 중분류, 소분류(카피킬러 캠퍼스, 프리즘 등)는 제품이 되어 제품과 기능 관리(SCR-58)에서 관리
  * 하는 일
  *   1. 코드표 고르기: 조직, 서비스, 계약 방식, 정산 방식, 사후관리 기록 종류 (계약 유형은 v0.34에서 없앰)
- *   2. 코드 표: 코드, 화면 이름, (조직과 서비스는 단계와 상위), 쓰는 곳, 상태, 고치기
- *   3. 코드 추가: 코드(영문 대문자, 숫자, 밑줄. 그 코드표 안에서 중복 불가), 화면 이름, 조직과 서비스는 단계와 상위 코드
+ *   2. 코드 표: 코드, 화면 이름, (조직은 단계와 상위), 쓰는 곳, 상태, 고치기
+ *   3. 코드 추가: 코드(영문 대문자, 숫자, 밑줄. 그 코드표 안에서 중복 불가), 화면 이름, 조직은 단계와 상위 코드
  *   4. 고치기: 화면 이름, 사용 여부, (단계가 있는 코드표의 2단계 이하) 상위. 코드는 바꿀 수 없음. 사용 안 함은 새로 고르는 목록에서만 빠짐
  *      조직 개편(v0.31): 상위 조직을 바꿀 수 있고, 사람이나 사용 중인 하위가 남은 코드는 사용 안 함으로 돌릴 수 없음
  *   5. 변경 이력
@@ -19,7 +20,7 @@
   const $ = function (s) { return document.querySelector(s); };
   if (!C.gate(me, ['ADMIN'], '코드 관리는 관리자만 씁니다')) return;
 
-  // 단계가 있는 코드표의 단계 이름 (CODE_GROUPS.levels: 조직은 1, 2단계, 서비스는 대분류, 중분류, 소분류)
+  // 단계가 있는 코드표의 단계 이름 (CODE_GROUPS.levels: 조직은 1, 2단계. 서비스는 v0.47부터 단계 없음)
   function levels() { return D.CODE_GROUPS[group].levels || null; }
   let group = 'DEPT';
   function val(f, n) { return (f.elements[n].value || '').trim(); }
@@ -40,9 +41,8 @@
   function usage(c) {
     const ctr = function (fn) { return D.CONTRACTS.filter(function (x) { return x.id && fn(x); }).length; };
     if (group === 'DEPT') return '사용자 ' + D.ACCOUNTS.filter(function (a) { return a.dept === c.label; }).length + '명';
-    if (group === 'SERVICE') return c.level === 1
-      ? '계약 ' + ctr(function (x) { return (x.services || []).indexOf(c.code) > -1; }) + '건, 제품 ' + D.PRICE_BOOK.filter(function (p) { return p.service === c.code; }).length + '개'
-      : '-';
+    // 서비스는 v0.47부터 한 단계. 그 아래 제품 수는 제품과 기능 관리(SCR-58)의 제품
+    if (group === 'SERVICE') return '계약 ' + ctr(function (x) { return (x.services || []).indexOf(c.code) > -1; }) + '건, 제품 ' + D.PRODUCTS.filter(function (p) { return p.service === c.code; }).length + '개';
     if (group === 'CONTRACT_TYPE') return '계약 ' + ctr(function (x) { return x.type === c.label; }) + '건';
     if (group === 'METHOD') return '계약 ' + ctr(function (x) { return (x.form || {}).method === c.code; }) + '건';
     if (group === 'SETTLEMENT') return '계약 ' + ctr(function (x) { return (x.form || {}).settlement === c.code; }) + '건';

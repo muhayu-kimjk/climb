@@ -16,7 +16,7 @@ MUHAYU Contract Lifecycle Management Base. 계약 등록, 계약 검토, 계약 
 
 메뉴에 있는 모든 화면과 이용 안내(메뉴 줄 오른쪽 끝)가 만들어져 있습니다.
 
-결재 화면에서 승인, 반려, 승인 취소를 눌러 볼 수 있고, 관리자 화면에서 담당자, 대리 지정, 권한, 가격 기준, 거래처, 코드를 바꿔 볼 수 있습니다. 누른 결과는 이 브라우저에만 저장되어 다른 화면에도 반영되고, 시연 띠의 **시연 기록 지우기**를 누르면 처음 예시 상태로 돌아갑니다.
+결재 화면에서 승인, 반려, 승인 취소를 눌러 볼 수 있고, 관리자 화면에서 담당자, 대리 지정, 권한, 가격 기준, 제품과 기능, 거래처, 코드를 바꿔 볼 수 있습니다. 누른 결과는 이 브라우저에만 저장되어 다른 화면에도 반영되고, 시연 띠의 **시연 기록 지우기**를 누르면 처음 예시 상태로 돌아갑니다.
 
 모든 화면은 A4 세로 종이 폭으로 보입니다. 브라우저에서 인쇄(Ctrl+P)하면 A4 세로 문서로 나옵니다. 인쇄 설정에서 "머리글과 바닥글"은 끄고 "배경 그래픽"은 켜면 화면과 가장 비슷하게 나옵니다.
 
@@ -37,6 +37,7 @@ MUHAYU Contract Lifecycle Management Base. 계약 등록, 계약 검토, 계약 
 Projects/CLM
 ├─ README.md               이 문서
 ├─ serve.py                프로토타입 미리보기 서버 (내 PC 전용)
+├─ tools/device_shots.py   기준 기기(아이폰 18 Pro, 아이패드 프로 11인치) 크기와 터치 화면으로 시안을 찍음 (Chrome 필요, serve.py를 켠 뒤)
 ├─ docs/                   기획 문서
 └─ prototype/              화면 시안
    ├─ login.html           SCR-00 로그인
@@ -58,12 +59,13 @@ Projects/CLM
    ├─ admin-users.html     SCR-51 사용자 권한 관리 (사용자 추가, 권한 수정, 권한 변경 이력)
    ├─ admin-rules.html     SCR-52 결재선 규칙 (단계별 담당자, 대리 지정, 독촉 기준 일수)
    ├─ admin-restrict.html  SCR-53 열람 제한 관리
-   ├─ admin-prices.html    SCR-54 가격 기준 관리 (적용 시작일, 품의 문서, 이력)
+   ├─ admin-prices.html    SCR-54 가격 기준 관리 (기능마다 플랜, 적용 시작일, 품의 문서, 이력)
+   ├─ admin-products.html  SCR-58 제품과 기능 관리 (서비스 아래 제품과 기능, 관리자와 최고관리자)
    ├─ admin-customers.html SCR-55 거래처 관리 (고치기, 합치기, 기관)
    ├─ admin-codes.html     SCR-56 코드 관리
    ├─ admin-logs.html      SCR-57 접속 기록 점검 (정보보호 담당자와 리더, 최고관리자)
    ├─ help.html            SCR-90 이용 안내
-   ├─ notices.html         SCR-91 공지사항 (공지와 릴리즈 노트, 쓰기는 관리자)
+   ├─ notices.html         SCR-91 공지사항 (공지와 릴리즈, 쓰기는 관리자)
    ├─ notice.html          SCR-92 공지 보기 (?id=글 번호)
    ├─ account.html         SCR-93 내 계정 (머리글의 이름을 누르면, 받을 이메일)
    └─ assets/
@@ -86,6 +88,7 @@ Projects/CLM
       ├─ js/admin-rules.js 결재선 규칙 화면 로직
       ├─ js/admin-restrict.js 열람 제한 관리 화면 로직
       ├─ js/admin-prices.js 가격 기준 관리 화면 로직
+      ├─ js/admin-products.js 제품과 기능 관리 화면 로직 (제품 추가, 기능 여러 개 한 번에 추가, 고치기)
       ├─ js/admin-customers.js 거래처 관리 화면 로직
       ├─ js/admin-codes.js 코드 관리 화면 로직
       ├─ js/admin-logs.js  접속 기록 점검 화면 로직

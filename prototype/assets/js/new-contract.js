@@ -7,7 +7,7 @@
  * 하는 일
  *   1. 영업만 쓸 수 있게 막기
  *   2. 이어서 작성(임시 저장 건), 보완 후 재기안(반려 건)일 때 값 미리 채우기
- *   3. 제품별 금액 줄 추가, 삭제와 총액, 연도별 금액 계산
+ *   3. 제품별 금액 줄 추가, 삭제와 총액, 연도별 금액 계산 (v0.47: 줄마다 제품 → 기능 → 플랜)
  *   4. 체크리스트 2, 3번 자동 계산과 결재선 표시
  *   5. 필수 항목 검사(오류 요약 + 항목별 오류), 기안 확인 창, 기안 완료 안내
  * 프로토타입: 저장, 파일 업로드, 기안은 화면만 동작합니다. 실제 시스템에서는 서버에 저장하고,
@@ -88,7 +88,7 @@
   let results = [], active = -1;
   function setCustomer(key, name, bizNo, unit) {
     $('#f-customer').value = key;
-    renderUnits(key, unit);
+    if (unit) $('#f-unit').value = unit; // 이어서 작성, 재기안, 원계약에서 기관 또는 부서명도 채움 (v0.46)
     const manual = key === NEW_CUSTOMER;
     $('#f-counterparty').readOnly = !manual;
     $('#f-bizno').readOnly = !manual;
@@ -102,23 +102,9 @@
       : key.indexOf('R:') === 0 ? '사업자 정보 DB에서 찾은 곳입니다. 아직 우리 거래처가 아니라서 기안하면 거래처 목록에 함께 등록됩니다.'
       : '우리 거래처 목록에 있는 곳입니다.';
   }
-  /* ---------- 기관(부서) (C-24 v0.39) ----------
-   * 우리 거래처면 그 거래처의 기관 목록 + "새 기관 직접 입력", 새 거래처면 "새 기관 직접 입력"만. 고르지 않아도 됨 */
-  const NEW_UNIT = '__new';
-  function customerOf(key) { return key && key.indexOf('C:') === 0 ? D.CUSTOMERS.filter(function (cu) { return 'C:' + cu.id === key; })[0] : null; }
-  function renderUnits(key, unit) {
-    const pick = $('#f-unit-pick'), input = $('#f-unit');
-    const units = (customerOf(key) || {}).units || [];
-    pick.disabled = !key;
-    pick.innerHTML = !key ? '<option value="">거래처를 먼저 고르세요</option>'
-      : '<option value="">없음(거래처 전체)</option>' + units.map(function (u) { return '<option>' + esc(u) + '</option>'; }).join('') +
-        '<option value="' + NEW_UNIT + '">새 기관 직접 입력</option>';
-    const known = unit && units.indexOf(unit) > -1;
-    pick.value = !unit ? '' : known ? unit : NEW_UNIT;
-    input.value = unit && !known ? unit : '';
-    input.hidden = pick.value !== NEW_UNIT;
-  }
-  function unitValue() { return $('#f-unit-pick').value === NEW_UNIT ? $('#f-unit').value.trim() : $('#f-unit-pick').value; }
+  /* ---------- 기관 또는 부서명 (C-24 v0.39, v0.46 기획자 결정) ----------
+   * 고르는 목록 없이 직접 적는 칸만. 기관 이름은 고유 번호가 없어 맞는지 확인할 수 없으므로 이 계약에만 남기고 거래처에 쌓지 않음. 비워도 됨 */
+  function unitValue() { return val('unit'); }
   function closePanel() {
     panel.hidden = true;
     qInput.setAttribute('aria-expanded', 'false');
@@ -133,7 +119,7 @@
     if (!q) { closePanel(); $('#customer-status').textContent = ''; return; }
     list.innerHTML = results.map(function (r, i) {
       return '<li role="option" id="cu-opt-' + i + '" class="combo-option" data-i="' + i + '" aria-selected="false">' +
-        '<span class="combo-name">' + esc(r.name) + (r.unit ? ' <span class="combo-unit">' + esc(r.unit) + '</span>' : '') + '</span><span class="combo-meta">' + esc(r.bizNo) + '</span>' +
+        '<span class="combo-name">' + esc(r.name) + '</span><span class="combo-meta">' + esc(r.bizNo) + '</span>' +
         C.badge(r.kind === 'C' ? 'success' : 'line', r.kind === 'C' ? '거래처' : '사업자 DB') + '</li>';
     }).join('');
     list.hidden = !results.length;
@@ -147,7 +133,7 @@
     const r = results[i];
     if (!r) return;
     qInput.value = r.name;
-    setCustomer(r.key, r.name, r.bizNo, r.unit);
+    setCustomer(r.key, r.name, r.bizNo);
     closePanel();
     clearError(qInput);
     refresh();
@@ -186,7 +172,7 @@
   // 상호로 거래처 고르기 (이어서 작성, 재기안, 원계약에서 미리 채우기). 없으면 직접 입력으로
   function pickCustomerByName(name, bizNo, unit) {
     if (!name) return;
-    const r = C.searchBusinesses(name, 50).filter(function (x) { return x.name === name && !x.unit; })[0];
+    const r = C.searchBusinesses(name, 50).filter(function (x) { return x.name === name; })[0];
     qInput.value = r ? r.name : '';
     if (r) setCustomer(r.key, r.name, r.bizNo, unit);
     else { setCustomer(NEW_CUSTOMER, name, bizNo || '', unit); }
@@ -217,23 +203,60 @@
   }
   function setTitle(t) { $('#page-title').textContent = t; }
 
-  /* ---------- 3. 제품별 금액 (CPQ, REQ-SCOPE-02) ---------- */
+  /* ---------- 3. 제품별 금액 (CPQ, REQ-SCOPE-02) ----------
+   * v0.47 기획자 요청: 제품과 기능을 나눔. 줄마다 제품 → 기능 → 플랜을 차례로 고름(같은 제품이라도 기능마다 플랜이 다름)
+   *   고를 수 있는 것: 사용 중인 제품과 기능 중 오늘 적용되는 플랜(PRICE_BOOK)이 있는 것. 기능이나 플랜이 하나뿐이면 저절로 고름
+   *   저장하는 값은 그대로 플랜 코드(code), 수량, 금액, 사용 업체. 이어서 작성할 때는 플랜에서 제품과 기능을 다시 채움 */
   let productSeq = 0;
-  function productOptions(selected) {
-    return '<option value="">고르세요</option>' + D.PRICE_BOOK.map(function (p) {
-      return '<option value="' + p.code + '"' + (p.code === selected ? ' selected' : '') + '>' + esc(p.name) + '</option>';
+  function livePlans() {
+    return D.PRICE_BOOK.filter(function (r) {
+      const p = D.PRODUCTS.filter(function (x) { return x.id === r.product; })[0];
+      const f = D.FEATURES.filter(function (x) { return x.id === r.feature; })[0];
+      return p && p.use && f && f.use && D.SERVICES[p.service];
+    });
+  }
+  function optionsHtml(list, selected, empty) {
+    return '<option value="">' + esc(empty) + '</option>' + list.map(function (o) {
+      return '<option value="' + esc(o[0]) + '"' + (o[0] === selected ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
     }).join('');
+  }
+  function productOptions(selected) {
+    const plans = livePlans();
+    return optionsHtml(D.PRODUCTS.filter(function (p) { return plans.some(function (r) { return r.product === p.id; }); })
+      .map(function (p) { return [p.id, p.name]; }), selected, '고르세요');
+  }
+  // 고른 제품에 맞춰 기능 칸을, 고른 기능에 맞춰 플랜 칸을 다시 채움
+  function syncPick(li) {
+    const sp = li.querySelector('[data-k="product"]'), sf = li.querySelector('[data-k="feature"]'), sc = li.querySelector('[data-k="code"]');
+    const plans = livePlans();
+    const pid = sp.value;
+    let fid = sf.value, code = sc.value;
+    const feats = pid ? D.FEATURES.filter(function (f) { return f.product === pid && plans.some(function (r) { return r.feature === f.id; }); }) : [];
+    if (!feats.some(function (f) { return f.id === fid; })) fid = feats.length === 1 ? feats[0].id : '';
+    const list = fid ? plans.filter(function (r) { return r.feature === fid; }) : [];
+    if (!list.some(function (r) { return r.code === code; })) code = list.length === 1 ? list[0].code : '';
+    sf.innerHTML = optionsHtml(feats.map(function (f) { return [f.id, f.name]; }), fid, pid ? '고르세요' : '제품을 먼저 고르세요');
+    sf.disabled = !pid;
+    sc.innerHTML = optionsHtml(list.map(function (r) { return [r.code, r.name]; }), code, fid ? '고르세요' : '기능을 먼저 고르세요');
+    sc.disabled = !fid;
   }
   function addProduct(data) {
     data = data || {};
     productSeq += 1;
     const n = productSeq;
+    const plan = PRICE[data.code]; // 이어서 작성, 재기안: 플랜에서 제품과 기능을 찾음
     const li = document.createElement('li');
     li.className = 'product-item';
     li.innerHTML =
+      '<div class="product-pick">' +
+        '<div class="field"><label class="field-label field-label--sm" for="p-prod-' + n + '">제품</label>' +
+          '<select class="select" id="p-prod-' + n + '" data-k="product">' + productOptions(plan ? plan.product : '') + '</select></div>' +
+        '<div class="field"><label class="field-label field-label--sm" for="p-feat-' + n + '">기능</label>' +
+          '<select class="select" id="p-feat-' + n + '" data-k="feature">' + optionsHtml(plan ? [[plan.feature, C.featureName(plan.feature)]] : [], plan ? plan.feature : '', '제품을 먼저 고르세요') + '</select></div>' +
+        '<div class="field"><label class="field-label field-label--sm" for="p-code-' + n + '">플랜</label>' +
+          '<select class="select" id="p-code-' + n + '" data-k="code">' + optionsHtml(plan ? [[plan.code, plan.name]] : [], plan ? plan.code : '', '기능을 먼저 고르세요') + '</select></div>' +
+      '</div>' +
       '<div class="product-grid">' +
-        '<div class="field"><label class="field-label field-label--sm" for="p-code-' + n + '">제품</label>' +
-          '<select class="select" id="p-code-' + n + '" data-k="code">' + productOptions(data.code) + '</select></div>' +
         '<div class="field"><label class="field-label field-label--sm" for="p-qty-' + n + '">수량</label>' +
           '<div class="input-unit"><input class="input" id="p-qty-' + n + '" data-k="qty" inputmode="numeric" maxlength="4" value="' + (data.qty || 1) + '"><span class="unit">개</span></div></div>' +
         '<div class="field"><label class="field-label field-label--sm" for="p-amt-' + n + '">계약 금액</label>' +
@@ -245,12 +268,17 @@
         '<button type="button" class="btn-text" data-act="remove">이 제품 삭제</button></div>' +
       '<p class="field-error" hidden></p>';
     $('#product-list').appendChild(li);
+    syncPick(li);
     refresh();
     return li;
   }
   $('#btn-add-product').addEventListener('click', function () { addProduct().querySelector('select').focus(); });
   $('#product-list').addEventListener('click', function (e) {
     if (e.target.closest('[data-act="remove"]')) { e.target.closest('li').remove(); refresh(); }
+  });
+  // 제품이나 기능을 바꾸면 아래 칸을 다시 채움 (폼 전체의 change보다 먼저 돌아 계산에 새 플랜이 쓰임)
+  $('#product-list').addEventListener('change', function (e) {
+    if (e.target.matches('[data-k="product"], [data-k="feature"]')) syncPick(e.target.closest('li'));
   });
   // 금액 칸은 입력하는 동안 숫자만 남기고, 칸을 벗어나면 쉼표를 붙임
   form.addEventListener('focusout', function (e) {
@@ -322,13 +350,14 @@
   function totalAmount() { return readProducts().reduce(function (a, r) { return a + (r.amount || 0); }, 0); }
 
   /* ---------- 4. 체크리스트 2, 3번 자동 계산 (REQ-CHK-04) ----------
-   * 2번(표준단가표 적용): 모든 제품이 표준 단가 그대로면 예, 하나라도 할인이 있으면 아니오
-   * 3번(할인율 한도 준수): 모든 제품의 할인율이 그 제품의 한도 이하이면 예
+   * 2번(표준단가표 적용): 모든 줄이 표준 단가 그대로면 예, 하나라도 할인이 있으면 아니오
+   * 3번(할인율 한도 준수): 모든 줄의 할인율이 그 플랜의 한도 이하이면 예 (v0.47: 한도는 플랜마다)
    * 모든 계약에는 제품과 금액이 있음(v0.41: 금액이 없는 계약은 CLIMB에 등록하지 않음) */
   function priceCheck(rows) {
     if (!rows.length) return { q2: 'WAIT', q3: 'WAIT', d2: '제품을 넣으면 자동으로 계산됩니다.', d3: '제품을 넣으면 자동으로 계산됩니다.' };
     if (rows.some(function (r) { return !r.product || !r.qty || r.amount == null; })) {
-      return { q2: 'WAIT', q3: 'WAIT', d2: '제품, 수량, 계약 금액을 모두 넣으면 계산됩니다.', d3: '제품, 수량, 계약 금액을 모두 넣으면 계산됩니다.' };
+      const msg = '제품, 기능, 플랜, 수량, 계약 금액을 모두 넣으면 계산됩니다.';
+      return { q2: 'WAIT', q3: 'WAIT', d2: msg, d3: msg };
     }
     const discounted = rows.filter(function (r) { return r.discount > 0; });
     const over = rows.filter(function (r) { return r.discount > r.cap + 1e-9; });
@@ -336,11 +365,11 @@
       q2: discounted.length ? 'NO' : 'YES',
       q3: over.length ? 'NO' : 'YES',
       d2: discounted.length
-        ? discounted.map(function (r) { return r.product.name + ' ' + pct(r.discount) + ' 할인'; }).join(', ')
-        : '모든 제품이 표준 단가 그대로입니다.',
+        ? discounted.map(function (r) { return C.planLabel(r.product) + ' ' + pct(r.discount) + ' 할인'; }).join(', ')
+        : '모든 플랜이 표준 단가 그대로입니다.',
       d3: over.length
-        ? over.map(function (r) { return r.product.name + ' 할인율 ' + pct(r.discount) + ', 한도 ' + pct(r.cap) + ' 초과'; }).join(', ')
-        : (discounted.length ? '할인한 제품 모두 한도 이내입니다.' : '할인이 없습니다.'),
+        ? over.map(function (r) { return C.planLabel(r.product) + ' 할인율 ' + pct(r.discount) + ', 한도 ' + pct(r.cap) + ' 초과'; }).join(', ')
+        : (discounted.length ? '할인한 플랜 모두 한도 이내입니다.' : '할인이 없습니다.'),
     };
   }
   function answerHtml(v) {
@@ -413,7 +442,7 @@
     rows.forEach(function (r) {
       const info = r.li.querySelector('.price-info');
       const badge = r.li.querySelector('.price-badge');
-      if (!r.product) { info.textContent = '제품을 고르면 표준 단가가 나옵니다.'; badge.innerHTML = ''; return; }
+      if (!r.product) { info.textContent = '제품, 기능, 플랜을 고르면 표준 단가가 나옵니다.'; badge.innerHTML = ''; return; }
       info.textContent = '표준 단가 ' + won(r.product.listPrice) + ' (' + r.product.unit + ')' + (r.qty ? ' x ' + r.qty + ' = ' + won(r.std) : '') +
         ', 할인율 한도 ' + pct(r.cap);
       if (r.amount == null || r.discount == null) badge.innerHTML = '<span class="badge badge--line">금액 입력 대기</span>';
@@ -465,7 +494,6 @@
     clearError(e.target);
     if (e.target.name === 'kind') onKindChange();
     if (e.target.id === 'f-origin') onOriginChange();
-    if (e.target.id === 'f-unit-pick') { $('#f-unit').hidden = e.target.value !== NEW_UNIT; if (e.target.value === NEW_UNIT) $('#f-unit').focus(); }
     if (e.target.name === 'autoRenew') $('#notice-days-field').hidden = val('autoRenew') !== 'YES';
     refresh();
   });
@@ -596,7 +624,6 @@
       if (ten) need(C.ntsStatus(no) !== 'CLOSED', 'bizNo', '국세청 조회 결과 폐업한 사업자입니다. 폐업한 곳과는 계약을 올릴 수 없습니다.');
     }
     // 영업기회번호: 필수, 판다 번호 규칙 (v0.32 기획자 요청)
-    if ($('#f-unit-pick').value === NEW_UNIT) need(!!unitValue(), 'unit', '새 기관(부서) 이름을 넣거나 "없음(거래처 전체)"을 고르세요.', $('#f-unit'));
     need(!!val('opportunity'), 'opportunity', '영업기회번호를 입력하세요.');
     if (val('opportunity')) need(C.isOppNo(val('opportunity')), 'opportunity', '영업기회번호는 연도 2자리, 월 2자리, 영문 2자리, 일련번호 3자리입니다(예: 2610SU067).');
     need(!!val('method'), 'method', '계약 방식을 고르세요.');
@@ -608,17 +635,19 @@
     need(!!val('personalData'), 'personalData', '개인정보 처리위탁 계약 여부를 고르세요.');
     need(!!val('sla'), 'sla', '서비스 수준 협약(SLA) 여부를 고르세요.'); // v0.40
 
-    // 제품: 1개 이상, 줄마다 제품, 수량, 금액 (금전 거래가 있는 계약만 등록, v0.41)
+    // 제품: 1개 이상, 줄마다 제품, 기능, 플랜, 수량, 금액 (금전 거래가 있는 계약만 등록, v0.41. 기능과 플랜은 v0.47)
     const rows = readProducts();
     if (!rows.length) need(false, 'products', '제품을 1개 이상 넣으세요.', $('#btn-add-product'));
     rows.forEach(function (r, i) {
       if (r.product && r.qty && r.amount != null) return;
       r.li.classList.add('is-invalid');
       const err = r.li.querySelector(':scope > .field-error');
-      const msg = (i + 1) + '번째 제품의 제품, 수량, 계약 금액을 모두 넣으세요.';
+      const msg = (i + 1) + '번째 줄의 제품, 기능, 플랜, 수량, 계약 금액을 모두 넣으세요.';
       err.hidden = false;
       err.innerHTML = C.icon('alert', 'sm') + '<span>' + esc(msg) + '</span>';
-      errors.push({ msg: msg, target: r.li.querySelector(!r.product ? 'select' : (!r.qty ? '[data-k="qty"]' : '[data-k="amount"]')) });
+      // 비어 있는 첫 칸으로 (제품 → 기능 → 플랜 → 수량 → 금액)
+      const empty = ['product', 'feature', 'code'].map(function (k) { return r.li.querySelector('[data-k="' + k + '"]'); }).filter(function (s) { return !s.value; })[0];
+      errors.push({ msg: msg, target: !r.product ? empty : (!r.qty ? r.li.querySelector('[data-k="qty"]') : r.li.querySelector('[data-k="amount"]')) });
     });
     // 연도별 금액 합계 = 총액
     if (!$('#yearly-field').hidden) {
@@ -685,7 +714,7 @@
       g.items.forEach(function (i) { if (g.stage.indexOf('2단계') === 0 && i.state === 'go') goes.push(i.no + ' ' + i.name); });
     });
     const rows = [
-      ['거래처', val('counterparty') + (val('bizNo') ? ' (' + val('bizNo') + ')' : '') + (unitValue() ? ', 기관: ' + unitValue() : '')],
+      ['거래처', val('counterparty') + (val('bizNo') ? ' (' + val('bizNo') + ')' : '') + (unitValue() ? ', 기관 또는 부서: ' + unitValue() : '')],
       ['서비스', serviceOfProducts()],
       ['계약 금액', current.total ? won(current.total) + ' (부가세 별도)' : '금액 없음'],
       ['계약 기간', C.fmtPeriod(val('startDate'), val('endDate'))],
