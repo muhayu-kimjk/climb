@@ -125,6 +125,15 @@
     if (C.hasRole(me, ['PRIVACY']) && auditCount) msg += ' 점검할 일도 <strong class="em">' + auditCount + '건</strong> 있습니다.';
     document.getElementById('greeting').innerHTML = msg;
     document.getElementById('today').textContent = C.fmtToday() + ' 기준';
+    // 가장 최근 공지 한 줄 (v0.45): 공지사항의 맨 위 글. 내린 글은 빼고 글 번호가 큰 것
+    const latest = D.NOTICES.filter(function (n) { return !n.hidden; })
+      .sort(function (a, b) { return Number(String(b.id).slice(2)) - Number(String(a.id).slice(2)); })[0];
+    if (latest) {
+      document.getElementById('notice-strip').innerHTML = '<p class="notice-strip"><span class="strip-label">' + (latest.kind === 'RELEASE' ? '릴리즈 노트' : '공지') + '</span>' +
+        (latest.important ? C.badge('danger', '중요') : '') +
+        '<a href="notice.html?id=' + encodeURIComponent(latest.id) + '">' + (latest.version ? esc(latest.version) + ' ' : '') + esc(latest.title) + '</a>' +
+        '<span class="strip-date">' + C.fmtDate(latest.at) + '</span></p>';
+    }
   }
 
   /* ---------- 2. 계약 진행 현황 (REQ-DASH-04, 06, 08, 14) ----------

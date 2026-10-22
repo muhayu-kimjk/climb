@@ -97,7 +97,7 @@ p.check-effect { margin-top: 1.2rem; }
 .btn-reject { color: var(--status-danger-fill); border-color: var(--status-danger-fill); }
 .act-field { margin-top: 1.6rem; }
 
-@media screen and (max-width: 600px) {
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) {
   .info-grid { grid-template-columns: 1fr; }
   .info-grid > div { grid-template-columns: 10rem minmax(0, 1fr); }
   .action-bar { margin-left: -1.6rem; margin-right: -1.6rem; padding: 1.2rem 1.6rem; border-radius: 0; }

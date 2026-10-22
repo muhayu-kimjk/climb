@@ -35,7 +35,7 @@
 
   /* ---------- 접속 기록 만들기 (시연용) ---------- */
   const ACTS = { LOGIN: '로그인', LOGOUT: '로그아웃', VIEW: '열람', SUBMIT: '기안', APPROVE: '결재', DOWNLOAD: '내려받기', NOTE: '사후관리 기록', ADMIN: '설정 변경', AUDIT: '점검 기록' };
-  const AREA = { USER: '사용자 권한', RULE: '결재선 규칙', RESTRICT: '열람 제한', PRICE: '가격 기준', CUSTOMER: '거래처', CODE: '코드' };
+  const AREA = { USER: '사용자 권한', RULE: '결재선 규칙', RESTRICT: '열람 제한', PRICE: '가격 기준', CUSTOMER: '거래처', CODE: '코드', NOTICE: '공지사항' };
   function buildLogs() {
     const out = [];
     const push = function (at, userId, act, target, place) { if (at) out.push({ at: at, userId: userId, act: act, target: target || '-', place: place || '사내망' }); };

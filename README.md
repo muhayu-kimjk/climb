@@ -63,6 +63,9 @@ Projects/CLM
    ├─ admin-codes.html     SCR-56 코드 관리
    ├─ admin-logs.html      SCR-57 접속 기록 점검 (정보보호 담당자와 리더, 최고관리자)
    ├─ help.html            SCR-90 이용 안내
+   ├─ notices.html         SCR-91 공지사항 (공지와 릴리즈 노트, 쓰기는 관리자)
+   ├─ notice.html          SCR-92 공지 보기 (?id=글 번호)
+   ├─ account.html         SCR-93 내 계정 (머리글의 이름을 누르면, 받을 이메일)
    └─ assets/
       ├─ css/tokens.css    색, 글자, 크기 값 (회사 컬러는 여기만 바꾸면 됨)
       ├─ css/common.css    모든 화면 공통 스타일 (KRDS 구조)
@@ -74,6 +77,7 @@ Projects/CLM
       ├─ css/admin-users.css 사용자 권한 관리 화면 전용 스타일 (가로 스크롤 표, 쪽 번호)
       ├─ css/admin.css     관리자 화면 공통 스타일 (묶음, 표 안의 관리 버튼, 변경 이력 표, 코드표 고르기)
       ├─ css/help.css      이용 안내 화면 전용 스타일 (차례, 자주 묻는 것)
+      ├─ css/board.css     공지사항, 내 계정, 개요의 최근 공지 한 줄
       ├─ js/mock-data.js   시연용 예시 데이터 (가상의 사람, 거래처)
       ├─ js/common.js      헤더, 메뉴, 푸터, 권한 판단 등 공통 기능
       ├─ js/dashboard.js   개요 화면 로직
@@ -86,6 +90,10 @@ Projects/CLM
       ├─ js/admin-codes.js 코드 관리 화면 로직
       ├─ js/admin-logs.js  접속 기록 점검 화면 로직
       ├─ js/help.js        이용 안내 화면 로직 (내 역할 강조, 인쇄 때 펼치기)
+      ├─ js/notices.js     공지사항 목록 화면 로직
+      ├─ js/notice.js      공지 보기 화면 로직 (고치기, 내리기)
+      ├─ js/notice-form.js 공지 글쓰기와 고치기 창 (목록과 보기가 함께 씀)
+      ├─ js/account.js     내 계정 화면 로직 (받을 이메일 저장)
       ├─ js/progress.js    전체 진행 현황 화면 로직
       ├─ js/review-queue.js 검토 대기 화면 로직
       ├─ js/review-done.js 검토 완료 화면 로직

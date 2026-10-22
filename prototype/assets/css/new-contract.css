@@ -70,7 +70,7 @@
 
 /* ---------- 휴대폰 화면 (방식 B) ----------
  * 제품 상자: 제품은 한 줄 전체, 수량과 금액은 다음 줄에 나란히 */
-@media screen and (max-width: 600px) {
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) {
   .product-grid { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr); }
   .product-grid > .field:first-child { grid-column: 1 / -1; }
   .year-row { grid-template-columns: minmax(0, 1fr); gap: 0.4rem; }

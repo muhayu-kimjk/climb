@@ -113,7 +113,7 @@
 .form-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 1.2rem; margin-top: 3.2rem; }
 
 /* 휴대폰 화면 (방식 B): 배치는 같게, 버튼은 줄을 꽉 채워 누르기 쉽게 */
-@media screen and (max-width: 600px) {
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) {
   .form-actions .btn { flex: 1 1 0; }
 }
 
@@ -234,7 +234,7 @@
 .btn--text:hover { background: var(--surface-gray-subtler); }
 .btn--text:disabled { color: var(--text-disabled); cursor: not-allowed; }
 /* 휴대폰: 칸 폭 그대로. 날짜 원은 40px(한 칸 폭에 맞춘 최대), 버튼은 44px 높이 */
-@media screen and (max-width: 600px) {
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) {
   .cal { font-size: var(--fs-body-medium); }
   .cal-head { padding: 0.8rem; }
   .cal-move { width: var(--touch-min); height: var(--touch-min); }

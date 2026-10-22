@@ -53,6 +53,8 @@ window.CLIMB = (function () {
       { label: '코드 관리', scr: 'SCR-56', href: 'admin-codes.html', roles: ['ADMIN'] },
       { label: '접속 기록 점검', scr: 'SCR-57', href: 'admin-logs.html', roles: ['PRIVACY'] },
     ] },
+    // 공지사항: 공지와 릴리즈 노트를 한 게시판에 (v0.45 기획자 결정: 주 메뉴 맨 끝). 읽기는 모두, 쓰기는 관리자와 최고관리자
+    { label: '공지사항', scr: 'SCR-91', href: 'notices.html' },
   ];
 
   /* ---------- 아이콘 (선 아이콘, 글자색을 따라감) ---------- */
@@ -78,7 +80,7 @@ window.CLIMB = (function () {
 
   // 시스템 이름 표기 (REQ-NAME-03~04, REQ-UI-03)
   //   헤더: [무하유 심볼] CLIMB / 둘째 줄 MUHAYU Contract Lifecycle Management Base (v0.22, 한글 이름은 뺌)
-  //   푸터: [무하유 심볼] CLIMB | 무하유 계약 관리 플랫폼 / 둘째 줄 영문 이름 (v0.22, 심볼만 더함)
+  //   푸터: [무하유 심볼] CLIMB / 무하유 계약 관리 플랫폼 / 영문 이름, 세 줄 (v0.22 심볼, v0.44 세로선 없이 줄 바꿈)
   //   로그인 화면: 심볼 없이 글자로만 (바꾸지 않음)
   //   opt.mark: CLIMB 앞에 심볼(파비콘과 같은 파일) / opt.ko: 한글 이름 붙이기 (기본 true)
   //   세로선은 글자가 아닌 선으로 그려 화면낭독기는 "CLIMB 무하유 계약 관리 플랫폼"으로 읽음
@@ -697,7 +699,22 @@ window.CLIMB = (function () {
     return entry;
   }
   // 시연으로 만든 계약(해지 기안, 연장 검토), 사후관리 기록, 지운 임시 저장 (프로토타입 전용, REQ-ARC-04~07)
-  const DEMO_KEYS = { contracts: 'climb.demoContracts', notes: 'climb.demoNotes', deleted: 'climb.demoDeleted', admin: 'climb.demoAdmin' };
+  const DEMO_KEYS = { contracts: 'climb.demoContracts', notes: 'climb.demoNotes', deleted: 'climb.demoDeleted', admin: 'climb.demoAdmin', mail: 'climb.demoMail' };
+  // 받을 이메일 설정(내 계정, v0.45): { 사용자 id: { 알림 코드: 켬/끔 } }. 실제 시스템은 서버의 사용자 설정
+  function mailPrefs(userId) {
+    let all = {};
+    try { all = JSON.parse(localStorage.getItem(DEMO_KEYS.mail) || '{}') || {}; } catch (e) { all = {}; }
+    const mine = all[userId] || {};
+    const out = {};
+    D.EMAIL_TYPES.forEach(function (t) { out[t.code] = t.must ? true : (t.code in mine ? !!mine[t.code] : !!t.on); });
+    return out;
+  }
+  function saveMailPrefs(userId, prefs) {
+    let all = {};
+    try { all = JSON.parse(localStorage.getItem(DEMO_KEYS.mail) || '{}') || {}; } catch (e) { all = {}; }
+    all[userId] = prefs;
+    try { localStorage.setItem(DEMO_KEYS.mail, JSON.stringify(all)); } catch (e) { /* 저장소를 못 쓰면 이 화면에서만 */ }
+  }
   function loadDemo(key) { try { return JSON.parse(localStorage.getItem(DEMO_KEYS[key]) || '[]'); } catch (e) { return []; } }
   function pushDemo(key, item) {
     const list = loadDemo(key);
@@ -804,6 +821,15 @@ window.CLIMB = (function () {
     } else if (op.k === 'PRICE') {
       D.PRICE_ROWS.push(Object.assign({ by: e.by, at: e.at }, op.row));
       refreshPrices();
+    } else if (op.k === 'NOTICE_ADD') {
+      // 공지사항 (v0.45): 올림, 고침, 내림. 내린 글은 지우지 않고 감춤(기록 남김)
+      D.NOTICES.push(Object.assign({ by: e.by, at: e.at.slice(0, 16) }, op.n));
+    } else if (op.k === 'NOTICE_EDIT') {
+      const n = findBy(D.NOTICES, 'id', op.id);
+      if (n) Object.assign(n, op.set, { editedAt: e.at.slice(0, 16) });
+    } else if (op.k === 'NOTICE_HIDE') {
+      const n = findBy(D.NOTICES, 'id', op.id);
+      if (n) { n.hidden = true; n.hiddenAt = e.at.slice(0, 16); }
     } else if (op.k === 'CUSTOMER_ADD') {
       D.CUSTOMERS.push(Object.assign({ registeredBy: e.by, registeredAt: day, use: true, mergedInto: null, units: [] }, op.cu));
     } else if (op.k === 'CUSTOMER_EDIT') {
@@ -857,7 +883,7 @@ window.CLIMB = (function () {
       if (a) { a.status = 'DONE'; a.doneBy = e.by; a.doneAt = e.at; a.action = op.action; }
     }
   }
-  // 관리자 변경 남기기: area(USER, RULE, RESTRICT, CUSTOMER, CODE, AUDIT), 대상, 바뀐 내용, 사유, 반영할 내용
+  // 관리자 변경 남기기: area(USER, RULE, RESTRICT, CUSTOMER, CODE, AUDIT, NOTICE), 대상, 바뀐 내용, 사유, 반영할 내용
   function adminSave(area, target, change, reason, op) {
     const e = { at: nowStamp(), by: currentUser().id, area: area, target: target, change: change, reason: reason, op: op || null };
     pushDemo('admin', e);
@@ -1041,7 +1067,7 @@ window.CLIMB = (function () {
   }
 
   // 메뉴에 없는 화면은 어느 메뉴 아래인지 (현재 메뉴 표시, KRDS 메인 메뉴: 지금 위치를 분명히) v0.28
-  const MENU_PARENT = { 'SCR-23': 'SCR-20', 'SCR-42': 'SCR-41', 'SCR-13': 'SCR-41', 'SCR-14': 'SCR-41', 'SCR-44': 'SCR-43' };
+  const MENU_PARENT = { 'SCR-23': 'SCR-20', 'SCR-42': 'SCR-41', 'SCR-13': 'SCR-41', 'SCR-14': 'SCR-41', 'SCR-44': 'SCR-43', 'SCR-92': 'SCR-91' };
   function renderHeader(user, pageId) {
     const el = document.getElementById('site-header');
     if (!el) return;
@@ -1083,7 +1109,9 @@ window.CLIMB = (function () {
         '<div class="user-line">' +
           // 이름 앞에 조직명: 비즈니스1유닛 이도윤님 | 로그아웃 (v0.29 기획자 결정. 예전에는 역할 배지)
           //   역할은 본인이 알고 관리자만 알면 되므로 헤더에 두지 않고 사용자 권한 관리에서 봄
-          '<span class="user-org">' + esc(user.dept || '') + '</span><span class="user-name">' + esc(user.name) + '님</span>' +
+          // 이름을 누르면 내 계정(SCR-93): 계정 정보와 받을 이메일 설정 (v0.45 기획자 요청)
+          '<span class="user-org">' + esc(user.dept || '') + '</span>' +
+          '<a class="user-name" href="account.html" title="내 계정"' + (pageId === 'SCR-93' ? ' aria-current="page"' : '') + '>' + esc(user.name) + '님<span class="sr-only"> (내 계정)</span></a>' +
           '<span class="util-divider" aria-hidden="true"></span>' +
           '<a class="util-link logout-link" href="login.html">' + icon('logout', 'sm') + '로그아웃</a>' +
         '</div>' +
@@ -1092,10 +1120,38 @@ window.CLIMB = (function () {
         '<p class="print-meta">' + meta(['출력일 ' + fmtDate(D.TODAY), '출력자 ' + esc(user.name) + '님 (' + esc(user.dept || '') + ')']) + '</p>' +
       '</div></div>' +
       '<nav class="gnb" aria-label="주 메뉴"><div class="inner">' +
-        '<ul class="gnb-list">' + menuHtml + '</ul>' +
+        // 휴대폰에서 옆으로 밀어 보는 틀과 양쪽 화살표(v0.43). 화살표는 손가락용 보조라 Tab으로는 가지 않음(메뉴 링크로 바로 감)
+        '<div class="gnb-scroll"><ul class="gnb-list">' + menuHtml + '</ul>' +
+          '<button type="button" class="gnb-more gnb-more--left" tabindex="-1" aria-hidden="true">' + icon('chevronLeft') + '</button>' +
+          '<button type="button" class="gnb-more gnb-more--right" tabindex="-1" aria-hidden="true">' + icon('chevronRight') + '</button></div>' +
         // 이용 안내(SCR-90): 메뉴 줄 오른쪽 끝 (REQ-UI-14)
         '<a class="gnb-aside' + (pageId === 'SCR-90' ? ' is-current" aria-current="page' : '') + '" href="help.html">' + icon('help', 'sm') + '<span class="gnb-aside-label">이용 안내</span></a>' +
       '</div></nav>';
+
+    // 휴대폰 메뉴(v0.42): 한 줄을 옆으로 밀어 봄. 지금 화면의 메뉴가 보이게 미리 밀어 두고, 더 있는 쪽 끝을 흐리게 표시
+    const gnbList = el.querySelector('.gnb-list');
+    // 메뉴가 더 있는 쪽에 그라데이션과 화살표를 보임(v0.43). 하위 메뉴가 열려 있으면 감춤
+    const gnbScroll = gnbList.parentNode;
+    function gnbEdge() {
+      const max = gnbList.scrollWidth - gnbList.clientWidth;
+      const open = !!gnbList.querySelector('.gnb-item.is-open');
+      gnbScroll.classList.toggle('is-more-left', !open && max > 2 && gnbList.scrollLeft > 2);
+      gnbScroll.classList.toggle('is-more-right', !open && max > 2 && gnbList.scrollLeft < max - 2);
+    }
+    gnbScroll.querySelectorAll('.gnb-more').forEach(function (b) {
+      b.addEventListener('click', function () {
+        const dir = b.classList.contains('gnb-more--left') ? -1 : 1;
+        const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        gnbList.scrollBy({ left: dir * gnbList.clientWidth * 0.7, behavior: reduce ? 'auto' : 'smooth' });
+      });
+    });
+    const gnbCur = gnbList.querySelector('.gnb-link.is-current');
+    if (gnbCur && gnbList.scrollWidth > gnbList.clientWidth) {
+      gnbList.scrollLeft += gnbCur.getBoundingClientRect().left - gnbList.getBoundingClientRect().left - 16;
+    }
+    gnbList.addEventListener('scroll', gnbEdge, { passive: true });
+    window.addEventListener('resize', gnbEdge);
+    gnbEdge();
 
     // 하위 메뉴 열기·닫기
     el.querySelectorAll('button.gnb-link').forEach(function (btn) {
@@ -1105,6 +1161,7 @@ window.CLIMB = (function () {
         closeMenus();
         item.classList.toggle('is-open', willOpen);
         btn.setAttribute('aria-expanded', String(willOpen));
+        gnbEdge();
       });
     });
     document.addEventListener('click', function (e) { if (!e.target.closest('.gnb-item')) closeMenus(); });
@@ -1120,6 +1177,7 @@ window.CLIMB = (function () {
         item.classList.remove('is-open');
         item.querySelector('button').setAttribute('aria-expanded', 'false');
       });
+      gnbEdge();
     }
   }
 
@@ -1139,7 +1197,7 @@ window.CLIMB = (function () {
     if (!el) return;
     el.className = 'site-footer';
     el.innerHTML =
-      // 푸터: 시스템 이름 두 줄 + 보안 안내 문구 + 저작권. 이용 안내는 메뉴 줄로 옮기고 시스템 문의는 뺌 (REQ-UI-14, 15)
+      // 푸터: 시스템 이름 세 줄(v0.44) + 보안 안내 문구 + 저작권. 이용 안내는 메뉴 줄로 옮기고 시스템 문의는 뺌 (REQ-UI-14, 15)
       '<div class="inner">' +
         '<div class="footer-brand">' + brandText('p', { mark: true }) + '</div>' +
         '<p class="footer-notice">' + esc(SECURITY_NOTICE) + '</p>' +
@@ -1403,6 +1461,10 @@ window.CLIMB = (function () {
     });
   }
 
+  // 휴대폰 규칙을 쓰는 화면인지: 폭 600px 이하이거나 터치스크린(태블릿 포함) (v0.43, CSS의 휴대폰 규칙과 같은 조건)
+  const TOUCH_MQ = 'screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse)';
+  function isTouchLayout() { return !!(window.matchMedia && window.matchMedia(TOUCH_MQ).matches); }
+
   /* ---------- 날짜 입력과 달력 (KRDS 날짜 입력 필드, 달력. v0.35 기획자 요청) ----------
    * 브라우저 기본 날짜 칸은 브라우저마다 모양과 형식("연도-월-일")이 다르고 달력이 작으며 글꼴도 Noto Sans KR이 아니어서,
    * KRDS처럼 글자 칸 + 달력 버튼 + 큰 달력으로 바꿉니다. 기준은 KRDS 공식 코드(GitHub KRDS-uiux/krds-uiux)
@@ -1585,8 +1647,8 @@ window.CLIMB = (function () {
     const r = cal.input.parentNode.getBoundingClientRect();
     const vw = document.documentElement.clientWidth, vh = window.innerHeight;
     // 폭: 날짜 칸 폭에 맞춤(v0.35 기획자 요청). PC는 280~322px, 휴대폰(600px 이하)은 칸 폭 그대로(좁은 칸이면 280px)
-    const phone = window.matchMedia && window.matchMedia('screen and (max-width: 600px)').matches;
-    const fit = Math.max(280, phone ? r.width : Math.min(r.width, 322));
+    const phone = isTouchLayout();
+    const fit = Math.max(280, Math.min(r.width, phone ? 400 : 322)); // 휴대폰, 태블릿은 칸 폭(최대 400px), PC는 280~322px
     cal.el.style.width = Math.round(Math.min(fit, vw - 16)) + 'px';
     const w = cal.el.offsetWidth, h = cal.el.offsetHeight;
     // 칸 왼쪽에 맞추되, A4 종이(확인 창이면 그 창)나 화면 밖으로 나가면 칸 오른쪽에 맞춤
@@ -1745,6 +1807,7 @@ window.CLIMB = (function () {
     init: init, getRole: getRole, saveRole: saveRole, currentUser: currentUser,
     daysSince: daysSince, daysUntil: daysUntil, fmtDate: fmtDate, fmtDateTime: fmtDateTime, fmtPeriod: fmtPeriod, fmtToday: fmtToday, fmtKRW: fmtKRW,
     roleLabel: roleLabel, roleShort: roleShort, josa: josa, ownerLabel: ownerLabel,
+    mailPrefs: mailPrefs, saveMailPrefs: saveMailPrefs, isTouchLayout: isTouchLayout,
     isBizNo: isBizNo, fmtBizNo: fmtBizNo, isUniqueNo: isUniqueNo, ntsStatus: ntsStatus, searchBusinesses: searchBusinesses, isOppNo: isOppNo, pandaUrl: pandaUrl, pandaLink: pandaLink, hasRole: hasRole, userName: userName, serviceLabel: serviceLabel, stepLabel: stepLabel,
     currentStep: currentStep, pendingSteps: pendingSteps, routedSteps: routedSteps, stepPosition: stepPosition, waitDays: waitDays,
     stepDots: stepDots, progressText: progressText, actionLabel: actionLabel, opsChecks: opsChecks, isReviewStep: isReviewStep, routedReview: routedReview,

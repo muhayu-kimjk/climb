@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 브라우저 탭 제목: CLIMB (REQ-NAME-02) -->
+  <title>CLIMB</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/common.css">
+  <link rel="stylesheet" href="assets/css/form.css">
+  <link rel="stylesheet" href="assets/css/admin.css">
+  <link rel="stylesheet" href="assets/css/board.css">
+</head>
+<!-- =====================================================================
+  SCR-93 내 계정 (docs/02_화면목록.md, 요구사항 정의서 REQ-UI-30, v0.45 기획자 요청)
+  - 머리글의 내 이름을 누르면 들어옴. 메뉴에는 없음
+  - 1. 계정 정보: 이름, 이메일, 조직, 역할, 상태, 최초 접속, 최종 로그인 (보기만. 조직과 역할은 관리자가 사용자 권한 관리에서 바꿈)
+  - 2. 받을 이메일: 알림 종류마다 언제 오는지와 받기. 꼭 받는 알림은 끌 수 없고(기획자 확인 C-26), 선택 알림만 켜고 끔. 내 역할에 오지 않는 알림은 흐리게
+====================================================================== -->
+<body data-page="SCR-93">
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <div id="demo-bar"></div>
+
+  <div class="sheet">
+  <header id="site-header"></header>
+
+  <main id="main" class="page" tabindex="-1">
+    <div class="inner">
+      <nav class="breadcrumb" id="breadcrumb" aria-label="브레드크럼" hidden></nav>
+      <div class="page-head page-head--sub">
+        <h1 class="page-title">내 계정</h1>
+      </div>
+      <div class="page-intro">
+        <p>내 계정 정보와 CLIMB에서 받을 이메일을 봅니다.</p>
+        <p class="sub">알림은 화면 안에 띄우지 않고 회사 이메일로 보냅니다.</p>
+      </div>
+
+      <div class="admin-stack">
+        <section class="panel" aria-labelledby="sec-info">
+          <div class="panel-head"><h2 class="panel-title" id="sec-info">계정 정보</h2></div>
+          <dl class="account-info" id="account-info"></dl>
+          <p class="panel-desc account-note">조직과 역할은 관리자가 사용자 권한 관리에서 바꿉니다. 바뀌어야 하면 관리자에게 알려 주세요.</p>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-mail">
+          <div class="panel-head"><h2 class="panel-title" id="sec-mail">받을 이메일</h2></div>
+          <p class="panel-desc mail-to" id="mail-desc"></p>
+          <form id="mail-form">
+            <fieldset class="field">
+              <legend class="sr-only">받을 이메일 고르기</legend>
+              <ul class="mail-list" id="mail-list"></ul>
+            </fieldset>
+            <div class="mail-foot">
+              <p class="field-help">꼭 받는 알림은 업무 처리와 내부 통제에 필요해 끌 수 없습니다.</p>
+              <button type="submit" class="btn btn--primary btn--md">저장</button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+  </div><!-- /.sheet -->
+
+  <script src="assets/js/mock-data.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/account.js"></script>
+</body>
+</html>

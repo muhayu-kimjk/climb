@@ -1,0 +1,67 @@
+/* =====================================================================
+ * 공지사항(SCR-91, 92)과 내 계정(SCR-93) 화면 스타일 (board.css, v0.45)
+ * 개요의 "최근 공지 한 줄"도 여기 있음 (index.html에서 함께 불러옴)
+ * ===================================================================== */
+
+/* ---------- 공지사항 목록 ---------- */
+.board-title { font-weight: 700; color: var(--text-bolder); text-align: left; }
+a.board-title:hover { color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; }
+.board-title .badge { margin-right: 0.6rem; vertical-align: 0.1em; }
+.board-ver { margin-right: 0.6rem; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.tbl--board .col-kind { width: 1%; white-space: nowrap; }
+
+/* ---------- 글 보기 ---------- */
+/* 제목은 양쪽 정렬하지 않음(두 줄로 넘어갈 때 낱말 사이가 크게 벌어지지 않게) */
+.post-head .page-title { text-align: left; }
+.post-head { padding-bottom: 2rem; border-bottom: 1px solid var(--border-gray-light); }
+.post-body { margin-top: 2.4rem; font-size: var(--fs-body-medium); line-height: 1.7; color: var(--text-basic); }
+.post-body p + p { margin-top: 1.2rem; }
+/* 릴리즈 노트: 새 기능, 개선, 바뀐 규칙, 고친 문제 (게임 패치 노트처럼 묶음마다 배지) */
+.release-part + .release-part { margin-top: 2.8rem; }
+.release-part h2 { display: flex; align-items: center; gap: 0.8rem; font-size: var(--fs-heading-xsmall); font-weight: 700; color: var(--text-bolder); }
+.release-part ul { margin-top: 1rem; padding-left: 2.2rem; list-style: disc; }
+.release-part li + li { margin-top: 0.6rem; }
+.post-edited { margin-top: 2.4rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
+/* 이전 글, 다음 글 */
+.post-nav { margin-top: 3.2rem; border-top: 1px solid var(--border-gray-light); }
+.post-nav > div { display: flex; gap: 1.6rem; padding: 1.4rem 0; border-bottom: 1px solid var(--border-gray-light); font-size: var(--fs-body-medium); }
+.post-nav dt { flex-shrink: 0; width: 6.4rem; color: var(--text-subtle); }
+.post-nav dd { min-width: 0; text-align: left; }
+.post-nav a:hover { color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; }
+.post-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.8rem; margin-top: 2.4rem; }
+@media print { .post-actions, .post-nav { display: none !important; } }
+
+/* ---------- 개요 맨 위: 가장 최근 공지 한 줄 (숫자, 종 모양 없음. REQ-ENV-09) ---------- */
+.notice-strip {
+  display: flex; align-items: center; gap: 0.8rem; margin-bottom: 2.4rem; padding: 1.2rem 1.6rem;
+  border: 1px solid var(--border-gray-light); border-radius: var(--radius-lg); background: var(--surface-white);
+}
+.notice-strip .strip-label { flex-shrink: 0; font-size: var(--fs-body-small); font-weight: 700; color: var(--text-subtle); }
+.notice-strip a { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; color: var(--text-bolder); text-align: left; }
+.notice-strip a:hover { color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; }
+.notice-strip .strip-date { flex-shrink: 0; font-size: var(--fs-body-small); color: var(--text-subtle); font-variant-numeric: tabular-nums; }
+@media print { .notice-strip { display: none !important; } }
+
+/* ---------- 내 계정 ---------- */
+.account-info { display: grid; grid-template-columns: max-content 1fr; gap: 1rem 2.4rem; font-size: var(--fs-body-medium); }
+.account-info dt { color: var(--text-subtle); }
+.account-info dd { color: var(--text-basic); text-align: left; }
+.account-note { margin-top: 1.6rem; }
+.mail-list { border-top: 1px solid var(--border-gray-light); }
+/* 한 줄: [체크] 알림 이름 ............ [꼭 받음] / 아랫줄: 언제 오는지(체크 칸만큼 들여 씀) */
+.mail-list > li { display: grid; grid-template-columns: 1fr auto; align-items: start; gap: 0.2rem 1.2rem; padding: 1.4rem 0; border-bottom: 1px solid var(--border-gray-light); }
+.mail-list .choice { grid-column: 1; grid-row: 1; min-height: 0; }
+.mail-name { font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); text-align: left; }
+.mail-when { grid-column: 1; grid-row: 2; padding-left: 3.2rem; font-size: var(--fs-body-small); color: var(--text-subtle); text-align: left; }
+.mail-state { grid-column: 2; grid-row: 1 / span 2; align-self: center; white-space: nowrap; }
+.mail-to { text-align: left; }
+.mail-list > li.is-not-mine .mail-name { color: var(--text-subtle); font-weight: 500; }
+.mail-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1.2rem; margin-top: 2rem; }
+
+/* 휴대폰, 태블릿(터치스크린): 글 보기와 계정 정보를 한 줄씩 */
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) {
+  .account-info { grid-template-columns: 1fr; gap: 0.2rem; }
+  .account-info dd { margin-bottom: 1rem; }
+  .post-nav dt { width: 5.2rem; }
+  .post-actions .btn { flex: 1 1 0; }
+}

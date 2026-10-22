@@ -96,7 +96,7 @@
     $('#f-bizno').value = C.fmtBizNo(bizNo); // 000-00-00000 (v0.34)
     bizWarn();
     // 지시문은 예시 글자에 두지 않고 거래처 칸 도움말에 둠 (KRDS, v0.28)
-    $('#f-counterparty').placeholder = manual ? '예: 사업자등록증의 상호' : '';
+    $('#f-counterparty').placeholder = key && !manual ? '' : '예: 삼성전자 주식회사'; // 예시 (v0.42 기획자 지정)
     $('#customer-help').innerHTML = !key ? esc(HELP_SEARCH)
       : manual ? '검색되지 않는 거래처라 사업자등록증을 보고 직접 넣습니다. 기안하면 거래처 목록에 함께 등록됩니다. <button type="button" class="btn-text" id="customer-research">다시 검색</button>'
       : key.indexOf('R:') === 0 ? '사업자 정보 DB에서 찾은 곳입니다. 아직 우리 거래처가 아니라서 기안하면 거래처 목록에 함께 등록됩니다.'

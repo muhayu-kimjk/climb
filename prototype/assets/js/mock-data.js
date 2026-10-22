@@ -533,6 +533,68 @@ window.CLIMB_DATA = (function () {
   };
 
 
+  /* ---------- 공지사항과 릴리즈 노트 (SCR-91, SCR-92, v0.45 기획자 요청) ----------
+   * 한 게시판에 구분 두 가지: 공지(NOTICE), 릴리즈 노트(RELEASE). 읽기는 모두, 쓰기는 관리자와 최고관리자
+   * 릴리즈 노트는 게임 패치 노트처럼 버전과 날짜, 새 기능 / 개선 / 바뀐 규칙 / 고친 문제로 나눠 씀(items)
+   * important: 중요 공지. 올리면 전체 사용자에게 이메일로 알림(REQ-ENV-10 ⑧). 개요 맨 위에는 가장 최근 글 한 줄
+   * 아래 릴리즈 노트는 이 시안에서 실제로 바뀐 내용과 날짜입니다(요구사항 정의서 변경 이력과 같은 날짜) */
+  const NOTICE_KINDS = { NOTICE: '공지', RELEASE: '릴리즈 노트' };
+  const RELEASE_PARTS = [['added', '새 기능'], ['improved', '개선'], ['changed', '바뀐 규칙'], ['fixed', '고친 문제']];
+  const NOTICES = [
+    { id: 'N-0001', kind: 'NOTICE', important: true, title: 'CLIMB 시범 운영을 시작합니다', at: '2026-10-19 09:00', by: 'u_super',
+      body: ['오늘부터 계약 등록과 결재를 CLIMB에서 시범 운영합니다. 기존 전자결재로 올리던 계약 품의는 CLIMB으로 올려 주세요.',
+        '로그인은 회사 Google 계정으로 하고, 사내망이나 VPN에서만 접속할 수 있습니다.',
+        '쓰다가 불편한 점은 경영지원유닛 원지안에게 알려 주세요. 고친 내용은 이 게시판의 릴리즈 노트로 알려 드립니다.'] },
+    { id: 'N-0002', kind: 'NOTICE', important: false, title: '휴대폰에서 결재하는 방법', at: '2026-10-19 09:30', by: 'u_super',
+      body: ['휴대폰에서도 결재 문서를 열어 승인, 보완 요청, 반려를 할 수 있습니다. 결재 차례가 되면 오는 이메일의 링크를 누르면 됩니다.',
+        '첨부 파일은 휴대폰에서 미리보기만 됩니다. 내려받기는 PC에서 해 주세요.'] },
+    { id: 'N-0003', kind: 'RELEASE', version: 'v0.6.0', title: '계약 등록 정리와 새 달력', at: '2026-10-21 10:00', by: 'u_super',
+      items: {
+        added: ['모든 날짜 칸에 큰 달력을 붙였습니다(KRDS). 이전 달, 다음 달, 연도와 월을 고를 수 있습니다.'],
+        improved: ['날짜를 2027-01-01처럼 씁니다.', '글은 양쪽 정렬로 보여 줍니다. 휴대폰에서는 글자 단위로 줄을 바꿔 낱말 사이가 벌어지지 않습니다.'],
+        changed: ['"계약 구분"을 "계약종류"(신규, 변경, 연장)로 바꿨습니다. "갱신"은 "연장"으로 부릅니다.', '계약 유형을 없애고 계약 방식(직접, 조달, 간접)을 버튼으로 고릅니다.', '계약일과 서비스 기간 칸을 뺐습니다. 계약 시작일과 종료일만 넣습니다.'],
+      } },
+    { id: 'N-0004', kind: 'RELEASE', version: 'v0.7.0', title: '계약번호 새 규칙과 거래처 기관', at: '2026-10-21 15:00', by: 'u_super',
+      items: {
+        added: ['거래처 아래에 기관(부서)을 둘 수 있습니다. 예: 한 대학의 중앙도서관, 대학원'],
+        improved: ['직접 넣은 사업자등록번호는 국세청에 폐업, 휴업을 조회합니다.', '종료일 달력에서는 시작일보다 앞선 날을 고를 수 없습니다.', '휴대폰 머리글을 한 줄로 줄였습니다.'],
+        changed: ['계약번호가 2610CL001처럼 바뀝니다(기안 연월 + CL + 일련번호).', '열람 제한 계약의 변경, 연장 기안은 열람 제한을 이어받습니다.'],
+      } },
+    { id: 'N-0005', kind: 'NOTICE', important: true, title: '계약번호 규칙이 바뀝니다', at: '2026-10-21 15:10', by: 'u_super',
+      body: ['계약번호를 판다 영업기회번호와 같은 꼴로 바꿨습니다. 기안한 연월 4자리 + CL + 그 달 일련번호 3자리입니다(예: 2610CL001).',
+        '변경, 연장, 해지, 운영 변경 기안은 원계약 번호 뒤에 -A01, -R01, -T01, -C01이 붙습니다.',
+        '이미 등록된 계약도 새 번호로 바꿔 보여 줍니다.'] },
+    { id: 'N-0006', kind: 'RELEASE', version: 'v0.8.0', title: '날짜 입력, SLA, 부속 서류', at: '2026-10-21 17:00', by: 'u_super',
+      items: {
+        added: ['계약 등록에 "서비스 수준 협약(SLA)"을 이 계약과 별도로 체결하는지 넣었습니다.', '첨부에 "부속 서류"를 올릴 수 있습니다. 비밀유지계약서 같은 서류를 함께 올립니다.'],
+        improved: ['날짜 칸은 숫자만 넣으면 넣는 대로 "-"가 붙습니다.'],
+        changed: ['금전 거래가 있는 계약만 등록합니다. 비밀유지계약은 따로 등록하지 않고 부속 서류로 올립니다.'],
+        fixed: ['없는 날짜(13월, 2월 30일 등)를 넣으면 칸을 떠날 때 바로 알려 줍니다.'],
+      } },
+    { id: 'N-0007', kind: 'RELEASE', version: 'v0.9.0', title: '휴대폰과 태블릿 화면, 공지사항, 내 계정', at: '2026-10-22 18:00', by: 'u_super',
+      items: {
+        added: ['공지사항 메뉴를 새로 만들었습니다. 공지와 릴리즈 노트를 한곳에서 봅니다.', '이름을 누르면 내 계정 화면으로 갑니다. 받을 이메일을 고를 수 있습니다.'],
+        improved: ['휴대폰과 태블릿에서는 메뉴를 한 줄로 두고 옆으로 밀어 봅니다. 메뉴가 더 있으면 끝이 흐려지고 화살표가 보입니다.',
+          '태블릿도 휴대폰과 같은 화면을 씁니다.', '휴대폰에서 개요의 계약 진행 현황을 단계마다 한 줄로 보여 줍니다.', '화면 맨 아래 시스템 이름을 세 줄로 바꿨습니다.'],
+      } },
+  ];
+
+  /* ---------- 이메일 알림 (내 계정 SCR-93, v0.45 기획자 요청. 보내는 때는 요구사항 정의서 REQ-ENV-10) ----------
+   * must: 꼭 받는 알림(업무 처리와 내부 통제에 필요해 끌 수 없음, 기획자 확인 C-26) / 선택 알림은 사람마다 켜고 끔(on: 처음 값)
+   * roles: 이 알림을 받는 역할(없으면 모두). 내 역할에 오지 않는 알림은 흐리게 보여 줌 */
+  const EMAIL_TYPES = [
+    { code: 'TURN', name: '결재 차례', when: '내가 처리할 결재 단계(②~⑩)가 됐을 때', must: true, roles: ['SALES_ADMIN', 'HEAD', 'LEGAL', 'PRIVACY', 'GA', 'CEM', 'FINANCE', 'EXEC'] },
+    { code: 'REJECT', name: '반려와 보완 요청', when: '내가 기안한 계약이 반려되거나 보완 요청을 받았을 때', must: true, roles: ['SALES'] },
+    { code: 'SIGN_READY', name: '체결 대기', when: '내가 기안한 계약의 계약 검토가 끝났을 때', must: true, roles: ['SALES'] },
+    { code: 'REMIND', name: '독촉', when: '내 차례가 5일 넘게 머물거나, 승인 뒤 14일 동안 체결본이 없을 때', must: true },
+    { code: 'EXPIRY', name: '만료 임박', when: '내가 맡은 계약이 끝나기 60일 전과 30일 전', must: true, roles: ['SALES'] },
+    { code: 'ACCOUNTING', name: '회계 영향 조건', when: '체크리스트 4번이 "예"인 계약이 기안됐을 때', must: true, roles: ['FINANCE'] },
+    { code: 'SECURITY', name: '이상 행위', when: '접속 기록에서 이상 행위가 감지됐을 때', must: true, roles: ['PRIVACY'] },
+    { code: 'NOTICE_IMPORTANT', name: '중요 공지', when: '관리자가 중요 공지를 올렸을 때', must: true },
+    { code: 'PROGRESS', name: '내 기안 진행 소식', when: '내가 기안한 계약이 다음 결재 단계로 넘어갈 때마다', must: false, on: false, roles: ['SALES'] },
+    { code: 'NOTICE_ALL', name: '일반 공지와 릴리즈 노트', when: '중요 공지가 아닌 공지와 릴리즈 노트가 올라왔을 때', must: false, on: false },
+  ];
+
   /* ---------- 사용자 계정 목록: 사용자 권한 관리(SCR-51) ----------
    * 시연용 가상 사람입니다. 이름과 이메일은 실제 직원이 아닙니다.
    * 계정 상태 [가정]: ACTIVE 사용 중 / INVITED 첫 접속 전(관리자가 추가했지만 아직 로그인하지 않음) / SUSPENDED 사용 중지
@@ -765,5 +827,5 @@ window.CLIMB_DATA = (function () {
   return { TODAY, BRAND, ROLES, ROLE_AREAS, ROLE_SHORT, ROLE_AREA, ROLE_BASE, STEP_LEADS, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, CONTRACT_TYPES, METHODS, SETTLEMENTS, PRICE_BOOK, STEPS, REVIEW_GROUPS, POST_GROUPS, PROCESS_ROLES, STEP_ASSIGNEE, APPROVAL_STATE, APPROVAL_ACTIONS, SEAL_CHECKS, OPS_CHECKS, OPS_CHECKS_END, OPS_CHECKS_EXTEND, AFTERCARE_TYPES, FILE_KINDS, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS,
     CHANGE_TYPES, CHANGE_RULES, OPS_CHECKS_PERIOD, TEAM_LEADERS,
     PRICE_ROWS, currentPrices, CUSTOMERS, BIZ_REGISTRY, BIZ_REGISTRY_INFO, NTS_STATUS, CODE_GROUPS, CODES, DELEGATIONS, ASSIGNEE_CHANGES, ADMIN_LOG, RESTRICT_LOG,
-    LOG_REVIEWS, ACCESS_REVIEWS, SEC_ALERT_KINDS, SEC_ALERTS };
+    LOG_REVIEWS, ACCESS_REVIEWS, SEC_ALERT_KINDS, SEC_ALERTS, NOTICE_KINDS, RELEASE_PARTS, NOTICES, EMAIL_TYPES };
 })();

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 브라우저 탭 제목: CLIMB (REQ-NAME-02) -->
+  <title>CLIMB</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/common.css">
+  <link rel="stylesheet" href="assets/css/form.css">
+  <link rel="stylesheet" href="assets/css/board.css">
+</head>
+<!-- =====================================================================
+  SCR-92 공지 보기 (docs/02_화면목록.md, 요구사항 정의서 REQ-UI-29, v0.45)
+  - 주소: notice.html?id=글 번호(예: N-0007). 메뉴에 없는 화면이라 브레드크럼: 개요 > 공지사항 > 글 보기
+  - 공지: 문단 / 릴리즈 노트: 버전과 날짜, 새 기능, 개선, 바뀐 규칙, 고친 문제(묶음마다 배지)
+  - 이전 글, 다음 글, 목록으로. 관리자와 최고관리자는 고치기, 내리기(되돌릴 수 없으니 확인 창, 진한 Pink 버튼)
+====================================================================== -->
+<body data-page="SCR-92">
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <div id="demo-bar"></div>
+
+  <div class="sheet">
+  <header id="site-header"></header>
+
+  <main id="main" class="page" tabindex="-1">
+    <div class="inner">
+      <nav class="breadcrumb" id="breadcrumb" aria-label="브레드크럼" hidden></nav>
+      <div id="notice"></div>
+      <article class="panel" id="post" hidden>
+        <div class="post-head">
+          <p class="doc-kind" id="post-kind"></p>
+          <h1 class="page-title" id="post-title"></h1>
+          <p class="doc-meta" id="post-meta"></p>
+        </div>
+        <div class="post-body" id="post-body"></div>
+        <p class="post-edited" id="post-edited" hidden></p>
+        <dl class="post-nav" id="post-nav"></dl>
+        <div class="post-actions">
+          <button type="button" class="btn btn--danger btn--md" id="btn-hide" hidden>내리기</button>
+          <button type="button" class="btn btn--tertiary btn--md" id="btn-edit" hidden>고치기</button>
+          <a class="btn btn--secondary btn--md" href="notices.html">목록으로</a>
+        </div>
+      </article>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+  </div><!-- /.sheet -->
+
+  <!-- 내리기 확인 창 -->
+  <div class="modal-backdrop" id="hide-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="hide-title" aria-describedby="hide-desc">
+      <h2 class="modal-title" id="hide-title">이 글을 내릴까요?</h2>
+      <p class="modal-desc" id="hide-desc">내리면 공지사항 목록과 개요에서 보이지 않습니다. 글은 지우지 않고 변경 이력에 남습니다.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn--tertiary btn--md" data-act="close">취소</button>
+        <button type="button" class="btn btn--danger btn--md" id="hide-ok">내리기</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/js/mock-data.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/notice-form.js"></script>
+  <script src="assets/js/notice.js"></script>
+</body>
+</html>

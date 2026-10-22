@@ -107,14 +107,14 @@
           <div class="field-row">
             <div class="field" data-field="counterparty">
               <label class="field-label" for="f-counterparty">거래처 상호<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
-              <!-- 예시는 가상의 상호와 번호 (v0.35 기획자 요청) -->
-              <input class="input" id="f-counterparty" name="counterparty" type="text" placeholder="예: 주식회사 가나다" readonly>
+              <!-- 예시 상호와 번호 (v0.42 기획자 지정: 삼성전자 주식회사, 124-81-00998) -->
+              <input class="input" id="f-counterparty" name="counterparty" type="text" placeholder="예: 삼성전자 주식회사" readonly>
               <p class="field-error" hidden></p>
             </div>
             <div class="field" data-field="bizNo">
               <label class="field-label" for="f-bizno">사업자등록번호<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
               <!-- 숫자만 넣으면 '-'를 붙여 000-00-00000으로 보여 줌 (v0.34) -->
-              <input class="input" id="f-bizno" name="bizNo" type="text" inputmode="numeric" maxlength="12" placeholder="예: 123-45-67890" readonly aria-describedby="bizno-help">
+              <input class="input" id="f-bizno" name="bizNo" type="text" inputmode="numeric" maxlength="12" placeholder="예: 124-81-00998" readonly aria-describedby="bizno-help">
               <p class="field-help" id="bizno-help">'-' 없이 숫자만 넣으면 됩니다.</p>
               <!-- 막지는 않지만 알릴 것: 고유번호 검증 숫자, 국세청 휴업 (v0.39) -->
               <p class="field-warn" id="bizno-warn" role="status" hidden></p>
@@ -224,7 +224,7 @@
         <!-- ============ 2. 금액과 제품 (CPQ, 3.4) ============ -->
         <section class="panel" aria-labelledby="sec-amount">
           <h2 class="section-title" id="sec-amount"><span class="num">2</span>금액과 제품</h2>
-          <p class="section-desc">제품마다 계약 금액을 넣으면 표준 단가와 비교해 할인율이 자동으로 계산됩니다. 가격 기준은 영업, 영업지원, 관리자만 볼 수 있습니다.</p>
+          <p class="section-desc">제품마다 계약 금액을 넣으면 표준 단가와 비교해 할인율이 자동으로 계산됩니다.</p><!-- v0.42: 가격 기준을 볼 수 있는 역할 안내는 뺌(규칙 REQ-SCOPE-02는 그대로) -->
 
           <!-- CLIMB에는 금전 거래가 있는 계약만 등록 (v0.41 기획자 결정). 비밀유지계약 등은 아래 "부속 서류"로 첨부. v0.34의 "금액이 없는 계약" 체크는 뺌 -->
           <div class="field" data-field="products" id="products-field">

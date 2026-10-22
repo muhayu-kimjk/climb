@@ -172,8 +172,8 @@
     C.formModal({
       title: '거래처를 추가할까요?',
       desc: '추가하면 계약 등록의 거래처 목록에서 고를 수 있습니다.',
-      body: C.fieldHtml({ name: 'cuName', label: '상호', required: true, placeholder: '예: 주식회사 가나다', help: '사업자등록증의 상호' }) +
-        C.fieldHtml({ name: 'bizNo', label: '사업자등록번호', required: true, placeholder: '예: 123-45-67890', help: "'-' 없이 숫자만 넣으면 됩니다.", attrs: ' inputmode="numeric" maxlength="12"' }) +
+      body: C.fieldHtml({ name: 'cuName', label: '상호', required: true, placeholder: '예: 삼성전자 주식회사', help: '사업자등록증의 상호' }) +
+        C.fieldHtml({ name: 'bizNo', label: '사업자등록번호', required: true, placeholder: '예: 124-81-00998', help: "'-' 없이 숫자만 넣으면 됩니다.", attrs: ' inputmode="numeric" maxlength="12"' }) +
         C.fieldHtml({ name: 'reason', label: '추가하는 사유', type: 'textarea', required: true, placeholder: '예: 조달 계약 예정 기관을 미리 등록' }),
       btn: '추가',
       open: formatOnInput,

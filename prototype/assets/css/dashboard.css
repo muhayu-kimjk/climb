@@ -16,3 +16,19 @@
 .reject-reason { display: block; margin-top: 0.4rem; font-size: var(--fs-body-small); color: var(--text-basic); }
 
 /* 대기 일수 강조, 고객사와 서비스 칸, 칸 아래 작은 글자 줄은 목록 화면들이 함께 쓰므로 common.css(표)로 옮김 (v0.18) */
+
+/* 휴대폰(600px 이하)만: "계약 진행 현황" 단계를 한 줄에 하나씩 (v0.43 기획자 요청. 다섯 칸을 한 줄에 두면 이름이 글자 단위로 끊김)
+ * [번호 원] 1단계 계약 등록 ......... 10건. 원 사이는 세로선으로 이음. PC와 인쇄는 가로 그대로 */
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) {
+  .step-wrap--count { flex-direction: column; margin-bottom: 2.4rem; }
+  .step-wrap--count > li { flex: none; }
+  .step-wrap--count > li::after { top: 50%; left: calc(var(--step-circle) / 2 - 0.15rem); width: 0.3rem; height: 100%; }
+  .step-wrap--count .step-body {
+    display: grid; grid-template-columns: auto 1fr auto; align-items: center; column-gap: 0.8rem;
+    min-height: 5.6rem; padding: 0 0 0 calc(var(--step-circle) + 1.2rem);
+  }
+  .step-wrap--count .step-body::before { top: 50%; margin-top: calc(var(--step-circle) / -2); }
+  .step-wrap--count .step-body::after { top: 50%; margin-top: -0.6rem; }
+  .step-wrap--count .step-tit { white-space: nowrap; font-size: var(--fs-body-medium); }
+  .step-wrap--count .step-count { margin-top: 0; font-size: var(--fs-heading-small); text-align: right; white-space: nowrap; }
+}

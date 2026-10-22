@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="assets/css/tokens.css">
   <link rel="stylesheet" href="assets/css/common.css">
   <link rel="stylesheet" href="assets/css/dashboard.css">
+  <link rel="stylesheet" href="assets/css/board.css">
 </head>
 <!-- =====================================================================
   SCR-01 개요 (docs/02_화면목록.md, 대시보드)
@@ -46,6 +47,8 @@
         </div>
         <p class="page-date" id="today"></p>
       </div>
+      <!-- 가장 최근 공지 한 줄 (공지사항 SCR-91, v0.45 기획자 결정). 숫자나 종 모양 없이 제목과 날짜만 (REQ-ENV-09) -->
+      <div id="notice-strip"></div>
 
       <!-- 상자는 좌우로 나누지 않고 한 줄에 하나씩 쌓음 (REQ-DASH-15) -->
       <div class="dash-stack">
