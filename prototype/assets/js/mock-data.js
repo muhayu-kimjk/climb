@@ -131,64 +131,66 @@ window.CLIMB_DATA = (function () {
 
   /* ---------- 서비스 [가정] ----------
    * 계약명은 따로 두지 않고, 계약은 고객사와 서비스로 구분합니다. (v0.12 확정)
-   * 서비스는 계약에 넣은 플랜(가격 기준)의 제품이 속한 서비스에서 정해집니다. 서비스 목록은 코드 관리(SCR-56)에서 관리 */
+   * 서비스는 계약에 넣은 제품이 속한 서비스로 저절로 정해집니다(v0.49: 제품에 서비스가 붙어 있음). 서비스 목록은 코드 관리(SCR-56)에서 관리 */
   const SERVICES = { CK: '카피킬러', HR: 'HR 서비스' };
 
-  /* ---------- 제품과 기능 (v0.47 기획자 요청, SCR-58 제품과 기능 관리) ----------
-   * 서비스 → 제품 → 기능 → 플랜. 같은 제품이라도 기능마다 플랜(가격)이 다를 수 있어 제품과 기능을 나눔
+  /* ---------- 제품과 기능 (v0.47 기획자 요청, v0.49 두 단계로 줄임. SCR-58 제품과 기능 관리) ----------
+   * v0.49 기획자 결정: 서비스 → 제품 → 기능 → 플랜은 위계가 복잡해 **제품 → 기능** 두 단계만 둠
+   *   - 플랜은 없앰. 가격(표준 단가, 할인율 한도)은 기능마다 하나(아래 PRICE_ROWS)
+   *   - 서비스는 위계가 아니라 제품에 저절로 붙는 구분. 예: 카피킬러 캠퍼스 → 카피킬러. 계약의 서비스도 고른 제품에서 저절로 정해짐
+   *     제품을 추가할 때 이름에 서비스 이름이 들어 있으면 그 서비스로 저절로 고르고, 없으면(예: 프리즘) 관리자가 한 번 고름 [가정]
    *   기획자 예시: 제품 프리즘, 기능 결함검사, 표절검사, 블라인드 A, 블라인드 B, GPT Killer, BP 평가, RP 매칭, PAC
    * 관리자와 최고관리자가 제품과 기능 관리(SCR-58)에서 넣고 고침. 지우지 않고 사용 안 함으로 돌림(지난 계약의 뜻이 남게)
-   * 플랜(이름, 단위, 표준 단가, 할인율 한도)은 가격 기준 관리(SCR-54)에서 기능마다 정함(아래 PRICE_ROWS)
-   * PRODUCTS: id, service(서비스 코드), name, use / FEATURES: id, product(제품 id), name, use
+   * PRODUCTS: id, service(서비스 코드, 저절로 붙음), name, use / FEATURES: id, product(제품 id), name, use
    * 제품 id는 v0.46까지 코드 관리에 있던 서비스 중분류, 소분류 코드를 그대로 씀. 프리즘Q(예전 소분류)도 제품으로 둠 [가정]
-   * 프리즘 말고 다른 제품의 기능은 시연용 가상 값입니다. */
+   * 프리즘 말고 다른 제품의 기능은 시연용 가상 값입니다. "추가 이용자"처럼 따로 값을 매기는 것도 기능으로 둠(v0.49) */
   const PRODUCTS = [
     ['CK_CAMPUS', 'CK', '카피킬러 캠퍼스'], ['CK_SCHOOL', 'CK', '카피킬러 스쿨'], ['CK_CONTEST', 'CK', '카피킬러 콘테스트'],
     ['HR_PRISM', 'HR', '프리즘'], ['HR_PRISM_Q', 'HR', '프리즘Q'], ['HR_MONSTER', 'HR', '몬스터'],
   ].map(function (r) { return { id: r[0], service: r[1], name: r[2], use: true }; });
   const FEATURES = [
-    ['CK_CAMPUS_PLAG', 'CK_CAMPUS', '표절검사'], ['CK_CAMPUS_GPTK', 'CK_CAMPUS', 'GPT Killer'], ['CK_CAMPUS_API', 'CK_CAMPUS', 'API 연동'],
+    ['CK_CAMPUS_PLAG', 'CK_CAMPUS', '표절검사'], ['CK_CAMPUS_USER', 'CK_CAMPUS', '추가 이용자'], ['CK_CAMPUS_GPTK', 'CK_CAMPUS', 'GPT Killer'], ['CK_CAMPUS_API', 'CK_CAMPUS', 'API 연동'],
     ['HR_PRISM_DEFECT', 'HR_PRISM', '결함검사'], ['HR_PRISM_PLAG', 'HR_PRISM', '표절검사'], ['HR_PRISM_BLIND_A', 'HR_PRISM', '블라인드 A'],
     ['HR_PRISM_BLIND_B', 'HR_PRISM', '블라인드 B'], ['HR_PRISM_GPTK', 'HR_PRISM', 'GPT Killer'], ['HR_PRISM_BP', 'HR_PRISM', 'BP 평가'],
     ['HR_PRISM_RP', 'HR_PRISM', 'RP 매칭'], ['HR_PRISM_PAC', 'HR_PRISM', 'PAC'],
   ].map(function (r) { return { id: r[0], product: r[1], name: r[2], use: true }; });
 
-  /* ---------- 가격 기준: 플랜마다 표준 단가와 할인율 한도(cap) (REQ-SCOPE-02, REQ-CHK-04, REQ-CHK-07) ----------
+  /* ---------- 가격 기준: 기능마다 표준 단가와 할인율 한도(cap) (REQ-SCOPE-02, REQ-CHK-04, REQ-CHK-07) ----------
    * 시연용 가상 값입니다. 실제 단가가 아닙니다.
    * 관리자가 "가격 기준 관리"(SCR-54)에서 관리하고, 영업, 영업지원, 관리자만 볼 수 있습니다.
    * PRICE_ROWS: 바뀐 이력 전체. 값을 바꿀 때는 기존 줄을 고치지 않고 새 적용 시작일로 새 줄을 더합니다(데이터 정의서 8장).
-   *   code: 플랜 코드 / product, feature: 플랜이 속한 제품과 기능(v0.47) / name: 플랜 이름(예: 기본 플랜, 스탠다드)
-   *   service: 제품이 속한 서비스(SERVICES) / listPrice: 표준 단가(원, 부가세 별도) / discountCap: 할인율 한도(이 비율까지 할인 가능)
+   *   feature: 값을 매기는 기능(FEATURES의 id). v0.49부터 가격은 기능마다 하나라 이것이 가격 기준의 열쇠(예전 플랜 코드와 플랜 이름은 없앰)
+   *   product, service: 그 기능의 제품과 제품에 붙은 서비스(저절로 정해지는 값을 함께 둠)
+   *   unit: 단위 / listPrice: 표준 단가(원, 부가세 별도) / discountCap: 할인율 한도(이 비율까지 할인 가능)
    *   validFrom: 적용 시작일(이날 이후 기안하는 계약부터) / docUrl: 사내 품의 문서 링크(필수) / docNo: 품의 번호 / reason: 변경 사유
    *   by, at: 바꾼 사람과 일시. 품의 문서 주소와 번호는 가상입니다.
    * PRICE_BOOK: 오늘 적용되는 줄만 모은 표. 계약 등록 화면이 씁니다(common.js가 관리자 변경을 반영해 다시 만듦).
-   * v0.47: 예전 제품 줄(CK 기관 라이선스 등)은 코드를 그대로 두고 제품, 기능, 플랜으로 나눔. 프리즘 GPT Killer처럼 기능마다 플랜이 여럿인 예를 더함 */
+   * v0.49: 예전 제품 줄(CK 기관 라이선스 = 카피킬러 캠퍼스 표절검사, CK 추가 이용자 = 카피킬러 캠퍼스 추가 이용자, HR 서비스 기본 = 프리즘 결함검사,
+   *   HR 추가 모듈 = 프리즘 표절검사 등)을 기능에 하나씩 붙임. 프리즘 GPT Killer의 두 플랜(v0.47)은 하나로 합침 */
   const PRICE_DOC = 'https://gw.muhayu.com/approval/';
   const PRICE_ROWS = [
-    { code: 'CK-ORG', service: 'CK', product: 'CK_CAMPUS', feature: 'CK_CAMPUS_PLAG', name: '기관 라이선스', unit: '기관, 1년', listPrice: 12000000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { code: 'CK-USER', service: 'CK', product: 'CK_CAMPUS', feature: 'CK_CAMPUS_PLAG', name: '추가 이용자', unit: '100명, 1년', listPrice: 1400000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { code: 'CK-GPTK', service: 'CK', product: 'CK_CAMPUS', feature: 'CK_CAMPUS_GPTK', name: '기본 플랜', unit: '기관, 1년', listPrice: 2400000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { code: 'CK-API', service: 'CK', product: 'CK_CAMPUS', feature: 'CK_CAMPUS_API', name: '기본 플랜', unit: '1식, 1년', listPrice: 6000000, discountCap: 0.10, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { code: 'HR-BASE', service: 'HR', product: 'HR_PRISM', feature: 'HR_PRISM_DEFECT', name: '기본 플랜', unit: '기관, 1년', listPrice: 9600000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { code: 'HR-ADD', service: 'HR', product: 'HR_PRISM', feature: 'HR_PRISM_PLAG', name: '기본 플랜', unit: '기관, 1년', listPrice: 3600000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { code: 'HR-BLIND-A', service: 'HR', product: 'HR_PRISM', feature: 'HR_PRISM_BLIND_A', name: '기본 플랜', unit: '기관, 1년', listPrice: 3000000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    // 같은 기능에 플랜이 둘인 예: 프리즘 GPT Killer 스탠다드, 프로 (v0.47)
-    { code: 'HR-GPTK-STD', service: 'HR', product: 'HR_PRISM', feature: 'HR_PRISM_GPTK', name: '스탠다드', unit: '기관, 1년', listPrice: 4800000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { code: 'HR-GPTK-PRO', service: 'HR', product: 'HR_PRISM', feature: 'HR_PRISM_GPTK', name: '프로', unit: '기관, 1년', listPrice: 7200000, discountCap: 0.10, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    // 바뀐 예: 카피킬러 캠퍼스 표절검사 추가 이용자 단가 인상(10월 1일부터)
-    { code: 'CK-USER', service: 'CK', product: 'CK_CAMPUS', feature: 'CK_CAMPUS_PLAG', name: '추가 이용자', unit: '100명, 1년', listPrice: 1500000, discountCap: 0.15, validFrom: '2026-10-01', docUrl: PRICE_DOC + '2026-0915', docNo: '경영지원-2026-0915', reason: '추가 이용자 단가 인상(서버 비용 반영)', by: 'u_admin', at: '2026-09-24 15:10' },
+    { feature: 'CK_CAMPUS_PLAG', product: 'CK_CAMPUS', service: 'CK', unit: '기관, 1년', listPrice: 12000000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { feature: 'CK_CAMPUS_USER', product: 'CK_CAMPUS', service: 'CK', unit: '100명, 1년', listPrice: 1400000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { feature: 'CK_CAMPUS_GPTK', product: 'CK_CAMPUS', service: 'CK', unit: '기관, 1년', listPrice: 2400000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { feature: 'CK_CAMPUS_API', product: 'CK_CAMPUS', service: 'CK', unit: '1식, 1년', listPrice: 6000000, discountCap: 0.10, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { feature: 'HR_PRISM_DEFECT', product: 'HR_PRISM', service: 'HR', unit: '기관, 1년', listPrice: 9600000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { feature: 'HR_PRISM_PLAG', product: 'HR_PRISM', service: 'HR', unit: '기관, 1년', listPrice: 3600000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { feature: 'HR_PRISM_BLIND_A', product: 'HR_PRISM', service: 'HR', unit: '기관, 1년', listPrice: 3000000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { feature: 'HR_PRISM_GPTK', product: 'HR_PRISM', service: 'HR', unit: '기관, 1년', listPrice: 4800000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: 'CLIMB 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    // 바뀐 예: 카피킬러 캠퍼스 추가 이용자 단가 인상(10월 1일부터)
+    { feature: 'CK_CAMPUS_USER', product: 'CK_CAMPUS', service: 'CK', unit: '100명, 1년', listPrice: 1500000, discountCap: 0.15, validFrom: '2026-10-01', docUrl: PRICE_DOC + '2026-0915', docNo: '경영지원-2026-0915', reason: '추가 이용자 단가 인상(서버 비용 반영)', by: 'u_admin', at: '2026-09-24 15:10' },
     // 예정된 예: 프리즘 표절검사 할인율 한도를 내년부터 넓힘 (아직 적용 전)
-    { code: 'HR-ADD', service: 'HR', product: 'HR_PRISM', feature: 'HR_PRISM_PLAG', name: '기본 플랜', unit: '기관, 1년', listPrice: 3600000, discountCap: 0.20, validFrom: '2027-01-01', docUrl: PRICE_DOC + '2026-1007', docNo: '경영지원-2026-1007', reason: '프리즘 표절검사 판매 촉진: 할인율 한도 15%에서 20%로', by: 'u_admin', at: '2026-10-14 11:30' },
+    { feature: 'HR_PRISM_PLAG', product: 'HR_PRISM', service: 'HR', unit: '기관, 1년', listPrice: 3600000, discountCap: 0.20, validFrom: '2027-01-01', docUrl: PRICE_DOC + '2026-1007', docNo: '경영지원-2026-1007', reason: '프리즘 표절검사 판매 촉진: 할인율 한도 15%에서 20%로', by: 'u_admin', at: '2026-10-14 11:30' },
   ];
-  // 오늘 적용되는 줄: 제품마다 적용 시작일이 오늘 이전인 줄 중 가장 늦은 것
+  // 오늘 적용되는 줄: 기능마다 적용 시작일이 오늘 이전인 줄 중 가장 늦은 것
   function currentPrices(rows, today) {
     const by = {};
     rows.forEach(function (r) {
       if (r.validFrom > today) return;
-      if (!by[r.code] || by[r.code].validFrom <= r.validFrom) by[r.code] = r;
+      if (!by[r.feature] || by[r.feature].validFrom <= r.validFrom) by[r.feature] = r;
     });
     const order = [];
-    rows.forEach(function (r) { if (order.indexOf(r.code) < 0) order.push(r.code); });
+    rows.forEach(function (r) { if (order.indexOf(r.feature) < 0) order.push(r.feature); });
     return order.filter(function (c) { return by[c]; }).map(function (c) { return by[c]; });
   }
   const PRICE_BOOK = currentPrices(PRICE_ROWS, TODAY);
@@ -274,7 +276,7 @@ window.CLIMB_DATA = (function () {
    * checklist: 체크리스트 답. standard 1번(영업이 답함), price 2번과 cap 3번(제품 금액으로 자동 계산)
    *   → 결재선은 이 답과 개인정보 처리위탁 계약 여부(personalData)로만 정합니다. 금액 기준은 없습니다. (REQ-CHK-05)
    * history: 결재 기록. 결재 단계의 지금 상태(approvals)는 common.js가 이 기록을 차례로 다시 적용해 만듭니다.
-   * products: 계약 제품 줄. 비어 있으면 검토 상세 화면에서 서비스와 금액으로 예시 줄을 만듭니다.
+   * products: 계약 제품 줄 { feature: 기능 id(v0.49, 가격 기준의 열쇠), qty, amount }. 비어 있으면 검토 상세 화면에서 서비스와 금액으로 예시 줄을 만듭니다.
    * autoHistory: 이미 검토가 끝난 계약. 결재 기록을 승인일(approvedAt)에 맞춰 자동으로 만듭니다(시연용). */
   const CONTRACTS = [
     /* ----- 작성 중 (DRAFT): 계약번호는 기안할 때 부여 ----- */
@@ -287,7 +289,7 @@ window.CLIMB_DATA = (function () {
       form: {
         bizNo: '214-82-10457', method: 'DIRECT', settlement: 'LUMP',
         startDate: '2027-01-01', endDate: '2027-12-31', autoRenew: 'NO',
-        products: [{ code: 'HR-BASE', qty: 1, amount: 7200000 }], // 표준 960만 원에서 25% 할인 → 한도 20% 초과 예시
+        products: [{ feature: 'HR_PRISM_DEFECT', qty: 1, amount: 7200000 }], // 표준 960만 원에서 25% 할인 → 한도 20% 초과 예시
         checklist: { standard: 'YES', standardNote: '' },
       },
     },
@@ -299,7 +301,7 @@ window.CLIMB_DATA = (function () {
       amount: 36000000, requesterId: 'u_sales2', requestedAt: '2026-10-08 14:10', restricted: false, personalData: true,
       status: 'IN_REVIEW',
       checklist: { standard: 'YES', price: 'YES', cap: 'YES' },
-      products: [{ code: 'HR-BASE', qty: 3, amount: 28800000 }, { code: 'HR-ADD', qty: 2, amount: 7200000 }],
+      products: [{ feature: 'HR_PRISM_DEFECT', qty: 3, amount: 28800000 }, { feature: 'HR_PRISM_PLAG', qty: 2, amount: 7200000 }],
       memo: '환자 정보는 다루지 않고 직원 인사 정보만 처리합니다. 위탁 범위를 확인해 주세요.',
       history: [ev('S02', 'APPROVE', '2026-10-08 16:20')],
     },
@@ -311,7 +313,7 @@ window.CLIMB_DATA = (function () {
       status: 'IN_REVIEW',
       checklist: { standard: 'NO', standardNote: '연구기관 보안 서약 조항 추가', price: 'NO', priceNote: '10개 기관 일괄 계약', cap: 'NO', capNote: '3년 계약 조건으로 기관 라이선스 25% 할인 요청',
         accounting: 'YES', accountingNote: '첫 3개월 무상 사용 기간이 있고, 3년 동안 연도별 금액이 다름' },
-      products: [{ code: 'CK-ORG', qty: 10, amount: 90000000 }, { code: 'CK-USER', qty: 50, amount: 70000000 }, { code: 'CK-API', qty: 10, amount: 60000000 }],
+      products: [{ feature: 'CK_CAMPUS_PLAG', qty: 10, amount: 90000000 }, { feature: 'CK_CAMPUS_USER', qty: 50, amount: 70000000 }, { feature: 'CK_CAMPUS_API', qty: 10, amount: 60000000 }],
       memo: '대형 연구기관 첫 계약입니다. 할인율이 한도를 넘어 영업 검토가 필요합니다.',
       history: [
         ev('S02', 'APPROVE', '2026-10-10 15:00'),
@@ -325,7 +327,7 @@ window.CLIMB_DATA = (function () {
       amount: 48000000, requesterId: 'u_sales1', requestedAt: '2026-10-14 10:00', restricted: false, personalData: true,
       status: 'IN_REVIEW',
       checklist: { standard: 'NO', standardNote: '대학 요청으로 지식재산권 조항 일부 수정', price: 'NO', priceNote: '학과 단위 추가 이용자 묶음 할인', cap: 'YES' },
-      products: [{ code: 'CK-ORG', qty: 3, amount: 32400000 }, { code: 'CK-USER', qty: 12, amount: 15600000 }],
+      products: [{ feature: 'CK_CAMPUS_PLAG', qty: 3, amount: 32400000 }, { feature: 'CK_CAMPUS_USER', qty: 12, amount: 15600000 }],
       memo: '지식재산권 조항 수정본을 첨부했습니다.',
       history: [ev('S02', 'APPROVE', '2026-10-15 09:40')],
     },
@@ -336,7 +338,7 @@ window.CLIMB_DATA = (function () {
       amount: 12000000, requesterId: 'u_sales2', requestedAt: '2026-10-16 09:00', restricted: false, personalData: false,
       status: 'IN_REVIEW',
       checklist: { standard: 'NO', standardNote: '변경 계약서(이용자 추가)', price: 'NO', priceNote: '기존 계약 할인율 유지', cap: 'NO', capNote: '추가 이용자 20% 할인(한도 15%), 기존 계약 조건 유지 요청' },
-      products: [{ code: 'CK-USER', qty: 10, amount: 12000000 }],
+      products: [{ feature: 'CK_CAMPUS_USER', qty: 10, amount: 12000000 }],
       history: [
         ev('S02', 'APPROVE', '2026-10-16 09:10'),
         ev('S02', 'CANCEL', '2026-10-16 09:25', '첨부 견적서가 빠진 것을 확인해 승인 취소'),
@@ -349,7 +351,7 @@ window.CLIMB_DATA = (function () {
       amount: 150000000, requesterId: 'u_sales1', requestedAt: '2026-10-17 14:00', restricted: true, personalData: false,
       status: 'IN_REVIEW',
       checklist: { standard: 'NO', standardNote: '리셀러 표준계약서 없음', price: 'NO', priceNote: '총판 공급가', cap: 'NO', capNote: '총판 마진 보장으로 21.9% 할인' },
-      products: [{ code: 'CK-ORG', qty: 16, amount: 150000000 }],
+      products: [{ feature: 'CK_CAMPUS_PLAG', qty: 16, amount: 150000000 }],
       memo: '총판 계약이라 열람 제한을 걸었습니다.',
       history: [],
     },
@@ -359,7 +361,7 @@ window.CLIMB_DATA = (function () {
       amount: 9600000, requesterId: 'u_sales1', requestedAt: '2026-10-18 10:30', restricted: false, personalData: false,
       status: 'IN_REVIEW',
       checklist: { standard: 'NO', standardNote: '상대방 양식 계약서', price: 'YES', cap: 'YES' },
-      products: [{ code: 'HR-BASE', qty: 1, amount: 9600000 }],
+      products: [{ feature: 'HR_PRISM_DEFECT', qty: 1, amount: 9600000 }],
       annex: ['단비소프트_비밀유지계약서.pdf'],
       // 보완 요청 예시(v0.26): ④ 법무가 기안자에게 보완을 요청. 기안자가 고치면 ④부터 이어서 결재
       history: [
@@ -373,7 +375,7 @@ window.CLIMB_DATA = (function () {
       amount: 18000000, requesterId: 'u_sales1', requestedAt: '2026-10-16 15:00', restricted: false, personalData: false,
       status: 'IN_REVIEW',
       checklist: { standard: 'YES', price: 'NO', priceNote: '기관 2곳 묶음 계약', cap: 'NO', capNote: '두 기관을 한 번에 계약해 기관 라이선스 25% 할인 요청' },
-      products: [{ code: 'CK-ORG', qty: 2, amount: 18000000 }],
+      products: [{ feature: 'CK_CAMPUS_PLAG', qty: 2, amount: 18000000 }],
       memo: '평생교육원 두 곳을 묶은 첫 계약입니다.',
       history: [ev('S02', 'APPROVE', '2026-10-16 17:20')],
     },
@@ -393,7 +395,7 @@ window.CLIMB_DATA = (function () {
       form: {
         bizNo: '107-86-33922', method: 'DIRECT', settlement: 'SPLIT', opportunity: '2610SU031',
         contractDate: '2026-10-06', startDate: '2026-11-01', endDate: '2027-10-31', autoRenew: 'YES', noticeDays: 60,
-        products: [{ code: 'CK-ORG', qty: 1, amount: 12000000 }, { code: 'CK-USER', qty: 4, amount: 6000000 }],
+        products: [{ feature: 'CK_CAMPUS_PLAG', qty: 1, amount: 12000000 }, { feature: 'CK_CAMPUS_USER', qty: 4, amount: 6000000 }],
         checklist: { standard: 'NO', standardNote: '고객 요청으로 손해배상 한도 조항 수정' },
         memo: '손해배상 한도를 계약 금액의 2배로 요청받아 협의 중입니다.',
       },
@@ -426,7 +428,7 @@ window.CLIMB_DATA = (function () {
       amount: 13200000, requesterId: 'u_sales1', requestedAt: '2026-10-13 10:00', restricted: false, personalData: false,
       status: 'APPROVED', approvedAt: '2026-10-16 11:00', autoHistory: true, postAt: 'S06',
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
-      products: [{ code: 'HR-BASE', qty: 1, amount: 9600000 }, { code: 'HR-ADD', qty: 1, amount: 3600000 }],
+      products: [{ feature: 'HR_PRISM_DEFECT', qty: 1, amount: 9600000 }, { feature: 'HR_PRISM_PLAG', qty: 1, amount: 3600000 }],
     },
 
     /* ----- 운영 검토 (OPS_REVIEW): ⑧ 체결본 확인 뒤 ⑨ 운영 적용(고객지원) → ⑩ 재무 확인 ----- */
@@ -622,6 +624,30 @@ window.CLIMB_DATA = (function () {
           '코드 관리의 서비스는 한 단계만 둡니다. 카피킬러 캠퍼스, 프리즘 같은 이름은 제품으로 옮겼습니다.',
           // 원래 세션의 요청(요구사항 정의서 v0.48): 공지사항 구분 이름 바꿈도 이 릴리즈에 함께 알림
           "'릴리즈 노트'를 '릴리즈'로 줄였습니다. 제목은 휴대폰 한 줄에 들어가게 짧게 씁니다."],
+      } },
+    // v0.9.3 (요구사항 정의서 v0.49): 제품 → 기능 두 단계로 줄임, 플랜 없앰, 서비스는 제품에 저절로 붙음
+    { id: 'N-0010', kind: 'RELEASE', version: 'v0.9.3', title: '제품과 기능 단순화', at: '2026-10-22 21:00', by: 'u_super',
+      items: {
+        changed: ['제품과 기능 두 단계만 둡니다. 플랜은 없애고, 가격은 기능마다 하나입니다.',
+          '계약 등록에서는 제품과 기능만 고릅니다. 서비스는 고른 제품에 따라 저절로 붙습니다(예: 카피킬러 캠퍼스 → 카피킬러).',
+          '제품을 추가할 때 이름에 서비스 이름이 들어 있으면 서비스를 저절로 고릅니다.',
+          '가격 기준 관리의 "플랜 추가"를 "가격 추가"로 바꿨습니다. 아직 가격이 없는 기능에 가격을 넣습니다.'],
+      } },
+    // v0.9.4 (요구사항 정의서 v0.50): 태블릿은 PC 화면, 메뉴 줄은 모든 화면에서 한 줄
+    { id: 'N-0011', kind: 'RELEASE', version: 'v0.9.4', title: '태블릿은 PC 화면', at: '2026-10-22 22:00', by: 'u_super',
+      items: {
+        changed: ['태블릿은 PC와 같은 화면을 씁니다. 휴대폰 화면은 스마트폰에만 씁니다(가로로 눕혀도). 예: 계약 진행 현황 단계가 태블릿에서는 PC처럼 가로로 이어집니다.'],
+        improved: ['PC와 태블릿도 메뉴를 한 줄로 둡니다. 다 들어가지 않으면 옆으로 밀어 보고, 끝이 흐려지며 화살표가 보입니다.',
+          '휴대폰 메뉴의 흐려지는 부분을 넓히고, 화살표와 물음표(이용 안내) 사이를 좁혔습니다.',
+          '휴대폰에서 공지사항 거르기 칸을 한 줄에 하나씩 두어 검색 안내 글자가 잘리지 않습니다.'],
+      } },
+    // v0.9.5 (요구사항 정의서 v0.51): 표 정렬, 사람 이름 표기, 공지사항 거르기
+    { id: 'N-0012', kind: 'RELEASE', version: 'v0.9.5', title: '표 정렬과 이름 표기', at: '2026-10-22 23:00', by: 'u_super',
+      items: {
+        changed: ['사람 이름을 "경영지원유닛 원지안"처럼 조직과 함께 씁니다. 맨 위 내 이름과 개요 인사말에만 "님"을 붙입니다.'],
+        improved: ['표 안 글자를 왼쪽 정렬로 바꿔 낱말 사이가 벌어지지 않습니다. 날짜, 사람, 상태처럼 짧은 칸은 가운데에 둡니다.',
+          '결재란의 담당 칸은 역할, 조직, 이름을 줄로 나눠 보여 줍니다.',
+          '공지사항 거르기는 다른 목록처럼 검색어를 맨 위에 넓게 둡니다.'],
       } },
   ];
 

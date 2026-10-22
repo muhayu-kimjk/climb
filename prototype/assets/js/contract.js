@@ -83,7 +83,7 @@
     info('계약 금액', cur.amount ? Number(cur.amount).toLocaleString('ko-KR') + '원 (' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도)' : '금액 없음'),
     info('자동갱신', b.autoRenew === 'YES' ? '있음' + notice60() : '없음'),
     root.unit ? info('기관 또는 부서명', esc(root.unit)) : '', // 계약마다 직접 적은 기관 이름 (C-24 v0.39, 이름 v0.46)
-    info('영업대표', esc(C.userName(root.requesterId)) + '님'),
+    info('영업대표', esc(C.ownerLabel(root.requesterId))),
     info('개인정보 처리위탁 계약', root.personalData ? '있음' : '없음'),
     info('서비스 수준 협약(SLA)', root.sla === 'YES' ? '있음' : '없음'), // v0.40
     info('열람 제한', root.restricted ? C.icon('lock', 'sm') + '있음' : '없음'),
@@ -141,7 +141,7 @@
       '<thead><tr><th scope="col">일시</th><th scope="col">종류</th><th scope="col">내용</th><th scope="col">남긴 사람</th></tr></thead>' +
       '<tbody>' + (list.length ? list.map(function (n) {
         return '<tr><td class="num-left">' + C.fmtDateTime(n.at) + '</td><td class="nowrap">' + esc(D.AFTERCARE_TYPES[n.type]) + '</td>' +
-          '<td>' + esc(n.content) + '</td><td class="nowrap">' + esc(C.userName(n.by)) + '님</td></tr>';
+          '<td>' + esc(n.content) + '</td><td class="center">' + esc(C.ownerLabel(n.by)) + '</td></tr>';
       }).join('') : '<tr><td class="empty-row" colspan="4">남긴 기록이 없습니다.</td></tr>') + '</tbody>';
   }
   renderNotes();

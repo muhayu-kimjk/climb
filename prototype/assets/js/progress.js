@@ -26,7 +26,7 @@
   $('#f-status').innerHTML = options('전체 상태', [['REVIEW', '검토 중, 보완 중, 반려']].concat(OPEN.map(function (k) { return [k, D.STATUS[k].label]; })));
   $('#f-service').innerHTML = options('전체 서비스', Object.keys(D.SERVICES).map(function (k) { return [k, D.SERVICES[k]]; }));
   const owners = all.map(function (c) { return c.requesterId; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
-  $('#f-owner').innerHTML = options('전체', owners.map(function (u) { return [u, C.userName(u)]; }));
+  $('#f-owner').innerHTML = options('전체', owners.map(function (u) { return [u, C.ownerLabel(u)]; }));
   const preset = new URLSearchParams(location.search).get('status');
   if (preset) $('#f-status').value = preset;
 
@@ -67,7 +67,7 @@
         '<td class="col-service">' + (visible ? service : '-') + '</td>' +
         '<td class="nowrap">' + C.statusBadge(c) + '</td>' +
         '<td>' + C.progressText(c) + '</td>' +
-        '<td class="nowrap">' + esc(C.userName(c.requesterId)) + '</td>' +
+        '<td class="center">' + esc(C.ownerLabel(c.requesterId)) + '</td>' +
         '<td class="num-left">' + C.fmtDate(c.requestedAt) + '</td>' +
       '</tr>';
     }).join('') : '<tr><td class="empty-row" colspan="6">조건에 맞는 계약이 없습니다.</td></tr>';

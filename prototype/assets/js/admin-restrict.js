@@ -36,7 +36,7 @@
   // 지금 걸려 있는 제한을 건 때와 사람
   function setInfo(id) {
     const e = events().filter(function (x) { return x.id === id && x.on; })[0];
-    return e ? C.fmtDate(e.at) + '<span class="cell-meta">' + esc(C.userName(e.by)) + '님</span>' : '-';
+    return e ? C.fmtDate(e.at) + '<span class="cell-meta">' + esc(C.ownerLabel(e.by)) + '</span>' : '-';
   }
 
   function render() {
@@ -48,7 +48,7 @@
           '<span class="cell-meta">' + esc(c.id) + ' ' + C.icon('lock', 'sm') + ' ' + esc(C.kindLabel(c)) + '</span></td>' +
         '<td>' + esc(C.serviceLabel(c.services)) + '</td>' +
         '<td class="nowrap">' + C.statusBadge(c) + '</td>' +
-        '<td class="nowrap">' + esc(C.userName(c.requesterId)) + '</td>' +
+        '<td class="center">' + esc(C.ownerLabel(c.requesterId)) + '</td>' +
         '<td class="num-left">' + setInfo(c.id) + '</td>' +
         '<td class="col-action"><button type="button" class="link-act link-act--danger" data-off="' + esc(c.id) + '" aria-label="' + esc(c.counterparty) + ' 열람 제한 풀기">풀기</button></td></tr>';
     }).join('') : '<tr><td class="empty-row" colspan="6">열람 제한 계약이 없습니다.</td></tr>';

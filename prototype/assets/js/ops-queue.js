@@ -78,8 +78,8 @@
         // 운영 변경(v0.26)은 단계 이름을 "운영 변경"으로, 대리 지정으로 내 차례가 된 건은 누구 대신인지 표시
         '<td class="nowrap">' + esc(C.stepLabel(x.s.step, x.c)) + accBadge +
           (C.isChange(x.c) ? '<span class="cell-meta">' + esc(C.kindLabel(x.c)) + '</span>' : '') +
-          (!showWho && x.s.userId !== me.id ? '<span class="cell-meta">' + esc(C.userName(x.s.userId)) + '님 대신 (대리 지정)</span>' : '') + '</td>' +
-        (showWho ? '<td class="nowrap">' + esc(C.userName(x.s.userId)) + '</td>' : '') +
+          (!showWho && x.s.userId !== me.id ? '<span class="cell-meta">' + esc(C.ownerLabel(x.s.userId)) + ' 대신 (대리 지정)</span>' : '') + '</td>' +
+        (showWho ? '<td class="center">' + esc(C.ownerLabel(x.s.userId)) + '</td>' : '') +
         // 운영 변경은 체결본이 없으므로 기안일
         '<td class="num-left">' + (x.c.signedAt ? C.fmtDate(x.c.signedAt) : C.isChange(x.c) ? '기안 ' + C.fmtDate(x.c.requestedAt) : '-') + '</td>' +
         '<td class="num"><span' + (x.wait >= LONG ? ' class="wait-long"' : '') + '>' + x.wait + '일</span></td>' +

@@ -7,7 +7,7 @@
  * 하는 일
  *   1. 영업만 쓸 수 있게 막기
  *   2. 이어서 작성(임시 저장 건), 보완 후 재기안(반려 건)일 때 값 미리 채우기
- *   3. 제품별 금액 줄 추가, 삭제와 총액, 연도별 금액 계산 (v0.47: 줄마다 제품 → 기능 → 플랜)
+ *   3. 제품별 금액 줄 추가, 삭제와 총액, 연도별 금액 계산 (v0.49: 줄마다 제품 → 기능)
  *   4. 체크리스트 2, 3번 자동 계산과 결재선 표시
  *   5. 필수 항목 검사(오류 요약 + 항목별 오류), 기안 확인 창, 기안 완료 안내
  * 프로토타입: 저장, 파일 업로드, 기안은 화면만 동작합니다. 실제 시스템에서는 서버에 저장하고,
@@ -24,7 +24,7 @@
   const form = $('#contract-form');
   // v0.34: 계약 유형을 없앰. v0.41: 금전 거래가 있는 계약만 등록하고 비밀유지계약 등은 부속 서류로 첨부
   const PRICE = {};
-  D.PRICE_BOOK.forEach(function (p) { PRICE[p.code] = p; });
+  D.PRICE_BOOK.forEach(function (p) { PRICE[p.feature] = p; }); // 가격 기준: 기능마다 하나(v0.49)
 
   /* ---------- 숫자와 날짜 도우미 ---------- */
   function parseNum(v) {
@@ -204,11 +204,13 @@
   function setTitle(t) { $('#page-title').textContent = t; }
 
   /* ---------- 3. 제품별 금액 (CPQ, REQ-SCOPE-02) ----------
-   * v0.47 기획자 요청: 제품과 기능을 나눔. 줄마다 제품 → 기능 → 플랜을 차례로 고름(같은 제품이라도 기능마다 플랜이 다름)
-   *   고를 수 있는 것: 사용 중인 제품과 기능 중 오늘 적용되는 플랜(PRICE_BOOK)이 있는 것. 기능이나 플랜이 하나뿐이면 저절로 고름
-   *   저장하는 값은 그대로 플랜 코드(code), 수량, 금액, 사용 업체. 이어서 작성할 때는 플랜에서 제품과 기능을 다시 채움 */
+   * v0.47 기획자 요청: 제품과 기능을 나눔. v0.49 기획자 결정: 플랜 없이 제품 → 기능 두 단계, 가격은 기능마다 하나
+   *   줄마다 제품 → 기능을 차례로 고름. 서비스는 고른 제품에 저절로 붙음(카피킬러 캠퍼스 → 카피킬러)
+   *   고를 수 있는 것: 사용 중인 제품과 기능 중 오늘 적용되는 가격(PRICE_BOOK)이 있는 것. 기능이 하나뿐이면 저절로 고름
+   *   저장하는 값은 기능(feature), 수량, 금액, 사용 업체. 이어서 작성할 때는 기능에서 제품을 다시 채움 */
   let productSeq = 0;
-  function livePlans() {
+  // 고를 수 있는 기능의 가격 줄 (제품과 기능이 사용 중이고 서비스가 있는 것)
+  function livePrices() {
     return D.PRICE_BOOK.filter(function (r) {
       const p = D.PRODUCTS.filter(function (x) { return x.id === r.product; })[0];
       const f = D.FEATURES.filter(function (x) { return x.id === r.feature; })[0];
@@ -221,40 +223,34 @@
     }).join('');
   }
   function productOptions(selected) {
-    const plans = livePlans();
-    return optionsHtml(D.PRODUCTS.filter(function (p) { return plans.some(function (r) { return r.product === p.id; }); })
+    const prices = livePrices();
+    return optionsHtml(D.PRODUCTS.filter(function (p) { return prices.some(function (r) { return r.product === p.id; }); })
       .map(function (p) { return [p.id, p.name]; }), selected, '고르세요');
   }
-  // 고른 제품에 맞춰 기능 칸을, 고른 기능에 맞춰 플랜 칸을 다시 채움
+  // 고른 제품에 맞춰 기능 칸을 다시 채움
   function syncPick(li) {
-    const sp = li.querySelector('[data-k="product"]'), sf = li.querySelector('[data-k="feature"]'), sc = li.querySelector('[data-k="code"]');
-    const plans = livePlans();
+    const sp = li.querySelector('[data-k="product"]'), sf = li.querySelector('[data-k="feature"]');
+    const prices = livePrices();
     const pid = sp.value;
-    let fid = sf.value, code = sc.value;
-    const feats = pid ? D.FEATURES.filter(function (f) { return f.product === pid && plans.some(function (r) { return r.feature === f.id; }); }) : [];
+    let fid = sf.value;
+    const feats = pid ? D.FEATURES.filter(function (f) { return f.product === pid && prices.some(function (r) { return r.feature === f.id; }); }) : [];
     if (!feats.some(function (f) { return f.id === fid; })) fid = feats.length === 1 ? feats[0].id : '';
-    const list = fid ? plans.filter(function (r) { return r.feature === fid; }) : [];
-    if (!list.some(function (r) { return r.code === code; })) code = list.length === 1 ? list[0].code : '';
     sf.innerHTML = optionsHtml(feats.map(function (f) { return [f.id, f.name]; }), fid, pid ? '고르세요' : '제품을 먼저 고르세요');
     sf.disabled = !pid;
-    sc.innerHTML = optionsHtml(list.map(function (r) { return [r.code, r.name]; }), code, fid ? '고르세요' : '기능을 먼저 고르세요');
-    sc.disabled = !fid;
   }
   function addProduct(data) {
     data = data || {};
     productSeq += 1;
     const n = productSeq;
-    const plan = PRICE[data.code]; // 이어서 작성, 재기안: 플랜에서 제품과 기능을 찾음
+    const price = PRICE[data.feature]; // 이어서 작성, 재기안: 기능에서 제품을 찾음
     const li = document.createElement('li');
     li.className = 'product-item';
     li.innerHTML =
       '<div class="product-pick">' +
         '<div class="field"><label class="field-label field-label--sm" for="p-prod-' + n + '">제품</label>' +
-          '<select class="select" id="p-prod-' + n + '" data-k="product">' + productOptions(plan ? plan.product : '') + '</select></div>' +
+          '<select class="select" id="p-prod-' + n + '" data-k="product">' + productOptions(price ? price.product : '') + '</select></div>' +
         '<div class="field"><label class="field-label field-label--sm" for="p-feat-' + n + '">기능</label>' +
-          '<select class="select" id="p-feat-' + n + '" data-k="feature">' + optionsHtml(plan ? [[plan.feature, C.featureName(plan.feature)]] : [], plan ? plan.feature : '', '제품을 먼저 고르세요') + '</select></div>' +
-        '<div class="field"><label class="field-label field-label--sm" for="p-code-' + n + '">플랜</label>' +
-          '<select class="select" id="p-code-' + n + '" data-k="code">' + optionsHtml(plan ? [[plan.code, plan.name]] : [], plan ? plan.code : '', '기능을 먼저 고르세요') + '</select></div>' +
+          '<select class="select" id="p-feat-' + n + '" data-k="feature">' + optionsHtml(price ? [[price.feature, C.featureName(price.feature)]] : [], price ? price.feature : '', '제품을 먼저 고르세요') + '</select></div>' +
       '</div>' +
       '<div class="product-grid">' +
         '<div class="field"><label class="field-label field-label--sm" for="p-qty-' + n + '">수량</label>' +
@@ -276,9 +272,9 @@
   $('#product-list').addEventListener('click', function (e) {
     if (e.target.closest('[data-act="remove"]')) { e.target.closest('li').remove(); refresh(); }
   });
-  // 제품이나 기능을 바꾸면 아래 칸을 다시 채움 (폼 전체의 change보다 먼저 돌아 계산에 새 플랜이 쓰임)
+  // 제품을 바꾸면 기능 칸을 다시 채움 (폼 전체의 change보다 먼저 돌아 계산에 새 기능이 쓰임)
   $('#product-list').addEventListener('change', function (e) {
-    if (e.target.matches('[data-k="product"], [data-k="feature"]')) syncPick(e.target.closest('li'));
+    if (e.target.matches('[data-k="product"]')) syncPick(e.target.closest('li'));
   });
   // 금액 칸은 입력하는 동안 숫자만 남기고, 칸을 벗어나면 쉼표를 붙임
   form.addEventListener('focusout', function (e) {
@@ -290,13 +286,13 @@
 
   function readProducts() {
     return $$('#product-list > li').map(function (li) {
-      const code = li.querySelector('[data-k="code"]').value;
+      const feature = li.querySelector('[data-k="feature"]').value;
       const qty = parseNum(li.querySelector('[data-k="qty"]').value);
       const amount = parseNum(li.querySelector('[data-k="amount"]').value);
-      const p = PRICE[code];
+      const p = PRICE[feature];
       const std = p && qty ? p.listPrice * qty : null;
       const discount = std && amount != null ? Math.max(0, (std - amount) / std) : null;
-      return { li: li, code: code, qty: qty, amount: amount, product: p, std: std, discount: discount, cap: p ? p.discountCap : null };
+      return { li: li, feature: feature, qty: qty, amount: amount, product: p, std: std, discount: discount, cap: p ? p.discountCap : null };
     });
   }
 
@@ -351,12 +347,12 @@
 
   /* ---------- 4. 체크리스트 2, 3번 자동 계산 (REQ-CHK-04) ----------
    * 2번(표준단가표 적용): 모든 줄이 표준 단가 그대로면 예, 하나라도 할인이 있으면 아니오
-   * 3번(할인율 한도 준수): 모든 줄의 할인율이 그 플랜의 한도 이하이면 예 (v0.47: 한도는 플랜마다)
+   * 3번(할인율 한도 준수): 모든 줄의 할인율이 그 기능의 한도 이하이면 예 (v0.49: 한도는 기능마다)
    * 모든 계약에는 제품과 금액이 있음(v0.41: 금액이 없는 계약은 CLIMB에 등록하지 않음) */
   function priceCheck(rows) {
     if (!rows.length) return { q2: 'WAIT', q3: 'WAIT', d2: '제품을 넣으면 자동으로 계산됩니다.', d3: '제품을 넣으면 자동으로 계산됩니다.' };
     if (rows.some(function (r) { return !r.product || !r.qty || r.amount == null; })) {
-      const msg = '제품, 기능, 플랜, 수량, 계약 금액을 모두 넣으면 계산됩니다.';
+      const msg = '제품, 기능, 수량, 계약 금액을 모두 넣으면 계산됩니다.';
       return { q2: 'WAIT', q3: 'WAIT', d2: msg, d3: msg };
     }
     const discounted = rows.filter(function (r) { return r.discount > 0; });
@@ -365,11 +361,11 @@
       q2: discounted.length ? 'NO' : 'YES',
       q3: over.length ? 'NO' : 'YES',
       d2: discounted.length
-        ? discounted.map(function (r) { return C.planLabel(r.product) + ' ' + pct(r.discount) + ' 할인'; }).join(', ')
-        : '모든 플랜이 표준 단가 그대로입니다.',
+        ? discounted.map(function (r) { return C.featureLabel(r.product) + ' ' + pct(r.discount) + ' 할인'; }).join(', ')
+        : '모든 제품이 표준 단가 그대로입니다.',
       d3: over.length
-        ? over.map(function (r) { return C.planLabel(r.product) + ' 할인율 ' + pct(r.discount) + ', 한도 ' + pct(r.cap) + ' 초과'; }).join(', ')
-        : (discounted.length ? '할인한 플랜 모두 한도 이내입니다.' : '할인이 없습니다.'),
+        ? over.map(function (r) { return C.featureLabel(r.product) + ' 할인율 ' + pct(r.discount) + ', 한도 ' + pct(r.cap) + ' 초과'; }).join(', ')
+        : (discounted.length ? '할인한 제품 모두 한도 이내입니다.' : '할인이 없습니다.'),
     };
   }
   function answerHtml(v) {
@@ -396,7 +392,7 @@
     else sales = ['wait', '금액 계산을 기다림'];
     // ③ 영업 검토는 기안자 유닛의 리더 (리더 본인 계약은 영업 임원, v0.26 재무 문서 반영)
     const req = { requesterId: (source && source.requesterId) || me.id };
-    const name = function (code) { return C.userName(C.stepUserNow(code, req)); };
+    const name = function (code) { return C.ownerLabel(C.stepUserNow(code, req)); };
     return [
       { stage: '2단계 계약 검토 (② 다음 ③, 그다음 ④와 ⑤ 동시)', items: [
         { no: '②', name: '체크리스트 검토', who: '영업지원', state: 'go', reason: '어떤 경우에도 생략하지 않음' }, // REQ-CHK-02
@@ -442,7 +438,7 @@
     rows.forEach(function (r) {
       const info = r.li.querySelector('.price-info');
       const badge = r.li.querySelector('.price-badge');
-      if (!r.product) { info.textContent = '제품, 기능, 플랜을 고르면 표준 단가가 나옵니다.'; badge.innerHTML = ''; return; }
+      if (!r.product) { info.textContent = '제품과 기능을 고르면 표준 단가가 나옵니다.'; badge.innerHTML = ''; return; }
       info.textContent = '표준 단가 ' + won(r.product.listPrice) + ' (' + r.product.unit + ')' + (r.qty ? ' x ' + r.qty + ' = ' + won(r.std) : '') +
         ', 할인율 한도 ' + pct(r.cap);
       if (r.amount == null || r.discount == null) badge.innerHTML = '<span class="badge badge--line">금액 입력 대기</span>';
@@ -460,7 +456,7 @@
     $('#diff-field').hidden = q1 !== 'NO'; // 조항 대비표는 표준계약서를 바꿨을 때만 (v0.27)
     // 4번: 결재선은 그대로, 기안하면 재무에 이메일로 알림 (REQ-CHK-08, REQ-ENV-10)
     const q4 = val('accounting');
-    $('#q4-result').textContent = q4 === 'YES' ? '기안하면 재무 ' + D.USERS.u_finance.name + '님에게 이메일로 알립니다. 결재선은 바뀌지 않습니다.' : '';
+    $('#q4-result').textContent = q4 === 'YES' ? '기안하면 재무 ' + C.ownerLabel('u_finance') + '에게 이메일로 알립니다. 결재선은 바뀌지 않습니다.' : '';
     const pc = priceCheck(rows);
     $('#q2-answer').innerHTML = answerHtml(pc.q2);
     $('#q2-detail').textContent = pc.d2;
@@ -635,18 +631,18 @@
     need(!!val('personalData'), 'personalData', '개인정보 처리위탁 계약 여부를 고르세요.');
     need(!!val('sla'), 'sla', '서비스 수준 협약(SLA) 여부를 고르세요.'); // v0.40
 
-    // 제품: 1개 이상, 줄마다 제품, 기능, 플랜, 수량, 금액 (금전 거래가 있는 계약만 등록, v0.41. 기능과 플랜은 v0.47)
+    // 제품: 1개 이상, 줄마다 제품, 기능, 수량, 금액 (금전 거래가 있는 계약만 등록, v0.41. 기능은 v0.47, 플랜은 v0.49에 없앰)
     const rows = readProducts();
     if (!rows.length) need(false, 'products', '제품을 1개 이상 넣으세요.', $('#btn-add-product'));
     rows.forEach(function (r, i) {
       if (r.product && r.qty && r.amount != null) return;
       r.li.classList.add('is-invalid');
       const err = r.li.querySelector(':scope > .field-error');
-      const msg = (i + 1) + '번째 줄의 제품, 기능, 플랜, 수량, 계약 금액을 모두 넣으세요.';
+      const msg = (i + 1) + '번째 줄의 제품, 기능, 수량, 계약 금액을 모두 넣으세요.';
       err.hidden = false;
       err.innerHTML = C.icon('alert', 'sm') + '<span>' + esc(msg) + '</span>';
-      // 비어 있는 첫 칸으로 (제품 → 기능 → 플랜 → 수량 → 금액)
-      const empty = ['product', 'feature', 'code'].map(function (k) { return r.li.querySelector('[data-k="' + k + '"]'); }).filter(function (s) { return !s.value; })[0];
+      // 비어 있는 첫 칸으로 (제품 → 기능 → 수량 → 금액)
+      const empty = ['product', 'feature'].map(function (k) { return r.li.querySelector('[data-k="' + k + '"]'); }).filter(function (s) { return !s.value; })[0];
       errors.push({ msg: msg, target: !r.product ? empty : (!r.qty ? r.li.querySelector('[data-k="qty"]') : r.li.querySelector('[data-k="amount"]')) });
     });
     // 연도별 금액 합계 = 총액

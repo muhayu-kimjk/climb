@@ -81,7 +81,7 @@
         '<td><span class="cell-strong">' + esc(cu.name) + '</span><span class="cell-meta">' + esc(cu.id) + (into ? ', ' + esc(ro(into.name)) + ' 합쳐짐' : '') + '</span></td>' +
         '<td class="num-left">' + esc(cu.bizNo) + '</td>' +
         '<td class="num">' + contractsOf(cu) + '건</td>' +
-        '<td class="nowrap">' + esc(C.userName(cu.registeredBy)) + '님<span class="cell-meta">' + C.fmtDate(cu.registeredAt) + '</span></td>' +
+        '<td class="center">' + esc(C.ownerLabel(cu.registeredBy)) + '<span class="cell-meta">' + C.fmtDate(cu.registeredAt) + '</span></td>' +
         '<td class="nowrap">' + C.badge(STATE[st][0], STATE[st][1]) + '</td>' +
         '<td class="col-action">' + (st === 'MERGED' ? '-' : '<button type="button" class="link-act" data-edit="' + esc(cu.id) + '" aria-label="' + esc(cu.name) + ' 고치기">고치기</button>') + '</td></tr>';
     }).join('') : '<tr><td class="empty-row" colspan="7">조건에 맞는 거래처가 없습니다.</td></tr>';

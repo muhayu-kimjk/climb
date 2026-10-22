@@ -112,7 +112,7 @@
         '<td class="num-left">' + dt(a.lastLoginAt) + '</td>' +
         '<td class="num-left">' + dt(a.lastLogoutAt) + '</td>' +
         '<td class="num-left">' + C.fmtDate(a.roleChangedAt) + '</td>' +
-        '<td class="col-action"><button type="button" class="link-act" data-edit="' + esc(a.email) + '" aria-label="' + esc(a.name) + '님 권한 수정">수정</button></td>' +
+        '<td class="col-action"><button type="button" class="link-act" data-edit="' + esc(a.email) + '" aria-label="' + esc((a.dept ? a.dept + ' ' : '') + a.name) + ' 권한 수정">수정</button></td>' +
       '</tr>';
     }).join('') : '<tr><td class="empty-row" colspan="11">조건에 맞는 사용자가 없습니다.</td></tr>';
 
@@ -178,7 +178,7 @@
         C.adminSave('USER', a.name + ' (' + a.email + ')', '사용자 추가: ' + a.dept + ', ' + roleNames(a.roles), val(f, 'reason'), { k: 'ACCOUNT_ADD', a: a });
         page = Math.ceil(filtered().length / PAGE_SIZE);
         render();
-        C.toast(a.name + '님을 첫 접속 전 상태로 추가했습니다.');
+        C.toast(C.josa((a.dept ? a.dept + ' ' : '') + a.name, '을', '를') + ' 첫 접속 전 상태로 추가했습니다.');
       },
     });
   }
@@ -190,7 +190,7 @@
     const states = a.status === 'SUSPENDED' ? [['SUSPENDED', '사용 중지'], ['ACTIVE', '다시 사용']]
       : [[a.status, D.ACCOUNT_STATUS[a.status].label], ['SUSPENDED', '사용 중지']];
     C.formModal({
-      title: a.name + '님의 권한을 바꿀까요?',
+      title: (a.dept ? a.dept + ' ' : '') + a.name + '의 권한을 바꿀까요?',
       desc: '저장하면 다음 화면부터 바뀐 권한이 적용됩니다. 사용 중지하면 바로 로그인할 수 없고, 계정과 기록은 지우지 않고 남깁니다.',
       body: '<p class="modal-info">' + esc(a.email) + ', 등록일 ' + C.fmtDate(a.registeredAt) + '</p>' +
         '<div class="field-row">' +
@@ -225,7 +225,7 @@
         if (status !== a.status) { set.status = status; parts.push('상태: ' + D.ACCOUNT_STATUS[a.status].label + ' → ' + D.ACCOUNT_STATUS[status].label); }
         C.adminSave('USER', a.name + ' (' + a.email + ')', parts.join(', '), val(f, 'reason'), { k: 'ACCOUNT_EDIT', email: a.email, set: set });
         render();
-        C.toast(a.name + '님의 권한을 바꿨습니다.');
+        C.toast((a.dept ? a.dept + ' ' : '') + a.name + '의 권한을 바꿨습니다.');
       },
     });
   }

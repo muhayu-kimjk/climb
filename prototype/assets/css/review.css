@@ -20,6 +20,9 @@
 .approval-box thead th { background: var(--surface-secondary-subtler); font-weight: 700; color: var(--text-bolder); }
 .approval-box .box-rowhead { width: 6.4rem; background: var(--surface-gray-subtler); font-weight: 700; color: var(--text-subtle); }
 .approval-box td strong { color: var(--text-basic); }
+/* 담당 칸의 조직과 이름 (v0.50): 조직은 작은 글자 한 줄, 이름은 굵게 다음 줄 */
+.approval-box .box-unit { display: block; margin-top: 0.2rem; font-size: var(--fs-body-xsmall); white-space: nowrap; }
+.approval-box .box-name { display: block; }
 .approval-box .box-when { font-size: var(--fs-body-xsmall); color: var(--text-subtle); font-variant-numeric: tabular-nums; }
 .approval-box .is-skipped { color: var(--text-disabled); background: var(--surface-gray-subtler); }
 .approval-box .is-skipped strong { color: var(--text-disabled); }
@@ -48,8 +51,8 @@
 .tbl tfoot th, .tbl tfoot td { padding: 1.2rem; border-top: 2px solid var(--border-gray-light); font-weight: 700; color: var(--text-bolder); text-align: left; }
 .tbl tfoot .total { text-align: right; font-variant-numeric: tabular-nums; }
 .total-read { display: block; margin-top: 0.2rem; font-size: var(--fs-body-xsmall); font-weight: 400; color: var(--text-subtle); }
-/* 제품과 금액 표: "프리즘 결함검사" 아래 플랜 이름 (v0.47) */
-.plan-name { display: block; margin-top: 0.2rem; font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
+/* 제품과 금액 표: "프리즘 결함검사" 아래 단위 (v0.49: 플랜 이름 대신) */
+.product-unit { display: block; margin-top: 0.2rem; font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
 .doc-checks > li { padding: 1.2rem 0; border-bottom: 1px solid var(--border-gray-light); }
 .doc-checks > li:first-child { padding-top: 0; }
 .doc-checks--extra { margin-top: 1.2rem; border-top: 1px solid var(--border-gray-light); }
@@ -99,7 +102,7 @@ p.check-effect { margin-top: 1.2rem; }
 .btn-reject { color: var(--status-danger-fill); border-color: var(--status-danger-fill); }
 .act-field { margin-top: 1.6rem; }
 
-@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) {
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
   .info-grid { grid-template-columns: 1fr; }
   .info-grid > div { grid-template-columns: 10rem minmax(0, 1fr); }
   .action-bar { margin-left: -1.6rem; margin-right: -1.6rem; padding: 1.2rem 1.6rem; border-radius: 0; }

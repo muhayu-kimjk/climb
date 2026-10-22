@@ -8,7 +8,7 @@
 a.board-title:hover { color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; }
 .board-title .badge { margin-right: 0.6rem; vertical-align: 0.1em; }
 .board-ver { margin-right: 0.6rem; color: var(--text-primary); font-variant-numeric: tabular-nums; }
-.tbl--board .col-kind { width: 1%; white-space: nowrap; }
+.tbl--board .col-kind { width: 1%; white-space: nowrap; text-align: center; } /* 짧은 칸은 가운데 (v0.50) */
 
 /* ---------- 글 보기 ---------- */
 /* 제목은 양쪽 정렬하지 않음(두 줄로 넘어갈 때 낱말 사이가 크게 벌어지지 않게) */
@@ -58,8 +58,8 @@ a.board-title:hover { color: var(--text-primary); text-decoration: underline; te
 .mail-list > li.is-not-mine .mail-name { color: var(--text-subtle); font-weight: 500; }
 .mail-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1.2rem; margin-top: 2rem; }
 
-/* 휴대폰, 태블릿(터치스크린): 글 보기와 계정 정보를 한 줄씩 */
-@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) {
+/* 스마트폰(v0.50부터 태블릿은 PC 화면): 글 보기와 계정 정보를 한 줄씩 */
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
   /* 공지사항 거르기: 공통 규칙(list.css)은 둘째 칸부터 반 폭이라 검색 칸이 좁아 "제목, 버전, 내용"이 잘렸음.
      구분, 검색, 초기화를 한 줄에 하나씩 폭 가득 (2026-10-22 기획자 요청, 기준 기기 아이폰 18 Pro) */
   .filter-bar--board .field, .filter-bar--board .filter-reset { grid-column: 1 / -1; }

@@ -41,7 +41,7 @@
   function account(id) { return D.ACCOUNTS.filter(function (a) { return a.id === id; })[0] || null; }
   function person(id) {
     const a = account(id);
-    return '<span class="cell-strong">' + esc(C.userName(id)) + '님</span>' + (a ? '<span class="cell-meta">' + esc(a.dept) + '</span>' : '');
+    return '<span class="cell-strong">' + esc(a ? (a.dept ? a.dept + ' ' : '') + a.name : C.ownerLabel(id)) + '</span>';
   }
   // 그 역할(또는 그 분야 리더)이 있는, 사용 중지가 아닌 사람 (v0.29: 영업지원, 정보보호, 고객지원 리더도 고를 수 있음 [가정])
   function candidates(role, exceptId) {
@@ -52,7 +52,7 @@
   function holders(code, cur) {
     const by = {};
     C.pendingQueue(me, true, [code]).forEach(function (x) { if (x.s.userId !== cur) by[x.s.userId] = (by[x.s.userId] || 0) + 1; });
-    return Object.keys(by).map(function (id) { return '<span class="cell-meta">' + esc(C.userName(id)) + '님 ' + by[id] + '건</span>'; }).join('');
+    return Object.keys(by).map(function (id) { return '<span class="cell-meta">' + esc(C.ownerLabel(id)) + ' ' + by[id] + '건</span>'; }).join('');
   }
   function stepName(code) { return D.STEPS[code].no + ' ' + D.STEPS[code].name; }
   // 이 사람이 지금 맡은 결재 담당 (예: 배수아님은 ②와 ⑧, 최민준님은 ③ 비즈니스1유닛 리더)
@@ -74,7 +74,7 @@
   function delegNote(id) {
     return D.DELEGATIONS.filter(function (d) { return d.absentId === id && C.delegationState(d) !== 'ENDED'; }).map(function (d) {
       return '<span class="cell-meta">' + (C.delegationState(d) === 'ACTIVE' ? '대리 중: ' : '대리 예정: ') +
-        esc(C.userName(d.delegateId)) + '님 (' + period(d) + ')</span>';
+        esc(C.ownerLabel(d.delegateId)) + ' (' + period(d) + ')</span>';
     }).join('');
   }
   function renderAssignees() {
@@ -105,22 +105,22 @@
   }
   function openLeader(team) {
     const cur = C.leaderAt(team, '9999');
-    const opts = candidates('HEAD', cur).map(function (a) { return [a.id, a.name + ' (' + a.dept + ')']; });
+    const opts = candidates('HEAD', cur).map(function (a) { return [a.id, (a.dept ? a.dept + ' ' : '') + a.name]; });
     const n = C.pendingQueue(me, true, ['S03']).filter(function (x) { return C.teamOf(x.c.requesterId) === team; }).length;
     C.formModal({
       title: team + ' 리더를 바꿀까요?',
-      desc: '바꾸면 ' + team + ' 계약 중 아직 ③ 영업 검토 차례가 오지 않은 것부터 새 리더에게 갑니다.' + (n ? ' 지금 차례인 ' + n + '건은 ' + C.userName(cur) + '님이 그대로 처리합니다.' : ''),
-      body: '<p class="modal-info">지금 리더: ' + (cur ? esc(C.userName(cur)) + '님' : '없음') + '</p>' +
+      desc: '바꾸면 ' + team + ' 계약 중 아직 ③ 영업 검토 차례가 오지 않은 것부터 새 리더에게 갑니다.' + (n ? ' 지금 차례인 ' + n + '건은 ' + C.josa(C.ownerLabel(cur), '이', '가') + ' 그대로 처리합니다.' : ''),
+      body: '<p class="modal-info">지금 리더: ' + (cur ? esc(C.ownerLabel(cur)) : '없음') + '</p>' +
         C.fieldHtml({ name: 'to', label: '새 리더', type: 'select', required: true, options: [['', '고르세요']].concat(opts), help: '영업 리더 역할이 있는 사람만 고를 수 있습니다.' }) +
         C.fieldHtml({ name: 'reason', label: '바꾸는 사유', type: 'textarea', required: true, placeholder: '예: 10월 20일 비즈니스2유닛 리더 발령' }),
       btn: '리더 바꾸기',
       check: function (f) { return { to: val(f, 'to') ? '' : '새 리더를 고르세요.', reason: val(f, 'reason') ? '' : '바꾸는 사유를 적으세요.' }; },
       done: function (f) {
         const to = val(f, 'to');
-        C.adminSave('RULE', stepName('S03') + '(' + team + ' 리더)', '리더: ' + (cur ? C.userName(cur) : '없음') + ' → ' + C.userName(to), val(f, 'reason'),
+        C.adminSave('RULE', stepName('S03') + '(' + team + ' 리더)', '리더: ' + (cur ? C.ownerLabel(cur) : '없음') + ' → ' + C.ownerLabel(to), val(f, 'reason'),
           { k: 'ASSIGNEE', step: 'S03:' + team, to: to });
         render();
-        C.toast(team + ' 리더를 ' + C.userName(to) + '님으로 바꿨습니다.');
+        C.toast(team + ' 리더를 ' + C.josa(C.ownerLabel(to), '으로', '로') + ' 바꿨습니다.');
       },
     });
   }
@@ -129,7 +129,7 @@
     const cur = teams();
     const units = C.codeList('DEPT').filter(function (x) { return cur.indexOf(x.label) < 0; });
     if (!units.length) { C.toast('더할 수 있는 유닛이 없습니다. 새 유닛은 코드 관리에서 먼저 추가하세요.', true); return; }
-    const opts = candidates('HEAD').map(function (a) { return [a.id, a.name + ' (' + a.dept + ')']; });
+    const opts = candidates('HEAD').map(function (a) { return [a.id, (a.dept ? a.dept + ' ' : '') + a.name]; });
     C.formModal({
       title: '유닛별 리더 표에 유닛을 더할까요?',
       desc: '더하면 그 유닛 사람이 기안하는 계약의 ③ 영업 검토가 정한 리더에게 갑니다. 표에 없는 유닛의 계약은 영업 임원이 검토합니다.',
@@ -143,9 +143,9 @@
       },
       done: function (f) {
         const unit = val(f, 'unit'), to = val(f, 'to');
-        C.adminSave('RULE', stepName('S03') + '(' + unit + ' 리더)', '유닛 추가, 리더: ' + C.userName(to), val(f, 'reason'), { k: 'ASSIGNEE', step: 'S03:' + unit, to: to });
+        C.adminSave('RULE', stepName('S03') + '(' + unit + ' 리더)', '유닛 추가, 리더: ' + C.ownerLabel(to), val(f, 'reason'), { k: 'ASSIGNEE', step: 'S03:' + unit, to: to });
         render();
-        C.toast(C.josa(unit, '을', '를') + ' 더하고 리더를 ' + C.userName(to) + '님으로 정했습니다.');
+        C.toast(C.josa(unit, '을', '를') + ' 더하고 리더를 ' + C.josa(C.ownerLabel(to), '으로', '로') + ' 정했습니다.');
       },
     });
   }
@@ -153,12 +153,12 @@
     // ③ 줄은 리더 본인 계약의 담당(영업 임원)
     const st = D.STEPS[code], cur = C.assigneeOf(code), role = code === 'S03' ? 'EXEC' : st.role;
     const n = code === 'S03' ? C.pendingQueue(me, true, ['S03']).filter(function (x) { return x.s.userId === cur; }).length : pendingCount(code);
-    const opts = candidates(role, cur).map(function (a) { return [a.id, a.name + ' (' + a.dept + ')']; });
+    const opts = candidates(role, cur).map(function (a) { return [a.id, (a.dept ? a.dept + ' ' : '') + a.name]; });
     if (!opts.length) { C.toast('바꿀 수 있는 ' + C.roleLabel(role) + ' 역할의 사람이 없으니 사용자 권한 관리에서 먼저 역할을 주세요.', true); return; }
     C.formModal({
       title: stepName(code) + ' 담당자를 바꿀까요?',
-      desc: '바꾸면 아직 차례가 오지 않은 계약부터 새 담당자에게 갑니다.' + (n ? ' 지금 차례인 ' + n + '건은 ' + C.userName(cur) + '님이 그대로 처리합니다.' : ''),
-      body: '<p class="modal-info">지금 담당자: ' + esc(C.userName(cur)) + '님</p>' +
+      desc: '바꾸면 아직 차례가 오지 않은 계약부터 새 담당자에게 갑니다.' + (n ? ' 지금 차례인 ' + n + '건은 ' + C.josa(C.ownerLabel(cur), '이', '가') + ' 그대로 처리합니다.' : ''),
+      body: '<p class="modal-info">지금 담당자: ' + esc(C.ownerLabel(cur)) + '</p>' +
         C.fieldHtml({ name: 'to', label: '새 담당자', type: 'select', required: true, options: [['', '고르세요']].concat(opts),
           // 그 분야 리더도 고를 수 있음 (v0.29 가정, C.canTake)
           help: C.roleLabel(role) + ' 역할' + (D.STEP_LEADS.some(function (r) { return D.ROLE_BASE[r] === role; }) ? '이나 그 분야 리더 역할' : '') + '이 있는 사람만 고를 수 있습니다.' }) +
@@ -169,9 +169,9 @@
       },
       done: function (f) {
         const to = val(f, 'to');
-        C.adminSave('RULE', stepName(code) + ' 담당자', '담당자: ' + C.userName(cur) + ' → ' + C.userName(to), val(f, 'reason'), { k: 'ASSIGNEE', step: code, to: to });
+        C.adminSave('RULE', stepName(code) + ' 담당자', '담당자: ' + C.ownerLabel(cur) + ' → ' + C.ownerLabel(to), val(f, 'reason'), { k: 'ASSIGNEE', step: code, to: to });
         render();
-        C.toast(D.STEPS[code].no + ' 담당자를 ' + C.userName(to) + '님으로 바꿨습니다.');
+        C.toast(D.STEPS[code].no + ' 담당자를 ' + C.josa(C.ownerLabel(to), '으로', '로') + ' 바꿨습니다.');
       },
     });
   }
@@ -206,7 +206,7 @@
   function openDelegate() {
     // 지금 결재 담당이 있는 사람 (단계 담당자, 유닛 리더, 영업 임원)
     const ids = D.ACCOUNTS.filter(function (a) { return C.duties(a.id).length; }).map(function (a) { return a.id; });
-    const absentOpts = ids.map(function (id) { return [id, C.userName(id) + ' (' + dutyNos(id) + ' ' + C.roleLabel(C.duties(id)[0].role) + ')']; });
+    const absentOpts = ids.map(function (id) { return [id, C.ownerLabel(id) + ' (' + dutyNos(id) + ' ' + C.roleLabel(C.duties(id)[0].role) + ')']; });
     C.formModal({
       title: '대리 지정을 추가할까요?',
       desc: '기간 안에는 대신할 사람이 이 담당자의 차례를 처리하고, 결재 기록에 누구 대신인지와 근거가 남습니다.',
@@ -218,13 +218,13 @@
           C.fieldHtml({ name: 'to', label: '종료일', type: 'date', required: true, attrs: ' min="' + D.TODAY + '" data-after="fm-from" data-after-msg="종료일은 시작일보다 앞설 수 없습니다."' }) +
         '</div>' +
         C.fieldHtml({ name: 'reason', label: '근거', type: 'textarea', required: true,
-          placeholder: '예: 고은성님 해외 출장(2026-10-19~2026-10-23). 위임전결규정에 따라 영업 임원이 대신 결재', help: '휴가, 출장 같은 사유와 대신 결재하는 근거를 적습니다. 결재 기록에 함께 남습니다.' }),
+          placeholder: '예: 비즈니스2유닛 고은성 해외 출장(2026-10-19~2026-10-23). 위임전결규정에 따라 영업 임원이 대신 결재', help: '휴가, 출장 같은 사유와 대신 결재하는 근거를 적습니다. 결재 기록에 함께 남습니다.' }),
       btn: '대리 지정',
       open: function (f) {
         f.elements.absent.addEventListener('change', function () {
           const list = subCandidates(f.elements.absent.value);
           f.elements.sub.innerHTML = '<option value="">' + (f.elements.absent.value ? '고르세요' : '담당자를 먼저 고르세요') + '</option>' + list.map(function (a) {
-            return '<option value="' + esc(a.id) + '">' + esc(a.name + ' (' + C.roleLabel(a.roles.indexOf('EXEC') > -1 ? 'EXEC' : a.roles[0]) + ', ' + a.dept + ')') + '</option>';
+            return '<option value="' + esc(a.id) + '">' + esc((a.dept ? a.dept + ' ' : '') + a.name + ' (' + C.roleLabel(a.roles.indexOf('EXEC') > -1 ? 'EXEC' : a.roles[0]) + ')') + '</option>';
           }).join('');
         });
       },
@@ -245,21 +245,21 @@
         const d = { id: 'DL-' + String(D.DELEGATIONS.length + 1).padStart(3, '0'), absentId: val(f, 'absent'), delegateId: val(f, 'sub'),
           from: val(f, 'from'), to: val(f, 'to'), reason: val(f, 'reason') };
         C.adminSave('RULE', dutyNames(d.absentId) + ' 대리 지정',
-          '대리 지정: ' + C.userName(d.absentId) + ' → ' + C.userName(d.delegateId) + ' (' + period(d) + ')', d.reason, { k: 'DELEGATE', d: d });
+          '대리 지정: ' + C.ownerLabel(d.absentId) + ' → ' + C.ownerLabel(d.delegateId) + ' (' + period(d) + ')', d.reason, { k: 'DELEGATE', d: d });
         render();
-        C.toast(C.userName(d.delegateId) + '님을 ' + C.userName(d.absentId) + '님의 대리로 지정했습니다.');
+        C.toast(C.josa(C.ownerLabel(d.delegateId), '을', '를') + ' ' + C.ownerLabel(d.absentId) + '의 대리로 지정했습니다.');
       },
     });
   }
   function openEnd(id) {
     const d = D.DELEGATIONS.filter(function (x) { return x.id === id; })[0];
     const active = C.delegationState(d) === 'ACTIVE';
-    const a = C.userName(d.absentId), b = C.userName(d.delegateId);
+    const a = C.ownerLabel(d.absentId), b = C.ownerLabel(d.delegateId);
     C.formModal({
       title: active ? '대리 지정을 끝낼까요?' : '대리 지정을 취소할까요?',
-      desc: active ? '끝내면 지금부터 ' + b + '님은 ' + a + '님 대신 처리할 수 없습니다. 이미 대신 처리한 기록은 그대로 남습니다.'
-        : '취소하면 이 기간에 ' + b + '님이 ' + a + '님 대신 처리하지 않습니다.',
-      body: '<p class="modal-info">' + esc(a) + '님 → ' + esc(b) + '님 (' + period(d) + ')</p>' +
+      desc: active ? '끝내면 지금부터 ' + C.josa(b, '은', '는') + ' ' + a + ' 대신 처리할 수 없습니다. 이미 대신 처리한 기록은 그대로 남습니다.'
+        : '취소하면 이 기간에 ' + C.josa(b, '이', '가') + ' ' + a + ' 대신 처리하지 않습니다.',
+      body: '<p class="modal-info">' + esc(a) + ' → ' + esc(b) + ' (' + period(d) + ')</p>' +
         C.fieldHtml({ name: 'reason', label: active ? '끝내는 사유' : '취소하는 사유', type: 'textarea', required: true, placeholder: '예: 출장 일정이 줄어 일찍 복귀' }),
       btn: active ? '끝내기' : '취소하기', tone: 'danger',
       check: function (f) { return { reason: val(f, 'reason') ? '' : '사유를 적으세요.' }; },

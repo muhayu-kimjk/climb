@@ -59,8 +59,8 @@ Projects/CLM
    ├─ admin-users.html     SCR-51 사용자 권한 관리 (사용자 추가, 권한 수정, 권한 변경 이력)
    ├─ admin-rules.html     SCR-52 결재선 규칙 (단계별 담당자, 대리 지정, 독촉 기준 일수)
    ├─ admin-restrict.html  SCR-53 열람 제한 관리
-   ├─ admin-prices.html    SCR-54 가격 기준 관리 (기능마다 플랜, 적용 시작일, 품의 문서, 이력)
-   ├─ admin-products.html  SCR-58 제품과 기능 관리 (서비스 아래 제품과 기능, 관리자와 최고관리자)
+   ├─ admin-prices.html    SCR-54 가격 기준 관리 (기능마다 가격, 적용 시작일, 품의 문서, 이력)
+   ├─ admin-products.html  SCR-58 제품과 기능 관리 (제품 → 기능 두 단계, 서비스는 제품에 저절로 붙음, 관리자와 최고관리자)
    ├─ admin-customers.html SCR-55 거래처 관리 (고치기, 합치기, 기관)
    ├─ admin-codes.html     SCR-56 코드 관리
    ├─ admin-logs.html      SCR-57 접속 기록 점검 (정보보호 담당자와 리더, 최고관리자)

@@ -32,7 +32,7 @@
     $('#post').hidden = false;
     $('#post-kind').textContent = D.NOTICE_KINDS[n.kind];
     $('#post-title').innerHTML = (n.important ? C.badge('danger', '중요') + ' ' : '') + (n.version ? '<span class="board-ver">' + esc(n.version) + '</span>' : '') + esc(n.title);
-    $('#post-meta').innerHTML = C.meta(['올린 날 ' + C.fmtDateTime(n.at), '쓴 사람 ' + esc(C.userName(n.by)) + '님'].concat(n.important ? ['전체 사용자에게 이메일로 알림'] : []));
+    $('#post-meta').innerHTML = C.meta(['올린 날 ' + C.fmtDateTime(n.at), '쓴 사람 ' + esc(C.ownerLabel(n.by))].concat(n.important ? ['전체 사용자에게 이메일로 알림'] : []));
     if (n.kind === 'RELEASE') {
       $('#post-body').innerHTML = D.RELEASE_PARTS.filter(function (p) { return ((n.items || {})[p[0]] || []).length; }).map(function (p) {
         return '<section class="release-part"><h2>' + C.badge(PART_TONE[p[0]], p[1]) + '</h2><ul>' +

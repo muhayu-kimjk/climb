@@ -64,7 +64,7 @@
 .page-range { margin-top: 0.8rem; font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
 
 /* ---------- 휴대폰 (방식 B): 배치는 같게, 거르기 칸만 두 줄로 ---------- */
-@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) {
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
   /* 가로 스크롤 표: 옆에 칸이 더 있으면 가장자리에 옅은 그림자가 생겨 밀어 볼 수 있음을 알려 줌 (v0.27)
    * 흰 덮개(local)는 표와 함께 움직이고 그림자(scroll)는 제자리에 있어, 끝까지 밀면 그 쪽 그림자가 가려짐 */
   .tbl-scroll {

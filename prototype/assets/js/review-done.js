@@ -78,7 +78,7 @@
           '<span class="cell-meta"><span class="nowrap">' + esc(x.c.id) + '</span>, ' + esc(C.serviceLabel(x.c.services)) + ', ' + (x.h.round || 1) + '차</span></td>' +
         '<td>' + esc(D.STEPS[x.h.step].no + ' ' + D.STEPS[x.h.step].short) + '</td>' +
         '<td class="nowrap">' + C.badge(a.tone, C.actionLabel(x.h, x.c)) + '</td>' +
-        (seeAll ? '<td>' + esc(C.userName(x.h.actorId)) + (x.h.onBehalfOf ? '<span class="cell-meta">' + esc(C.userName(x.h.onBehalfOf)) + '님 대신</span>' : '') + '</td>' : '') +
+        (seeAll ? '<td class="center">' + esc(C.ownerLabel(x.h.actorId, x.h.actorDept)) + (x.h.onBehalfOf ? '<span class="cell-meta">' + esc(C.ownerLabel(x.h.onBehalfOf)) + ' 대신</span>' : '') + '</td>' : '') +
         '<td>' + (x.h.comment ? esc(x.h.comment) : '-') + '</td>' +
         '<td class="nowrap">' + C.statusBadge(x.c) + '</td>' +
       '</tr>';

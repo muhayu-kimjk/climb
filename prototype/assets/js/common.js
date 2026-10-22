@@ -49,7 +49,7 @@ window.CLIMB = (function () {
       { label: '결재선 규칙', scr: 'SCR-52', href: 'admin-rules.html', roles: ['ADMIN'] },
       { label: '열람 제한 관리', scr: 'SCR-53', href: 'admin-restrict.html', roles: ['ADMIN'] },
       { label: '가격 기준 관리', scr: 'SCR-54', href: 'admin-prices.html', roles: ['ADMIN'] },
-      // 제품과 기능 관리 (v0.47 기획자 요청): 관리자와 최고관리자가 제품과 그 기능을 넣고 고침. 플랜과 가격은 가격 기준 관리
+      // 제품과 기능 관리 (v0.47 기획자 요청, v0.49 제품 → 기능 두 단계): 관리자와 최고관리자가 제품과 그 기능을 넣고 고침. 가격은 가격 기준 관리
       { label: '제품과 기능 관리', scr: 'SCR-58', href: 'admin-products.html', roles: ['ADMIN'] },
       { label: '거래처 관리', scr: 'SCR-55', href: 'admin-customers.html', roles: ['ADMIN'] },
       { label: '코드 관리', scr: 'SCR-56', href: 'admin-codes.html', roles: ['ADMIN'] },
@@ -183,8 +183,15 @@ window.CLIMB = (function () {
   // 결재란과 현재 진행 칸에 쓰는 짧은 이름: 담당자는 분야 이름만("영업", "법무"), 리더와 임원은 등급까지("영업 리더")
   function roleShort(role) { return D.ROLE_SHORT[role] || role; }
   function userName(id) { return D.USERS[id] ? D.USERS[id].name : '-'; }
-  // 영업대표 표기: "조직 이름" (님 없이, 기획자 요청 v0.32. 예: 경영지원유닛 원지안)
-  function ownerLabel(id) { const u = D.USERS[id]; return u ? (u.dept ? u.dept + ' ' : '') + u.name : '-'; }
+  // 사람 표기: "조직 이름" (님 없이. 예: 경영지원유닛 원지안)
+  //   v0.32 영업대표에 처음 씀. v0.50 기획자 요청: 머리글의 내 이름(내 계정 링크)과 개요 인사말("원지안님,")을 빼고는 사람 이름을 모두 이렇게 씀
+  //   dept: 그때의 조직(결재 기록의 actorDept 등)을 알면 넘김. 없으면 지금 조직
+  function ownerLabel(id, dept) {
+    const u = D.USERS[id];
+    if (!u) return '-';
+    const d = dept != null && dept !== '' ? dept : u.dept;
+    return (d ? d + ' ' : '') + u.name;
+  }
 
   /* ---------- 사업자등록번호 (거래처 검색, v0.32) ----------
    * 형식 000-00-00000, 끝자리는 검증 숫자: 앞 9자리에 1,3,7,1,3,7,1,3,5를 곱해 더하고 9번째 자리 x 5의 십의 자리를 더한 뒤 10에서 뺀 끝자리
@@ -240,15 +247,23 @@ window.CLIMB = (function () {
   function serviceLabel(codes) {
     return (codes || []).map(function (s) { return D.SERVICES[s] || s; }).join(', ') || '-';
   }
-  /* 제품, 기능, 플랜 이름 (v0.47 기획자 요청: 제품과 기능을 나눔, 기능마다 플랜이 다를 수 있음)
-   *   플랜은 가격 기준 한 줄(product, feature, name). 화면에는 "프리즘 결함검사(기본 플랜)"처럼 보임
-   *   프로토타입은 지금 이름으로 보여 줌. [가정] 실제 시스템은 기안할 때의 제품, 기능, 플랜 이름을 계약 줄에 함께 저장 */
+  /* 제품과 기능 이름 (v0.47 기획자 요청: 제품과 기능을 나눔. v0.49: 플랜을 없애고 제품 → 기능 두 단계, 가격은 기능마다)
+   *   화면에는 "프리즘 결함검사"처럼 제품과 기능을 이어서 보임. r은 가격 기준 줄이나 { product, feature }
+   *   프로토타입은 지금 이름으로 보여 줌. [가정] 실제 시스템은 기안할 때의 제품, 기능 이름을 계약 줄에 함께 저장 */
   function productName(id) { const p = findBy(D.PRODUCTS, 'id', id); return p ? p.name : (id || ''); }
   function featureName(id) { const f = findBy(D.FEATURES, 'id', id); return f ? f.name : (id || ''); }
-  // "프리즘 결함검사" (제품과 기능만)
   function featureLabel(r) { return r ? (productName(r.product) + ' ' + featureName(r.feature)).trim() : ''; }
-  // "프리즘 결함검사(기본 플랜)"
-  function planLabel(r) { return r ? featureLabel(r) + '(' + r.name + ')' : ''; }
+  /* 서비스는 위계가 아니라 제품에 저절로 붙는 구분 (v0.49 기획자 결정. 예: 카피킬러 캠퍼스 → 카피킬러)
+   *   제품 이름에 서비스 이름(끝의 "서비스"는 빼고 봄)이 들어 있으면 그 서비스. 여럿이 맞으면 긴 이름. 없으면 '' (관리자가 한 번 고름 [가정]) */
+  function serviceFromName(name) {
+    const n = String(name || '').replace(/\s+/g, '').toLowerCase();
+    let best = '', len = 0;
+    codeList('SERVICE').forEach(function (c) {
+      const key = c.label.replace(/\s*서비스$/, '').replace(/\s+/g, '').toLowerCase();
+      if (key && key !== '기타' && n.indexOf(key) > -1 && key.length > len) { best = c.code; len = key.length; }
+    });
+    return best;
+  }
   // '② 체크리스트 검토'
   // c를 주면 운영 변경의 ⑨는 "운영 변경"으로 (v0.26)
   function stepLabel(code, c) { const s = D.STEPS[code]; if (c && code === 'S09' && c.kind === 'CHANGE') return s.no + ' 운영 변경'; return s ? s.no + ' ' + s.name : code; }
@@ -826,6 +841,8 @@ window.CLIMB = (function () {
     } else if (op.k === 'RESTRICT') {
       D.CONTRACTS.forEach(function (c) { if (c.id === op.id) c.restricted = op.on; });
     } else if (op.k === 'PRICE') {
+      // v0.49부터 가격은 기능마다(feature가 열쇠). 기능이 없는 예전 시연 기록(플랜 코드)은 반영하지 않음
+      if (!op.row.feature) return;
       D.PRICE_ROWS.push(Object.assign({ by: e.by, at: e.at }, op.row));
       refreshPrices();
     } else if (op.k === 'PRODUCT_ADD') {
@@ -837,7 +854,7 @@ window.CLIMB = (function () {
       if (op.set.name) p.name = op.set.name;
       if (op.set.service) {
         p.service = op.set.service;
-        // 서비스는 플랜이 없는 제품만 바꿀 수 있지만, 예정된 줄까지 함께 맞춤
+        // 서비스는 가격이 없는 제품만 바꿀 수 있지만, 예정된 줄까지 함께 맞춤
         D.PRICE_ROWS.forEach(function (r) { if (r.product === p.id) r.service = p.service; });
       }
       if (typeof op.set.use === 'boolean') p.use = op.set.use;
@@ -1142,10 +1159,10 @@ window.CLIMB = (function () {
         '</div>' +
         '<span class="brand-en">' + esc(D.BRAND.en) + '</span>' +
         // 인쇄할 때만 보이는 출력 정보 (REQ-UI-11). 실제 시스템은 출력하는 순간의 날짜와 시각을 씁니다.
-        '<p class="print-meta">' + meta(['출력일 ' + fmtDate(D.TODAY), '출력자 ' + esc(user.name) + '님 (' + esc(user.dept || '') + ')']) + '</p>' +
+        '<p class="print-meta">' + meta(['출력일 ' + fmtDate(D.TODAY), '출력자 ' + esc((user.dept ? user.dept + ' ' : '') + user.name)]) + '</p>' +
       '</div></div>' +
       '<nav class="gnb" aria-label="주 메뉴"><div class="inner">' +
-        // 휴대폰에서 옆으로 밀어 보는 틀과 양쪽 화살표(v0.43). 화살표는 손가락용 보조라 Tab으로는 가지 않음(메뉴 링크로 바로 감)
+        // 옆으로 밀어 보는 틀과 양쪽 화살표(v0.43 휴대폰, v0.50부터 PC와 태블릿도). 화살표는 보조라 Tab으로는 가지 않음(메뉴 링크로 바로 감)
         '<div class="gnb-scroll"><ul class="gnb-list">' + menuHtml + '</ul>' +
           '<button type="button" class="gnb-more gnb-more--left" tabindex="-1" aria-hidden="true">' + icon('chevronLeft') + '</button>' +
           '<button type="button" class="gnb-more gnb-more--right" tabindex="-1" aria-hidden="true">' + icon('chevronRight') + '</button></div>' +
@@ -1153,7 +1170,8 @@ window.CLIMB = (function () {
         '<a class="gnb-aside' + (pageId === 'SCR-90' ? ' is-current" aria-current="page' : '') + '" href="help.html">' + icon('help', 'sm') + '<span class="gnb-aside-label">이용 안내</span></a>' +
       '</div></nav>';
 
-    // 휴대폰 메뉴(v0.42): 한 줄을 옆으로 밀어 봄. 지금 화면의 메뉴가 보이게 미리 밀어 두고, 더 있는 쪽 끝을 흐리게 표시
+    // 메뉴 한 줄(v0.42 휴대폰, v0.50 기획자 요청으로 PC와 태블릿도): 다 들어가지 않으면 옆으로 밀어 봄.
+    //   지금 화면의 메뉴가 보이게 미리 밀어 두고, 더 있는 쪽 끝을 흐리게 표시
     const gnbList = el.querySelector('.gnb-list');
     // 메뉴가 더 있는 쪽에 그라데이션과 화살표를 보임(v0.43). 하위 메뉴가 열려 있으면 감춤
     const gnbScroll = gnbList.parentNode;
@@ -1174,8 +1192,18 @@ window.CLIMB = (function () {
     if (gnbCur && gnbList.scrollWidth > gnbList.clientWidth) {
       gnbList.scrollLeft += gnbCur.getBoundingClientRect().left - gnbList.getBoundingClientRect().left - 16;
     }
-    gnbList.addEventListener('scroll', gnbEdge, { passive: true });
-    window.addEventListener('resize', gnbEdge);
+    // 하위 메뉴 자리(v0.50): 밀어 보는 줄에 잘리지 않게 .gnb-scroll 기준으로 둠. PC와 태블릿은 연 메뉴 바로 아래(오른쪽 끝을 넘지 않게),
+    //   스마트폰은 CSS대로 메뉴 줄 아래 폭 가득
+    function placeSub() {
+      const item = gnbList.querySelector('.gnb-item.is-open'), sub = item && item.querySelector('.gnb-sub');
+      if (!sub) return;
+      if (isTouchLayout()) { sub.style.left = ''; return; }
+      const box = gnbScroll.getBoundingClientRect();
+      const left = item.querySelector('.gnb-link').getBoundingClientRect().left - box.left;
+      sub.style.left = Math.max(0, Math.min(left, box.width - sub.offsetWidth)) + 'px';
+    }
+    gnbList.addEventListener('scroll', function () { gnbEdge(); placeSub(); }, { passive: true });
+    window.addEventListener('resize', function () { gnbEdge(); placeSub(); });
     gnbEdge();
 
     // 하위 메뉴 열기·닫기
@@ -1186,6 +1214,7 @@ window.CLIMB = (function () {
         closeMenus();
         item.classList.toggle('is-open', willOpen);
         btn.setAttribute('aria-expanded', String(willOpen));
+        placeSub();
         gnbEdge();
       });
     });
@@ -1432,7 +1461,7 @@ window.CLIMB = (function () {
       '<thead><tr><th scope="col">일시</th><th scope="col">대상</th><th scope="col">바뀐 내용</th><th scope="col">사유</th><th scope="col">바꾼 사람</th></tr></thead><tbody>' +
       (list.length ? list.map(function (e) {
         return '<tr><td class="num-left">' + fmtDateTime(e.at) + '</td><td>' + esc(e.target) + '</td><td>' + esc(e.change) + '</td>' +
-          '<td>' + esc(e.reason) + '</td><td class="nowrap">' + esc(userName(e.by)) + '님</td></tr>';
+          '<td>' + esc(e.reason) + '</td><td class="center">' + esc(ownerLabel(e.by)) + '</td></tr>';
       }).join('') : '<tr><td class="empty-row" colspan="5">아직 바꾼 기록이 없습니다.</td></tr>') + '</tbody></table></div>';
   }
 
@@ -1446,7 +1475,7 @@ window.CLIMB = (function () {
     el.setAttribute('aria-hidden', 'true');
     function draw() {
       const stamp = nowStamp().slice(0, 16);
-      const text = esc(user.name + (account ? ' ' + account.email : '') + ' ' + fmtDate(stamp.slice(0, 10)) + ' ' + stamp.slice(11));
+      const text = esc((user.dept ? user.dept + ' ' : '') + user.name + (account ? ' ' + account.email : '') + ' ' + fmtDate(stamp.slice(0, 10)) + ' ' + stamp.slice(11));
       el.innerHTML = '<div class="watermark-grid">' + new Array(160).fill('<span>' + text + '</span>').join('') + '</div>';
     }
     draw();
@@ -1486,8 +1515,9 @@ window.CLIMB = (function () {
     });
   }
 
-  // 휴대폰 규칙을 쓰는 화면인지: 폭 600px 이하이거나 터치스크린(태블릿 포함) (v0.43, CSS의 휴대폰 규칙과 같은 조건)
-  const TOUCH_MQ = 'screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse)';
+  // 휴대폰 규칙을 쓰는 화면인지(CSS의 휴대폰 규칙과 같은 조건): 폭 600px 이하이거나, 터치 화면이면서 높이 600px 이하(가로로 눕힌 스마트폰)
+  //   v0.43에는 태블릿도 넣었으나 v0.50 기획자 결정으로 태블릿은 PC 화면을 씀. 이름(isTouchLayout)은 그대로 둠
+  const TOUCH_MQ = 'screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px)';
   function isTouchLayout() { return !!(window.matchMedia && window.matchMedia(TOUCH_MQ).matches); }
 
   /* ---------- 날짜 입력과 달력 (KRDS 날짜 입력 필드, 달력. v0.35 기획자 요청) ----------
@@ -1679,7 +1709,7 @@ window.CLIMB = (function () {
     const vw = document.documentElement.clientWidth, vh = window.innerHeight;
     // 폭: 날짜 칸 폭에 맞춤(v0.35 기획자 요청). PC는 280~322px, 휴대폰(600px 이하)은 칸 폭 그대로(좁은 칸이면 280px)
     const phone = isTouchLayout();
-    const fit = Math.max(280, Math.min(r.width, phone ? 400 : 322)); // 휴대폰, 태블릿은 칸 폭(최대 400px), PC는 280~322px
+    const fit = Math.max(280, Math.min(r.width, phone ? 400 : 322)); // 스마트폰은 칸 폭(최대 400px), PC와 태블릿은 280~322px
     cal.el.style.width = Math.round(Math.min(fit, vw - 16)) + 'px';
     const w = cal.el.offsetWidth, h = cal.el.offsetHeight;
     // 칸 왼쪽에 맞추되, A4 종이(확인 창이면 그 창)나 화면 밖으로 나가면 칸 오른쪽에 맞춤
@@ -1839,7 +1869,7 @@ window.CLIMB = (function () {
     daysSince: daysSince, daysUntil: daysUntil, fmtDate: fmtDate, fmtDateTime: fmtDateTime, fmtPeriod: fmtPeriod, fmtToday: fmtToday, fmtKRW: fmtKRW,
     roleLabel: roleLabel, roleShort: roleShort, josa: josa, ownerLabel: ownerLabel,
     mailPrefs: mailPrefs, saveMailPrefs: saveMailPrefs, isTouchLayout: isTouchLayout,
-    isBizNo: isBizNo, fmtBizNo: fmtBizNo, isUniqueNo: isUniqueNo, ntsStatus: ntsStatus, searchBusinesses: searchBusinesses, isOppNo: isOppNo, pandaUrl: pandaUrl, pandaLink: pandaLink, hasRole: hasRole, userName: userName, serviceLabel: serviceLabel, productName: productName, featureName: featureName, featureLabel: featureLabel, planLabel: planLabel, stepLabel: stepLabel,
+    isBizNo: isBizNo, fmtBizNo: fmtBizNo, isUniqueNo: isUniqueNo, ntsStatus: ntsStatus, searchBusinesses: searchBusinesses, isOppNo: isOppNo, pandaUrl: pandaUrl, pandaLink: pandaLink, hasRole: hasRole, userName: userName, serviceLabel: serviceLabel, productName: productName, featureName: featureName, featureLabel: featureLabel, serviceFromName: serviceFromName, stepLabel: stepLabel,
     currentStep: currentStep, pendingSteps: pendingSteps, routedSteps: routedSteps, stepPosition: stepPosition, waitDays: waitDays,
     stepDots: stepDots, progressText: progressText, actionLabel: actionLabel, opsChecks: opsChecks, isReviewStep: isReviewStep, routedReview: routedReview,
     isShort: isShort, opsChecksFor: opsChecksFor, stepIng: stepIng, kindLabel: kindLabel,

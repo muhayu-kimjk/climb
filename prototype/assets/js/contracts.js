@@ -25,7 +25,7 @@
   $('#f-status').innerHTML = options('전체 상태', [['WORKING', '진행 중'], ['ACTIVE', '계약 완료'], ['EXPIRED', '만료'], ['TERMINATED', '해지']]);
   $('#f-service').innerHTML = options('전체 서비스', Object.keys(D.SERVICES).map(function (k) { return [k, D.SERVICES[k]]; }));
   const owners = all.map(function (b) { return b.root.requesterId; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
-  $('#f-owner').innerHTML = options('전체', owners.map(function (u) { return [u, C.userName(u)]; }));
+  $('#f-owner').innerHTML = options('전체', owners.map(function (u) { return [u, C.ownerLabel(u)]; }));
 
   // 변경과 연장 칸: "변경 1, 연장 1(조건 그대로), 해지 기안"
   function childText(b) {
@@ -80,7 +80,7 @@
         '<td>' + C.badge(st.tone, st.label) + open + '</td>' +
         '<td class="num-left">' + (b.start ? C.fmtPeriod(b.start, b.end) : '-') + '</td>' +
         '<td class="nowrap">' + (visible ? esc(childText(b)) : '-') + '</td>' +
-        '<td class="nowrap">' + esc(C.userName(c.requesterId)) + '</td>' +
+        '<td class="center">' + esc(C.ownerLabel(c.requesterId)) + '</td>' +
       '</tr>';
     }).join('') : '<tr><td class="empty-row" colspan="6">조건에 맞는 계약이 없습니다.</td></tr>';
     $('#pagination').innerHTML = C.pagerHtml(page, pages, list.length, from, rows.length, PAGE_SIZE, '건');

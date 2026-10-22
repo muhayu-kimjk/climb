@@ -12,9 +12,9 @@
 .product-list > li { padding: 1.6rem; border: 1px solid var(--border-gray-light); border-radius: var(--radius-lg); }
 .product-list > li + li { margin-top: 1.2rem; }
 .product-list > li.is-invalid { border-color: var(--status-danger-fill); }
-/* 줄마다 윗줄 제품 | 기능 | 플랜(v0.47), 아랫줄 수량 | 계약 금액(기능과 플랜 칸 폭에 맞춤) */
-.product-pick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 1.2rem; }
-.product-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 0 1.2rem; }
+/* 줄마다 윗줄 제품 | 기능(v0.49: 플랜 칸을 없앰), 아랫줄 수량 | 계약 금액(윗줄 칸 폭에 맞춤) */
+.product-pick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.2rem; }
+.product-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.2rem; }
 .product-pick > .field, .product-grid > .field, .product-list .field { margin-bottom: 1.2rem; }
 .product-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1.2rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
 .product-foot .price-info { flex: 1 1 auto; min-width: 0; }
@@ -72,8 +72,8 @@
 
 /* ---------- 휴대폰 화면 (방식 B) ----------
  * 제품 상자: 제품은 한 줄 전체, 수량과 금액은 다음 줄에 나란히 */
-@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) {
-  /* 휴대폰, 태블릿: 제품, 기능, 플랜은 한 줄에 하나. 수량과 금액은 나란히 */
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
+  /* 스마트폰: 제품, 기능은 한 줄에 하나(이름이 길어서). 수량과 금액은 나란히 */
   .product-pick { grid-template-columns: 1fr; }
   .product-grid { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr); }
   .year-row { grid-template-columns: minmax(0, 1fr); gap: 0.4rem; }

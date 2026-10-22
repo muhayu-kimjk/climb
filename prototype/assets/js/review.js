@@ -4,7 +4,7 @@
  * 관련 요구사항: REQ-DOC-01, 02, 06, 07, REQ-STEP-04, REQ-FLOW-12, REQ-ENV-06, REQ-AUTH-09, 15, REQ-REV-02~05, REQ-SIGN-01~06
  * 하는 일
  *   1. 주소의 계약번호로 계약을 찾고, 볼 수 있는 사람인지 확인
- *   2. 결재란(②~⑤, ⑥~⑩), 기본 정보, 제품과 금액(v0.47 이름 바꿈. 제품과 기능, 플랜), 체크리스트, 첨부(체결본 포함), 결재 기록을 결재 문서처럼 그리기
+ *   2. 결재란(②~⑤, ⑥~⑩), 기본 정보, 제품과 금액(v0.47 이름 바꿈. v0.49부터 제품과 기능), 체크리스트, 첨부(체결본 포함), 결재 기록을 결재 문서처럼 그리기
  *   3. 내 차례면 처리 막대에서 단계에 맞는 일: 승인, 보완 요청, 반려(②~⑤), 날인 완료(⑥), 체결본 등록(⑦),
  *      확인 완료와 다시 등록 요청과 반려(⑧), 운영 적용 완료(⑨), 재무 확인 완료(⑩). 내가 승인한 ②~⑤는 승인 취소
  *   4. 보완 요청을 받은 기안자는 처리 막대에서 보완 완료 (REQ-REV-11, v0.26)
@@ -46,7 +46,7 @@
   /* ---------- 상세 값 (예시 데이터에 없으면 만들어 보여 줌, 프로토타입 전용) ---------- */
   const f = c.form || {};
   const PRICE = {};
-  D.PRICE_BOOK.forEach(function (p) { PRICE[p.code] = p; });
+  D.PRICE_BOOK.forEach(function (p) { PRICE[p.feature] = p; }); // 가격 기준: 기능마다 하나(v0.49)
   function num(n) { return Number(n || 0).toLocaleString('ko-KR'); }
   function won(n) { return num(n) + '원'; } // 돈은 반드시 원을 붙임 (REQ-UI-17)
   function pct(r) { return Math.round(r * 1000) / 10 + '%'; }
@@ -83,19 +83,19 @@
     memo: c.memo || f.memo || '',
     opportunity: c.opportunity || f.opportunity || '', // 판다(CRM) 영업기회번호 (v0.32)
   };
-  // 제품 줄: 예시 데이터에 없으면 서비스별 기본 제품을 표준 단가 그대로 넣은 줄을 만듦
+  // 제품 줄: 예시 데이터에 없으면 서비스별 기본 기능을 표준 단가 그대로 넣은 줄을 만듦 (줄의 feature가 기능 id, v0.49)
   function productRows() {
     let list = c.products || f.products;
     if (!list) {
-      const base = { CK: 'CK-ORG', HR: 'HR-BASE' };
+      const base = { CK: 'CK_CAMPUS_PLAG', HR: 'HR_PRISM_DEFECT' };
       const share = c.amount / (c.services || []).length;
       list = c.amount ? (c.services || []).map(function (s) {
         const p = PRICE[base[s]];
-        return { code: p.code, qty: Math.max(1, Math.floor(share / p.listPrice)), amount: share };
+        return { feature: p.feature, qty: Math.max(1, Math.floor(share / p.listPrice)), amount: share };
       }) : [];
     }
     return list.map(function (r) {
-      const p = PRICE[r.code];
+      const p = PRICE[r.feature];
       const std = p.listPrice * r.qty;
       return { product: p, qty: r.qty, amount: r.amount, std: std, discount: Math.max(0, (std - r.amount) / std) };
     });
@@ -135,7 +135,7 @@
   // 대리 지정으로 대신 처리하는 단계면 "최민준님 대신 (대리 지정 10.19 ~ 10.23)" 안내
   function behalfText(s) {
     const dl = s.userId !== me.id ? C.activeDelegation(s.userId, me.id) : null;
-    return dl ? esc(C.userName(s.userId)) + '님 대신 (대리 지정 ' + C.fmtPeriod(dl.from, dl.to) + ')' : '';
+    return dl ? esc(C.ownerLabel(s.userId)) + ' 대신 (대리 지정 ' + C.fmtPeriod(dl.from, dl.to) + ')' : '';
   }
 
   // 내 차례일 때 할 일 안내 (단계마다)
@@ -162,7 +162,7 @@
     const cur = C.currentStep(c);
     // ⑧에서 다시 등록을 요청받아 ⑦이 다시 차례일 때 그 사유
     const ret = c.lastReturn && cur && cur.step === 'S07'
-      ? '<br><strong>다시 등록 요청 (' + esc(C.userName(c.lastReturn.by)) + '님, ' + C.fmtDateTime(c.lastReturn.at) + ')</strong>: ' + esc(c.lastReturn.reason) : '';
+      ? '<br><strong>다시 등록 요청 (' + esc(C.ownerLabel(c.lastReturn.by)) + ', ' + C.fmtDateTime(c.lastReturn.at) + ')</strong>: ' + esc(c.lastReturn.reason) : '';
     if (mineNow.length) {
       const s = mineNow[0];
       const dl = s.userId !== me.id ? C.activeDelegation(s.userId, me.id) : null;
@@ -176,7 +176,7 @@
     } else if (c.status === 'SUPPLEMENT' && c.supplement) {
       // 보완 요청 (REQ-REV-11): 기안자에게는 할 일, 그 밖에는 진행 안내
       const sp = c.supplement, no = D.STEPS[sp.step].no;
-      const head = '<strong>' + esc(C.userName(sp.by)) + '님 (' + C.fmtDateTime(sp.at) + ')</strong><br>' + esc(sp.reason) + '<br>';
+      const head = '<strong>' + esc(C.ownerLabel(sp.by)) + ' (' + C.fmtDateTime(sp.at) + ')</strong><br>' + esc(sp.reason) + '<br>';
       html = canResubmit
         ? notice('', C.stepLabel(sp.step) + '에서 보완을 요청했습니다', head +
           '고친 뒤 화면 아래에서 보완 완료를 누르면 ' + no + '부터 이어서 결재합니다. 금액이나 체크리스트 답을 바꾸면 계약 검토를 처음부터 다시 받습니다.' +
@@ -184,7 +184,7 @@
         : notice('', C.stepLabel(sp.step) + '에서 보완을 요청해 기안자가 고치는 중입니다', head + '기안자가 고치면 ' + no + '부터 이어서 결재합니다.');
     } else if (c.status === 'REJECTED') {
       html = notice('', C.stepLabel(c.rejection.step) + '에서 반려되었습니다',
-        '<strong>' + esc(C.userName(c.rejection.by)) + '님 (' + C.fmtDateTime(c.rejection.at) + ')</strong><br>' + esc(c.rejection.reason) +
+        '<strong>' + esc(C.ownerLabel(c.rejection.by)) + ' (' + C.fmtDateTime(c.rejection.at) + ')</strong><br>' + esc(c.rejection.reason) +
         '<br>기안자가 보완해 ' + (round + 1) + '차로 다시 기안합니다.');
     } else if (actionable.length && me.role === 'SUPER') {
       html = notice('', '시연: 담당자 대신 처리해 볼 수 있습니다',
@@ -192,7 +192,7 @@
     } else if (c.status === 'APPROVED' || c.status === 'OPS_REVIEW') {
       html = notice('success', c.status === 'APPROVED' ? '계약 검토가 끝나 체결 중입니다' : '체결이 끝나 운영 검토 중입니다',
         (c.status === 'APPROVED' ? C.fmtDateTime(c.approvedAt) + '에 계약 검토가 끝났습니다. ' : C.fmtDateTime(c.signedAt) + '에 체결본을 등록했습니다. ') +
-        (cur ? '지금 차례: ' + esc(C.stepLabel(cur.step)) + ' (' + esc(C.userName(cur.userId)) + '님)' : '') + ret);
+        (cur ? '지금 차례: ' + esc(C.stepLabel(cur.step)) + ' (' + esc(C.ownerLabel(cur.userId)) + ')' : '') + ret);
     } else if (c.status === 'TERMINATED') {
       // 해지 기안이 끝났거나(해지 기안 문서), 해지된 원계약
       html = isTerm
@@ -212,9 +212,15 @@
     const skip = function (s) { return s.state === 'SKIPPED' ? ' class="is-skipped"' : ''; };
     const head = (withDraft ? '<th scope="col">' + esc(D.STEPS.S01.no + ' ' + D.STEPS.S01.short) + '</th>' : '') +
       steps.map(function (s) { return '<th scope="col">' + esc(D.STEPS[s.step].no + ' ' + D.STEPS[s.step].short) + '</th>'; }).join('');
-    const who = (withDraft ? '<td>' + esc(C.roleShort('SALES')) + '<br><strong>' + esc(C.userName(c.requesterId)) + '</strong></td>' : '') +
+    // 담당 칸: 역할 / 조직(작은 글자) / 이름(굵게). "조직 이름" 순서(v0.50 기획자 요청)는 지키되 칸이 좁아 조직과 이름을 줄로 나눔
+    //   (한 줄에 두면 "세일즈어드민유닛"이 칸보다 길어 낱말 중간에서 끊김)
+    const person = function (id) {
+      const u = D.USERS[id] || {};
+      return (u.dept ? '<span class="box-unit">' + esc(u.dept) + '</span>' : '') + '<strong class="box-name">' + esc(u.name || '-') + '</strong>';
+    };
+    const who = (withDraft ? '<td>' + esc(C.roleShort('SALES')) + person(c.requesterId) + '</td>' : '') +
       steps.map(function (s) {
-        return '<td' + skip(s) + '>' + esc(C.roleShort(s.role)) + '<br><strong>' + esc(C.userName(s.userId)) + '</strong></td>';
+        return '<td' + skip(s) + '>' + esc(C.roleShort(s.role)) + person(s.userId) + '</td>';
       }).join('');
     const result = (withDraft ? '<td>' + C.badge('line', '기안') + '</td>' : '') +
       steps.map(function (s) {
@@ -226,7 +232,7 @@
     const when = (withDraft ? '<td class="box-when">' + C.fmtDateTime(c.requestedAt) + '</td>' : '') +
       steps.map(function (s) {
         let t;
-        if (s.state === 'DONE' || s.state === 'REJECTED') t = C.fmtDateTime(s.decidedAt) + (s.onBehalfOf ? '<br>' + esc(C.userName(s.decidedBy)) + '님이 대신' : '');
+        if (s.state === 'DONE' || s.state === 'REJECTED') t = C.fmtDateTime(s.decidedAt) + (s.onBehalfOf ? '<br>' + esc(C.josa(C.ownerLabel(s.decidedBy), '이', '가')) + ' 대신' : '');
         else if (s.state === 'PENDING') t = C.waitDays(c, s) + '일째';
         else if (s.state === 'SKIPPED') t = esc(s.reason);
         else t = '-';
@@ -322,11 +328,11 @@
     // (한도를 지켰는지는 체크리스트 3번에서 봄). 금액에는 원을 붙임 (REQ-UI-17)
     $('#amount').innerHTML =
       '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
-        '<caption class="sr-only">제품별 금액: 제품과 기능(플랜), 수량, 표준 금액, 계약 금액, 할인율</caption>' +
+        '<caption class="sr-only">제품별 금액: 제품과 기능(단위), 수량, 표준 금액, 계약 금액, 할인율</caption>' +
         '<thead><tr><th scope="col">제품과 기능</th><th scope="col" class="num">수량</th><th scope="col" class="num">표준 금액</th><th scope="col" class="num">계약 금액</th><th scope="col" class="num">할인율</th></tr></thead>' +
         '<tbody>' + rows.map(function (r) {
-          // v0.47: "프리즘 결함검사" 아래에 플랜 이름(예: 기본 플랜)
-          return '<tr><td>' + esc(C.featureLabel(r.product)) + '<span class="plan-name">' + esc(r.product.name) + '</span></td><td class="num">' + num(r.qty) + '</td><td class="num">' + won(r.std) + '</td>' +
+          // "프리즘 결함검사" 아래에 단위(예: 기관, 1년). v0.49에 플랜을 없애 플랜 이름 대신 단위
+          return '<tr><td>' + esc(C.featureLabel(r.product)) + '<span class="product-unit">' + esc(r.product.unit) + '</span></td><td class="num">' + num(r.qty) + '</td><td class="num">' + won(r.std) + '</td>' +
             '<td class="num">' + won(r.amount) + '</td><td class="num">' + (r.discount === 0 ? '표준 단가' : pct(r.discount) + ' 할인') + '</td></tr>';
         }).join('') + '</tbody>' +
         '<tfoot><tr><th scope="row">총액 (부가세 별도)</th><td></td><td class="num total">' + won(stdTotal) + '</td>' +
@@ -367,7 +373,7 @@
     // 4번: 회계 영향 특수 조건. 결재선에는 영향 없고, 예면 기안할 때 재무에 이메일로 알림 (REQ-CHK-08)
     '<ul class="doc-checks doc-checks--extra"><li><p class="check-q-text">' + esc('4. 회계에 영향을 주는 특수 조건이 있나요?') + ' ' + answer(ck.accounting) + '</p>' +
       '<p class="check-note">비고: ' + (ck.accountingNote ? esc(ck.accountingNote) : '없음') + '</p>' +
-      '<span class="check-effect">' + (ck.accounting === 'YES' ? '재무 알림: 기안할 때 재무 ' + esc(C.userName('u_finance')) + '님에게 이메일로 알렸습니다(결재선 아님)' : '재무 알림 없음') + '</span></li></ul>';
+      '<span class="check-effect">' + (ck.accounting === 'YES' ? '재무 알림: 기안할 때 재무 ' + esc(C.ownerLabel('u_finance')) + '에게 이메일로 알렸습니다(결재선 아님)' : '재무 알림 없음') + '</span></li></ul>';
   }
 
   /* 첨부 파일 (REQ-SEC-08): 내려받으면 워터마크 PDF. 고칠 수 있는 원본은 기안자, 법무, 관리자만.
@@ -395,14 +401,14 @@
         // 대신 처리한 기록: 대리 지정이면 "대리 지정"과 근거, 최고관리자 시연이면 "시연"
         // 그때 조직: 기록에 남은 이름(actorDept). 예시 데이터처럼 없으면 지금 조직 (v0.31)
         const dept = h.actorDept || (D.USERS[h.actorId] || {}).dept || '';
-        const who = esc(C.userName(h.actorId)) + '님' + (dept ? '<span class="cell-meta">' + esc(dept) + '</span>' : '') + (h.onBehalfOf ? ' <span class="behalf">(' + esc(C.userName(h.onBehalfOf)) + '님 대신, ' + (h.delegationId ? '대리 지정' : '시연') + ')</span>' : '');
+        const who = esc(C.ownerLabel(h.actorId, dept)) + (h.onBehalfOf ? ' <span class="behalf">(' + esc(C.ownerLabel(h.onBehalfOf)) + ' 대신, ' + (h.delegationId ? '대리 지정' : '시연') + ')</span>' : '');
         // 체결본 등록은 올린 파일 이름도 함께
         const extra = [h.fileName ? '파일: ' + esc(h.fileName) : '', h.basis ? '대리 근거: ' + esc(h.basis) : '',
           h.action === 'RESUBMIT' ? (h.restart ? '금액이나 체크리스트 답을 바꿔 계약 검토를 처음부터 다시' : '요청한 단계부터 이어서 결재') : ''].filter(Boolean);
         const note = (h.comment ? esc(h.comment) : '') + (extra.length ? (h.comment ? '<br>' : '') + '<span class="behalf">' + extra.join('<br>') + '</span>' : '');
         return '<tr><td class="num-left">' + C.fmtDateTime(h.at) + '</td><td class="num">' + (h.round || 1) + '차</td>' +
           '<td class="nowrap">' + esc(D.STEPS[h.step].no + ' ' + D.STEPS[h.step].short) + '</td>' +
-          '<td class="nowrap">' + C.badge(a.tone, C.actionLabel(h, c)) + '</td><td class="nowrap">' + who + '</td><td>' + (note || '-') + '</td></tr>';
+          '<td class="nowrap">' + C.badge(a.tone, C.actionLabel(h, c)) + '</td><td class="center">' + who + '</td><td>' + (note || '-') + '</td></tr>';
       }).join('') + '</tbody>';
   }
 
@@ -433,17 +439,17 @@
     if (canResubmit) {
       // 보완 완료: 기안자(시연에서는 최고관리자도)
       html += '<div class="act-row"><p class="act-target"><strong>' + esc(C.stepLabel(c.supplement.step)) + ' 보완 요청</strong>' +
-        (me.id === c.requesterId ? '' : ' <span class="behalf">' + esc(C.userName(c.requesterId)) + '님 대신 (시연)</span>') + '</p>' +
+        (me.id === c.requesterId ? '' : ' <span class="behalf">' + esc(C.ownerLabel(c.requesterId)) + ' 대신 (시연)</span>') + '</p>' +
         '<div class="act-btns"><button type="button" class="btn btn--primary btn--md" data-open="RESUBMIT" data-step="S01">보완 완료</button></div></div>';
     }
     if (actionable.length) {
       // 최고관리자는 ④⑤처럼 동시에 차례인 단계 중 하나를 골라 대신 처리 (프로토타입 전용)
       const pick = actionable.length > 1
         ? '<label class="act-pick">처리할 단계 <select class="select" id="act-step">' + actionable.map(function (s) {
-            return '<option value="' + s.step + '">' + esc(C.stepLabel(s.step)) + ' (' + esc(C.userName(s.userId)) + '님)</option>';
+            return '<option value="' + s.step + '">' + esc(C.stepLabel(s.step)) + ' (' + esc(C.ownerLabel(s.userId)) + ')</option>';
           }).join('') + '</select></label>'
         : '<p class="act-target"><strong>' + esc(C.stepLabel(actionable[0].step, c)) + '</strong>' +
-          (actionable[0].userId === me.id ? '' : ' <span class="behalf">' + (behalfText(actionable[0]) || esc(C.userName(actionable[0].userId)) + '님 대신 (시연)') + '</span>') + '</p>';
+          (actionable[0].userId === me.id ? '' : ' <span class="behalf">' + (behalfText(actionable[0]) || esc(C.ownerLabel(actionable[0].userId)) + ' 대신 (시연)') + '</span>') + '</p>';
       html += '<div class="act-row">' + pick + '<div class="act-btns" id="act-btns">' + buttonsHtml(actionable[0].step) + '</div></div>';
     }
     if (cancelable.length) {
@@ -595,7 +601,7 @@
     const restart = t.restart && $('#act-restart') && $('#act-restart').checked;
     C.recordAction(c, s, pending.action, comment, me, t.file ? { fileName: fileName } : restart ? { restart: true } : null);
     // 다음 차례 안내
-    const now = C.pendingSteps(c).map(function (x) { return C.stepLabel(x.step) + ' (' + C.userName(x.userId) + '님)'; }).join(', ');
+    const now = C.pendingSteps(c).map(function (x) { return C.stepLabel(x.step) + ' (' + C.ownerLabel(x.userId) + ')'; }).join(', ');
     let next = '';
     if (pending.action !== 'REJECT' && pending.action !== 'CANCEL' && pending.action !== 'SUPPLEMENT') {
       next = c.status === 'ACTIVE' && change ? ' 운영 변경이 끝났습니다.'

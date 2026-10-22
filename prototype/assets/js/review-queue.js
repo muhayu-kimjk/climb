@@ -78,9 +78,9 @@
         '<td class="col-service">' + service + '</td>' +
         '<td class="nowrap">' + esc(C.stepLabel(x.s.step)) + (together ? '<span class="cell-meta">동시: ' + esc(together) + '</span>' : '') +
           // 대리 지정으로 내 차례가 된 건 (REQ-REV-08)
-          (!showWho && x.s.userId !== me.id ? '<span class="cell-meta">' + esc(C.userName(x.s.userId)) + '님 대신 (대리 지정)</span>' : '') + '</td>' +
-        (showWho ? '<td class="nowrap">' + esc(C.userName(x.s.userId)) + '</td>' : '') +
-        '<td class="nowrap">' + esc(C.userName(x.c.requesterId)) + '</td>' +
+          (!showWho && x.s.userId !== me.id ? '<span class="cell-meta">' + esc(C.ownerLabel(x.s.userId)) + ' 대신 (대리 지정)</span>' : '') + '</td>' +
+        (showWho ? '<td class="center">' + esc(C.ownerLabel(x.s.userId)) + '</td>' : '') +
+        '<td class="center">' + esc(C.ownerLabel(x.c.requesterId)) + '</td>' +
         '<td class="num-left">' + C.fmtDate(x.c.requestedAt) + '</td>' +
         '<td class="num"><span' + (x.wait >= LONG ? ' class="wait-long"' : '') + '>' + x.wait + '일</span></td>' +
       '</tr>';

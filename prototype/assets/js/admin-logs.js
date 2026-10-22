@@ -57,7 +57,7 @@
       push(e.at, e.by, e.area === 'AUDIT' ? 'AUDIT' : 'ADMIN', (AREA[e.area] ? AREA[e.area] + ': ' : '') + e.target);
     });
     push(OPENED, me.id, 'VIEW', '접속 기록 점검 화면');
-    D.PRICE_ROWS.forEach(function (r) { push(r.at, r.by, 'ADMIN', '가격 기준: ' + C.planLabel(r) + ' (' + C.fmtDate(r.validFrom) + '부터)'); }); // 플랜 이름 (v0.47)
+    D.PRICE_ROWS.forEach(function (r) { push(r.at, r.by, 'ADMIN', '가격 기준: ' + C.featureLabel(r) + ' (' + C.fmtDate(r.validFrom) + '부터)'); }); // 제품과 기능 이름 (v0.49: 가격은 기능마다)
     // 이상 행위 알림이 생긴 접속 (가상의 기록)
     D.SEC_ALERTS.forEach(function (al) {
       push(al.at, al.userId, al.kind === 'BULK' ? 'VIEW' : 'LOGIN', al.detail, al.kind === 'BULK' ? '사내망' : 'VPN');
@@ -75,9 +75,9 @@
     $('#alert-rows').innerHTML = list.map(function (a) {
       const done = a.status === 'DONE';
       return '<tr' + (done ? '' : ' class="is-alert"') + '><td class="num-left">' + C.fmtDateTime(a.at) + '</td>' +
-        '<td class="nowrap"><span class="cell-strong">' + esc(C.userName(a.userId)) + '님</span><span class="cell-meta">' + esc((D.USERS[a.userId] || {}).dept || '') + '</span></td>' +
+        '<td class="center"><span class="cell-strong">' + esc(C.ownerLabel(a.userId)) + '</span></td>' +
         '<td><span class="cell-strong">' + esc(D.SEC_ALERT_KINDS[a.kind]) + '</span><span class="cell-meta">' + esc(a.detail) + '</span>' +
-          (done ? '<span class="cell-meta">결과: ' + esc(a.action) + ' (' + esc(C.userName(a.doneBy)) + '님, ' + C.fmtDateTime(a.doneAt) + ')</span>' : '') + '</td>' +
+          (done ? '<span class="cell-meta">결과: ' + esc(a.action) + ' (' + esc(C.ownerLabel(a.doneBy)) + ', ' + C.fmtDateTime(a.doneAt) + ')</span>' : '') + '</td>' +
         '<td class="nowrap">' + (done ? C.badge('success', '확인함') : C.badge('danger', '확인 전')) + '</td>' +
         '<td class="col-action">' + (done ? '-' : '<button type="button" class="link-act" data-alert="' + esc(a.id) + '">확인</button>') + '</td></tr>';
     }).join('');
@@ -87,13 +87,13 @@
     C.formModal({
       title: '이상 행위 알림을 확인했나요?',
       desc: '저장하면 확인한 사람, 일시, 결과가 남고 알림이 "확인함"으로 바뀝니다.',
-      body: '<p class="modal-info">' + esc(C.userName(a.userId)) + '님, ' + C.fmtDateTime(a.at) + ', ' + esc(D.SEC_ALERT_KINDS[a.kind]) + ': ' + esc(a.detail) + '</p>' +
+      body: '<p class="modal-info">' + esc(C.ownerLabel(a.userId)) + ', ' + C.fmtDateTime(a.at) + ', ' + esc(D.SEC_ALERT_KINDS[a.kind]) + ': ' + esc(a.detail) + '</p>' +
         C.fieldHtml({ name: 'act', label: '확인 결과와 조치', type: 'textarea', required: true,
           placeholder: '예: 본인에게 확인. 분기 결산 자료 준비로 열람, 업무 목적 맞음. 조치 없음', help: '본인 확인 결과, 업무 목적인지, 한 조치(권한 회수, 교육 등)를 적습니다.' }),
       btn: '확인 결과 저장',
       check: function (f) { return { act: val(f, 'act') ? '' : '확인 결과와 조치를 적으세요.' }; },
       done: function (f) {
-        C.adminSave('AUDIT', '이상 행위 알림 ' + a.id + ' (' + C.userName(a.userId) + ')', '확인함: ' + D.SEC_ALERT_KINDS[a.kind], val(f, 'act'), { k: 'ALERT_DONE', id: a.id, action: val(f, 'act') });
+        C.adminSave('AUDIT', '이상 행위 알림 ' + a.id + ' (' + C.ownerLabel(a.userId) + ')', '확인함: ' + D.SEC_ALERT_KINDS[a.kind], val(f, 'act'), { k: 'ALERT_DONE', id: a.id, action: val(f, 'act') });
         refresh();
         C.toast('알림 확인 결과를 남겼습니다.');
       },
@@ -118,7 +118,7 @@
     const late = !rec && ended && D.TODAY > due;
     return '<tr' + (late ? ' class="is-alert"' : '') + '><td class="nowrap cell-strong">' + esc(label) + '</td>' +
       '<td class="num-left">' + C.fmtDate(due) + (late ? '<span class="cell-meta">기한 지남</span>' : '') + '</td>' +
-      '<td class="nowrap">' + (rec ? esc(C.userName(rec.by)) + '님<span class="cell-meta">' + C.fmtDateTime(rec.at) + '</span>' : ended ? word + ' 전' : '-') + '</td>' +
+      '<td class="center">' + (rec ? esc(C.ownerLabel(rec.by)) + '<span class="cell-meta">' + C.fmtDateTime(rec.at) + '</span>' : ended ? word + ' 전' : '-') + '</td>' +
       '<td class="nowrap">' + (rec ? resultBadge(rec) : ended ? C.badge('line', word + ' 전') : C.badge('line', '예정')) + '</td>' +
       '<td>' + (rec ? esc(rec.note) + (rec.action ? '<span class="cell-meta">조치: ' + esc(rec.action) + '</span>' : '') : ended ? '-' : esc(notYet)) + '</td>' +
       '<td class="col-action">' + (!rec && ended ? '<button type="button" class="link-act" ' + btnAttr + '>결과 남기기</button>' : '-') + '</td></tr>';
@@ -200,11 +200,11 @@
     const idle = acc.filter(function (a) { return a.status === 'ACTIVE' && a.lastLoginAt && C.daysBetween(new Date(a.lastLoginAt.slice(0, 10)), new Date(D.TODAY)) > 90; });
     return '<ul class="summary-list">' +
       '<li>계정 ' + acc.length + '개: 사용 중 ' + count('ACTIVE') + ', 첫 접속 전 ' + count('INVITED') + ', 사용 중지 ' + count('SUSPENDED') + '</li>' +
-      '<li>관리자 권한(관리자, 최고관리자) ' + admins.length + '명: ' + esc(admins.map(function (a) { return a.name; }).join(', ')) + '</li>' +
+      '<li>관리자 권한(관리자, 최고관리자) ' + admins.length + '명: ' + esc(admins.map(function (a) { return (a.dept ? a.dept + ' ' : '') + a.name; }).join(', ')) + '</li>' +
       '<li>' + (last ? '지난 검토(' + C.fmtDate(last.at) + ') 뒤' : C.fmtDate(since) + '부터') + ' 권한을 바꾼 기록 ' + changes.length + '건: ' +
         (noReason ? '사유 없는 기록 ' + noReason + '건' : '모두 사유가 있음') + ' (사용자 권한 관리의 권한 변경 이력)</li>' +
-      '<li>사용 중지 계정 ' + stopped.length + '개' + (stopped.length ? ': ' + esc(stopped.map(function (a) { return a.name; }).join(', ')) : '') + '</li>' +
-      '<li>90일 넘게 로그인하지 않은 사용 중 계정 ' + idle.length + '개' + (idle.length ? ': ' + esc(idle.map(function (a) { return a.name; }).join(', ')) : '') + '</li>' +
+      '<li>사용 중지 계정 ' + stopped.length + '개' + (stopped.length ? ': ' + esc(stopped.map(function (a) { return (a.dept ? a.dept + ' ' : '') + a.name; }).join(', ')) : '') + '</li>' +
+      '<li>90일 넘게 로그인하지 않은 사용 중 계정 ' + idle.length + '개' + (idle.length ? ': ' + esc(idle.map(function (a) { return (a.dept ? a.dept + ' ' : '') + a.name; }).join(', ')) : '') + '</li>' +
       '</ul>';
   }
   function openQuarter(key) {
@@ -245,7 +245,7 @@
     const from = (page - 1) * PAGE_SIZE, rows = list.slice(from, from + PAGE_SIZE);
     $('#list-count').innerHTML = C.meta(['<strong>' + (list.length !== logs.length ? '검색 결과 ' : '전체 ') + list.length + '건</strong>', '고치거나 지울 수 없음, 영구 보관']);
     $('#log-rows').innerHTML = rows.length ? rows.map(function (l) {
-      return '<tr><td class="num-left">' + C.fmtDateTime(l.at) + '</td><td class="nowrap">' + esc(C.userName(l.userId)) + '</td>' +
+      return '<tr><td class="num-left">' + C.fmtDateTime(l.at) + '</td><td class="center">' + esc(C.ownerLabel(l.userId)) + '</td>' +
         '<td class="nowrap">' + esc(ACTS[l.act]) + '</td><td>' + esc(l.target) + '</td><td class="nowrap">' + esc(l.place) + '</td></tr>';
     }).join('') : '<tr><td class="empty-row" colspan="5">조건에 맞는 기록이 없습니다.</td></tr>';
     $('#pagination').innerHTML = C.pagerHtml(page, pages, list.length, from, rows.length, PAGE_SIZE, '건');

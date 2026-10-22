@@ -35,7 +35,7 @@
   let stop = '';
   if (b.status !== 'ACTIVE') stop = '지금 유효한 계약이 계약 완료일 때만 연장을 검토합니다.';
   else if (b.autoRenew !== 'YES') stop = '자동갱신 계약이 아닙니다. 연장하려면 계약 상세에서 "연장 기안"을 눌러 주세요.';
-  else if (root.requesterId !== me.id && me.role !== 'SUPER') stop = '영업대표(' + esc(C.userName(root.requesterId)) + '님)만 연장 검토를 기안합니다.';
+  else if (root.requesterId !== me.id && me.role !== 'SUPER') stop = '영업대표(' + esc(C.ownerLabel(root.requesterId)) + ')만 연장 검토를 기안합니다.';
   else if (blocking.length) stop = '진행 중인 연장이나 해지가 있습니다: ' + blocking.map(function (o) { return '<a href="review.html?id=' + encodeURIComponent(o.id) + '">' + esc(o.id) + '</a>'; }).join(', ');
   if (stop) {
     $('#notice').innerHTML = notice('연장 검토를 할 수 없습니다', stop + ' <a href="' + back + '">계약 상세로</a>');
@@ -54,7 +54,7 @@
     info('계약 기간', C.fmtPeriod(b.start, b.end) + ' (만료까지 ' + C.daysUntil(b.end) + '일)'),
     info('계약 금액', cur.amount ? Number(cur.amount).toLocaleString('ko-KR') + '원' : '금액 없음'),
     info('해지 통지 기한', noticeDay ? C.fmtDate(noticeDay) + ' (만료 ' + b.noticeDays + '일 전)' + (C.daysUntil(noticeDay) < 0 ? ' <span class="wait-long">지남</span>' : '') : '-'),
-    info('영업대표', esc(C.userName(root.requesterId)) + '님'),
+    info('영업대표', esc(C.ownerLabel(root.requesterId))),
   ].join('');
   $('#keep-help').textContent = '기안하면 ' + newId + '(연장, 조건 그대로)로 묶이고, 승인되면 아래에 입력한 기간이 새 계약 기간이 됩니다. 금액과 조건은 그대로입니다.';
   $('#f-start').value = newStart;
@@ -62,10 +62,10 @@
   $('#btn-cancel').href = back;
 
   const route = [
-    { no: '③', name: '영업 검토', who: '영업 리더 ' + C.userName(C.stepUserNow('S03', root)), reason: '그대로 연장이 영업상 맞는지 승인' },
-    { no: '④', name: '법무 검토', who: '법무 ' + C.userName(C.stepUserNow('S04', root)), reason: '연장 조건과 법적 위험 검토' },
-    { no: '⑨', name: '운영 적용 (기간 연장)', who: '고객지원 ' + C.userName(C.stepUserNow('S09', root)), reason: '라이선스나 도메인 기간 연장' },
-    { no: '⑩', name: '재무 확인', who: '재무 ' + C.userName(C.stepUserNow('S10', root)), reason: '연장된 기간의 매출 인식 확인' },
+    { no: '③', name: '영업 검토', who: '영업 리더 ' + C.ownerLabel(C.stepUserNow('S03', root)), reason: '그대로 연장이 영업상 맞는지 승인' },
+    { no: '④', name: '법무 검토', who: '법무 ' + C.ownerLabel(C.stepUserNow('S04', root)), reason: '연장 조건과 법적 위험 검토' },
+    { no: '⑨', name: '운영 적용 (기간 연장)', who: '고객지원 ' + C.ownerLabel(C.stepUserNow('S09', root)), reason: '라이선스나 도메인 기간 연장' },
+    { no: '⑩', name: '재무 확인', who: '재무 ' + C.ownerLabel(C.stepUserNow('S10', root)), reason: '연장된 기간의 매출 인식 확인' },
   ];
   $('#route').innerHTML = '<ol class="route-list">' + route.map(function (it) {
     return '<li class="is-go"><span class="route-no" aria-hidden="true">' + it.no + '</span>' +
@@ -131,7 +131,7 @@
       startDate: $('#f-start').value, endDate: $('#f-end').value, autoRenew: 'YES', noticeDays: b.noticeDays, reason: $('#f-reason').value.trim(),
     };
     C.saveDemoContract(rec);
-    C.flash(newId + ' 연장 검토(조건 그대로)를 기안했습니다. 다음 차례: ③ 영업 검토 (' + C.userName(C.stepUserNow('S03', root)) + '님)');
+    C.flash(newId + ' 연장 검토(조건 그대로)를 기안했습니다. 다음 차례: ③ 영업 검토 (' + C.ownerLabel(C.stepUserNow('S03', root)) + ')');
     location.href = 'review.html?id=' + encodeURIComponent(newId);
   });
   document.addEventListener('keydown', function (e) { if (!modal.hidden && e.key === 'Escape') modal.hidden = true; });

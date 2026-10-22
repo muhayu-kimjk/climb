@@ -75,7 +75,7 @@
         '<td class="num-left">' + C.fmtDate(b.end) + '</td>' +
         '<td>' + autoCell + '</td>' +
         '<td>' + (visible && open ? esc(open) : '-') + '</td>' +
-        '<td class="nowrap col-owner">' + esc(C.userName(c.requesterId)) + '</td>' +
+        '<td class="center col-owner">' + esc(C.ownerLabel(c.requesterId)) + '</td>' +
         '<td class="nowrap">' + todo + '</td>' +
       '</tr>';
     }).join('') : '<tr><td class="empty-row" colspan="7">' + (all.length ? '조건에 맞는 계약이 없습니다.' : '90일 안에 끝나는 계약이 없습니다.') + '</td></tr>';

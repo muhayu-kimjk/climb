@@ -1,11 +1,11 @@
 """기준 기기(아이폰 18 Pro, 아이패드 프로 11인치) 크기와 터치 화면으로 CLIMB 시안을 찍는 스크립트.
 
 헤드리스 Chrome을 DevTools 프로토콜(CDP)로 움직여, 화면 폭뿐 아니라 '터치 화면'(pointer: coarse, hover: none)도
-흉내 냅니다. 그래야 태블릿(폭 834px)에서도 휴대폰 규칙이 적용된 화면이 나옵니다.
+흉내 냅니다. v0.50부터 스마트폰만 휴대폰 규칙(가로로 눕혀도), 태블릿은 PC 화면입니다.
 표준 라이브러리만 씁니다(웹소켓도 직접 구현).
 
 사용: python -I device_shots.py <출력 폴더> <임시 프로필 폴더> [기기 이름들...]
-  먼저 serve.py로 미리보기 서버(localhost:8730)를 켜 둡니다. 기기 이름: iphone18pro, ipadpro11, ipadpro11-land
+  먼저 serve.py로 미리보기 서버(localhost:8730)를 켜 둡니다. 기기 이름: iphone18pro, iphone18pro-land, ipadpro11, ipadpro11-land
   기준 기기는 요구사항 정의서 REQ-ENV-07(v0.48 기획자 결정)
 """
 import base64
@@ -25,6 +25,7 @@ BASE = "http://localhost:8730/"
 # CSS 픽셀 기준. 아이폰 18 Pro: 2622 x 1206 px, 3배 → 402 x 874 / 아이패드 프로 11인치(M5): 2420 x 1668 px, 2배 → 834 x 1210
 DEVICES = {
     "iphone18pro": dict(w=402, h=874, label="아이폰 18 Pro (402 x 874)"),
+    "iphone18pro-land": dict(w=874, h=402, label="아이폰 18 Pro 가로 (874 x 402)"),
     "ipadpro11": dict(w=834, h=1210, label="아이패드 프로 11인치 세로 (834 x 1210)"),
     "ipadpro11-land": dict(w=1210, h=834, label="아이패드 프로 11인치 가로 (1210 x 834)"),
 }

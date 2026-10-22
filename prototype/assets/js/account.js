@@ -19,7 +19,7 @@
   const roles = (acc.roles && acc.roles.length ? acc.roles : [me.role]).map(function (r) { return C.roleLabel(r); });
   const info = function (k, v) { return '<dt>' + esc(k) + '</dt><dd>' + v + '</dd>'; };
   $('#account-info').innerHTML =
-    info('이름', esc(me.name) + '님') +
+    info('이름', esc(me.name)) +
     info('이메일(계정)', esc(acc.email || '-')) +
     info('조직', esc(me.dept || acc.dept || '-')) +
     info('역할', esc(roles.join(', '))) +

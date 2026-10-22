@@ -35,7 +35,7 @@
     return;
   }
   if (root.requesterId !== me.id && me.role !== 'SUPER') {
-    $('#notice').innerHTML = notice('영업대표만 운영 변경을 기안합니다', '이 계약의 영업대표는 ' + esc(C.userName(root.requesterId)) + '님입니다. <a href="' + back + '">계약 상세로</a>');
+    $('#notice').innerHTML = notice('영업대표만 운영 변경을 기안합니다', '이 계약의 영업대표는 ' + esc(C.ownerLabel(root.requesterId)) + '입니다. <a href="' + back + '">계약 상세로</a>');
     return;
   }
   const terminating = b.open.filter(function (o) { return o.kind === 'TERMINATE'; });
@@ -56,7 +56,7 @@
     info('계약번호', '<a href="' + back + '">' + esc(b.id) + '</a>' + (b.current !== root ? ' (지금 유효: ' + esc(b.current.id) + ')' : '')),
     info('서비스', esc(C.serviceLabel(root.services))),
     info('계약 기간', C.fmtPeriod(b.start, b.end)),
-    info('영업대표', esc(C.userName(root.requesterId)) + '님'),
+    info('영업대표', esc(C.ownerLabel(root.requesterId))),
     info('진행 중인 일', b.open.length ? b.open.map(function (o) { return esc(o.id + ' ' + C.kindLabel(o)); }).join('<br>') : '없음'),
   ].join('');
   $('#number-help').textContent = '기안하면 ' + newId + '(운영 변경)로 원계약과 함께 묶입니다.';
@@ -101,9 +101,9 @@
     const sales = ready ? C.changeSales(rec) : null;
     const hr = /^HR_/.test(t);
     const items = [
-      { no: '③', name: '영업 검토', who: '영업 리더 ' + C.userName(C.stepUserNow('S03', root)),
+      { no: '③', name: '영업 검토', who: '영업 리더 ' + C.ownerLabel(C.stepUserNow('S03', root)),
         state: !sales ? 'wait' : sales[0] ? 'go' : 'skip', reason: sales ? sales[1] : '변경 종류와 내용을 기다림' },
-      { no: '⑨', name: '운영 변경', who: hr ? '재무 ' + C.userName(C.stepUserNow('S10', root)) : '고객지원 ' + C.userName(C.stepUserNow('S09', root)),
+      { no: '⑨', name: '운영 변경', who: hr ? '재무 ' + C.ownerLabel(C.stepUserNow('S10', root)) : '고객지원 ' + C.ownerLabel(C.stepUserNow('S09', root)),
         state: t ? 'go' : 'wait', reason: hr ? '수불부에 HR 추가 충전 반영' : t === 'PERIOD' ? '라이선스나 도메인 기간 변경' : t ? 'CK 추가 충전 반영' : '변경 종류를 기다림' },
     ];
     const BADGE = { go: ['progress', '거침'], skip: ['neutral', '생략'], wait: ['line', '답 대기'] };
@@ -172,7 +172,7 @@
     // 운영 변경 기록 (데이터 정의서 contract: kind CHANGE, change_type, change_qty, change_amount, activity_url)
     const rec = record();
     C.saveDemoContract(rec);
-    const next = C.pendingSteps(rec).map(function (x) { return C.stepLabel(x.step) + ' (' + C.userName(x.userId) + '님)'; }).join(', ');
+    const next = C.pendingSteps(rec).map(function (x) { return C.stepLabel(x.step) + ' (' + C.ownerLabel(x.userId) + ')'; }).join(', ');
     C.flash(newId + ' 운영 변경을 기안했습니다. 다음 차례: ' + next);
     location.href = 'review.html?id=' + encodeURIComponent(newId);
   });

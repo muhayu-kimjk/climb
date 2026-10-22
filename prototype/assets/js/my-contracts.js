@@ -97,7 +97,7 @@
         '<td>' + esc(C.kindLabel(c)) + '</td>' +
         '<td class="nowrap">' + C.statusBadge(c) + '</td>' +
         '<td>' + C.progressText(c) + '</td>' +
-        (seeAll ? '<td class="nowrap">' + esc(C.userName(c.requesterId)) + '</td>' : '') +
+        (seeAll ? '<td class="center">' + esc(C.ownerLabel(c.requesterId)) + '</td>' : '') +
         '<td class="num-left">' + C.fmtDate(dateOf(c)) + '</td>' +
         '<td>' + todo(c) + '</td>' +
       '</tr>';

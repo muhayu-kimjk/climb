@@ -77,13 +77,13 @@
       const st = x.s ? D.STEPS[x.s.step] : null;
       const stepCell = st
         ? esc(st.no + ' ' + st.ing) + (x.s.step === 'S07' && x.s.userId === me.id ? ' ' + C.badge('progress', '내 차례') : '') +
-          '<span class="cell-meta">' + esc(C.roleShort(x.s.role)) + ' ' + esc(C.userName(x.s.userId)) + '</span>'
+          '<span class="cell-meta">' + esc(C.roleShort(x.s.role)) + ' ' + esc(C.ownerLabel(x.s.userId)) + '</span>'
         : '-';
       return '<tr>' +
         '<td>' + cust + '</td>' +
         '<td class="col-service">' + (visible ? service : '-') + '</td>' +
         '<td class="nowrap">' + stepCell + '</td>' +
-        (seeAll ? '<td class="nowrap">' + esc(C.userName(x.c.requesterId)) + '</td>' : '') +
+        (seeAll ? '<td class="center">' + esc(C.ownerLabel(x.c.requesterId)) + '</td>' : '') +
         '<td class="num-left">' + C.fmtDate(x.c.approvedAt) + '</td>' +
         '<td class="num"><span' + (x.days >= LONG ? ' class="wait-long"' : '') + '>' + x.days + '일</span></td>' +
       '</tr>';

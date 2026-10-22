@@ -222,7 +222,7 @@
             '<td><a class="cell-title" href="review.html?id=' + encodeURIComponent(c.id) + '">' + esc(c.counterparty) + '</a>' +
               '<span class="cell-sub">' + esc(C.serviceLabel(c.services)) + '</span></td>' +
             '<td class="col-service">' + esc(C.serviceLabel(c.services)) + '</td>' +
-            '<td class="nowrap">' + esc(C.userName(c.requesterId)) + '</td>' +
+            '<td class="center">' + esc(C.ownerLabel(c.requesterId)) + '</td>' +
             '<td class="num"><span' + (wait >= R.approvalDelayDays ? ' class="wait-long"' : '') + '>' + wait + '일</span></td>' +
             '<td class="nowrap col-steps">' + (C.isReviewStep(s.step) ? stepDots(c) : '') + esc(C.stepLabel(s.step)) + '</td>' +
           '</tr>';
@@ -266,13 +266,13 @@
       const tone = d <= 30 ? 'danger' : d <= 60 ? 'attention' : 'progress';
       const dday = '<span class="badge badge--' + tone + '" aria-label="만료까지 ' + d + '일">D-' + d + '</span>';
       // 열람 제한 계약은 고객사, 서비스, 담당자를 가림 (REQ-AUTH-09)
-      const owner = C.canView(c, me) ? esc(C.userName(c.requesterId)) : '-';
+      const owner = C.canView(c, me) ? esc(C.ownerLabel(c.requesterId)) : '-';
       return '<tr>' +
         '<td class="num">' + dday + '</td>' + // 숫자라 오른쪽 정렬 (REQ-UI-16)
         customerCells(c) +
         // 휴대폰에서는 담당자 칸을 감추고 만료일 아래 작은 글자로 보여줌 (REQ-ENV-08)
         '<td class="nowrap">' + C.fmtDate(c.endDate) + (C.canView(c, me) ? '<span class="cell-sub">담당 ' + owner + '</span>' : '') + '</td>' +
-        '<td class="nowrap col-owner">' + owner + '</td>' +
+        '<td class="center col-owner">' + owner + '</td>' +
       '</tr>';
     }).join('');
     document.getElementById('expiring').innerHTML = head +

@@ -35,7 +35,7 @@
     return;
   }
   if (root.requesterId !== me.id && me.role !== 'SUPER') {
-    $('#notice').innerHTML = notice('영업대표만 해지를 기안합니다', '이 계약의 영업대표는 ' + esc(C.userName(root.requesterId)) + '님입니다. <a href="' + back + '">계약 상세로</a>');
+    $('#notice').innerHTML = notice('영업대표만 해지를 기안합니다', '이 계약의 영업대표는 ' + esc(C.ownerLabel(root.requesterId)) + '입니다. <a href="' + back + '">계약 상세로</a>');
     return;
   }
   if (blocking.length) {
@@ -55,7 +55,7 @@
     info('서비스', esc(C.serviceLabel(root.services))),
     info('계약 기간', C.fmtPeriod(b.start, b.end)),
     info('계약 금액', cur.amount ? Number(cur.amount).toLocaleString('ko-KR') + '원' : '금액 없음'),
-    info('영업대표', esc(C.userName(root.requesterId)) + '님'),
+    info('영업대표', esc(C.ownerLabel(root.requesterId))),
   ].join('');
   $('#number-help').textContent = '기안하면 ' + newId + '(해지)로 원계약과 함께 묶입니다.';
   $('#date-help').textContent = '오늘(' + C.fmtDate(D.TODAY) + ')부터 계약 종료일(' + C.fmtDate(b.end) + ') 사이의 날짜';
@@ -65,10 +65,10 @@
 
   /* ---------- 결재선 미리 보기 ---------- */
   const route = [
-    { no: '③', name: '영업 검토', who: '영업 리더 ' + C.userName(C.stepUserNow('S03', root)), reason: '해지가 영업상 맞는지 승인' },
-    { no: '④', name: '법무 검토', who: '법무 ' + C.userName(C.stepUserNow('S04', root)), reason: '해지 사유와 위약금 등 법적 위험 검토' },
-    { no: '⑨', name: '운영 적용 (운영 종료)', who: '고객지원 ' + C.userName(C.stepUserNow('S09', root)), reason: '해지일에 라이선스나 도메인을 닫음' },
-    { no: '⑩', name: '재무 확인', who: '재무 ' + C.userName(C.stepUserNow('S10', root)), reason: '환불, 위약금, 매출 조정 확인' },
+    { no: '③', name: '영업 검토', who: '영업 리더 ' + C.ownerLabel(C.stepUserNow('S03', root)), reason: '해지가 영업상 맞는지 승인' },
+    { no: '④', name: '법무 검토', who: '법무 ' + C.ownerLabel(C.stepUserNow('S04', root)), reason: '해지 사유와 위약금 등 법적 위험 검토' },
+    { no: '⑨', name: '운영 적용 (운영 종료)', who: '고객지원 ' + C.ownerLabel(C.stepUserNow('S09', root)), reason: '해지일에 라이선스나 도메인을 닫음' },
+    { no: '⑩', name: '재무 확인', who: '재무 ' + C.ownerLabel(C.stepUserNow('S10', root)), reason: '환불, 위약금, 매출 조정 확인' },
   ];
   $('#route').innerHTML = '<ol class="route-list">' + route.map(function (it) {
     return '<li class="is-go"><span class="route-no" aria-hidden="true">' + it.no + '</span>' +
@@ -134,7 +134,7 @@
       files: fileName ? [{ kind: 'TERMINATE_DOC', name: fileName }] : [],
     };
     C.saveDemoContract(rec);
-    C.flash(newId + ' 해지를 기안했습니다. 다음 차례: ③ 영업 검토 (' + C.userName(C.stepUserNow('S03', root)) + '님)');
+    C.flash(newId + ' 해지를 기안했습니다. 다음 차례: ③ 영업 검토 (' + C.ownerLabel(C.stepUserNow('S03', root)) + ')');
     location.href = 'review.html?id=' + encodeURIComponent(newId);
   });
   document.addEventListener('keydown', function (e) { if (!modal.hidden && e.key === 'Escape') modal.hidden = true; });

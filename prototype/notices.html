@@ -46,8 +46,13 @@
             <h2 class="panel-title" id="sec-list">글 목록</h2>
             <button type="button" class="btn btn--primary btn--md" id="btn-write" hidden>글쓰기</button>
           </div>
-          <!-- 휴대폰과 태블릿에서는 구분, 검색, 초기화를 한 줄에 하나씩(검색 안내 글자가 잘리지 않게, 2026-10-22 기획자 요청. board.css) -->
+          <!-- 다른 목록 화면처럼 윗줄 검색어(넓게) + 초기화, 아랫줄 구분 (2026-10-22 기획자 요청, PC와 태블릿)
+               스마트폰에서는 검색, 구분, 초기화를 한 줄에 하나씩(검색 안내 글자가 잘리지 않게. board.css) -->
           <form class="filter-bar filter-bar--board" id="filter" role="search" aria-label="공지사항 거르기">
+            <div class="field">
+              <label class="field-label field-label--sm" for="f-q">검색</label>
+              <input class="input" id="f-q" type="search" placeholder="제목, 버전, 내용" autocomplete="off">
+            </div>
             <div class="field">
               <label class="field-label field-label--sm" for="f-kind">구분</label>
               <select class="select" id="f-kind">
@@ -55,10 +60,6 @@
                 <option value="NOTICE">공지</option>
                 <option value="RELEASE">릴리즈</option>
               </select>
-            </div>
-            <div class="field">
-              <label class="field-label field-label--sm" for="f-q">검색</label>
-              <input class="input" id="f-q" type="search" placeholder="제목, 버전, 내용" autocomplete="off">
             </div>
             <button type="reset" class="btn btn--tertiary btn--md filter-reset">초기화</button>
           </form>

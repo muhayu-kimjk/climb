@@ -38,7 +38,7 @@ body {
 input, textarea { text-align: start; }
 /* 휴대폰: 양쪽 정렬로 낱말 사이가 크게 벌어지지 않게 글자 단위로 줄을 넘김 (기획자 결정 v0.36)
  * PC와 인쇄는 낱말 단위 그대로(keep-all). 버튼, 배지처럼 한 줄로 두는 곳은 그대로 */
-@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) { body { word-break: normal; } }
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) { body { word-break: normal; } }
 
 h1, h2, h3, h4, p, ul, ol, dl, dd, figure { margin: 0; }
 ul, ol { padding: 0; list-style: none; }
@@ -161,17 +161,31 @@ a.user-name:hover, a.user-name[aria-current] { color: var(--text-primary); text-
  * 왼쪽: 개요, 계약 등록, 계약 현황, 보관함 / 오른쪽 끝: 이용 안내 (REQ-UI-14) */
 .gnb { border-top: 1px solid var(--border-gray-light); }
 .gnb .inner { display: flex; align-items: center; justify-content: space-between; gap: 1.6rem; }
-.gnb-list { display: flex; flex-wrap: wrap; margin-left: -1.6rem; }
-/* 휴대폰 메뉴의 밀어 보기 틀과 화살표(v0.43): PC에서는 틀이 없는 것처럼(display: contents) 두고 화살표는 감춤 */
-.gnb-scroll { display: contents; }
-.gnb-more { display: none; }
+/* 메뉴 줄은 PC, 태블릿, 스마트폰 모두 한 줄 (v0.50 기획자 요청. v0.42~v0.49는 휴대폰만 한 줄, PC는 넘치면 두 줄)
+ * 다 들어가지 않으면 옆으로 밀어 보고, 더 있는 쪽 끝에 흰색 그라데이션과 화살표(›, ‹)를 덮음(누르면 그쪽으로 밀림). 다 들어가면 화살표는 없음
+ * 그라데이션 폭 80px: 앞 60%는 글자가 서서히 흐려지고 뒤 40%(화살표 자리)는 흰색 (2026-10-22 기획자 요청)
+ * 하위 메뉴는 밀어 보는 줄에 잘리지 않게 .gnb-scroll 기준으로 자리 잡음. PC와 태블릿은 연 메뉴 바로 아래(left는 common.js), 스마트폰은 폭 가득 */
+.gnb-scroll { position: relative; flex: 1; min-width: 0; margin-left: -1.6rem; }
+.gnb-list {
+  display: flex; flex-wrap: nowrap;
+  overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.gnb-list::-webkit-scrollbar { display: none; }
+.gnb-more {
+  position: absolute; top: 0; bottom: 0; z-index: 1; display: none; align-items: center; width: 8rem; padding: 0;
+  border: 0; color: var(--text-basic); cursor: pointer;
+}
+.gnb-more .icon { width: 2rem; height: 2rem; }
+.gnb-more--right { right: 0; justify-content: flex-end; background: linear-gradient(to right, transparent, var(--surface-white) 60%); }
+.gnb-more--left { left: 0; justify-content: flex-start; background: linear-gradient(to left, transparent, var(--surface-white) 60%); }
+.gnb-scroll.is-more-right .gnb-more--right, .gnb-scroll.is-more-left .gnb-more--left { display: flex; }
 .gnb-aside { display: inline-flex; align-items: center; gap: 0.4rem; font-size: var(--fs-body-small); color: var(--text-subtle); white-space: nowrap; }
 .gnb-aside:hover { color: var(--text-basic); text-decoration: underline; text-underline-offset: 0.3rem; }
 .gnb-aside.is-current { color: var(--text-primary); font-weight: 700; } /* 이용 안내(SCR-90)를 보고 있을 때 */
-.gnb-item { position: relative; }
+.gnb-item { position: static; flex-shrink: 0; } /* 하위 메뉴가 .gnb-scroll 기준으로 자리 잡게 (v0.50) */
 .gnb-link {
   position: relative; display: flex; align-items: center; gap: 0.4rem;
-  height: var(--height-lg); padding: 0 1.6rem;
+  height: var(--height-lg); padding: 0 1.6rem; white-space: nowrap;
   font-size: var(--fs-body-large); font-weight: 700; color: var(--text-subtle);
 }
 .gnb-link:hover { color: var(--text-basic); background: var(--action-hover); }
@@ -284,7 +298,11 @@ a.user-name:hover, a.user-name[aria-current] { color: var(--text-primary); text-
 /* 대시보드처럼 폭이 좁은 영역에 쓰는 촘촘한 표 */
 .tbl--compact th, .tbl--compact td { padding-left: 1.2rem; padding-right: 1.2rem; }
 /* 정렬 규칙 (REQ-UI-16): 제목행은 모두 가운데. 내용은 글자면 왼쪽, 숫자(금액, 수량, 일수, 차수, 할인율)는 무조건 오른쪽.
- * 날짜와 일시는 자릿수가 같아 왼쪽에 둠(num-left) */
+ * (v0.50 기획자 요청) 표 안 글자는 양쪽 정렬하지 않음: 칸이 좁아 줄이 바뀌면 "법무,   개인정보   검토"처럼 낱말 사이가 벌어지기 때문
+ * (v0.50 기획자 요청) 내용이 짧은 칸은 가운데: 날짜와 일시(num-left, 예전에는 왼쪽), 사람, 상태 배지처럼 nowrap인 칸.
+ *   단, 줄의 이름 칸(cell-strong)과 현재 진행(col-steps)은 왼쪽 */
+.tbl td, .tbl tbody th, .tbl tfoot th { text-align: left; }
+.tbl td.num-left, .tbl td.nowrap:not(.cell-strong):not(.col-steps) { text-align: center; }
 .tbl .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tbl thead th, .tbl thead th.num { text-align: center; }
 .tbl .center { text-align: center; }
@@ -317,7 +335,7 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
 /* 칸 아래 작은 글자 줄(.cell-sub): PC에서는 감추고, 휴대폰에서는 감춘 칸 대신 보여줌 (REQ-ENV-08)
  *   고객사 아래 서비스, 만료일 아래 담당자 */
 .cell-sub { display: none; }
-@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) {
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
   .tbl .col-customer { width: auto; }
   .tbl .col-service, .tbl .col-owner { display: none; }
   .tbl .col-steps { white-space: normal; } /* 결재 단계도 칸 안에서 줄을 바꿈 */
@@ -390,10 +408,10 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
 
 /* ---------- 13. 화면 폭이 좁을 때 (REQ-ENV-04: PC 기준, 모바일은 기본 대응) ----------
  * 'screen' 조건을 붙여 인쇄에는 적용되지 않게 합니다. */
-@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) {
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
   /* 방식 B (REQ-ENV-07): 배치는 PC와 같게, 글자와 버튼은 읽기 좋은 크기 유지.
    * 제목 크기와 좌우 여백은 tokens.css의 휴대폰 값이 자동으로 적용됩니다. */
-  .sheet { margin: 0 auto; min-height: 100vh; box-shadow: none; } /* 넓은 태블릿에서도 가운데 (v0.43) */
+  .sheet { margin: 0 auto; min-height: 100vh; box-shadow: none; } /* 가로로 눕힌 스마트폰에서도 가운데 (v0.43, 태블릿은 v0.50부터 PC 화면) */
 
   /* 헤더: 폭이 좁아 조직명을 감춤 (이름 | 로그아웃)
    * 영문 이름 줄(MUHAYU Contract Lifecycle Management Base)도 감추고, 사용자 줄을 CLIMB과 같은 줄 가운데에 맞춤
@@ -409,28 +427,12 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
   .util-link { padding: 1.2rem 0; margin: -1.2rem 0; }
   .btn { min-height: var(--touch-min); }
 
-  /* 메뉴: PC와 같은 순서. 한 줄로 두고 손가락으로 옆으로 밀어(스와이프) 봄. 이용 안내(?)는 오른쪽에 고정 (v0.42 기획자 요청, 예전에는 두 줄로 넘어감)
-   * 밀어 볼 수 있다는 표시(v0.43 기획자 요청): 메뉴가 더 있는 쪽 끝에 넓은 흰색 그라데이션을 덮고 화살표를 둠(누르면 그쪽으로 밀림)
-   * 하위 메뉴는 메뉴 줄 아래에 폭 가득 펼침(밀어 보는 줄에 잘리지 않게 .gnb-scroll 기준으로 자리 잡음)
-   * 기획자 요청(2026-10-22): 화살표가 메뉴 글자에 붙어 보여 그라데이션을 56px에서 80px로 넓히고, 화살표와 ?(이용 안내) 사이를 30px에서 16px로 좁힘 */
+  /* 메뉴: PC와 같은 순서. 한 줄로 두고 손가락으로 옆으로 밀어(스와이프) 봄. 이용 안내(?)는 오른쪽에 고정 (v0.42 기획자 요청)
+   * 한 줄, 그라데이션과 화살표는 v0.50부터 PC와 태블릿에도 같이 씀(위 4장). 여기는 스마트폰에만 다른 것
+   * 기획자 요청(2026-10-22): 화살표와 ?(이용 안내) 사이를 30px에서 16px로 좁힘 */
   .gnb .inner { gap: 0.4rem; }
-  .gnb-scroll { display: block; position: relative; flex: 1; min-width: 0; margin-left: -1rem; }
-  .gnb-list {
-    flex-wrap: nowrap; margin-left: 0;
-    overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch;
-  }
-  .gnb-list::-webkit-scrollbar { display: none; }
-  .gnb-more {
-    position: absolute; top: 0; bottom: 0; z-index: 1; display: none; align-items: center; width: 8rem; padding: 0;
-    border: 0; color: var(--text-basic); cursor: pointer;
-  }
-  .gnb-more .icon { width: 2rem; height: 2rem; }
-  /* 앞 60%는 글자가 서서히 흐려지고, 뒤 40%(화살표 자리)는 흰색 */
-  .gnb-more--right { right: 0; justify-content: flex-end; background: linear-gradient(to right, transparent, var(--surface-white) 60%); }
-  .gnb-more--left { left: 0; justify-content: flex-start; background: linear-gradient(to left, transparent, var(--surface-white) 60%); }
-  .gnb-scroll.is-more-right .gnb-more--right, .gnb-scroll.is-more-left .gnb-more--left { display: flex; }
-  .gnb-item { position: static; flex-shrink: 0; }
-  .gnb-sub { left: 0; right: 0; min-width: 0; }
+  .gnb-scroll { margin-left: -1rem; }
+  .gnb-sub { left: 0; right: 0; min-width: 0; } /* 스마트폰은 하위 메뉴를 메뉴 줄 아래 폭 가득 */
   .gnb-link { height: 4.8rem; padding: 0 1rem; font-size: var(--fs-body-medium); white-space: nowrap; }
   .gnb-link .icon { display: none; } /* 펼침 화살표를 감춰 메뉴 칸을 줄임 */
   .gnb-link.is-current::after { left: 1rem; right: 1rem; }
@@ -601,7 +603,7 @@ a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: under
 .modal-form .field:last-child { margin-bottom: 0; }
 
 /* 휴대폰 화면 (방식 B, 인쇄에는 적용 안 됨): 배치는 같게, 칸이 좁은 곳만 여백을 줄이고 줄바꿈 허용 */
-@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) {
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
   .step-body { padding-right: 0.8rem; }
   .step-wrap .step-tit { white-space: normal; }
   .page-intro { padding: 1.6rem; }
