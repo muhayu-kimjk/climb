@@ -34,14 +34,8 @@
   ];
 
   /* ---------- 세는 법 ---------- */
-  function lastEvent(c, step, action) {
-    const list = (c.history || []).filter(function (h) { return h.step === step && h.action === action; });
-    return list.length ? list[list.length - 1].at : '';
-  }
-  function signDate(c) {
-    if (c.renewMode === 'AUTO') return lastEvent(c, 'S10', 'APPROVE');
-    return lastEvent(c, 'S07', 'REGISTER');
-  }
+  // 체결일은 C.signDate(차수와 다시 등록 요청을 따져 buildReview가 정한 체결본 등록 시각)
+  const signDate = C.signDate;
   // 'YYYY-MM-DD HH:MM' 두 값 사이의 날(소수)
   function toTime(s) {
     const d = String(s).slice(0, 10).split('-').map(Number);

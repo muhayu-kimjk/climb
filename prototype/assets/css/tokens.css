@@ -1,5 +1,5 @@
 /* =====================================================================
- * CLIMB 디자인 토큰 (tokens.css)
+ * 디자인 토큰 (tokens.css)
  * ---------------------------------------------------------------------
  * - 화면의 모든 색·글자 크기·모서리 값은 이 파일의 변수만 사용합니다.
  *   다른 CSS 파일에 색상 코드(#...)를 직접 쓰지 않습니다.
@@ -7,8 +7,8 @@
  *   연한 배경색 등은 브랜드 색을 흰색에 섞어(투명도처럼) 만든 것입니다.
  * - 글자 크기·모서리·간격: KRDS 디자인 토큰 값입니다. (REQ-UI-01)
  * - KRDS는 1rem = 10px 기준입니다. (html { font-size: 62.5% })
- * - 파비콘(assets/img/favicon.svg)은 변수를 쓸 수 없어 색을 직접 적었습니다.
- *   이 파일의 브랜드 색을 바꾸면 파비콘도 함께 바꿔야 합니다.
+ * - 이 파일 밖에서 색을 직접 적은 곳(변수를 쓸 수 없는 곳) 두 군데. 이 파일의 색을 바꾸면 함께 바꿉니다.
+ *     파비콘(assets/img/favicon.svg), 인쇄 쪽 아래 글자(common.css의 @page: #49595F, #021821)
  *
  * [화면 두 가지] (v0.43 기획자 결정, v0.50에서 태블릿을 PC 쪽으로 옮김. 요구사항 정의서 REQ-ENV-07)
  *   - PC와 태블릿: A4 세로 폭 화면. 태블릿은 손가락으로 눌러도 하는 일은 같아 PC 화면을 그대로 씀(v0.50 기획자 결정)
@@ -62,7 +62,6 @@
   --blue-8: #EBF4FF;
   --purple-8: #F6EEFF;
   --pink-5: #FFF4F9;
-  --pink-8: #FFEEF6;
   --pink-strong: #DC237F;    /* Pink 86% + Black 14%: 흰 글자를 올리는 핑크 바탕 (4.6:1) */
   --pink-pressed: #C72276;   /* Pink 78% + Black 22%: 경고 버튼에 마우스를 올렸을 때 (흰 글자 5.6:1) */
 
@@ -77,6 +76,7 @@
   --text-primary: var(--mh-dark-green);     /* 강조 글자·숫자 */
   --text-inverse: var(--white);
   --text-watermark: rgba(2, 24, 33, 0.07);  /* Black 7%. 캡처 대비 워터마크 (REQ-SEC-07) */
+  --text-danger: var(--pink-strong);        /* 핑크 글자(필수 표시 *, 오류 문장, 일요일, 끝내기): 흰 바탕 4.6:1 */
 
   /* 바탕 */
   --surface-white: var(--white);
@@ -92,6 +92,8 @@
   --border-primary: var(--mh-green);
   --border-primary-light: var(--green-30);
   --border-secondary-light: var(--dark-green-14);
+  --border-focus: var(--mh-blue);           /* 입력 칸을 고른 때의 테두리(파란 키보드 표시와 같은 색) */
+  --border-elevated: transparent;           /* 창(모달)의 테두리: 밝은 화면은 그림자로 충분해 없음 */
 
   /* 버튼 */
   --button-primary-fill: var(--mh-green);
@@ -110,13 +112,15 @@
   /* 메뉴·선택 */
   --action-hover: var(--dark-green-8);      /* 메뉴에 마우스를 올렸을 때 */
   --action-active: var(--mh-dark-green);    /* 현재 메뉴 밑줄: 흰 바탕 5.5:1 (KRDS 비텍스트 대비 3:1 이상, v0.28. Green은 2.4:1) */
-  --icon-muted: var(--mh-gray);
   --focus-ring: 0 0 0 0.3rem var(--mh-blue);  /* 키보드 이동 표시 (흰 바탕 4.2:1) */
   /* 고른 것(체크한 칸, 고른 날짜, 지금 쪽 번호, 눌린 단추)의 채움과 그 위 글자 (v0.53: 어두운 화면에서 바꾸려고 이름을 따로 둠) */
   --control-checked: var(--mh-dark-green);
   --control-checked-text: var(--white);
   --scroll-shadow: rgba(2, 24, 33, 0.22);   /* 옆으로 밀어 보는 표의 가장자리 그림자 */
   --brand-mark-filter: none;                /* 머리글 심볼(검은 그림). 어두운 화면에서는 흰색으로 */
+  /* 선택 칸의 아래 화살표(Black). SVG 안의 색은 변수를 못 써서 어두운 화면 값을 따로 둠 */
+  --icon-chevron-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23021821' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  --overlay-backdrop: rgba(2, 24, 33, 0.56); /* 창(모달) 뒤를 덮는 막: Black 56% */
 
   /* 그래프 (v0.53 통계와 보고서, SCR-46)
    * 막대 하나의 색은 한 가지(많고 적음만 봄). 흰 바탕 5.5:1이라 Green(2.4:1)보다 잘 보임. 값은 늘 글자로도 씀 */
@@ -156,13 +160,14 @@
   --demo-tag-text: var(--mh-black);
 
   --shadow-1: 0 0 0.2rem 0 rgba(2, 24, 33, 0.06), 0 0.4rem 0.8rem 0 rgba(2, 24, 33, 0.08);
+  --shadow-up: 0 -0.4rem 1.6rem rgba(2, 24, 33, 0.08); /* 화면 아래에 붙은 막대(결재 문서의 처리 막대) */
 
   /* ---------------------------------------------------------------
    * 4. 글자 (KRDS PC 기준 크기)
    *    글꼴: Noto Sans KR (REQ-UI-02, KRDS 기본 Pretendard GOV 대신)
    * --------------------------------------------------------------- */
   --font-family: "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Malgun Gothic", "맑은 고딕", sans-serif;
-  /* 로고 글자 "climb"만 SUITE(v0.53 기획자 요청, 요구사항 정의서 REQ-NAME-06). 글꼴은 jsDelivr의 sun-typeface/SUITE(OFL) */
+  /* 로고 묶음의 영어(climb, 영문 이름)만 SUITE(v0.54 기획자 결정, 요구사항 정의서 REQ-NAME-06). 글꼴은 jsDelivr의 sun-typeface/SUITE(OFL) */
   --font-brand: "SUITE", var(--font-family);
 
   --fs-display-small: 3.6rem;
@@ -189,6 +194,7 @@
   --height-sm: 4rem;    /* 기본 버튼(small) */
   --height-md: 4.8rem;  /* 입력창·버튼(medium) */
   --height-lg: 5.6rem;  /* 큰 버튼, 메인 메뉴 높이 */
+  --touch-min: 4.4rem;  /* 손가락으로 누르기 쉬운 최소 크기 (44px) */
 
   /* A4 세로 문서 틀 (REQ-UI-10)
    * 화면도 A4 폭으로 보여 주고, 좌우 여백을 인쇄 여백과 같게 해서
@@ -242,6 +248,12 @@
     --control-checked-text: var(--mh-black);
     --scroll-shadow: rgba(255, 255, 255, 0.16);
     --brand-mark-filter: brightness(0) invert(1);
+    --text-danger: #FF66B0;             /* Pink 70% + 흰색 30%: 어두운 바탕 6.1:1 (진한 핑크는 3.6:1이라 글자로 못 씀) */
+    --border-elevated: #2B3D45;         /* 창과 종이 색이 같아 테두리로 구분 */
+    --icon-chevron-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23E6E8E9' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    --overlay-backdrop: rgba(2, 24, 33, 0.8);
+    --shadow-up: 0 -0.4rem 1.6rem rgba(2, 24, 33, 0.6);
+    --demo-bg: #25363C;                 /* 시연 띠가 종이 바깥(Black)과 같아지지 않게 Beige 14% */
     /* 그래프: 막대는 Green(어두운 바탕 6.9:1), 빈 칸은 Green 30% */
     --chart-bar: var(--mh-green);
     --chart-track: #074A41;
@@ -279,6 +291,3 @@
   }
 }
 
-:root {
-  --touch-min: 4.4rem; /* 휴대폰에서 손가락으로 누르기 쉬운 최소 크기 (44px) */
-}

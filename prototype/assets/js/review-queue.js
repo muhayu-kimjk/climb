@@ -76,7 +76,7 @@
         '<td><a class="cell-title" href="review.html?id=' + encodeURIComponent(x.c.id) + '">' + esc(x.c.counterparty) + '</a>' +
           '<span class="cell-sub">' + service + '</span><span class="cell-meta">' + esc(x.c.id) + (x.c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span></td>' +
         '<td class="col-service">' + service + '</td>' +
-        '<td class="nowrap">' + esc(C.stepLabel(x.s.step)) + (together ? '<span class="cell-meta">동시: ' + esc(together) + '</span>' : '') +
+        '<td class="nowrap">' + esc(C.stepLabel(x.s.step, x.c)) + (together ? '<span class="cell-meta">동시: ' + esc(together) + '</span>' : '') +
           // 대리 지정으로 내 차례가 된 건 (REQ-REV-08)
           (!showWho && x.s.userId !== me.id ? '<span class="cell-meta">' + esc(C.ownerLabel(x.s.userId)) + ' 대신 (대리 지정)</span>' : '') + '</td>' +
         (showWho ? '<td class="center">' + esc(C.ownerLabel(x.s.userId)) + '</td>' : '') +

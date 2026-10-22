@@ -30,14 +30,14 @@
   const root = b.root;
   if (!C.canView(root, me)) {
     $('#doc-title').innerHTML = C.icon('lock') + '열람 제한 계약';
-    $('#notice').innerHTML = notice('', '이 계약은 볼 수 없습니다', '열람 제한 계약은 요청자, 그 계약의 결재선과 단계 담당자, 관리자만 볼 수 있습니다.');
+    $('#notice').innerHTML = notice('', '이 계약은 볼 수 없습니다', C.restrictedMsg);
     return;
   }
 
   /* ---------- 머리 ---------- */
   const st = D.STATUS[b.status];
   $('#doc-title').textContent = root.counterparty;
-  $('#doc-meta').innerHTML = C.meta([esc(b.id), esc(C.serviceLabel(root.services)), esc(root.type), C.badge(st.tone, st.label) + (root.restricted ? ' ' + C.icon('lock', 'sm') : '')]);
+  $('#doc-meta').innerHTML = C.meta([esc(b.id), esc(C.serviceLabel(root.services)), esc(D.METHODS[C.methodOf(root)]), C.badge(st.tone, st.label) + (root.restricted ? ' ' + C.icon('lock', 'sm') : '')]);
   // 계약 요약서(SCR-47, v0.53): 이 묶음을 A4 한 벌로. 볼 수 있는 사람은 이 화면과 같음
   $('#btn-summary').href = 'contract-print.html?id=' + encodeURIComponent(b.id);
   $('#doc-tools').hidden = false;
@@ -73,7 +73,7 @@
   const cur = b.current;
   function info(label, value) { return '<div><dt>' + esc(label) + '</dt><dd>' + value + '</dd></div>'; }
   // 해지 통지 기한: 만료 n일 전. 30일 안이거나 지났으면 강조 (v0.53, REQ-FLOW-32)
-  function notice60() {
+  function noticeDeadlineHtml() {
     if (!C.noticeDate(b)) return '';
     return '<span class="cell-meta">' + C.noticeText(b) + '<br>만료 ' + b.noticeDays + '일 전까지 상대방에게 알려야 연장되지 않음</span>';
   }
@@ -82,7 +82,7 @@
     info('계약종류', esc(C.kindLabel(cur))),
     info('계약 기간', b.start ? C.fmtPeriod(b.start, b.end) : '-'),
     info('계약 금액', cur.amount ? Number(cur.amount).toLocaleString('ko-KR') + '원 (' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도)' : '금액 없음'),
-    info('자동갱신', b.autoRenew === 'YES' ? '있음' + notice60() : '없음'),
+    info('자동갱신', b.autoRenew === 'YES' ? '있음' + noticeDeadlineHtml() : '없음'),
     root.unit ? info('기관 또는 부서명', esc(root.unit)) : '', // 계약마다 직접 적은 기관 이름 (C-24 v0.39, 이름 v0.46)
     info('영업대표', esc(C.ownerLabel(root.requesterId))),
     info('개인정보 처리위탁 계약', root.personalData ? '있음' : '없음'),

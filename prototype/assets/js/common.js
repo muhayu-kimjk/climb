@@ -1,11 +1,21 @@
 /* =====================================================================
- * CLIMB 공통 스크립트 (common.js)
+ * 공통 스크립트 (common.js) → window.CLIMB (화면 코드에서는 C)
  * ---------------------------------------------------------------------
- * - 모든 화면이 같이 쓰는 기능: 헤더·메인 메뉴·푸터 그리기, 날짜·금액 표시,
+ * - 모든 화면이 같이 쓰는 기능: 헤더, 메인 메뉴, 푸터 그리기, 날짜와 금액 표시, 결재 흐름 계산,
  *   열람 권한 판단, 시연용 역할 전환.
- * - 프로토타입에서는 헤더·푸터를 이 파일이 그려 넣습니다(화면마다 복사하지 않기 위해).
+ * - 프로토타입에서는 헤더와 푸터를 이 파일이 그려 넣습니다(화면마다 복사하지 않기 위해).
  *   실제 시스템에서는 개발팀이 쓰는 프레임워크의 공통 레이아웃(템플릿)으로 옮기면 됩니다.
- * - mock-data.js 다음에 불러와야 합니다.
+ * - mock-data.js 다음에 불러와야 합니다. 화면 코드는 C.init()으로 시작합니다(맨 아래 "화면 시작").
+ *
+ * 차례 (위에서 아래 순서. 각 묶음은 "---------- 이름 ----------" 주석으로 시작)
+ *   메뉴 구조 → 아이콘과 시스템 이름 → 시연용 역할 → 날짜와 금액 표시 → 계약과 결재 이름
+ *   → 표준계약서와 판 → 사업자등록번호 → 영업기회번호
+ *   → 결재 흐름 계산(체크리스트로 결재선, 결재 기록을 차례로 다시 적용해 지금 상태: reviewRoute, buildReview)
+ *   → 열람 권한(canView, 지정 열람자) → 처리 대기 목록 → 시연 기록 → 체결 후 의무 → 관리자 설정(applyAdmin)
+ *   → 계약 묶음(bundleOf, 만료 예정, 해지 통지 기한) → HTML 조각 → 헤더, 메뉴, 푸터 그리기
+ *   → 안내 메시지와 확인 창 → 입력 칸 → 브레드크럼, 쪽 번호 → 관리자 화면 부품 → 워터마크, 맨 위로
+ *   → 날짜 입력과 달력 → 화면 시작(init)과 내보내기
+ * 불러올 때 한 번 하는 일: 시연 기록 다시 적용(시연 기록 묶음), 관리자 설정 적용(applyAdmin 뒤 buildReview)
  * ===================================================================== */
 window.CLIMB = (function () {
   const D = window.CLIMB_DATA;
@@ -86,22 +96,13 @@ window.CLIMB = (function () {
     return '<svg class="' + cls + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON_PATHS[name] + '</svg>';
   }
 
-  // 시스템 이름 표기 (REQ-NAME-03~04, REQ-UI-03)
-  //   헤더: [무하유 심볼] CLIMB / 둘째 줄 무하유 계약 관리 플랫폼 (v0.53 기획자 요청. 예전에는 영문 이름)
-  //   푸터: [무하유 심볼] CLIMB / 무하유 계약 관리 플랫폼 / Contract Lifecycle Intelligent Management Base, 세 줄
-  //         (v0.22 심볼, v0.44 세로선 없이 줄 바꿈, v0.53 MUHAYU를 빼 한 줄에 들어가게. 저작권 줄은 MUHAYU Inc.)
-  //   로그인 화면: 심볼 없이 글자로만 (바꾸지 않음)
-  //   opt.mark: CLIMB 앞에 심볼(파비콘과 같은 파일) / opt.ko: 한글 이름 붙이기 (기본 true)
-  //   세로선은 글자가 아닌 선으로 그려 화면낭독기는 "CLIMB 무하유 계약 관리 플랫폼"으로 읽음
+  // 로고 글자 (REQ-NAME-01~06): [무하유 심볼] climb. 헤더와 푸터가 씀(둘째 줄 한글 이름, 푸터 셋째 줄 영문 이름은 그리는 곳에서)
+  //   이름 climb은 로고와 브라우저 탭에만 쓰고 화면 글에는 쓰지 않음(필요하면 "플랫폼"). 로그인 화면은 로고 글자 없이 한글, 영문 이름
+  //   opt.mark: 앞에 심볼(파비콘과 같은 파일)
   function brandTitleHtml(opt) {
     opt = opt || {};
     return (opt.mark ? '<img class="brand-mark" src="assets/img/favicon.svg" alt="" aria-hidden="true">' : '') +
-      '<span class="brand-name">' + esc(D.BRAND.name) + '</span>' +
-      (opt.ko === false ? '' : '<span class="brand-sep" aria-hidden="true"></span><span class="brand-ko">' + esc(D.BRAND.ko) + '</span>');
-  }
-  function brandText(tag, opt) {
-    return '<' + tag + ' class="brand-title">' + brandTitleHtml(opt) + '</' + tag + '>' +
-      '<span class="brand-en">' + esc(D.BRAND.en) + '</span>';
+      '<span class="brand-name">' + esc(D.BRAND.name) + '</span>';
   }
 
   // 여러 정보를 한 줄에 나열할 때 쓰는 묶음. 글자 '·' 대신 얇은 세로선으로 구분합니다. (REQ-UI-08)
@@ -113,7 +114,7 @@ window.CLIMB = (function () {
   }
 
   /* ---------- 시연용 역할 (프로토타입 전용) ----------
-   * 주소 뒤 ?role=LEGAL 처럼 붙이거나, 화면 위 노란 띠에서 바꿉니다.
+   * 주소 뒤 ?role=LEGAL 처럼 붙이거나, 화면 위 검은 띠(시연용 역할 전환)에서 바꿉니다.
    * 실제 시스템에서는 로그인한 사용자의 역할을 서버에서 받아옵니다. */
   function getRole() {
     const fromUrl = new URLSearchParams(location.search).get('role');
@@ -150,6 +151,8 @@ window.CLIMB = (function () {
   }
   function daysSince(s) { return daysBetween(parseDate(s), TODAY); }
   function daysUntil(s) { return daysBetween(TODAY, parseDate(s)); }
+  // 남은 일자 배지 색(만료 임박, 만료 예정): 30일 이내 Pink, 60일 이내 Purple, 그 외 Blue (REQ-DASH-07)
+  function ddayTone(d) { return d <= 30 ? 'danger' : d <= 60 ? 'attention' : 'progress'; }
   // 날짜 표기: 'YYYY-MM-DD' 그대로 '2027-01-01' (v0.35 기획자 결정. v0.31의 '2026. 10. 5.'에서 바꿈, 맞춤법 때문에 마침표로 쓸 필요 없음)
   //   빈칸이 없어 날짜 안에서는 줄이 바뀌지 않음. 날짜와 시각 사이, 물결표 뒤에서는 줄이 바뀔 수 있음
   function fmtDate(s) {
@@ -176,6 +179,8 @@ window.CLIMB = (function () {
     if (man) parts.push(man.toLocaleString('ko-KR') + '만');
     return parts.join(' ') + ' 원';
   }
+  // 28800000 → "28,800,000원" (표의 금액 칸, REQ-UI-17). 큰 금액을 읽기 쉽게 줄일 때는 fmtKRW
+  function fmtWon(n) { return Number(n || 0).toLocaleString('ko-KR') + '원'; }
 
   /* ---------- 계약·결재 관련 ---------- */
   function roleLabel(role) { return D.ROLES[role] || role; }
@@ -199,6 +204,8 @@ window.CLIMB = (function () {
     const d = dept != null && dept !== '' ? dept : u.dept;
     return (d ? d + ' ' : '') + u.name;
   }
+  // 사람 id로 계정(이메일, 상태, 역할 목록)을 찾음. 이름으로 찾으면 같은 이름이 둘일 때 섞이므로 id로만
+  function accountOf(id) { return (D.ACCOUNTS || []).filter(function (a) { return a.id === id; })[0] || null; }
 
   /* ---------- 표준계약서와 판 (v0.53 기획자 요청, REQ-CHK-09, SCR-45) ----------
    * 그날 쓰던 판: 적용 시작일이 그날 이전인 판 중 가장 늦은 것. 계약에는 기안할 때 고른 표준계약서와 판을 남김
@@ -590,15 +597,17 @@ window.CLIMB = (function () {
 
   function pendingSteps(c) { return (c.approvals || []).filter(function (a) { return a.state === 'PENDING'; }); }
   function currentStep(c) { return pendingSteps(c)[0] || null; }
+  // 체결일(통계와 보고서, 계약 요약서): 체결본 등록(⑦)이 끝난 때. 조건 그대로 연장(날인과 체결본 없음)은 계약 완료(⑩)된 때
+  //   buildReview가 차수와 다시 등록 요청을 따져 정한 signedAt, completedAt을 씀(결재 기록을 직접 뒤지지 않음)
+  function signDate(c) { return (c.renewMode === 'AUTO' ? c.completedAt : c.signedAt) || ''; }
+  // 계약 방식 코드(DIRECT, PROCURE, INDIRECT → D.METHODS). 예전 값 리셀러는 간접으로 읽음(v0.34 계약 유형을 계약 방식에 합침, REQ-ARC-09)
+  function methodOf(c) {
+    const m = (c.form || {}).method;
+    return (m === 'RESELLER' ? 'INDIRECT' : m) || (c.type === '리셀러 계약' ? 'INDIRECT' : 'DIRECT');
+  }
   function routedSteps(c) { return (c.approvals || []).filter(function (a) { return a.state !== 'SKIPPED'; }); }
   // 2단계 계약 검토에서 거치는 단계만 (결재 단계 점, 몇 번째 단계인지)
   function routedReview(c) { return routedSteps(c).filter(function (a) { return a.phase === 2; }); }
-  // 현재 몇 번째 결재 단계인지 (생략한 단계는 세지 않음. 예: 3단계 중 2단계)
-  function stepPosition(c) {
-    const list = routedReview(c);
-    const idx = list.findIndex(function (a) { return a.state === 'PENDING' || a.state === 'REJECTED'; });
-    return { pos: idx + 1, total: list.length };
-  }
   // 결재 단계에 머문 일수 (step을 주지 않으면 지금 차례인 단계 중 가장 오래된 것)
   function waitDays(c, step) {
     const list = step ? [step] : pendingSteps(c);
@@ -662,6 +671,8 @@ window.CLIMB = (function () {
    *   그리고 관리자가 지정한 열람자(조직 또는 사람, v0.52)만 열람 가능
    *   관찰자와 재무 리더, 재무 임원은 지정되지 않으면 열람 제한 계약을 볼 수 없음(재무는 아래 회계 영향 건만) [가정 v0.29]
    * ※ 실제 시스템에서는 반드시 서버에서 판단해야 합니다. 화면에서 가리는 것만으로는 보안이 되지 않습니다. */
+  // 볼 수 없는 계약을 열었을 때의 안내 (결재 문서, 계약 상세, 계약 요약서가 같은 문장을 씀)
+  const RESTRICTED_MSG = '열람 제한 계약은 요청자, 그 계약의 결재선과 단계 담당자, 관리자, 지정 열람자만 볼 수 있습니다.';
   function canView(c, user) {
     // 작성 중(임시 저장) 계약은 작성자 본인만 봅니다. [가정]
     if (c.status === 'DRAFT') return c.requesterId === user.id;
@@ -729,7 +740,7 @@ window.CLIMB = (function () {
       const label = p ? D.STEPS[p.step].no + ' ' + stepIng(c, p.step) : D.STATUS[c.status].label;
       // 짧은 결재(해지, 그대로 연장)는 체결본이 없으므로 승인 후 일수로
       // 운영 변경은 체결본이 없으므로 승인 후(영업 검토가 없으면 기안 후) 일수로
-      if (isChange(c)) return esc(label) + (C_SALES(c) ? ' (승인 후 ' : ' (기안 후 ') + daysSince(c.approvedAt) + '일)';
+      if (isChange(c)) return esc(label) + (hasSalesReview(c) ? ' (승인 후 ' : ' (기안 후 ') + daysSince(c.approvedAt) + '일)';
       return esc(label) + (c.status === 'APPROVED' || !c.signedAt
         ? ' (승인 후 ' + daysSince(c.approvedAt) + '일)'
         : ' (체결 후 ' + daysSince(c.signedAt) + '일)');
@@ -740,7 +751,8 @@ window.CLIMB = (function () {
     if (c.status === 'EXPIRED') return '만료 (' + fmtDate(c.endDate) + ')';
     return '-';
   }
-  function C_SALES(c) { return (c.approvals || []).some(function (a) { return a.step === 'S03' && a.state !== 'SKIPPED'; }); }
+  // 운영 변경에 ③ 영업 검토를 거쳤는지(거쳤으면 "승인 후", 아니면 "기안 후" 일수)
+  function hasSalesReview(c) { return (c.approvals || []).some(function (a) { return a.step === 'S03' && a.state !== 'SKIPPED'; }); }
   // 결재 기록의 "한 일" 이름: ⑥⑧⑨⑩의 승인은 단계에 맞는 말로 (예: 날인 완료)
   //   c를 주면 해지와 그대로 연장의 ⑨를 운영 종료 완료, 기간 연장 완료로
   function actionLabel(h, c) {
@@ -942,18 +954,10 @@ window.CLIMB = (function () {
       if (c.group === 'SETTLEMENT') D.SETTLEMENTS[c.code] = c.label;
       if (c.group === 'AFTERCARE') D.AFTERCARE_TYPES[c.code] = c.label;
     });
-    // 계약 유형은 프로토타입이 이름을 그대로 저장하므로 고르는 목록(사용 중인 것)만 다시 만듦
-    D.CONTRACT_TYPES.length = 0;
-    codeList('CONTRACT_TYPE').forEach(function (c) { D.CONTRACT_TYPES.push(c.label); });
   }
   // 코드 목록 (all이 아니면 사용 중인 것만). 고르는 칸은 이것을 씀
   function codeList(group, all) {
     return D.CODES.filter(function (c) { return c.group === group && (all || c.use); });
-  }
-  // 계약 유형 코드의 화면 이름 (프로토타입은 계약에 유형 이름을 저장하므로 규칙도 이름으로 비교)
-  function typeLabel(code) {
-    const c = D.CODES.filter(function (x) { return x.group === 'CONTRACT_TYPE' && x.code === code; })[0];
-    return c ? c.label : code;
   }
   function rename(oldName, newName) {
     D.CONTRACTS.forEach(function (c) { if (c.counterparty === oldName) c.counterparty = newName; });
@@ -1066,7 +1070,7 @@ window.CLIMB = (function () {
     } else if (op.k === 'CODE_EDIT') {
       const c = D.CODES.filter(function (x) { return x.group === op.group && x.code === op.code; })[0];
       if (!c) return;
-      // 프로토타입은 사용자 부서와 계약 유형을 이름으로 저장하므로 이름을 바꾸면 기록의 이름도 바꿔 보여 줌 (실제 시스템은 코드로 저장)
+      // 프로토타입은 사용자 부서를 이름으로 저장하므로 이름을 바꾸면 기록의 이름도 바꿔 보여 줌 (실제 시스템은 코드로 저장)
       if (op.set.label && op.set.label !== c.label) {
         const old = c.label;
         if (op.group === 'DEPT') {
@@ -1084,7 +1088,6 @@ window.CLIMB = (function () {
           }
           D.ASSIGNEE_CHANGES.forEach(function (x) { if (x.step === 'S03:' + old) x.step = 'S03:' + op.set.label; });
         }
-        if (op.group === 'CONTRACT_TYPE') D.CONTRACTS.forEach(function (x) { if (x.type === old) x.type = op.set.label; });
       }
       if (op.set.label) c.label = op.set.label;
       if (typeof op.set.use === 'boolean') c.use = op.set.use;
@@ -1333,16 +1336,16 @@ window.CLIMB = (function () {
     }).join('');
 
     /* 헤더 구성 (REQ-UI-13)
-     *   1줄: [CLIMB | 무하유 계약 관리 플랫폼]
-     *   2줄: [무하유 계약 관리 플랫폼]     [비즈니스1유닛 이도윤님 | (아이콘)로그아웃]
+     *   1줄: [심볼] climb
+     *   2줄: 무하유 계약 관리 플랫폼     [비즈니스1유닛 이도윤님 | (아이콘)로그아웃]
      *   (v0.53 기획자 요청: 머리글 둘째 줄은 한글 이름. 영문 이름은 푸터와 로그인에만)
      * 오른쪽 한 줄은 왼쪽 둘째 줄과 글자 밑선(baseline)을 맞추고, 오른쪽 끝은 본문 오른쪽 끝에 맞춥니다. (v0.15)
      * 화면 알림(종 모양, 알림 숫자)은 두지 않습니다. 알림은 이메일로 보냅니다. (REQ-ENV-09) */
     el.className = 'site-header';
     el.innerHTML =
       '<div class="header-top"><div class="inner">' +
-        // 헤더 첫 줄: [심볼] CLIMB (v0.22, 한글 이름은 푸터에만)
-        '<a class="brand-title" href="index.html" title="개요로 이동">' + brandTitleHtml({ mark: true, ko: false }) + '</a>' +
+        // 헤더 첫 줄: [심볼] climb (둘째 줄 한글 이름은 아래 .brand-en.is-ko)
+        '<a class="brand-title" href="index.html" title="개요로 이동">' + brandTitleHtml({ mark: true }) + '</a>' +
         '<div class="user-line">' +
           // 이름 앞에 조직명: 비즈니스1유닛 이도윤님 | 로그아웃 (v0.29 기획자 결정. 예전에는 역할 배지)
           //   역할은 본인이 알고 관리자만 알면 되므로 헤더에 두지 않고 사용자 권한 관리에서 봄
@@ -1392,7 +1395,7 @@ window.CLIMB = (function () {
     function placeSub() {
       const item = gnbList.querySelector('.gnb-item.is-open'), sub = item && item.querySelector('.gnb-sub');
       if (!sub) return;
-      if (isTouchLayout()) { sub.style.left = ''; return; }
+      if (isPhoneLayout()) { sub.style.left = ''; return; }
       const box = gnbScroll.getBoundingClientRect();
       const left = item.querySelector('.gnb-link').getBoundingClientRect().left - box.left;
       sub.style.left = Math.max(0, Math.min(left, box.width - sub.offsetWidth)) + 'px';
@@ -1449,7 +1452,7 @@ window.CLIMB = (function () {
       // 푸터: 시스템 이름 + 보안 안내 문구 + 저작권. 이용 안내는 메뉴 줄로 옮기고 시스템 문의는 뺌 (REQ-UI-14, 15)
       //   시스템 이름은 머리글과 같은 모양(v0.54 기획자 요청): [심볼] climb / 무하유 계약 관리 플랫폼(작게), 그 아래 영문 이름(작게). 영어는 SUITE, 한글은 Noto Sans KR
       '<div class="inner">' +
-        '<div class="footer-brand"><p class="brand-title">' + brandTitleHtml({ mark: true, ko: false }) + '</p>' +
+        '<div class="footer-brand"><p class="brand-title">' + brandTitleHtml({ mark: true }) + '</p>' +
           '<span class="brand-en is-ko">' + esc(D.BRAND.ko) + '</span><span class="brand-en">' + esc(D.BRAND.en) + '</span></div>' +
         '<p class="footer-notice">' + esc(SECURITY_NOTICE) + '</p>' +
         '<p class="footer-copy">' + meta(['© 2026 ' + D.BRAND.company + ' All rights reserved.', '프로토타입 v0.1']) + '</p>' +
@@ -1582,7 +1585,8 @@ window.CLIMB = (function () {
    * adminHistoryHtml: 화면 아래 변경 이력 표(일시, 대상, 바뀐 내용, 사유, 바꾼 사람) */
   function gate(user, roles, title, msg) {
     if (user.role === 'SUPER' || hasRole(user, roles)) return true;
-    document.getElementById('notice').innerHTML = '<div class="notice" role="status"><p class="notice-title">' + icon('alert') + esc(title) + '</p>' +
+    const box = document.getElementById('notice');
+    if (box) box.innerHTML = '<div class="notice" role="status"><p class="notice-title">' + icon('alert') + esc(title) + '</p>' +
       '<p>' + (msg || '지금은 ' + esc(roleLabel(user.role)) + ' 역할로 보고 있습니다. 화면 맨 위 검은 띠에서 관리자나 최고관리자로 바꾸면 볼 수 있습니다.') + '</p></div>';
     const body = document.getElementById('content');
     if (body) body.hidden = true;
@@ -1659,7 +1663,7 @@ window.CLIMB = (function () {
       '<thead><tr><th scope="col">일시</th><th scope="col">대상</th><th scope="col">바뀐 내용</th><th scope="col">사유</th><th scope="col">바꾼 사람</th></tr></thead><tbody>' +
       (list.length ? list.map(function (e) {
         return '<tr><td class="num-left">' + fmtDateTime(e.at) + '</td><td>' + esc(e.target) + '</td><td>' + esc(e.change) + '</td>' +
-          '<td>' + esc(e.reason) + '</td><td class="center">' + esc(e.byLabel || ownerLabel(e.by)) + '</td></tr>'; // byLabel: 사람이 아닌 기록(예: CLIMB(자동))
+          '<td>' + esc(e.reason) + '</td><td class="center">' + esc(e.byLabel || ownerLabel(e.by)) + '</td></tr>'; // byLabel: 사람이 아닌 기록(예: 플랫폼(자동))
       }).join('') : '<tr><td class="empty-row" colspan="5">아직 바꾼 기록이 없습니다.</td></tr>') + '</tbody></table></div>';
   }
 
@@ -1667,7 +1671,7 @@ window.CLIMB = (function () {
    * "이름 이메일 일시"를 쪽 전체에 옅게 반복해 깝니다. 화면에는 보이지 않고 인쇄와 PDF 저장 때만 나옵니다(common.css).
    * 일시는 인쇄를 누른 때로 다시 찍습니다. 내려받는 PDF에도 서버가 같은 워터마크를 찍습니다(REQ-SEC-08). */
   function renderWatermark(user) {
-    const account = (D.ACCOUNTS || []).filter(function (a) { return a.name === user.name; })[0];
+    const account = accountOf(user.id);
     const el = document.createElement('div');
     el.className = 'watermark';
     el.setAttribute('aria-hidden', 'true');
@@ -1714,9 +1718,9 @@ window.CLIMB = (function () {
   }
 
   // 휴대폰 규칙을 쓰는 화면인지(CSS의 휴대폰 규칙과 같은 조건): 폭 600px 이하이거나, 터치 화면이면서 높이 600px 이하(가로로 눕힌 스마트폰)
-  //   v0.43에는 태블릿도 넣었으나 v0.50 기획자 결정으로 태블릿은 PC 화면을 씀. 이름(isTouchLayout)은 그대로 둠
-  const TOUCH_MQ = 'screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px)';
-  function isTouchLayout() { return !!(window.matchMedia && window.matchMedia(TOUCH_MQ).matches); }
+  //   v0.43에는 태블릿도 넣었으나 v0.50 기획자 결정으로 태블릿은 PC 화면을 씀(예전 이름 isTouchLayout)
+  const PHONE_MQ = 'screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px)';
+  function isPhoneLayout() { return !!(window.matchMedia && window.matchMedia(PHONE_MQ).matches); }
 
   /* ---------- 날짜 입력과 달력 (KRDS 날짜 입력 필드, 달력. v0.35 기획자 요청) ----------
    * 브라우저 기본 날짜 칸은 브라우저마다 모양과 형식("연도-월-일")이 다르고 달력이 작으며 글꼴도 Noto Sans KR이 아니어서,
@@ -1906,7 +1910,7 @@ window.CLIMB = (function () {
     const r = cal.input.parentNode.getBoundingClientRect();
     const vw = document.documentElement.clientWidth, vh = window.innerHeight;
     // 폭: 날짜 칸 폭에 맞춤(v0.35 기획자 요청). PC는 280~322px, 휴대폰(600px 이하)은 칸 폭 그대로(좁은 칸이면 280px)
-    const phone = isTouchLayout();
+    const phone = isPhoneLayout();
     const fit = Math.max(280, Math.min(r.width, phone ? 400 : 322)); // 스마트폰은 칸 폭(최대 400px), PC와 태블릿은 280~322px
     cal.el.style.width = Math.round(Math.min(fit, vw - 16)) + 'px';
     const w = cal.el.offsetWidth, h = cal.el.offsetHeight;
@@ -1956,7 +1960,6 @@ window.CLIMB = (function () {
     const dt = new Date(y, mo, d);
     return dt.getFullYear() === y && dt.getMonth() === mo && dt.getDate() === d ? isoOf(y, mo, d) : '';
   }
-  function dateText(iso) { return iso; } // 칸에 보이는 글자도 YYYY-MM-DD (v0.35)
   function enhanceDates(root) {
     (root || document).querySelectorAll('input[type=date]:not([data-cal])').forEach(function (input) {
       input.setAttribute('data-cal', '');
@@ -1970,7 +1973,7 @@ window.CLIMB = (function () {
       Object.defineProperty(input, 'value', {
         configurable: true,
         get: function () { return isoFromText(INPUT_VALUE.get.call(this)); },
-        set: function (v) { const iso = isoFromText(v); INPUT_VALUE.set.call(this, iso ? dateText(iso) : (v == null ? '' : String(v))); },
+        set: function (v) { const iso = isoFromText(v); INPUT_VALUE.set.call(this, iso ? iso : (v == null ? '' : String(v))); },
       });
       input.value = raw;
       input.defaultValue = INPUT_VALUE.get.call(input); // 초기화(reset) 때도 같은 모양
@@ -2062,35 +2065,47 @@ window.CLIMB = (function () {
     return user;
   }
 
+  /* ---------- 내보내기: 화면 코드가 쓰는 것만 (C.이름) ---------- */
   return {
-    init: init, getRole: getRole, saveRole: saveRole, currentUser: currentUser,
-    daysSince: daysSince, daysUntil: daysUntil, fmtDate: fmtDate, fmtDateTime: fmtDateTime, fmtPeriod: fmtPeriod, fmtToday: fmtToday, fmtKRW: fmtKRW,
-    roleLabel: roleLabel, roleShort: roleShort, josa: josa, ownerLabel: ownerLabel,
-    mailPrefs: mailPrefs, saveMailPrefs: saveMailPrefs, isTouchLayout: isTouchLayout,
-    isBizNo: isBizNo, fmtBizNo: fmtBizNo, isUniqueNo: isUniqueNo, ntsStatus: ntsStatus, searchBusinesses: searchBusinesses, isOppNo: isOppNo, pandaUrl: pandaUrl, pandaLink: pandaLink, hasRole: hasRole, userName: userName, serviceLabel: serviceLabel, productName: productName, featureName: featureName, featureLabel: featureLabel, serviceFromName: serviceFromName, stepLabel: stepLabel,
-    currentStep: currentStep, pendingSteps: pendingSteps, routedSteps: routedSteps, stepPosition: stepPosition, waitDays: waitDays,
-    stepDots: stepDots, progressText: progressText, actionLabel: actionLabel, opsChecks: opsChecks, isReviewStep: isReviewStep, routedReview: routedReview,
-    isShort: isShort, opsChecksFor: opsChecksFor, stepIng: stepIng, kindLabel: kindLabel,
-    rootOf: rootOf, bundleOf: bundleOf, bundles: bundles, expiringBundles: expiringBundles, noticeDate: noticeDate, noticeText: noticeText, nextChildId: nextChildId, startOf: startOf, endOf: endOf,
-    saveDemoContract: saveDemoContract, addNote: addNote, deleteDraft: deleteDraft, nowStamp: nowStamp,
-    reviewRoute: reviewRoute, canAct: canAct, canCancel: canCancel, pendingQueue: pendingQueue, recordAction: recordAction, flash: flash, pagerHtml: pagerHtml,
-    canView: canView, myActions: myActions,
-    templateVersionAt: templateVersionAt, templateOf: templateOf, templateLabel: templateLabel, // 표준계약서 (v0.53)
+    // 화면 시작, 사람과 역할
+    init: init, getRole: getRole, saveRole: saveRole, hasRole: hasRole, roleLabel: roleLabel, roleShort: roleShort,
+    userName: userName, ownerLabel: ownerLabel, accountOf: accountOf, teamOf: teamOf, leaderAt: leaderAt, duties: duties,
+    mailPrefs: mailPrefs, saveMailPrefs: saveMailPrefs, isPhoneLayout: isPhoneLayout,
+    // 날짜, 금액, 글자
+    daysSince: daysSince, daysUntil: daysUntil, daysBetween: daysBetween, ddayTone: ddayTone, addDays: addDays, monthsLater: monthsLater, isoDate: isoDate,
+    fmtDate: fmtDate, fmtDateTime: fmtDateTime, fmtPeriod: fmtPeriod, fmtToday: fmtToday, fmtKRW: fmtKRW, fmtWon: fmtWon, josa: josa, nowStamp: nowStamp,
+    // 거래처, 영업기회, 제품
+    isBizNo: isBizNo, fmtBizNo: fmtBizNo, isUniqueNo: isUniqueNo, ntsStatus: ntsStatus, searchBusinesses: searchBusinesses,
+    isOppNo: isOppNo, pandaUrl: pandaUrl, pandaLink: pandaLink,
+    serviceLabel: serviceLabel, featureName: featureName, featureLabel: featureLabel, serviceFromName: serviceFromName,
+    // 결재 흐름 (결재선, 지금 상태, 처리)
+    reviewRoute: reviewRoute, stepLabel: stepLabel, kindLabel: kindLabel, isShort: isShort, isChange: isChange, changeSales: changeSales,
+    currentStep: currentStep, pendingSteps: pendingSteps, routedReview: routedReview, isReviewStep: isReviewStep, waitDays: waitDays,
+    stepDots: stepDots, progressText: progressText, actionLabel: actionLabel, opsChecksFor: opsChecksFor, signDate: signDate, methodOf: methodOf,
+    canAct: canAct, canCancel: canCancel, recordAction: recordAction, pendingQueue: pendingQueue, myActions: myActions,
+    // 기안자 기준 지금 담당자 (결재선 미리 보기): C.stepUserNow('S03', { requesterId: 'u_sales1' })
+    stepUserNow: function (code, c) { return stepUser(code, c, '9999'); },
+    // 열람 권한과 지정 열람자 (v0.52)
+    canView: canView, restrictedMsg: RESTRICTED_MSG,
+    viewersOf: viewersOf, viewerState: viewerState, viewerKey: viewerKey, viewerLabel: viewerLabel, viewerText: viewerText,
+    // 계약 묶음, 만료, 해지 통지 기한
+    rootOf: rootOf, bundleOf: bundleOf, bundles: bundles, expiringBundles: expiringBundles, noticeDate: noticeDate, noticeText: noticeText,
+    nextChildId: nextChildId, startOf: startOf, endOf: endOf,
+    // 표준계약서 (v0.53)
+    templateVersionAt: templateVersionAt, templateOf: templateOf, templateLabel: templateLabel,
     // 체결 후 의무 (v0.53)
     obligationOwner: obligationOwner, obligationOwnerLabel: obligationOwnerLabel, obligationDues: obligationDues, obligationState: obligationState,
-    obligationWhenText: obligationWhenText, isObligationOwner: isObligationOwner, canHaveObligations: canHaveObligations, canAddObligation: canAddObligation,
+    obligationWhenText: obligationWhenText, canHaveObligations: canHaveObligations, canAddObligation: canAddObligation,
     canRecordObligation: canRecordObligation, canEndObligation: canEndObligation, canSeeObligation: canSeeObligation, obligationsOf: obligationsOf,
     addObligation: addObligation, recordObligation: recordObligation, endObligation: endObligation,
-    viewersOf: viewersOf, viewerState: viewerState, viewerKey: viewerKey, viewerLabel: viewerLabel, viewerText: viewerText, // 지정 열람자 (v0.52)
-    esc: esc, badge: badge, statusBadge: statusBadge, todoAttrs: todoAttrs, icon: icon, brandText: brandText, meta: meta, toast: toast,
-    securityNotice: SECURITY_NOTICE, addDays: addDays, daysBetween: daysBetween,
-    // 관리자 설정 (SCR-51~57)
-    adminSave: adminSave, adminLog: adminLog, assigneeAt: assigneeAt, assigneeOf: assigneeOf, delegationState: delegationState,
-    activeDelegation: activeDelegation, isMyStep: isMyStep, canTake: canTake, isLead: isLead, areaQueue: areaQueue, codeList: codeList, typeLabel: typeLabel,
-    // 기안자 기준 지금 담당자 이름 (결재선 미리 보기): C.stepUserNow('S03', { requesterId: 'u_sales1' })
-    stepUserNow: function (code, c) { return stepUser(code, c, '9999'); },
-    isChange: isChange, changeSales: changeSales, monthsLater: monthsLater, teamOf: teamOf, leaderAt: leaderAt, duties: duties,
-    gate: gate, fieldHtml: fieldHtml, formModal: formModal, adminHistoryHtml: adminHistoryHtml,
-    focusModal: focusModal, wireFields: wireFields, enhanceDates: enhanceDates, setFieldError: setFieldError, breadcrumb: breadcrumb,
+    // 시연 기록 (프로토타입 전용)
+    saveDemoContract: saveDemoContract, addNote: addNote, deleteDraft: deleteDraft, flash: flash,
+    // 관리자 설정 (SCR-51~58)
+    adminSave: adminSave, adminLog: adminLog, assigneeOf: assigneeOf, delegationState: delegationState, activeDelegation: activeDelegation,
+    isMyStep: isMyStep, canTake: canTake, isLead: isLead, areaQueue: areaQueue, codeList: codeList,
+    // 화면 조각과 부품
+    esc: esc, badge: badge, statusBadge: statusBadge, icon: icon, meta: meta, toast: toast, todoAttrs: todoAttrs, securityNotice: SECURITY_NOTICE,
+    gate: gate, fieldHtml: fieldHtml, formModal: formModal, focusModal: focusModal, setFieldError: setFieldError,
+    adminHistoryHtml: adminHistoryHtml, breadcrumb: breadcrumb, pagerHtml: pagerHtml,
   };
 })();

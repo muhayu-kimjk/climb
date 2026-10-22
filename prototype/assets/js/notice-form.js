@@ -40,7 +40,7 @@
       body: C.fieldHtml({ name: 'kind', label: '구분', type: 'select', required: true, value: n.kind, options: [['NOTICE', '공지'], ['RELEASE', '릴리즈']] }) +
         C.fieldHtml({ name: 'title', label: '제목', required: true, value: n.title || '', placeholder: '예: 계약번호 규칙 변경', help: TITLE_HELP.NOTICE, attrs: ' maxlength="20"' }) +
         '<div class="field"><label class="choice"><input type="checkbox" name="important"' + (n.important ? ' checked' : '') + '>중요 공지</label>' +
-          '<p class="field-help">체크하면 개요 맨 위에 보이고, 전체 사용자에게 이메일로 알립니다.</p></div>' +
+          '<p class="field-help">체크하면 "중요" 표시가 붙고, 전체 사용자에게 이메일로 알립니다.</p></div>' +
         '<div data-kind="NOTICE">' + C.fieldHtml({ name: 'body', label: '내용', type: 'textarea', required: true, value: (n.body || []).join('\n\n'), help: '빈 줄로 문단을 나눕니다.' }) + '</div>' +
         '<div data-kind="RELEASE">' +
           C.fieldHtml({ name: 'version', label: '버전', required: true, value: n.version || '', placeholder: '예: v1.0.0', help: '바뀐 정도에 따라 v1.0.0의 숫자를 올립니다(큰 변경, 기능 추가, 작은 고침).' }) +

@@ -1,5 +1,5 @@
 /* =====================================================================
- * CLIMB 프로토타입 예시 데이터 (mock-data.js)
+ * 프로토타입 예시 데이터 (mock-data.js) → window.CLIMB_DATA (화면 코드에서는 D)
  * ---------------------------------------------------------------------
  * - 화면 시연용 가짜 데이터입니다. 실제 시스템에서는 서버 API·DB에서 가져옵니다.
  * - 사람 이름·거래처 이름은 모두 가상입니다.
@@ -12,14 +12,14 @@ window.CLIMB_DATA = (function () {
   const TODAY = '2026-10-19';
 
   // 시스템 명칭 (REQ-NAME-01~05)
-  //   CLIMB = Contract Lifecycle Intelligent Management Base (v0.53 기획자 요청: I는 Intelligent, B는 Base)
+  //   climb = Contract Lifecycle Intelligent Management Base (v0.53 기획자 요청: I는 Intelligent, B는 Base)
   //   머리글(맨 위) 둘째 줄: 한글 이름 "무하유 계약 관리 플랫폼" (v0.53 기획자 요청)
   //   푸터(맨 아래)와 로그인 화면: "Contract Lifecycle Intelligent Management Base" (MUHAYU를 붙이면 한 줄을 넘어 뺌, v0.53)
   //   회사 이름은 저작권 줄에만: "© 2026 MUHAYU Inc."
   const BRAND = {
     name: 'climb',                 // 로고 글자(소문자, SUITE 글꼴)와 브라우저 탭 제목 (v0.53 기획자 요청: 대문자 CLIMB에서 바꿈. 본문 글에는 이름을 쓰지 않고 필요하면 "플랫폼")
     ko: '무하유 계약 관리 플랫폼',   // 머리글 둘째 줄, 푸터 둘째 줄, 로그인 첫 줄
-    // 첫 줄에 CLIMB이 있으므로 영문 이름 끝의 (CLIMB)은 뺌
+    // 영문 이름(climb의 머리글자 풀이). 끝에 (climb)은 붙이지 않음
     en: 'Contract Lifecycle Intelligent Management Base',
     company: 'MUHAYU Inc.',        // 저작권 줄 (v0.53 기획자 요청)
   };
@@ -129,7 +129,6 @@ window.CLIMB_DATA = (function () {
   const CHANGE_RULES = { periodMonths: 2, freeQty: 50 };
 
   /* ---------- 계약 등록(SCR-11) 선택지 (요구사항 정의서 3.4) ---------- */
-  const CONTRACT_TYPES = ['SaaS 이용계약', '비밀유지계약(NDA)', '리셀러 계약', '개인정보 처리위탁 계약', '기타'];
   const METHODS = { DIRECT: '직접', PROCURE: '조달', INDIRECT: '간접' };      // C-10 확정. v0.34: 리셀러 → 간접, 계약 유형을 합침
   const SETTLEMENTS = { LUMP: '일시', SPLIT: '분할', POST: '후불' };          // C-10 확정
 
@@ -597,7 +596,7 @@ window.CLIMB_DATA = (function () {
       history: [],
     },
   ];
-  // 시연용: 체크리스트 4번(v0.21)을 따로 적지 않은 예시는 "아니오"로 채움
+  // 시연용: 체크리스트 4번(v0.21)을 따로 적지 않은 예시는 "아니요"로 채움
   CONTRACTS.forEach(function (c) { if (c.checklist && !c.checklist.accounting) c.checklist.accounting = 'NO'; });
 
   // 개요 화면 강조 기준 일수 [가정] (기획자 결정 필요)
@@ -611,7 +610,10 @@ window.CLIMB_DATA = (function () {
     // 체결 후 의무 (v0.53 기획자 결정, REQ-FLOW-33~36) [가정]
     obligationSoonDays: 14,      // 기한이 이 날수 안이면 "D-n"으로 강조하고 개요 "챙길 의무"에 넣음
     obligationMailDays: [14, 3], // 기한 14일 전과 3일 전에 맡은 분야에 이메일(OBLIGATION). 지나면 다음 날 그 분야 리더에게도
+    expiryWindowDays: 90,        // 만료 예정(개요의 만료 임박, 만료 예정 계약)에 넣는 날수: 90일 안에 끝나거나 해지 통지 기한이 오는 계약
   };
+  // 이 플랫폼을 쓰기 시작한 달(계정 등록일 기준). 매월 기록 점검과 분기 권한 검토는 이달부터 셈(개요의 점검할 일, 접속 기록 점검)
+  const SERVICE_START_MONTH = '2026-09';
 
   /* ---------- 체결 후 의무 (v0.53 기획자 결정, 요구사항 정의서 REQ-FLOW-33~36, 데이터 정의서 obligation) ----------
    * Ironclad와 SAP를 견줘 본 뒤 받아들인 기능. 계약을 맺은 뒤 지켜야 할 약속을 담당 분야와 기한으로 챙김
@@ -795,6 +797,12 @@ window.CLIMB_DATA = (function () {
           '정보보호, 고객지원, 재무의 개요에 "챙길 의무"가 보입니다.'],
         changed: ['로고 글자를 소문자 "climb"으로 바꾸고 SUITE 글꼴을 씁니다. 화면의 안내 글에는 이름 대신 "플랫폼"이라고 씁니다.'],
       } },
+    // v0.10.1 (요구사항 정의서 v0.55): 코드와 문서 정리(QA). 화면 동작은 그대로
+    { id: 'N-0018', kind: 'RELEASE', version: 'v0.10.1', title: '코드와 문서 정리', at: '2026-10-22 23:59', by: 'u_super',
+      items: {
+        changed: ['계약 상세와 계약 요약서에 없앤 "계약 유형" 대신 계약 방식(직접, 조달, 간접)을 보여 줍니다.'],
+        improved: ['화면 동작은 그대로 두고, 겹치거나 쓰지 않는 코드를 정리했습니다. 어두운 화면에서 창 테두리와 고르기 화살표가 더 잘 보입니다.'],
+      } },
   ];
 
   /* ---------- 이메일 알림 (내 계정 SCR-93, v0.45 기획자 요청. 보내는 때는 요구사항 정의서 REQ-ENV-10) ----------
@@ -972,7 +980,7 @@ window.CLIMB_DATA = (function () {
    * 가상의 거래처와 가상의 사업자등록번호입니다.
    * 프로토타입은 계약의 상호(counterparty)로 거래처를 연결합니다. 실제 시스템은 거래처 번호(customer_id)로 연결합니다.
    * use: 사용 여부 / mergedInto: 다른 거래처로 합쳐졌으면 남긴 거래처 번호
-   * C-0001~0013: CLIMB 도입 때 기존 계약관리대장에서 옮긴 거래처 / 그 뒤: 영업이 계약을 등록하며 새로 등록 */
+   * C-0001~0013: 플랫폼 도입 때 기존 계약관리대장에서 옮긴 거래처 / 그 뒤: 영업이 계약을 등록하며 새로 등록 */
   // 기관 또는 부서명 (C-24 v0.39, v0.46 기획자 결정): 사업자등록번호 하나에 거래처 하나. 그 안에서 따로 계약하는 기관이나 부서는
   //   계약마다 이름을 직접 적어 계약에만 남김(contract.unit). 기관 이름은 고유 번호가 없어 확인할 수 없으므로 거래처에 목록으로 두지 않음
   //   (v0.39의 거래처별 기관 목록 CUSTOMER_UNITS는 v0.46에서 없앰)
@@ -1006,7 +1014,7 @@ window.CLIMB_DATA = (function () {
   });
 
   /* ---------- 사업자 정보 DB: 거래처 검색 (기획자 요청 v0.32, 요구사항 정의서 REQ-REG-18) ----------
-   * 상호와 사업자등록번호만 CLIMB 안에 두는(내재화) DB입니다. 출처(v0.34 기획자 결정, C-22): 기획자가 모은 거래처 자료를 받아 넣음(추후 전달).
+   * 상호와 사업자등록번호만 플랫폼 안에 두는(내재화) DB입니다. 출처(v0.34 기획자 결정, C-22): 기획자가 모은 거래처 자료를 받아 넣음(추후 전달).
    *   공공데이터 API는 쓰지 않음(v0.33 권고안을 바꿈). 대표자명, 전화, 이메일은 넣지 않음
    * 계약 등록의 거래처 검색은 우리 거래처 목록(CUSTOMERS)과 이 DB를 함께 찾습니다.
    * 아래는 시연용 가상 사업체와 가상 번호입니다(번호는 사업자등록번호 검증 숫자 규칙에 맞춰 만듦). 실제 사업체가 아닙니다. */
@@ -1117,9 +1125,9 @@ window.CLIMB_DATA = (function () {
       doneBy: 'u_privacy', doneAt: '2026-10-09 14:00', action: '본인에게 확인: 회사가 새로 지급한 노트북. 이상 없음' },
   ];
 
-  return { TODAY, BRAND, ROLES, ROLE_AREAS, ROLE_SHORT, ROLE_AREA, ROLE_BASE, STEP_LEADS, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, CONTRACT_TYPES, METHODS, SETTLEMENTS, PRICE_BOOK, STEPS, REVIEW_GROUPS, POST_GROUPS, PROCESS_ROLES, STEP_ASSIGNEE, APPROVAL_STATE, APPROVAL_ACTIONS, SEAL_CHECKS, OPS_CHECKS, OPS_CHECKS_END, OPS_CHECKS_EXTEND, AFTERCARE_TYPES, FILE_KINDS, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS,
+  return { TODAY, BRAND, ROLES, ROLE_AREAS, ROLE_SHORT, ROLE_AREA, ROLE_BASE, STEP_LEADS, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, METHODS, SETTLEMENTS, PRICE_BOOK, STEPS, REVIEW_GROUPS, POST_GROUPS, PROCESS_ROLES, STEP_ASSIGNEE, APPROVAL_STATE, APPROVAL_ACTIONS, SEAL_CHECKS, OPS_CHECKS, OPS_CHECKS_END, OPS_CHECKS_EXTEND, AFTERCARE_TYPES, FILE_KINDS, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS,
     CHANGE_TYPES, CHANGE_RULES, OPS_CHECKS_PERIOD, TEAM_LEADERS,
     PRODUCTS, FEATURES, TEMPLATES, PRICE_ROWS, currentPrices, CUSTOMERS, BIZ_REGISTRY, BIZ_REGISTRY_INFO, NTS_STATUS, CODE_GROUPS, CODES, DELEGATIONS, ASSIGNEE_CHANGES, ADMIN_LOG, RESTRICT_LOG,
     LOG_REVIEWS, ACCESS_REVIEWS, SEC_ALERT_KINDS, SEC_ALERTS, NOTICE_KINDS, RELEASE_PARTS, NOTICES, EMAIL_TYPES,
-    OBLIGATION_KINDS, OBLIGATION_WHEN, OBLIGATION_PRESETS, OBLIGATIONS };
+    OBLIGATION_KINDS, OBLIGATION_WHEN, OBLIGATION_PRESETS, OBLIGATIONS, SERVICE_START_MONTH };
 })();

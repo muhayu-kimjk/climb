@@ -36,7 +36,7 @@
   const active = byStatus(all, 'ACTIVE');
   // 만료 임박: 계약 묶음의 지금 유효한 계약 기준 (조건 그대로 연장한 기록이 있으면 그 기간, common.js expiringBundles)
   //   해지 통지 기한이 90일 안에 오는 자동갱신 계약도 넣음 (v0.53, REQ-FLOW-32). bundle: 통지 기한 계산용
-  const expiring = C.expiringBundles(90, true).map(function (b) { return Object.assign({}, b.root, { endDate: b.end, bundle: b }); });
+  const expiring = C.expiringBundles(R.expiryWindowDays, true).map(function (b) { return Object.assign({}, b.root, { endDate: b.end, bundle: b }); });
   const restricted = all.filter(function (c) { return c.restricted && c.status !== 'DRAFT'; });
   const myActions = C.myActions(me);
 
@@ -46,11 +46,11 @@
     : all.filter(function (c) { return c.status !== 'DRAFT'; });
 
   /* ---------- 점검할 일 (REQ-DASH-16, REQ-SEC-05, 06, REQ-ADM-19~21) ----------
-   * 접속 기록 점검(SCR-57)과 같은 기준: CLIMB을 쓰기 시작한 달(2026-09)부터,
+   * 접속 기록 점검(SCR-57)과 같은 기준: 이 플랫폼을 쓰기 시작한 달(D.SERVICE_START_MONTH, 2026-09)부터,
    * [가정] 매월 점검 기한은 다음 달 말일, 분기 권한 검토 기한은 분기가 끝난 다음 달 말일 */
   const isAuditor = C.hasRole(me, ['PRIVACY']) || me.role === 'SUPER'; // 정보보호 담당자와 리더(v0.29)
   function auditItems() {
-    const START = '2026-09', THIS = D.TODAY.slice(0, 7);
+    const START = D.SERVICE_START_MONTH, THIS = D.TODAY.slice(0, 7);
     const pad = function (n) { return String(n).padStart(2, '0'); };
     const lastDay = function (y, m) { return y + '-' + pad(m) + '-' + pad(new Date(y, m, 0).getDate()); };
     const next = function (y, m) { return m === 12 ? [y + 1, 1] : [y, m + 1]; };
@@ -225,7 +225,7 @@
             '<td class="col-service">' + esc(C.serviceLabel(c.services)) + '</td>' +
             '<td class="center">' + esc(C.ownerLabel(c.requesterId)) + '</td>' +
             '<td class="num"><span' + (wait >= R.approvalDelayDays ? ' class="wait-long"' : '') + '>' + wait + '일</span></td>' +
-            '<td class="nowrap col-steps">' + (C.isReviewStep(s.step) ? stepDots(c) : '') + esc(C.stepLabel(s.step)) + '</td>' +
+            '<td class="nowrap col-steps">' + (C.isReviewStep(s.step) ? stepDots(c) : '') + esc(C.stepLabel(s.step, c)) + '</td>' +
           '</tr>';
         }).join('') + '</tbody>' +
       '</table></div>';
@@ -295,16 +295,15 @@
       return n && C.daysUntil(n) >= 0 && C.daysUntil(n) <= D.ALERT_RULES.noticeSoonDays && C.canView(c, me);
     }).length;
     const head = panelHead('expiring-title', '만료 임박', null, '전체 보기', 'SCR-43', 'expiring.html') +
-      '<p class="panel-desc">90일 이내에 만료되거나 해지 통지 기한이 오는 계약입니다.' +
+      '<p class="panel-desc">' + R.expiryWindowDays + '일 이내에 만료되거나 해지 통지 기한이 오는 계약입니다.' +
       (soon ? ' 해지 통지 기한이 ' + D.ALERT_RULES.noticeSoonDays + '일 안에 오는 자동갱신 계약이 <a href="expiring.html?view=notice">' + soon + '건</a> 있습니다. 연장하지 않으려면 기한까지 상대방에게 알려야 합니다.' : '') + '</p>';
     if (!expiring.length) {
-      document.getElementById('expiring').innerHTML = head + '<p class="empty">90일 이내에 만료되는 계약이 없습니다.</p>';
+      document.getElementById('expiring').innerHTML = head + '<p class="empty">' + R.expiryWindowDays + '일 이내에 만료되는 계약이 없습니다.</p>';
       return;
     }
     const rows = expiring.map(function (c) {
       const d = C.daysUntil(c.endDate);
-      // D-day 배지: 30일 이내 Pink, 60일 이내 Purple, 그 외 Blue (REQ-DASH-07)
-      const tone = d <= 30 ? 'danger' : d <= 60 ? 'attention' : 'progress';
+      const tone = C.ddayTone(d); // 30일 이내 Pink, 60일 이내 Purple, 그 외 Blue (REQ-DASH-07)
       const dday = '<span class="badge badge--' + tone + '" aria-label="만료까지 ' + d + '일">D-' + d + '</span>';
       // 열람 제한 계약은 고객사, 서비스, 담당자를 가림 (REQ-AUTH-09)
       const owner = C.canView(c, me) ? esc(C.ownerLabel(c.requesterId)) : '-';

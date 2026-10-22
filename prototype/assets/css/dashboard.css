@@ -13,12 +13,8 @@
 .panel-sub { font-size: var(--fs-body-small); font-weight: 500; color: var(--text-subtle); }
 .block-subtitle { margin: 0 0 1.2rem; font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
 
-/* 만료 임박의 해지 통지 기한 줄 (v0.53, list.css의 칸 아래 보조 줄과 같은 모양) */
-.tbl .cell-meta { display: block; margin-top: 0.2rem; font-size: var(--fs-body-xsmall); font-weight: 400; color: var(--text-subtle); }
 /* 설명 글 안의 링크("1건" → 만료 예정의 통지 기한 보기): 밑줄로 링크임을 알림 */
 .panel-desc a { font-weight: 700; color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; }
-
-.reject-reason { display: block; margin-top: 0.4rem; font-size: var(--fs-body-small); color: var(--text-basic); }
 
 /* 대기 일수 강조, 고객사와 서비스 칸, 칸 아래 작은 글자 줄은 목록 화면들이 함께 쓰므로 common.css(표)로 옮김 (v0.18) */
 

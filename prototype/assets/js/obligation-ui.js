@@ -13,7 +13,7 @@
   const esc = C.esc;
   function val(f, n) { const el = f.elements[n]; return el ? String(el.value || '').trim() : ''; }
   function show(f, name, on) { const el = f.querySelector('[data-field="' + name + '"]'); if (el) el.hidden = !on; }
-  function won(n) { return Number(n).toLocaleString('ko-KR') + '원'; }
+  const won = C.fmtWon;
 
   function kindBadge(o) { const k = D.OBLIGATION_KINDS[o.kind] || {}; return C.badge(k.tone || 'line', k.label || o.kind); }
   function stateBadge(o) { const s = C.obligationState(o); return C.badge(s.tone, s.label); }
@@ -53,7 +53,7 @@
         C.fieldHtml({ name: 'title', label: '의무', required: true, placeholder: '예: 달마다 SLA 보고서(가용률) 보내기' }) +
         C.fieldHtml({ name: 'clause', label: '근거 조항', placeholder: '예: SLA 제4조' }) +
         C.fieldHtml({ name: 'when', label: '언제', type: 'select', required: true, options: Object.keys(D.OBLIGATION_WHEN).map(function (k) { return [k, D.OBLIGATION_WHEN[k]]; }) }) +
-        C.fieldHtml({ name: 'due', label: '기한', type: 'date', required: true, help: '이날까지 합니다. 14일 전과 3일 전에 맡은 분야에 이메일이 갑니다.' }) +
+        C.fieldHtml({ name: 'due', label: '기한', type: 'date', required: true, help: '이날까지 합니다. ' + D.ALERT_RULES.obligationMailDays.join('일 전과 ') + '일 전에 맡은 분야에 이메일이 갑니다.' }) +
         '<div class="field-row">' +
           C.fieldHtml({ name: 'first', label: '첫 기한', type: 'date', required: true }) +
           C.fieldHtml({ name: 'every', label: '되풀이', type: 'select', required: true, options: EVERY, help: '계약이 끝나는 날(' + C.fmtDate(b && b.end) + ')까지 되풀이합니다.' }) +
@@ -169,13 +169,13 @@
   }
 
   // 할 일 버튼: 이행 기록(맡은 분야), 기록 보기(모두), 끝내기
-  function actionsHtml(o, me, root) {
+  function actionsHtml(o, me) {
     const s = C.obligationState(o);
     const live = ['ENDED', 'DONE'].indexOf(s.code) < 0;
     // 좁은 칸에 들어가게 한 줄에 하나씩(ob-acts)
     return '<span class="ob-acts">' + (live && C.canRecordObligation(me, o) ? '<button type="button" class="link-act" data-ob-rec="' + o.id + '">이행 기록</button>' : '') +
       '<button type="button" class="link-act" data-ob-view="' + o.id + '">기록 보기</button>' +
-      (live && C.canEndObligation(me, o, root) ? '<button type="button" class="link-act link-act--danger" data-ob-end="' + o.id + '">끝내기</button>' : '') + '</span>';
+      (live && C.canEndObligation(me, o) ? '<button type="button" class="link-act link-act--danger" data-ob-end="' + o.id + '">끝내기</button>' : '') + '</span>';
   }
   // 표 안의 버튼 연결: container 안의 data-ob-* 버튼을 누르면 창을 열고, 끝나면 rerender
   function wire(container, me, rerender) {
@@ -191,6 +191,6 @@
     });
   }
 
-  window.CLIMB_OB = { kindBadge: kindBadge, stateBadge: stateBadge, dueHtml: dueHtml, titleHtml: titleHtml, won: won,
-    openAdd: openAdd, openRecord: openRecord, openEnd: openEnd, openHistory: openHistory, actionsHtml: actionsHtml, wire: wire };
+  // 다른 화면이 쓰는 것: 기한 칸, 의무 칸, 할 일 버튼과 연결, 의무 더하기 창
+  window.CLIMB_OB = { dueHtml: dueHtml, titleHtml: titleHtml, actionsHtml: actionsHtml, wire: wire, openAdd: openAdd };
 })();

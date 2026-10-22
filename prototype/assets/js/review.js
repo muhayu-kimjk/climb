@@ -38,8 +38,7 @@
   }
   if (!C.canView(c, me)) {
     $('#doc-title').innerHTML = C.icon('lock') + '열람 제한 계약';
-    $('#notice').innerHTML = notice('', '이 계약은 볼 수 없습니다',
-      '열람 제한 계약은 요청자, 그 계약의 결재선에 든 사람, 관리자만 볼 수 있습니다.');
+    $('#notice').innerHTML = notice('', '이 계약은 볼 수 없습니다', C.restrictedMsg);
     return;
   }
 
@@ -48,18 +47,14 @@
   const PRICE = {};
   D.PRICE_BOOK.forEach(function (p) { PRICE[p.feature] = p; }); // 가격 기준: 기능마다 하나(v0.49)
   function num(n) { return Number(n || 0).toLocaleString('ko-KR'); }
-  function won(n) { return num(n) + '원'; } // 돈은 반드시 원을 붙임 (REQ-UI-17)
+  const won = C.fmtWon; // 돈은 반드시 원을 붙임 (REQ-UI-17)
   function pct(r) { return Math.round(r * 1000) / 10 + '%'; }
-  function addDays(iso, days) {
-    const p = iso.split('-').map(Number);
-    const d = new Date(p[0], p[1] - 1, p[2] + days);
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-  }
+  const addDays = C.addDays;
   // 해지 기안과 연장 검토(짧은 결재)는 원계약을 기준으로 보여 줌 (REQ-ARC-06, 07)
   const short = C.isShort(c);
   const change = C.isChange(c); // 운영 변경(-C): 기간 변경이나 추가 충전 (v0.26)
   const hrChange = change && /^HR_/.test(c.changeType);
-  // 표준계약서를 바꾼 계약: 조항 대비표 첨부, ④ 법무 승인 의견 필수 (기획자 결정 v0.27, C-20: flex 품의 대신 CLIMB 안에 남김)
+  // 표준계약서를 바꾼 계약: 조항 대비표 첨부, ④ 법무 승인 의견 필수 (기획자 결정 v0.27, C-20: flex 품의 대신 플랫폼 안에 남김)
   const legalNote = !short && !change && !!c.checklist && c.checklist.standard === 'NO';
   const isTerm = c.kind === 'TERMINATE';
   const rootId = C.rootOf(c);
@@ -71,11 +66,11 @@
   const seq = Number(String(rootId).replace(/\D/g, '').slice(-4)) || 1;
   const reqDate = (c.requestedAt || '').slice(0, 10);
   const startDate = c.startDate || f.startDate || (parent && C.startOf(parent)) || addDays(reqDate, 14);
-  const endDate = c.endDate || f.endDate || (parent && C.endOf(parent)) || addDays(addDays(startDate, 365), -1);
+  const endDate = c.endDate || f.endDate || (parent && C.endOf(parent)) || addDays(C.monthsLater(startDate, 12), -1); // 예시: 1년 계약(윤년도 맞게)
   const detail = {
     // 사업자등록번호: 거래처 목록(SCR-55)에 있으면 그 번호, 없으면 예시 번호
     bizNo: f.bizNo || (D.CUSTOMERS.filter(function (cu) { return cu.name === c.counterparty; })[0] || {}).bizNo || (100 + seq % 800) + '-' + (81 + seq % 9) + '-' + String(10000 + (seq * 37) % 89999).padStart(5, '0'),
-    method: (f.method === 'RESELLER' ? 'INDIRECT' : f.method) || (c.type === '리셀러 계약' ? 'INDIRECT' : 'DIRECT'), // 리셀러 → 간접 (v0.34)
+    method: C.methodOf(c), // 리셀러 → 간접 (v0.34)
     // 계약일은 v0.34에서 뺌. 금액이 없는 계약은 v0.41부터 등록하지 않음
     settlement: f.settlement || 'LUMP',
     startDate: startDate, endDate: endDate,
@@ -222,12 +217,12 @@
       const sp = c.supplement, no = D.STEPS[sp.step].no;
       const head = '<strong>' + esc(C.ownerLabel(sp.by)) + ' (' + C.fmtDateTime(sp.at) + ')</strong><br>' + esc(sp.reason) + '<br>';
       html = canResubmit
-        ? notice('', C.stepLabel(sp.step) + '에서 보완을 요청했습니다', head +
+        ? notice('', C.stepLabel(sp.step, c) + '에서 보완을 요청했습니다', head +
           '고친 뒤 화면 아래에서 보완 완료를 누르면 ' + no + '부터 이어서 결재합니다. 금액이나 체크리스트 답을 바꾸면 계약 검토를 처음부터 다시 받습니다.' +
           (me.id === c.requesterId ? '' : ' (시연: 최고관리자가 기안자 대신 처리해 볼 수 있습니다)'))
-        : notice('', C.stepLabel(sp.step) + '에서 보완을 요청해 기안자가 고치는 중입니다', head + '기안자가 고치면 ' + no + '부터 이어서 결재합니다.');
+        : notice('', C.stepLabel(sp.step, c) + '에서 보완을 요청해 기안자가 고치는 중입니다', head + '기안자가 고치면 ' + no + '부터 이어서 결재합니다.');
     } else if (c.status === 'REJECTED') {
-      html = notice('', C.stepLabel(c.rejection.step) + '에서 반려되었습니다',
+      html = notice('', C.stepLabel(c.rejection.step, c) + '에서 반려되었습니다',
         '<strong>' + esc(C.ownerLabel(c.rejection.by)) + ' (' + C.fmtDateTime(c.rejection.at) + ')</strong><br>' + esc(c.rejection.reason) +
         '<br>기안자가 보완해 ' + (round + 1) + '차로 다시 기안합니다.');
     } else if (actionable.length && me.role === 'SUPER') {
@@ -236,7 +231,7 @@
     } else if (c.status === 'APPROVED' || c.status === 'OPS_REVIEW') {
       html = notice('success', c.status === 'APPROVED' ? '계약 검토가 끝나 체결 중입니다' : '체결이 끝나 운영 검토 중입니다',
         (c.status === 'APPROVED' ? C.fmtDateTime(c.approvedAt) + '에 계약 검토가 끝났습니다. ' : C.fmtDateTime(c.signedAt) + '에 체결본을 등록했습니다. ') +
-        (cur ? '지금 차례: ' + esc(C.stepLabel(cur.step)) + ' (' + esc(C.ownerLabel(cur.userId)) + ')' : '') + ret);
+        (cur ? '지금 차례: ' + esc(C.stepLabel(cur.step, c)) + ' (' + esc(C.ownerLabel(cur.userId)) + ')' : '') + ret);
     } else if (c.status === 'TERMINATED') {
       // 해지 기안이 끝났거나(해지 기안 문서), 해지된 원계약
       html = isTerm
@@ -386,7 +381,7 @@
 
   function answer(v) {
     if (v === 'YES') return C.badge('success', '예');
-    if (v === 'NO') return C.badge('danger', '아니오');
+    if (v === 'NO') return C.badge('danger', '아니요');
     if (v === 'NA') return C.badge('neutral', '해당 없음');
     return C.badge('line', '-');
   }
@@ -419,7 +414,7 @@
     // 4번: 회계 영향 특수 조건. 결재선에는 영향 없고, 예면 기안할 때 재무에 이메일로 알림 (REQ-CHK-08)
     '<ul class="doc-checks doc-checks--extra"><li><p class="check-q-text">' + esc('4. 회계에 영향을 주는 특수 조건이 있나요?') + ' ' + answer(ck.accounting) + '</p>' +
       '<p class="check-note">비고: ' + (ck.accountingNote ? esc(ck.accountingNote) : '없음') + '</p>' +
-      '<span class="check-effect">' + (ck.accounting === 'YES' ? '재무 알림: 기안할 때 재무 ' + esc(C.ownerLabel('u_finance')) + '에게 이메일로 알렸습니다(결재선 아님)' : '재무 알림 없음') + '</span></li></ul>';
+      '<span class="check-effect">' + (ck.accounting === 'YES' ? '재무 알림: 기안할 때 재무 ' + esc(C.ownerLabel(C.stepUserNow('S10', c))) + '에게 이메일로 알렸습니다(결재선 아님)' : '재무 알림 없음') + '</span></li></ul>';
   }
 
   /* 첨부 파일 (REQ-SEC-08): 내려받으면 워터마크 PDF. 고칠 수 있는 원본은 기안자, 법무, 관리자만.
@@ -499,7 +494,7 @@
     let html = '';
     if (canResubmit) {
       // 보완 완료: 기안자(시연에서는 최고관리자도)
-      html += '<div class="act-row"><p class="act-target"><strong>' + esc(C.stepLabel(c.supplement.step)) + ' 보완 요청</strong>' +
+      html += '<div class="act-row"><p class="act-target"><strong>' + esc(C.stepLabel(c.supplement.step, c)) + ' 보완 요청</strong>' +
         (me.id === c.requesterId ? '' : ' <span class="behalf">' + esc(C.ownerLabel(c.requesterId)) + ' 대신 (시연)</span>') + '</p>' +
         '<div class="act-btns"><button type="button" class="btn btn--primary btn--md" data-open="RESUBMIT" data-step="S01">보완 완료</button></div></div>';
     }
@@ -507,7 +502,7 @@
       // 최고관리자는 ④⑤처럼 동시에 차례인 단계 중 하나를 골라 대신 처리 (프로토타입 전용)
       const pick = actionable.length > 1
         ? '<label class="act-pick">처리할 단계 <select class="select" id="act-step">' + actionable.map(function (s) {
-            return '<option value="' + s.step + '">' + esc(C.stepLabel(s.step)) + ' (' + esc(C.ownerLabel(s.userId)) + ')</option>';
+            return '<option value="' + s.step + '">' + esc(C.stepLabel(s.step, c)) + ' (' + esc(C.ownerLabel(s.userId)) + ')</option>';
           }).join('') + '</select></label>'
         : '<p class="act-target"><strong>' + esc(C.stepLabel(actionable[0].step, c)) + '</strong>' +
           (actionable[0].userId === me.id ? '' : ' <span class="behalf">' + (behalfText(actionable[0]) || esc(C.ownerLabel(actionable[0].userId)) + ' 대신 (시연)') + '</span>') + '</p>';
@@ -515,7 +510,7 @@
     }
     if (cancelable.length) {
       html += '<div class="act-row act-row--cancel">' + cancelable.map(function (s) {
-        return '<p class="act-target">' + esc(C.stepLabel(s.step)) + ' 승인을 다음 단계가 처리하기 전까지 취소할 수 있습니다.</p>' +
+        return '<p class="act-target">' + esc(C.stepLabel(s.step, c)) + ' 승인을 다음 단계가 처리하기 전까지 취소할 수 있습니다.</p>' +
           '<button type="button" class="btn btn--tertiary btn--md" data-open="CANCEL" data-step="' + s.step + '">승인 취소</button>';
       }).join('') + '</div>';
     }
@@ -662,7 +657,7 @@
     const restart = t.restart && $('#act-restart') && $('#act-restart').checked;
     C.recordAction(c, s, pending.action, comment, me, t.file ? { fileName: fileName } : restart ? { restart: true } : null);
     // 다음 차례 안내
-    const now = C.pendingSteps(c).map(function (x) { return C.stepLabel(x.step) + ' (' + C.ownerLabel(x.userId) + ')'; }).join(', ');
+    const now = C.pendingSteps(c).map(function (x) { return C.stepLabel(x.step, c) + ' (' + C.ownerLabel(x.userId) + ')'; }).join(', ');
     let next = '';
     if (pending.action !== 'REJECT' && pending.action !== 'CANCEL' && pending.action !== 'SUPPLEMENT') {
       next = c.status === 'ACTIVE' && change ? ' 운영 변경이 끝났습니다.'
@@ -672,7 +667,7 @@
         : now ? ' 다음 차례: ' + now : '';
     }
     const done = pending.action === 'APPROVE' && !C.isReviewStep(s.step) ? DONE_MSG[s.step] : DONE_MSG[pending.action];
-    C.flash(C.stepLabel(s.step) + ': ' + done + next);
+    C.flash(C.stepLabel(s.step, c) + ': ' + done + next);
     location.reload();
   }
   $('#action-bar').addEventListener('click', function (e) {

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- 브라우저 탭 제목: CLIMB (REQ-NAME-02) -->
+  <!-- 브라우저 탭 제목: climb (REQ-NAME-02, v0.54 소문자) -->
   <title>climb</title>
   <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
   <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
@@ -234,7 +234,7 @@
           <h2 class="section-title" id="sec-amount"><span class="num">2</span>제품과 금액</h2>
           <p class="section-desc">제품과 기능을 차례로 고르고 계약 금액을 넣으면 그 기능의 표준 단가와 비교해 할인율이 자동으로 계산됩니다.</p><!-- v0.42: 가격 기준을 볼 수 있는 역할 안내는 뺌(규칙 REQ-SCOPE-02는 그대로) -->
 
-          <!-- CLIMB에는 금전 거래가 있는 계약만 등록 (v0.41 기획자 결정). 비밀유지계약 등은 아래 "부속 서류"로 첨부. v0.34의 "금액이 없는 계약" 체크는 뺌 -->
+          <!-- 이 플랫폼에는 금전 거래가 있는 계약만 등록 (v0.41 기획자 결정). 비밀유지계약 등은 아래 "부속 서류"로 첨부. v0.34의 "금액이 없는 계약" 체크는 뺌 -->
           <div class="field" data-field="products" id="products-field">
             <p class="field-label" id="products-label">제품별 금액<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></p>
             <ul class="product-list" id="product-list" aria-labelledby="products-label"></ul>
@@ -266,7 +266,7 @@
               <legend class="field-label">수불부 연동 <span class="opt">(선택)</span><span class="badge badge--proposal tag-tbd">형식 미정</span></legend>
               <div class="choice-row">
                 <label class="choice"><input type="radio" name="ledger" value="YES">예</label>
-                <label class="choice"><input type="radio" name="ledger" value="NO">아니오</label>
+                <label class="choice"><input type="radio" name="ledger" value="NO">아니요</label>
               </div>
             </fieldset>
             <div class="field">
@@ -283,19 +283,19 @@
         <!-- ============ 3. 체크리스트 (3.5) ============ -->
         <section class="panel" aria-labelledby="sec-check">
           <h2 class="section-title" id="sec-check"><span class="num">3</span>체크리스트</h2>
-          <p class="section-desc">1~3번 답에 따라 결재선이 정해집니다. 1~3번이 "아니오"이거나 4번이 "예"이면 비고를 꼭 적습니다. 체크리스트 검토(영업지원)는 어떤 경우에도 생략되지 않습니다.</p>
+          <p class="section-desc">1~3번 답에 따라 결재선이 정해집니다. 1~3번이 "아니요"이거나 4번이 "예"이면 비고를 꼭 적습니다. 체크리스트 검토(영업지원)는 어떤 경우에도 생략되지 않습니다.</p>
 
           <fieldset class="field check-q" data-field="standard">
             <legend class="field-label">1. 표준계약서를 사용하나요?<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
-            <p class="field-help">조항이 담긴 일반 사항을 한 줄이라도 바꿨다면 "아니오"입니다.</p><!-- REQ-CHK-03 -->
+            <p class="field-help">조항이 담긴 일반 사항을 한 줄이라도 바꿨다면 "아니요"입니다.</p><!-- REQ-CHK-03 -->
             <div class="choice-row">
               <label class="choice"><input type="radio" name="standard" value="YES">예</label>
-              <label class="choice"><input type="radio" name="standard" value="NO">아니오</label>
+              <label class="choice"><input type="radio" name="standard" value="NO">아니요</label>
             </div>
             <p class="check-result" id="q1-result" aria-live="polite"></p>
             <p class="field-error" hidden></p>
           </fieldset>
-          <!-- 기준 표준계약서 (v0.53 기획자 요청, REQ-CHK-09): 고른 표준계약서와 그날의 판이 계약에 남음. 상대방 양식이면 1번은 "아니오" -->
+          <!-- 기준 표준계약서 (v0.53 기획자 요청, REQ-CHK-09): 고른 표준계약서와 그날의 판이 계약에 남음. 상대방 양식이면 1번은 "아니요" -->
           <div class="field" data-field="template">
             <label class="field-label" for="f-template">기준 표준계약서<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
             <select class="select" id="f-template" name="template"></select>
@@ -336,7 +336,7 @@
             <p class="field-help">예: 무상 사용 기간이나 무상 추가 제공, 해지할 때 환불, 사용량이나 성과에 따른 대가, 연도별로 다른 금액, 반품 조건</p>
             <div class="choice-row">
               <label class="choice"><input type="radio" name="accounting" value="YES">예</label>
-              <label class="choice"><input type="radio" name="accounting" value="NO">아니오</label>
+              <label class="choice"><input type="radio" name="accounting" value="NO">아니요</label>
             </div>
             <p class="check-result" id="q4-result" aria-live="polite"></p>
             <p class="field-error" hidden></p>
@@ -366,9 +366,9 @@
             <p class="field-error" hidden></p>
           </div>
 
-          <!-- 조항 대비표: 체크리스트 1번이 "아니오"(표준계약서를 바꿈)면 필수 (기획자 결정 v0.27, C-20)
+          <!-- 조항 대비표: 체크리스트 1번이 "아니요"(표준계약서를 바꿈)면 필수 (기획자 결정 v0.27, C-20)
                바꾼 조항마다 표준계약서 문구와 바꾼 문구를 나란히 적은 표. ④ 법무 검토가 이것을 보고 판단을 의견으로 남김
-               flex 품의를 쓰지 않고 품의에 쓰던 내용을 CLIMB 결재 기록에 남기기 위함 -->
+               flex 품의를 쓰지 않고 품의에 쓰던 내용을 플랫폼의 결재 기록에 남기기 위함 -->
           <div class="field" data-field="diffFile" id="diff-field" hidden>
             <p class="field-label" id="diff-label">조항 대비표<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></p>
             <div class="file-drop" data-target="diff">

@@ -25,16 +25,13 @@
  * 칸이 많아 A4 폭을 넘으면 표 영역 안에서만 옆으로 밀어 봅니다. 스크롤바는 늘 보이게 회색으로 */
 .tbl-scroll {
   overflow-x: auto; border: 1px solid var(--border-gray-light); border-radius: var(--radius-lg);
-  scrollbar-width: auto; scrollbar-color: var(--mh-gray) var(--surface-gray-subtler);
+  scrollbar-width: auto; scrollbar-color: var(--border-gray) var(--surface-gray-subtler);
 }
 .tbl-scroll:focus-visible { box-shadow: var(--focus-ring); }
 .tbl-scroll .tbl { width: 100%; }
 .tbl-scroll .tbl tbody tr:last-child td { border-bottom: 0; }
-.empty-row { padding: 3.2rem 1.6rem !important; text-align: center; color: var(--text-subtle); }
-.num-left { font-variant-numeric: tabular-nums; }
-/* 칸 아래 보조 줄 (예: 계약번호, "동시: ⑤") */
-.cell-meta { display: block; margin-top: 0.2rem; font-size: var(--fs-body-xsmall); font-weight: 400; color: var(--text-subtle); }
-.cell-meta .icon { vertical-align: -0.2rem; }
+/* 빈 목록 한 줄("조건에 맞는 계약이 없습니다"). 칸 아래 보조 줄(.cell-meta)과 날짜 칸(.num-left)은 common.css */
+.tbl td.empty-row { padding: 3.2rem 1.6rem; text-align: center; color: var(--text-subtle); }
 /* 표 줄 안의 할 일 버튼 (만료 예정의 갱신 검토, 해지 기안, 내 등록 목록의 이어서 작성 등) */
 .row-actions { display: inline-flex; flex-wrap: wrap; gap: 0.6rem; }
 @media print { .row-actions { display: none; } }
@@ -62,6 +59,7 @@
 .page-btn.is-current { background: var(--control-checked); color: var(--control-checked-text); font-weight: 700; }
 .page-btn:disabled { color: var(--text-disabled); cursor: default; }
 .page-range { margin-top: 0.8rem; font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
+.page-gap { display: inline-flex; align-items: center; justify-content: center; min-width: 2.4rem; color: var(--text-subtle); } /* 쪽 번호 사이 "…" */
 
 /* ---------- 휴대폰 (방식 B): 배치는 같게, 거르기 칸만 두 줄로 ---------- */
 @media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {

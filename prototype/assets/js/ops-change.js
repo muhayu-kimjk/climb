@@ -172,7 +172,7 @@
     // 운영 변경 기록 (데이터 정의서 contract: kind CHANGE, change_type, change_qty, change_amount, activity_url)
     const rec = record();
     C.saveDemoContract(rec);
-    const next = C.pendingSteps(rec).map(function (x) { return C.stepLabel(x.step) + ' (' + C.ownerLabel(x.userId) + ')'; }).join(', ');
+    const next = C.pendingSteps(rec).map(function (x) { return C.stepLabel(x.step, rec) + ' (' + C.ownerLabel(x.userId) + ')'; }).join(', ');
     C.flash(newId + ' 운영 변경을 기안했습니다. 다음 차례: ' + next);
     location.href = 'review.html?id=' + encodeURIComponent(newId);
   });

@@ -11,8 +11,6 @@ a.board-title:hover { color: var(--text-primary); text-decoration: underline; te
 .tbl--board .col-kind { width: 1%; white-space: nowrap; text-align: center; } /* 짧은 칸은 가운데 (v0.50) */
 
 /* ---------- 글 보기 ---------- */
-/* 제목은 양쪽 정렬하지 않음(두 줄로 넘어갈 때 낱말 사이가 크게 벌어지지 않게) */
-.post-head .page-title { text-align: left; }
 .post-head { padding-bottom: 2rem; border-bottom: 1px solid var(--border-gray-light); }
 .post-body { margin-top: 2.4rem; font-size: var(--fs-body-medium); line-height: 1.7; color: var(--text-basic); }
 .post-body p + p { margin-top: 1.2rem; }
@@ -73,8 +71,8 @@ a.board-title:hover { color: var(--text-primary); text-decoration: underline; te
 .mail-facts th, .mail-facts td { padding: 0.8rem 1rem; border-bottom: 1px solid var(--border-gray-light); vertical-align: top; text-align: left; }
 .mail-facts th { width: 11rem; font-weight: 500; color: var(--text-subtle); background: var(--surface-gray-subtler); }
 .mail-facts td { color: var(--text-basic); }
-.mail-cta { margin-top: 2rem !important; }
-.mail-note { margin-top: 2rem !important; padding-top: 1.2rem; border-top: 1px solid var(--border-gray-light); font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
+.mail-body > .mail-cta { margin-top: 2rem; }
+.mail-body > .mail-note { margin-top: 2rem; padding-top: 1.2rem; border-top: 1px solid var(--border-gray-light); font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
 
 .mail-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1.2rem; margin-top: 2rem; }
 

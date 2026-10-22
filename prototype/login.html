@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- 브라우저 탭 제목: CLIMB (REQ-NAME-02) -->
+  <!-- 브라우저 탭 제목: climb (REQ-NAME-02, v0.54 소문자) -->
   <title>climb</title>
   <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
   <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
@@ -20,14 +20,14 @@
   SCR-00 로그인 (docs/02_화면목록.md)
   - 회사 Google 계정으로 로그인합니다. 회사 도메인 계정만 허용합니다. (REQ-ENV-03)
   - 사내망 또는 VPN에서만 접속할 수 있습니다(REQ-ENV-02). 화면에는 적지 않음 (v0.31 기획자 결정)
-  - (v0.31 기획자 결정) 화면에 CLIMB 글자를 두지 않고 한글 이름과 영문 이름만, 안내는 @muhayu.com 계정 한 줄만
+  - (v0.31 기획자 결정) 화면에 로고 글자(climb)를 두지 않고 한글 이름과 영문 이름만, 안내는 @muhayu.com 계정 한 줄만
   - 프로토타입: 버튼을 누르면 실제 인증 없이 아래에서 고른 역할로 대시보드에 들어갑니다.
   - 개발팀 참고: Google OAuth 2.0 / OpenID Connect. 허용 도메인(hd) 검증은 반드시 서버에서 합니다.
 ====================================================================== -->
 <body class="login-page" data-page="SCR-00">
   <main class="login-wrap">
     <section class="login-card" aria-label="로그인">
-      <!-- 시스템 이름: 로고 그림 없이 글자로만. CLIMB 글자 없이 한글 이름과 영문 이름 (REQ-NAME-03~04, v0.31) -->
+      <!-- 시스템 이름: 로고 그림 없이 글자로만. 로고 글자(climb) 없이 한글 이름과 영문 이름 (REQ-NAME-03~04, v0.31) -->
       <div class="login-brand" id="login-brand"></div>
 
       <button type="button" class="btn btn--lg btn--google" id="google-login">
@@ -60,7 +60,7 @@
       const C = window.CLIMB;
       const role = C.getRole();
 
-      // 이름 영역: 무하유 계약 관리 플랫폼 + 영문 명칭. CLIMB 글자는 두지 않음 (REQ-NAME-03~04, v0.31)
+      // 이름 영역: 무하유 계약 관리 플랫폼 + 영문 명칭. 로고 글자(climb)는 두지 않음 (REQ-NAME-03~04, v0.31)
       document.getElementById('login-brand').innerHTML =
         '<h1 class="brand-title"><span class="brand-ko">' + C.esc(D.BRAND.ko) + '</span></h1><span class="brand-en">' + C.esc(D.BRAND.en) + '</span>';
       document.getElementById('login-notice').textContent = C.securityNotice;

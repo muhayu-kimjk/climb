@@ -43,7 +43,6 @@
     if (group === 'DEPT') return '사용자 ' + D.ACCOUNTS.filter(function (a) { return a.dept === c.label; }).length + '명';
     // 서비스는 v0.47부터 한 단계. 그 아래 제품 수는 제품과 기능 관리(SCR-58)의 제품
     if (group === 'SERVICE') return '계약 ' + ctr(function (x) { return (x.services || []).indexOf(c.code) > -1; }) + '건, 제품 ' + D.PRODUCTS.filter(function (p) { return p.service === c.code; }).length + '개';
-    if (group === 'CONTRACT_TYPE') return '계약 ' + ctr(function (x) { return x.type === c.label; }) + '건';
     if (group === 'METHOD') return '계약 ' + ctr(function (x) { return (x.form || {}).method === c.code; }) + '건';
     if (group === 'SETTLEMENT') return '계약 ' + ctr(function (x) { return (x.form || {}).settlement === c.code; }) + '건';
     if (group === 'AFTERCARE') return '기록 ' + D.CONTRACTS.reduce(function (n, x) { return n + (x.notes || []).filter(function (t) { return t.type === c.code; }).length; }, 0) + '건';

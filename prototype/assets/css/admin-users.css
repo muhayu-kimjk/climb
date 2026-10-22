@@ -12,10 +12,8 @@
 .tbl--users td { padding-top: 1.2rem; padding-bottom: 1.2rem; }
 .tbl--users .cell-name { font-weight: 700; color: var(--text-basic); }
 .role-badges { display: inline-flex; gap: 0.4rem; }
-/* 사용 중지 계정: 글자를 흐리게 */
-.tbl--users tr.is-muted td { color: var(--text-disabled); }
+/* 사용 중지 계정: 글자를 흐리게(줄 전체는 admin.css의 .tbl tr.is-muted) */
 .tbl--users tr.is-muted .cell-name { color: var(--text-subtle); }
-.link-edit { color: var(--text-primary); font-weight: 700; text-decoration: underline; text-underline-offset: 0.3rem; }
 
 /* 이메일 칸 고정: 옆으로 밀어도 누구의 줄인지 보이게 왼쪽에 붙임 */
 .tbl--users .col-email { position: sticky; left: 0; z-index: 1; background: var(--surface-white); box-shadow: inset -1px 0 0 var(--border-gray-light); }

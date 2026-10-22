@@ -16,7 +16,7 @@
   const $ = function (s) { return document.querySelector(s); };
   const ORDER = { LATE: 0, SOON: 1, PLANNED: 2, EVENT: 3, DONE: 4, ENDED: 5 };
   // 챙길 것 = 모두 함과 끝냄을 뺀 것(처음 값), 급한 것 = 기한 지남과 14일 이내
-  const STATES = [['OPEN', '챙길 것'], ['URGENT', '급한 것'], ['LATE', '기한 지남'], ['SOON', '14일 이내'],
+  const STATES = [['OPEN', '챙길 것'], ['URGENT', '급한 것'], ['LATE', '기한 지남'], ['SOON', D.ALERT_RULES.obligationSoonDays + '일 이내'],
     ['PLANNED', '예정'], ['EVENT', '일이 생기면'], ['DONE', '모두 함'], ['ENDED', '끝냄'], ['', '전체']];
 
   function options(sel, list) { sel.innerHTML = list.map(function (o) { return '<option value="' + esc(o[0]) + '">' + esc(o[1]) + '</option>'; }).join(''); }
@@ -29,9 +29,10 @@
   function defaults() { $('#f-owner').value = myArea; $('#f-state').value = 'OPEN'; }
   defaults();
 
-  function rootOf(o) { return D.CONTRACTS.find(function (c) { return c.id === o.bundle; }); }
+  // 의무가 붙은 계약 묶음의 원계약 (C.rootOf와 이름이 겹치지 않게)
+  function bundleRoot(o) { return D.CONTRACTS.find(function (c) { return c.id === o.bundle; }); }
   function contractCell(o) {
-    const root = rootOf(o);
+    const root = bundleRoot(o);
     if (!root) return '-';
     if (!C.canView(root, me)) return '<span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span><span class="cell-meta">' + esc(o.bundle) + '</span>';
     return '<a class="cell-title" href="contract.html?id=' + encodeURIComponent(o.bundle) + '">' + esc(root.counterparty) + '</a>' +
@@ -42,7 +43,7 @@
     const q = $('#f-q').value.trim().toLowerCase(), kind = $('#f-kind').value, owner = $('#f-owner').value, st = $('#f-state').value;
     const seen = D.OBLIGATIONS.filter(function (o) { return C.canSeeObligation(me, o); });
     const list = seen.filter(function (o) {
-      const s = C.obligationState(o), root = rootOf(o);
+      const s = C.obligationState(o), root = bundleRoot(o);
       if (kind && o.kind !== kind) return false;
       if (owner && C.obligationOwner(o) !== owner) return false;
       if (st === 'OPEN' && ['DONE', 'ENDED'].indexOf(s.code) > -1) return false;
@@ -68,7 +69,7 @@
         // 휴대폰에서는 맡은 분야 칸을 감추고 계약 아래 작은 줄로 (REQ-ENV-08과 같은 방식)
         '<td>' + contractCell(o) + '<span class="cell-sub">맡은 분야 ' + esc(C.obligationOwnerLabel(o)) + '</span></td>' +
         '<td class="center nowrap col-owner">' + esc(C.obligationOwnerLabel(o)) + '</td>' +
-        '<td class="col-action">' + OB.actionsHtml(o, me, rootOf(o)) + '</td></tr>';
+        '<td class="col-action">' + OB.actionsHtml(o, me, bundleRoot(o)) + '</td></tr>';
     }).join('') : '<tr><td class="empty-row" colspan="5">' + (seen.length ? '조건에 맞는 의무가 없습니다.' : '챙길 의무가 없습니다.') + '</td></tr>';
   }
 

@@ -28,7 +28,7 @@
   const root = b.root, cur = b.current;
   if (!C.canView(root, me)) {
     $('#doc-title').innerHTML = C.icon('lock') + '열람 제한 계약';
-    $('#notice').innerHTML = notice('이 계약은 볼 수 없습니다', '열람 제한 계약은 요청자, 그 계약의 결재선과 단계 담당자, 관리자, 지정 열람자만 볼 수 있습니다.');
+    $('#notice').innerHTML = notice('이 계약은 볼 수 없습니다', C.restrictedMsg);
     return;
   }
 
@@ -47,7 +47,7 @@
     info('고객사', esc(root.counterparty) + (root.unit ? '<span class="cell-meta">기관 또는 부서명: ' + esc(root.unit) + '</span>' : '')),
     bizNo ? info('사업자등록번호', esc(C.fmtBizNo(bizNo))) : '',
     info('서비스', esc(C.serviceLabel(root.services))),
-    info('계약 유형', esc(root.type || '-')),
+    info('계약 방식', esc(D.METHODS[C.methodOf(root)])),
     info('지금 유효한 계약', esc(cur.id) + '<span class="cell-meta">' + esc(C.kindLabel(cur)) + '</span>'),
     info('계약 기간', b.start ? C.fmtPeriod(b.start, b.end) : '-'),
     info('계약 금액', cur.amount ? Number(cur.amount).toLocaleString('ko-KR') + '원<span class="cell-meta">' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도</span>' : '금액 없음'),

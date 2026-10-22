@@ -32,7 +32,7 @@
     return n ? parseInt(n, 10) : null;
   }
   function fmtNum(n) { return n == null ? '' : n.toLocaleString('ko-KR'); }
-  function won(n) { return C.fmtKRW(n); }
+  const krw = C.fmtKRW; // "4,800만 원"처럼 읽기 쉬운 금액(표의 금액 칸은 C.fmtWon)
   function pct(r) { return Math.round(r * 1000) / 10 + '%'; }
   function val(name) {
     const el = form.querySelector('[name="' + name + '"]:checked') || form.querySelector('[name="' + name + '"]');
@@ -358,9 +358,9 @@
   function totalAmount() { return readProducts().reduce(function (a, r) { return a + (r.amount || 0); }, 0); }
 
   /* ---------- 4. 체크리스트 2, 3번 자동 계산 (REQ-CHK-04) ----------
-   * 2번(표준단가표 적용): 모든 줄이 표준 단가 그대로면 예, 하나라도 할인이 있으면 아니오
+   * 2번(표준단가표 적용): 모든 줄이 표준 단가 그대로면 예, 하나라도 할인이 있으면 아니요
    * 3번(할인율 한도 준수): 모든 줄의 할인율이 그 기능의 한도 이하이면 예 (v0.49: 한도는 기능마다)
-   * 모든 계약에는 제품과 금액이 있음(v0.41: 금액이 없는 계약은 CLIMB에 등록하지 않음) */
+   * 모든 계약에는 제품과 금액이 있음(v0.41: 금액이 없는 계약은 플랫폼에 등록하지 않음) */
   function priceCheck(rows) {
     if (!rows.length) return { q2: 'WAIT', q3: 'WAIT', d2: '제품을 넣으면 자동으로 계산됩니다.', d3: '제품을 넣으면 자동으로 계산됩니다.' };
     if (rows.some(function (r) { return !r.product || !r.qty || r.amount == null; })) {
@@ -382,7 +382,7 @@
   }
   function answerHtml(v) {
     if (v === 'YES') return '<span class="badge badge--success">예</span>';
-    if (v === 'NO') return '<span class="badge badge--danger">아니오</span>';
+    if (v === 'NO') return '<span class="badge badge--danger">아니요</span>';
     if (v === 'NA') return '<span class="badge badge--neutral">해당 없음</span>';
     return '<span class="badge badge--line">계산 대기</span>';
   }
@@ -451,7 +451,7 @@
       const info = r.li.querySelector('.price-info');
       const badge = r.li.querySelector('.price-badge');
       if (!r.product) { info.textContent = '제품과 기능을 고르면 표준 단가가 나옵니다.'; badge.innerHTML = ''; return; }
-      info.textContent = '표준 단가 ' + won(r.product.listPrice) + ' (' + r.product.unit + ')' + (r.qty ? ' x ' + r.qty + ' = ' + won(r.std) : '') +
+      info.textContent = '표준 단가 ' + krw(r.product.listPrice) + ' (' + r.product.unit + ')' + (r.qty ? ' x ' + r.qty + ' = ' + krw(r.std) : '') +
         ', 할인율 한도 ' + pct(r.cap);
       if (r.amount == null || r.discount == null) badge.innerHTML = '<span class="badge badge--line">금액 입력 대기</span>';
       else if (r.discount === 0) badge.innerHTML = '<span class="badge badge--success">표준 단가</span>';
@@ -460,7 +460,7 @@
     });
     // 총액
     const total = totalAmount();
-    $('#amount-total').innerHTML = esc(total ? won(total) : '0원') + (total ? '<span class="exact">' + fmtNum(total) + '원</span>' : '');
+    $('#amount-total').innerHTML = esc(total ? krw(total) : '0원') + (total ? '<span class="exact">' + fmtNum(total) + '원</span>' : '');
     renderYearly();
     // 체크리스트
     const q1 = val('standard');
@@ -468,7 +468,7 @@
     $('#diff-field').hidden = q1 !== 'NO'; // 조항 대비표는 표준계약서를 바꿨을 때만 (v0.27)
     // 4번: 결재선은 그대로, 기안하면 재무에 이메일로 알림 (REQ-CHK-08, REQ-ENV-10)
     const q4 = val('accounting');
-    $('#q4-result').textContent = q4 === 'YES' ? '기안하면 재무 ' + C.ownerLabel('u_finance') + '에게 이메일로 알립니다. 결재선은 바뀌지 않습니다.' : '';
+    $('#q4-result').textContent = q4 === 'YES' ? '기안하면 재무 ' + C.ownerLabel(C.stepUserNow('S10', { requesterId: me.id })) + '에게 이메일로 알립니다. 결재선은 바뀌지 않습니다.' : '';
     const pc = priceCheck(rows);
     $('#q2-answer').innerHTML = answerHtml(pc.q2);
     $('#q2-detail').textContent = pc.d2;
@@ -666,13 +666,13 @@
     }
     need(!!val('settlement'), 'settlement', '정산 방식을 고르세요.');
 
-    // 체크리스트: 1번은 직접 답, "아니오"인 문항은 비고(사유) 필수 (panda p.9)
+    // 체크리스트: 1번은 직접 답, "아니요"인 문항은 비고(사유) 필수 (panda p.9)
     need(!!val('standard'), 'standard', '체크리스트 1번에 답하세요.');
     need(!!val('template'), 'template', '기준 표준계약서를 고르세요. 상대방 양식이면 "상대방 양식"을 고릅니다.');
-    if (val('template') === 'OWN' && val('standard') === 'YES') need(false, 'template', '상대방 양식이면 체크리스트 1번은 "아니오"입니다.');
-    if (val('standard') === 'NO') need(!!val('standardNote'), 'standardNote', '1번이 "아니오"이면 비고에 바꾼 조항과 이유를 적으세요.');
-    if (current.pc.q2 === 'NO') need(!!val('priceNote'), 'priceNote', '2번이 "아니오"이면 비고에 표준 단가와 다르게 정한 이유를 적으세요.');
-    if (current.pc.q3 === 'NO') need(!!val('capNote'), 'capNote', '3번이 "아니오"이면 비고에 할인율 한도를 넘긴 영업적 사유를 적으세요.');
+    if (val('template') === 'OWN' && val('standard') === 'YES') need(false, 'template', '상대방 양식이면 체크리스트 1번은 "아니요"입니다.');
+    if (val('standard') === 'NO') need(!!val('standardNote'), 'standardNote', '1번이 "아니요"이면 비고에 바꾼 조항과 이유를 적으세요.');
+    if (current.pc.q2 === 'NO') need(!!val('priceNote'), 'priceNote', '2번이 "아니요"이면 비고에 표준 단가와 다르게 정한 이유를 적으세요.');
+    if (current.pc.q3 === 'NO') need(!!val('capNote'), 'capNote', '3번이 "아니요"이면 비고에 할인율 한도를 넘긴 영업적 사유를 적으세요.');
     need(!!val('accounting'), 'accounting', '체크리스트 4번에 답하세요.');
     if (val('accounting') === 'YES') need(!!val('accountingNote'), 'accountingNote', '4번이 "예"이면 비고에 어떤 조건인지 적으세요.');
 
@@ -726,7 +726,7 @@
     const rows = [
       ['거래처', val('counterparty') + (val('bizNo') ? ' (' + val('bizNo') + ')' : '') + (unitValue() ? ', 기관 또는 부서: ' + unitValue() : '')],
       ['서비스', serviceOfProducts()],
-      ['계약 금액', current.total ? won(current.total) + ' (부가세 별도)' : '금액 없음'],
+      ['계약 금액', current.total ? krw(current.total) + ' (부가세 별도)' : '금액 없음'],
       ['계약 기간', C.fmtPeriod(val('startDate'), val('endDate'))],
       ['서비스 수준 협약(SLA)', val('sla') === 'YES' ? '있음' : '없음'],
       ['기준 표준계약서', templatePick() ? (templatePick().id === 'OWN' ? '상대방 양식(표준계약서 없음)' : templatePick().label) : '-'], // v0.53

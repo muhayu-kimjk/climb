@@ -16,7 +16,7 @@
 /* 표 줄 안의 관리 버튼: 글자 링크 모양. 조심할 일(해제, 끝내기)은 핑크 */
 .link-act { min-height: var(--touch-min); padding: 0 0.2rem; font-size: var(--fs-body-small); font-weight: 700; color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; white-space: nowrap; }
 .link-act + .link-act { margin-left: 1rem; }
-.link-act--danger { color: var(--status-danger-fill); }
+.link-act--danger { color: var(--text-danger); }
 .link-act:disabled { color: var(--text-disabled); text-decoration: none; cursor: default; }
 /* 체결 후 의무의 할 일(이행 기록, 기록 보기, 끝내기): 좁은 칸에서 한 줄에 하나씩 (v0.53) */
 .ob-acts { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 0.2rem; }
@@ -41,14 +41,11 @@
 .tbl--history td { vertical-align: top; }
 .tbl--history td:nth-child(3), .tbl--history td:nth-child(4) { min-width: 16rem; }
 
-/* 품의 문서 같은 표 안의 링크 */
-.doc-link { color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; }
+/* 품의 문서 같은 표 안의 링크(.doc-link)는 common.css */
 
 /* 사용자 권한 관리(SCR-51): 목록 아래 권한 변경 이력 */
 .users-history { margin-top: 3.2rem; }
 
-/* 묶음 아래 작은 안내 */
-.sub-note { margin-top: 1rem; font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
 
 /* 입력 창 안의 정보 줄 (예: 지금 담당자)과 체크 묶음 */
 .modal-info { padding: 1.2rem 1.6rem; border-radius: var(--radius-md); background: var(--surface-gray-subtler); font-size: var(--fs-body-small); color: var(--text-basic); }
@@ -70,13 +67,11 @@
 
 /* 코드표 고르기 (코드 관리): 누른 것만 진한 초록. 누르는 영역 44px */
 .seg { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1.6rem; }
-.seg button { min-height: var(--touch-min); padding: 0 1.6rem; border: 1px solid var(--border-gray); border-radius: 99rem; background: var(--surface-white); font-size: var(--fs-body-small); color: var(--text-basic); }
+.seg button { min-height: var(--touch-min); padding: 0 1.6rem; border: 1px solid var(--border-gray); border-radius: var(--radius-max); background: var(--surface-white); font-size: var(--fs-body-small); color: var(--text-basic); }
 .seg button:hover { background: var(--surface-gray-subtler); }
 .seg button[aria-pressed="true"] { border-color: var(--control-checked); background: var(--control-checked); color: var(--control-checked-text); font-weight: 700; }
 @media print { .seg { display: none; } }
 
-/* 입력 창 안의 세로 선택지 (예: 합칠 때 남길 거래처) */
-.modal-form .choice-col { display: flex; flex-direction: column; }
 
 /* 표 안의 고르기 칸: 체크 상자만 (누르는 영역 44px) */
 .choice--only { gap: 0; }

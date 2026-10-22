@@ -15,7 +15,7 @@
   C.breadcrumb([['내 계정']]);
 
   /* ---------- 1. 계정 정보 ---------- */
-  const acc = (D.ACCOUNTS || []).filter(function (a) { return a.name === me.name; })[0] || {};
+  const acc = C.accountOf(me.id) || {};
   const roles = (acc.roles && acc.roles.length ? acc.roles : [me.role]).map(function (r) { return C.roleLabel(r); });
   const info = function (k, v) { return '<dt>' + esc(k) + '</dt><dd>' + v + '</dd>'; };
   $('#account-info').innerHTML =
@@ -63,7 +63,7 @@
   function mailHtml(t) {
     const s = t.sample;
     const isUser = /^u_/.test(s.to);
-    const a = isUser ? (D.ACCOUNTS || []).filter(function (x) { return x.id === s.to || x.name === (D.USERS[s.to] || {}).name; })[0] : null;
+    const a = isUser ? C.accountOf(s.to) : null;
     const to = isUser ? C.ownerLabel(s.to) + (a && a.email ? ' <' + a.email + '>' : '') : s.to;
     const head = function (k, v) { return '<div><dt>' + esc(k) + '</dt><dd>' + v + '</dd></div>'; };
     // 글에는 이름(climb)을 쓰지 않고 "계약 관리 플랫폼"으로 (v0.53 기획자 요청). 메일 머리의 로고만 climb(SUITE 글꼴)

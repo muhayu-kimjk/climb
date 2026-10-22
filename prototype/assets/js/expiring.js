@@ -18,8 +18,9 @@
   const $ = function (s) { return document.querySelector(s); };
 
   const isSales = me.role === 'SALES';
-  if (!isSales) $('#intro').textContent = '90일 안에 끝나거나 해지 통지 기한이 오는 모든 계약입니다(' + C.roleLabel(me.role) + ' 보기). 다음에 오는 날(통지 기한이나 만료일)이 가까운 순서로 보여 줍니다.';
-  const all = C.expiringBundles(90, true).filter(function (b) { return !isSales || b.root.requesterId === me.id; });
+  const WINDOW = D.ALERT_RULES.expiryWindowDays; // 만료 예정에 넣는 날수(90일)
+  if (!isSales) $('#intro').textContent = WINDOW + '일 안에 끝나거나 해지 통지 기한이 오는 모든 계약입니다(' + C.roleLabel(me.role) + ' 보기). 다음에 오는 날(통지 기한이나 만료일)이 가까운 순서로 보여 줍니다.';
+  const all = C.expiringBundles(WINDOW, true).filter(function (b) { return !isSales || b.root.requesterId === me.id; });
   const SOON = D.ALERT_RULES.noticeSoonDays;
 
   // 해지 통지 기한: 자동갱신 계약은 만료 며칠 전까지 상대방에게 알려야 연장을 막을 수 있음 (common.js noticeDate)
@@ -49,8 +50,7 @@
       const c = b.root;
       const visible = C.canView(c, me);
       const d = C.daysUntil(b.end);
-      // D-day 배지: 30일 이내 Pink, 60일 이내 Purple, 그 외 Blue (REQ-DASH-07)
-      const tone = d <= 30 ? 'danger' : d <= 60 ? 'attention' : 'progress';
+      const tone = C.ddayTone(d); // 30일 이내 Pink, 60일 이내 Purple, 그 외 Blue (REQ-DASH-07)
       const cust = visible
         ? '<a class="cell-title" href="contract.html?id=' + encodeURIComponent(b.id) + '">' + esc(c.counterparty) + '</a>' +
           '<span class="cell-sub">' + esc(C.serviceLabel(c.services)) + '</span><span class="cell-meta">' + esc(b.current.id) + '</span>'
@@ -78,7 +78,7 @@
         '<td class="center col-owner">' + esc(C.ownerLabel(c.requesterId)) + '</td>' +
         '<td class="nowrap">' + todo + '</td>' +
       '</tr>';
-    }).join('') : '<tr><td class="empty-row" colspan="7">' + (all.length ? '조건에 맞는 계약이 없습니다.' : '90일 안에 끝나거나 해지 통지 기한이 오는 계약이 없습니다.') + '</td></tr>';
+    }).join('') : '<tr><td class="empty-row" colspan="7">' + (all.length ? '조건에 맞는 계약이 없습니다.' : WINDOW + '일 안에 끝나거나 해지 통지 기한이 오는 계약이 없습니다.') + '</td></tr>';
   }
 
   $('#filter').addEventListener('input', render);

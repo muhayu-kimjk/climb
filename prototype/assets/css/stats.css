@@ -46,7 +46,7 @@
 }
 .colchart-bars { position: absolute; inset: 0; display: flex; }
 .colchart-bars li { position: relative; flex: 1 1 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; min-width: 0; }
-.colchart-bar { width: min(2.4rem, 64%); border-radius: 0.4rem 0.4rem 0 0; background: var(--chart-bar); }
+.colchart-bar { width: min(2.4rem, 64%); border-radius: var(--radius-sm) var(--radius-sm) 0 0; background: var(--chart-bar); }
 .colchart-val { margin-bottom: 0.4rem; font-size: var(--fs-body-xsmall); font-weight: 700; color: var(--text-bolder); white-space: nowrap; }
 /* 맨 끝 달의 글자는 그래프 밖으로 나가지 않게 오른쪽에 맞춤 */
 .colchart-bars li:last-child .colchart-val { align-self: flex-end; }
@@ -60,7 +60,7 @@
 .hbar-row { display: grid; grid-template-columns: var(--label-w, 9rem) minmax(0, 1fr); gap: 1.2rem; align-items: stretch; min-height: 3.6rem; }
 .hbar-label { align-self: center; font-size: var(--fs-body-small); color: var(--text-basic); word-break: keep-all; }
 .hbar-track { position: relative; display: flex; align-items: center; min-width: 0; }
-.hbar-fill { flex: none; width: calc((100% - var(--val-w, 11rem)) * var(--p)); height: 2rem; border-radius: 0 0.4rem 0.4rem 0; background: var(--chart-bar); }
+.hbar-fill { flex: none; width: calc((100% - var(--val-w, 11rem)) * var(--p)); height: 2rem; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; background: var(--chart-bar); }
 .hbar-val { flex: none; margin-left: 0.8rem; font-size: var(--fs-body-small); color: var(--text-basic); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .hbar-val strong { font-size: var(--fs-body-xsmall); font-weight: 700; color: var(--text-bolder); }
 .hbar-row:hover .hbar-fill { filter: brightness(1.12); }

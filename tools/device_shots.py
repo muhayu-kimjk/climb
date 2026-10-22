@@ -161,7 +161,7 @@ def main():
                 cdp.call("Page.navigate", url=BASE + path)
                 time.sleep(0.6)
                 cdp.js("new Promise(r => { const t = () => document.readyState === 'complete' ? document.fonts.ready.then(() => setTimeout(r, 400)) : setTimeout(t, 100); t(); })")
-                info = cdp.js("JSON.stringify({w: innerWidth, h: innerHeight, touch: !!(window.CLIMB && CLIMB.isTouchLayout()), "
+                info = cdp.js("JSON.stringify({w: innerWidth, h: innerHeight, touch: !!(window.CLIMB && CLIMB.isPhoneLayout()), "
                               "coarse: matchMedia('(pointer: coarse)').matches, docW: document.documentElement.scrollWidth})")
                 shot = cdp.call("Page.captureScreenshot", format="png")
                 fn = os.path.join(out, f"{name}_{path.split('.')[0]}.png")
