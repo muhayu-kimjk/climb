@@ -133,6 +133,12 @@
 
   /* ---------- 4, 5. 사용자 추가와 수정 ---------- */
   function val(f, n) { return (f.elements[n].value || '').trim(); }
+  // 이번 변경(그 시각)으로 풀린 사람 지정 열람자 수 (v0.52: 조직이 바뀌면 사람으로 지정된 열람자 지정이 저절로 풀림, 관리자에게 이메일)
+  function releasedAt(at) {
+    return D.CONTRACTS.reduce(function (n, c) {
+      return n + (c.viewers || []).filter(function (v) { return v.releasedAt === at; }).length;
+    }, 0);
+  }
   function rolesOf(f) { return Array.prototype.slice.call(f.querySelectorAll('[name="roles"]:checked')).map(function (x) { return x.value; }); }
   function roleNames(roles) { return roles.map(C.roleLabel).join(', '); }
   // 조직 목록: 실 아래 유닛은 들여 씀 (v0.29)
@@ -223,9 +229,11 @@
         if (val(f, 'dept') !== a.dept) { set.dept = val(f, 'dept'); parts.push('조직: ' + a.dept + ' → ' + set.dept); }
         if (roles.join() !== a.roles.join()) { set.roles = roles; parts.push('권한: ' + roleNames(a.roles) + ' → ' + roleNames(roles)); }
         if (status !== a.status) { set.status = status; parts.push('상태: ' + D.ACCOUNT_STATUS[a.status].label + ' → ' + D.ACCOUNT_STATUS[status].label); }
-        C.adminSave('USER', a.name + ' (' + a.email + ')', parts.join(', '), val(f, 'reason'), { k: 'ACCOUNT_EDIT', email: a.email, set: set });
+        const label = (a.dept ? a.dept + ' ' : '') + a.name;
+        const e = C.adminSave('USER', a.name + ' (' + a.email + ')', parts.join(', '), val(f, 'reason'), { k: 'ACCOUNT_EDIT', email: a.email, set: set });
         render();
-        C.toast((a.dept ? a.dept + ' ' : '') + a.name + '의 권한을 바꿨습니다.');
+        const n = releasedAt(e.at);
+        C.toast(n ? label + '의 권한을 바꿨고, 사람으로 지정된 열람자 ' + n + '건이 풀려 관리자에게 이메일로 알렸습니다.' : label + '의 권한을 바꿨습니다.');
       },
     });
   }
@@ -265,10 +273,11 @@
       done: function (f) {
         const emails = Array.prototype.map.call(f.querySelectorAll('[name="people"]:checked'), function (x) { return x.value; });
         const names = emails.map(function (e) { return all.filter(function (a) { return a.email === e; })[0].name; });
-        C.adminSave('USER', val(f, 'from') + ' → ' + val(f, 'to'), '조직 옮기기: ' + names.join(', ') + ' (' + names.length + '명)', val(f, 'reason'),
+        const e = C.adminSave('USER', val(f, 'from') + ' → ' + val(f, 'to'), '조직 옮기기: ' + names.join(', ') + ' (' + names.length + '명)', val(f, 'reason'),
           { k: 'ACCOUNTS_MOVE', emails: emails, to: val(f, 'to') });
         render();
-        C.toast(names.length + '명을 ' + C.josa(val(f, 'to'), '으로', '로') + ' 옮겼습니다.');
+        const n = releasedAt(e.at);
+        C.toast(names.length + '명을 ' + C.josa(val(f, 'to'), '으로', '로') + ' 옮겼' + (n ? '고, 사람으로 지정된 열람자 ' + n + '건이 풀려 관리자에게 이메일로 알렸습니다.' : '습니다.'));
       },
     });
   }

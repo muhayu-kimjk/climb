@@ -540,7 +540,7 @@
     else if (rc.dataset.auto) { rc.checked = false; delete rc.dataset.auto; } // 이어받아 체크했던 것만 되돌림
     rc.disabled = inherit;
     $('#restricted-help').textContent = inherit
-      ? '원계약에 열람 제한이 있어 이 기안도 열람 제한을 이어받습니다. 풀기는 관리자만 할 수 있습니다(열람 제한 관리).'
+      ? '원계약에 열람 제한이 있어 이 기안도 열람 제한과 지정 열람자를 이어받습니다. 풀기와 열람자 지정은 관리자만 할 수 있습니다(열람 제한 관리).' // v0.52
       : RESTRICT_HELP;
   }
 

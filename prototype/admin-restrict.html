@@ -19,8 +19,10 @@
 <!-- =====================================================================
   SCR-53 열람 제한 관리 (docs/02_화면목록.md)
   - 관리자와 최고관리자가 계약의 열람 제한을 걸거나 풉니다. (REQ-AUTH-07~10)
-  - 열람 제한 계약은 요청자, 그 계약의 담당자(결재선과 단계 담당자), 관리자만 봅니다(REQ-AUTH-09).
-  - 걸 때와 풀 때 사유가 필수이고, 영업이 등록할 때 건 것과 함께 변경 이력에 남습니다(REQ-AUTH-10).
+  - 열람 제한 계약은 요청자, 그 계약의 담당자(결재선과 단계 담당자), 관리자, 지정 열람자만 봅니다(REQ-AUTH-09).
+  - 지정 열람자(v0.52 기획자 결정, REQ-AUTH-20): 관리자만 지정하고 뺌(사유 필수). 조직이 기본(인사이동이 저절로 반영),
+    사람은 예외(조직이 바뀌면 저절로 풀리고 관리자에게 이메일). 지정되면 이메일로 알림. 계약 묶음 단위로 후속 기안이 이어받음
+  - 걸 때와 풀 때, 열람자를 지정하고 뺄 때 사유가 필수이고, 영업이 등록할 때 건 것과 함께 변경 이력에 남습니다(REQ-AUTH-10).
   - 동작은 assets/js/admin-restrict.js
 ====================================================================== -->
 <body data-page="SCR-53">
@@ -36,8 +38,8 @@
         <h1 class="page-title">열람 제한 관리</h1>
       </div>
       <div class="page-intro">
-        <p>열람 제한 계약은 요청자, 그 계약의 담당자, 관리자만 볼 수 있습니다. 다른 사람에게는 목록에 "열람 제한 계약"으로만 보입니다.</p>
-        <p class="sub">영업이 계약을 등록할 때 건 열람 제한을 관리자가 풀거나, 등록된 계약에 새로 걸 수 있습니다. 걸고 풀 때는 사유를 꼭 적습니다.</p>
+        <p>열람 제한 계약은 요청자, 그 계약의 담당자, 관리자, 지정한 열람자만 볼 수 있습니다. 다른 사람에게는 목록에 "열람 제한 계약"으로만 보입니다.</p>
+        <p class="sub">열람자는 조직으로 지정하는 것이 기본이라 인사이동이 저절로 반영됩니다. 사람으로 지정하면 그 사람이 다른 조직으로 옮길 때 지정이 풀리고 관리자에게 이메일로 알립니다. 걸고 풀 때와 열람자를 지정하고 뺄 때는 사유를 꼭 적습니다.</p>
       </div>
 
       <div id="notice"></div>
@@ -49,9 +51,9 @@
             <button type="button" class="btn btn--primary btn--md" id="btn-add">열람 제한 걸기</button>
           </div>
           <div class="tbl-scroll" tabindex="0" role="region" aria-label="열람 제한 계약 표">
-            <table class="tbl tbl--compact">
-              <caption class="sr-only">열람 제한 계약: 고객사와 계약번호, 서비스, 상태, 영업대표, 건 때, 관리</caption>
-              <thead><tr><th scope="col">고객사</th><th scope="col">서비스</th><th scope="col">상태</th><th scope="col">영업대표</th><th scope="col">건 때</th><th scope="col" class="col-action">관리</th></tr></thead>
+            <table class="tbl tbl--compact tbl--restrict">
+              <caption class="sr-only">열람 제한 계약: 고객사와 계약번호, 서비스, 지정 열람자, 상태, 영업대표, 건 때, 관리</caption>
+              <thead><tr><th scope="col">고객사</th><th scope="col">지정 열람자</th><th scope="col">상태</th><th scope="col">영업대표</th><th scope="col">건 때</th><th scope="col" class="col-action">관리</th></tr></thead>
               <tbody id="rows"></tbody>
             </table>
           </div>
@@ -59,7 +61,7 @@
 
         <section class="panel" aria-labelledby="sec-history">
           <div class="panel-head"><h2 class="panel-title" id="sec-history">변경 이력</h2></div>
-          <p class="panel-desc">영업이 등록할 때 건 것과 관리자가 걸고 푼 기록입니다. 고치거나 지울 수 없습니다.</p>
+          <p class="panel-desc">영업이 등록할 때 건 것, 관리자가 걸고 푼 것, 열람자를 지정하고 뺀 것, 인사이동으로 사람 지정이 풀린 기록입니다. 고치거나 지울 수 없습니다.</p>
           <div id="history"></div>
         </section>
       </div>

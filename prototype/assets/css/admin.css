@@ -85,6 +85,15 @@
   .filter-bar--two .field:first-child, .filter-bar--two .filter-reset { grid-column: 1 / -1; }
 }
 
+/* 열람 제한 관리(SCR-53, v0.52): 지정 열람자 칸(한 줄에 하나, 풀린 지정은 흐리게, 맨 아래 "열람자 더하기") */
+.tbl--restrict .col-viewers { min-width: 15rem; }
+.viewer-line { display: block; color: var(--text-basic); }
+.viewer-line + .viewer-line { margin-top: 0.4rem; }
+.viewer-line.is-off { color: var(--text-subtle); }
+.viewer-kind { font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
+.viewer-line .link-act { min-height: 0; }
+.tbl--restrict .viewer-add { display: block; min-height: 0; margin: 0.6rem 0 0; padding: 0; }
+
 @media print {
   .panel-head--act .btn, .link-act { display: none !important; }
   .tbl--history { min-width: 0; }

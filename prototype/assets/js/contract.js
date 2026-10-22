@@ -86,7 +86,8 @@
     info('영업대표', esc(C.ownerLabel(root.requesterId))),
     info('개인정보 처리위탁 계약', root.personalData ? '있음' : '없음'),
     info('서비스 수준 협약(SLA)', root.sla === 'YES' ? '있음' : '없음'), // v0.40
-    info('열람 제한', root.restricted ? C.icon('lock', 'sm') + '있음' : '없음'),
+    // 지정 열람자(v0.52)도 함께: 이 묶음을 기본 밖에서 더 볼 수 있는 조직이나 사람
+    info('열람 제한', root.restricted ? C.icon('lock', 'sm') + '있음' + (C.viewerText(root) ? '<span class="cell-meta">지정 열람자: ' + esc(C.viewerText(root)) + '</span>' : '') : '없음'),
     info('계약 완료일', cur.completedAt ? C.fmtDateTime(cur.completedAt) : '-'),
     info('해지일', b.status === 'TERMINATED' ? C.fmtDate(root.terminateDate) : '-'),
   ].join('');

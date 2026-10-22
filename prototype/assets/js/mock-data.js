@@ -350,6 +350,11 @@ window.CLIMB_DATA = (function () {
       id: '2610CL007', counterparty: '가람전자', services: ['CK'], type: '리셀러 계약', kind: 'NEW',
       amount: 150000000, requesterId: 'u_sales1', requestedAt: '2026-10-17 14:00', restricted: true, personalData: false,
       status: 'IN_REVIEW',
+      // 지정 열람자 예시 (v0.52, REQ-AUTH-20): 조직 하나, 사람 하나(관리자가 지정, 사유 필수)
+      viewers: [
+        { kind: 'DEPT', dept: '재무기획유닛', by: 'u_admin', at: '2026-10-18 10:00', reason: '총판 계약이라 매출 인식 방법을 재무기획유닛이 미리 검토' },
+        { kind: 'USER', userId: 'u_exec', deptAtGrant: '비즈니스유닛', by: 'u_admin', at: '2026-10-18 10:05', reason: '할인 폭이 커서 영업 임원이 결재 전에 내용을 확인' },
+      ],
       checklist: { standard: 'NO', standardNote: '리셀러 표준계약서 없음', price: 'NO', priceNote: '총판 공급가', cap: 'NO', capNote: '총판 마진 보장으로 21.9% 할인' },
       products: [{ feature: 'CK_CAMPUS_PLAG', qty: 16, amount: 150000000 }],
       memo: '총판 계약이라 열람 제한을 걸었습니다.',
@@ -468,6 +473,13 @@ window.CLIMB_DATA = (function () {
       amount: 30000000, requesterId: 'u_sales2', requestedAt: '2025-11-27 10:00', restricted: true, personalData: false,
       status: 'ACTIVE', approvedAt: '2025-12-02 15:00', autoHistory: true, startDate: '2025-12-10', endDate: '2026-12-09',
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
+      // 지정 열람자 예시 (v0.52): 조직 지정 하나와, 인사이동으로 저절로 풀린 사람 지정 하나
+      //   석다인은 비즈니스2유닛에 있을 때 지정됐고 2026-10-12 세일즈어드민유닛으로 옮기며 풀림(관리자 변경 이력 참고) → 관리자에게 이메일, 다시 지정하지 않음
+      viewers: [
+        { kind: 'USER', userId: 'u_dain_seok', deptAtGrant: '비즈니스2유닛', by: 'u_admin', at: '2026-09-20 10:00', reason: '같은 유닛 영업 담당자가 연장 협상을 함께 맡음',
+          releasedAt: '2026-10-12 11:00', releasedTo: '세일즈어드민유닛' },
+        { kind: 'DEPT', dept: 'CEM유닛', by: 'u_admin', at: '2026-10-08 09:30', reason: '연장 검토 전에 고객지원이 사용 현황을 미리 확인' },
+      ],
     },
     {
       id: '2601CL001', counterparty: '누리교육재단', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
@@ -649,6 +661,13 @@ window.CLIMB_DATA = (function () {
           '결재란의 담당 칸은 역할, 조직, 이름을 줄로 나눠 보여 줍니다.',
           '공지사항 거르기는 다른 목록처럼 검색어를 맨 위에 넓게 둡니다.'],
       } },
+    // v0.9.6 (요구사항 정의서 v0.52 REQ-AUTH-20): 열람 제한 계약의 지정 열람자
+    { id: 'N-0013', kind: 'RELEASE', version: 'v0.9.6', title: '열람자 지정', at: '2026-10-22 23:30', by: 'u_super',
+      items: {
+        added: ['관리자가 열람 제한 계약을 볼 조직이나 사람을 더 지정할 수 있습니다(열람 제한 관리). 지정되면 이메일로 알려 드립니다.',
+          '조직으로 지정하는 것이 기본이라 인사이동이 저절로 반영됩니다. 사람으로 지정하면 그 사람이 다른 조직으로 옮길 때 지정이 풀리고 관리자에게 알립니다.'],
+        improved: ['계약 상세와 결재 문서의 "열람 제한" 칸에 지정 열람자가 보입니다.', '변경, 연장, 해지 기안도 지정 열람자를 그대로 이어받습니다.'],
+      } },
   ];
 
   /* ---------- 이메일 알림 (내 계정 SCR-93, v0.45 기획자 요청. 보내는 때는 요구사항 정의서 REQ-ENV-10) ----------
@@ -663,6 +682,9 @@ window.CLIMB_DATA = (function () {
     { code: 'ACCOUNTING', name: '회계 영향 조건', when: '체크리스트 4번이 "예"인 계약이 기안됐을 때', must: true, roles: ['FINANCE'] },
     { code: 'SECURITY', name: '이상 행위', when: '접속 기록에서 이상 행위가 감지됐을 때', must: true, roles: ['PRIVACY'] },
     { code: 'NOTICE_IMPORTANT', name: '중요 공지', when: '관리자가 중요 공지를 올렸을 때', must: true },
+    // 지정 열람자 (v0.52 기획자 결정, REQ-AUTH-20): 지정되면 알림(꼭 받음), 사람 지정이 인사이동으로 풀리면 관리자에게 알림
+    { code: 'VIEWER', name: '열람자 지정', when: '내가, 또는 내 조직이 열람 제한 계약의 열람자로 지정됐을 때', must: true },
+    { code: 'VIEWER_RELEASED', name: '열람자 지정 풀림', when: '사람으로 지정한 열람자가 다른 조직으로 옮겨 지정이 저절로 풀렸을 때', must: true, roles: ['ADMIN'] },
     { code: 'PROGRESS', name: '내 기안 진행 소식', when: '내가 기안한 계약이 다음 결재 단계로 넘어갈 때마다', must: false, on: false, roles: ['SALES'] },
     { code: 'NOTICE_ALL', name: '일반 공지와 릴리즈', when: '중요 공지가 아닌 공지와 릴리즈가 올라왔을 때', must: false, on: false },
   ];
@@ -861,6 +883,11 @@ window.CLIMB_DATA = (function () {
     { at: '2026-10-02 10:20', by: 'u_admin', area: 'RULE', target: '④ 법무 검토 대리 지정', change: '대리 지정: 김지우 → 송민재 (2026-10-05~2026-10-07)', reason: '김지우님 연차(2026-10-05~2026-10-07). 같은 법무 담당자 송민재님이 법무 검토를 대신함' },
     { at: '2026-10-06 14:10', by: 'u_super', area: 'USER', target: '송민재 (minjae.song@muhayu.com)', change: '권한: 법무 담당자 → 법무 담당자, 관리자', reason: '관리자 부재에 대비해 법무 담당자 송민재님을 관리자로 함께 지정(경영지원유닛 요청)' },
     { at: '2026-10-08 16:00', by: 'u_admin', area: 'RESTRICT', target: '2606CL001 해랑출판', change: '열람 제한 해제', reason: '보도자료로 계약 사실이 공개되어 더 가릴 필요 없음(영업 요청)' },
+    // 지정 열람자 (v0.52): 지정한 내용은 계약의 viewers에 이미 들어 있음. 사람 지정이 인사이동으로 풀린 것은 viewers의 releasedAt
+    { at: '2026-09-20 10:00', by: 'u_admin', area: 'RESTRICT', target: '2511CL002 푸른솔아카데미', change: '열람자 지정: 비즈니스2유닛 석다인(사람)', reason: '같은 유닛 영업 담당자가 연장 협상을 함께 맡음' },
+    { at: '2026-10-08 09:30', by: 'u_admin', area: 'RESTRICT', target: '2511CL002 푸른솔아카데미', change: '열람자 지정: CEM유닛(조직)', reason: '연장 검토 전에 고객지원이 사용 현황을 미리 확인' },
+    { at: '2026-10-18 10:00', by: 'u_admin', area: 'RESTRICT', target: '2610CL007 가람전자', change: '열람자 지정: 재무기획유닛(조직)', reason: '총판 계약이라 매출 인식 방법을 재무기획유닛이 미리 검토' },
+    { at: '2026-10-18 10:05', by: 'u_admin', area: 'RESTRICT', target: '2610CL007 가람전자', change: '열람자 지정: 비즈니스유닛 문태호(사람)', reason: '할인 폭이 커서 영업 임원이 결재 전에 내용을 확인' },
     { at: '2026-10-12 11:00', by: 'u_admin', area: 'USER', target: '석다인 (dain.seok@muhayu.com)', change: '조직: 비즈니스2유닛 → 세일즈어드민유닛, 권한: 영업 담당자 → 영업지원 담당자', reason: '10월 12일 세일즈어드민유닛으로 인사 이동' },
     { at: '2026-10-12 11:05', by: 'u_admin', area: 'USER', target: '차유나 (yuna.cha@muhayu.com)', change: '권한: 영업 담당자 → 영업 리더', reason: '10월 12일 비즈니스3유닛 리더 발령' },
     { at: '2026-10-15 10:00', by: 'u_admin', area: 'USER', target: '설은우 (eunwoo.seol@muhayu.com)', change: '사용자 추가: 비즈니스3유닛, 영업 담당자', reason: '10월 15일 입사' },

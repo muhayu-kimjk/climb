@@ -593,10 +593,45 @@ window.CLIMB = (function () {
     return !(c.approvals || []).some(function (a) { return groupIndex(a.step) > gi && a.decidedAt; });
   }
 
+  /* 지정 열람자 (v0.52 기획자 결정, REQ-AUTH-20): 열람 제한 계약을 기본으로 보는 사람 밖에 더 볼 조직이나 사람
+   *   - 조직(DEPT)이 기본: 그 조직에 지금 있는 사람이 봄. 인사이동이 저절로 반영됨(온 사람은 보고, 떠난 사람은 못 봄)
+   *   - 사람(USER)은 예외: 지정할 때의 조직(deptAtGrant)을 남기고, 그 사람의 조직이 바뀌면 지정이 저절로 풀림(releasedAt).
+   *     풀리면 관리자에게 이메일로 알리고(CODE-MAIL VIEWER_RELEASED), 필요하면 관리자가 다시 지정. 같은 조직으로 돌아와도 되살아나지 않음
+   *   - 지정하고 빼는 것은 관리자만(열람 제한 관리 SCR-53), 사유 필수. 지정되면 그 사람(조직이면 그 조직 사람 모두)에게 이메일(VIEWER)
+   *   - 계약 묶음(원계약 + 변경, 연장, 해지, 운영 변경) 단위: 원계약에 두고 후속 기안이 그대로 이어받음(D-13과 같은 방식)
+   * v: { kind: 'DEPT', dept } 또는 { kind: 'USER', userId, deptAtGrant } + by, at, reason (+ removedAt, removedBy, removeReason / releasedAt, releasedTo) */
+  function viewerKey(v) { return v.kind + ':' + (v.kind === 'DEPT' ? v.dept : v.userId); }
+  function viewerState(v) {
+    if (v.removedAt) return 'REMOVED';
+    if (v.releasedAt) return 'RELEASED';
+    if (v.kind === 'USER' && (!D.USERS[v.userId] || D.USERS[v.userId].dept !== v.deptAtGrant)) return 'RELEASED';
+    return 'ON';
+  }
+  function viewersOf(c) {
+    const root = D.CONTRACTS.filter(function (x) { return x.id === rootOf(c); })[0] || c;
+    return root.viewers || [];
+  }
+  function viewerLabel(v) { return v.kind === 'DEPT' ? v.dept : ownerLabel(v.userId, v.deptAtGrant); }
+  // 지금 효력이 있는 지정 열람자 이름들 (예: "재무기획유닛, 비즈니스유닛 문태호")
+  function viewerText(c) {
+    return viewersOf(c).filter(function (v) { return viewerState(v) === 'ON'; }).map(viewerLabel).join(', ');
+  }
+  // 인사이동: 사람으로 지정된 열람자는 조직이 바뀌는 순간 풀림 (applyAdmin의 ACCOUNT_EDIT, ACCOUNTS_MOVE가 부름)
+  function releaseViewers(userId, toDept, at) {
+    let n = 0;
+    D.CONTRACTS.forEach(function (c) {
+      (c.viewers || []).forEach(function (v) {
+        if (v.kind === 'USER' && v.userId === userId && viewerState(v) === 'ON' && v.deptAtGrant !== toDept) { v.releasedAt = at; v.releasedTo = toDept; n += 1; }
+      });
+    });
+    return n;
+  }
+
   /* 열람 권한 (REQ-AUTH-03, REQ-AUTH-09 [가정])
    * - 열람 제한이 없는 계약: 모든 사용자 열람 가능
-   * - 열람 제한 계약: 요청자 본인, 결재선과 단계 담당자(생략된 단계 제외. 총무, 영업지원, 고객지원, 재무 포함), 관리자만 열람 가능
-   *   관찰자와 재무 리더, 재무 임원은 열람 제한 계약을 볼 수 없음(재무는 아래 회계 영향 건만) [가정 v0.29]
+   * - 열람 제한 계약: 요청자 본인, 결재선과 단계 담당자(생략된 단계 제외. 총무, 영업지원, 고객지원, 재무 포함), 관리자,
+   *   그리고 관리자가 지정한 열람자(조직 또는 사람, v0.52)만 열람 가능
+   *   관찰자와 재무 리더, 재무 임원은 지정되지 않으면 열람 제한 계약을 볼 수 없음(재무는 아래 회계 영향 건만) [가정 v0.29]
    * ※ 실제 시스템에서는 반드시 서버에서 판단해야 합니다. 화면에서 가리는 것만으로는 보안이 되지 않습니다. */
   function canView(c, user) {
     // 작성 중(임시 저장) 계약은 작성자 본인만 봅니다. [가정]
@@ -604,6 +639,10 @@ window.CLIMB = (function () {
     if (!c.restricted) return true;
     if (user.role === 'ADMIN' || user.role === 'SUPER') return true;
     if (c.requesterId === user.id) return true;
+    // 지정 열람자: 조직은 지금 그 조직에 있는 사람, 사람은 지정이 풀리지 않았을 때 (v0.52)
+    if (viewersOf(c).some(function (v) {
+      return viewerState(v) === 'ON' && (v.kind === 'DEPT' ? (D.USERS[user.id] || user).dept === v.dept : v.userId === user.id);
+    })) return true;
     // 체크리스트 4번이 예면 재무(담당자, 리더, 임원)도 볼 수 있음 (REQ-CHK-08)
     if (user.base === 'FINANCE' && c.checklist && c.checklist.accounting === 'YES') return true;
     return routedSteps(c).some(function (a) { return a.userId === user.id; });
@@ -825,6 +864,8 @@ window.CLIMB = (function () {
     } else if (op.k === 'ACCOUNT_EDIT') {
       const a = findBy(D.ACCOUNTS, 'email', op.email);
       if (!a) return;
+      // 조직이 바뀌면 사람으로 지정된 열람자 지정이 풀림 (v0.52, 인사이동)
+      if (op.set.dept && op.set.dept !== a.dept) releaseViewers(a.id, op.set.dept, e.at);
       if (op.set.dept) a.dept = op.set.dept;
       if (op.set.roles) a.roles = op.set.roles;
       if (op.set.status) a.status = op.set.status;
@@ -835,11 +876,22 @@ window.CLIMB = (function () {
       op.emails.forEach(function (email) {
         const a = findBy(D.ACCOUNTS, 'email', email);
         if (!a) return;
+        if (a.dept !== op.to) releaseViewers(a.id, op.to, e.at); // 사람 지정 열람자는 풀림 (v0.52)
         a.dept = op.to;
         if (D.USERS[a.id]) D.USERS[a.id].dept = op.to;
       });
     } else if (op.k === 'RESTRICT') {
       D.CONTRACTS.forEach(function (c) { if (c.id === op.id) c.restricted = op.on; });
+    } else if (op.k === 'VIEWER_ADD') {
+      // 지정 열람자 더하기 (v0.52): 원계약(묶음)에 둠. 사람은 지정할 때 조직을 함께 남김
+      const c = findBy(D.CONTRACTS, 'id', op.id);
+      if (c) c.viewers = (c.viewers || []).concat([Object.assign({ by: e.by, at: e.at, reason: e.reason }, op.v)]);
+    } else if (op.k === 'VIEWER_REMOVE') {
+      // 지정 열람자 빼기: 지우지 않고 뺀 때와 사람, 사유를 남김
+      const c = findBy(D.CONTRACTS, 'id', op.id);
+      (c && c.viewers || []).forEach(function (v) {
+        if (viewerKey(v) === op.key && !v.removedAt) { v.removedAt = e.at; v.removedBy = e.by; v.removeReason = e.reason; }
+      });
     } else if (op.k === 'PRICE') {
       // v0.49부터 가격은 기능마다(feature가 열쇠). 기능이 없는 예전 시연 기록(플랜 코드)은 반영하지 않음
       if (!op.row.feature) return;
@@ -903,6 +955,10 @@ window.CLIMB = (function () {
         const old = c.label;
         if (op.group === 'DEPT') {
           D.ACCOUNTS.forEach(function (a) { if (a.dept === old) { a.dept = op.set.label; if (D.USERS[a.id]) D.USERS[a.id].dept = op.set.label; } });
+          // 조직 이름만 바뀐 것은 인사이동이 아니므로 지정 열람자도 새 이름으로 이어감 (v0.52)
+          D.CONTRACTS.forEach(function (c) {
+            (c.viewers || []).forEach(function (v) { if (v.dept === old) v.dept = op.set.label; if (v.deptAtGrant === old) v.deptAtGrant = op.set.label; });
+          });
           // 조직 이름을 바꿔도 ③ 유닛별 리더가 이어지게 리더 표와 바꾼 이력의 유닛 이름도 함께 바꿈 (v0.31, 조직 개편)
           if (Object.prototype.hasOwnProperty.call(D.TEAM_LEADERS, old)) {
             // 표의 순서를 지키며 이름만 바꿈
@@ -1461,7 +1517,7 @@ window.CLIMB = (function () {
       '<thead><tr><th scope="col">일시</th><th scope="col">대상</th><th scope="col">바뀐 내용</th><th scope="col">사유</th><th scope="col">바꾼 사람</th></tr></thead><tbody>' +
       (list.length ? list.map(function (e) {
         return '<tr><td class="num-left">' + fmtDateTime(e.at) + '</td><td>' + esc(e.target) + '</td><td>' + esc(e.change) + '</td>' +
-          '<td>' + esc(e.reason) + '</td><td class="center">' + esc(ownerLabel(e.by)) + '</td></tr>';
+          '<td>' + esc(e.reason) + '</td><td class="center">' + esc(e.byLabel || ownerLabel(e.by)) + '</td></tr>'; // byLabel: 사람이 아닌 기록(예: CLIMB(자동))
       }).join('') : '<tr><td class="empty-row" colspan="5">아직 바꾼 기록이 없습니다.</td></tr>') + '</tbody></table></div>';
   }
 
@@ -1877,6 +1933,7 @@ window.CLIMB = (function () {
     saveDemoContract: saveDemoContract, addNote: addNote, deleteDraft: deleteDraft, nowStamp: nowStamp,
     reviewRoute: reviewRoute, canAct: canAct, canCancel: canCancel, pendingQueue: pendingQueue, recordAction: recordAction, flash: flash, pagerHtml: pagerHtml,
     canView: canView, myActions: myActions,
+    viewersOf: viewersOf, viewerState: viewerState, viewerKey: viewerKey, viewerLabel: viewerLabel, viewerText: viewerText, // 지정 열람자 (v0.52)
     esc: esc, badge: badge, statusBadge: statusBadge, todoAttrs: todoAttrs, icon: icon, brandText: brandText, meta: meta, toast: toast,
     securityNotice: SECURITY_NOTICE, addDays: addDays, daysBetween: daysBetween,
     // 관리자 설정 (SCR-51~57)

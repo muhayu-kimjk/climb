@@ -279,7 +279,7 @@
       info('자동갱신', detail.autoRenew === 'YES' ? '있음 (해지 통지: 만료 ' + (detail.noticeDays || '-') + '일 전)' : '없음'),
       info('개인정보 처리위탁 계약', c.personalData ? '있음' : '없음'),
       info('서비스 수준 협약(SLA)', (c.sla || f.sla) === 'YES' ? '있음' : '없음'), // v0.40
-      info('열람 제한', c.restricted ? C.icon('lock', 'sm') + '있음' : '없음'),
+      info('열람 제한', c.restricted ? C.icon('lock', 'sm') + '있음' + (C.viewerText(c) ? '<span class="cell-meta">지정 열람자: ' + esc(C.viewerText(c)) + '</span>' : '') : '없음'), // 지정 열람자 (v0.52)
     ]).join('');
   }
 
