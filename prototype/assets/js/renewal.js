@@ -8,6 +8,7 @@
  *   2. 세 갈래: 그대로 자동갱신(짧은 기안) / 조건을 바꿔 연장(계약 등록으로) / 해지(해지 기안으로)
  *   3. 그대로 자동갱신은 새 계약 기간(영업이 입력, 시작일은 지금 종료일 다음 날로 미리 채움)과 이유를 받아
  *      -R 번호로 저장하고 결재 문서로 이동 (v0.25 기획자 결정: 기간은 따로 입력)
+ *   4. 보완 후 재기안(v0.58 기획자 결정): renewal.html?id=반려된 연장 번호로 열면 앞 차수 값을 채우고 같은 번호의 다음 차수로 기안
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -18,7 +19,10 @@
   const notice = function (title, body) { return C.noticeBox('', title, body); };
   const addDays = C.addDays;
 
-  const origin = new URLSearchParams(location.search).get('origin');
+  // 보완 후 재기안: 반려된 조건 그대로 연장을 같은 번호의 다음 차수로 (renewal.html?id=2512CL001-R01)
+  const params = new URLSearchParams(location.search);
+  const again = C.resubmitSource(params.get('id'), me, function (c) { return c.kind === 'RENEW' && c.renewMode === 'AUTO'; });
+  const origin = again ? again.parentId : params.get('origin');
   const found = D.CONTRACTS.find(function (c) { return c.id === origin; });
   const b = found ? C.bundleOf(C.rootOf(found)) : null;
   const back = b ? 'contract.html?id=' + encodeURIComponent(b.id) : 'expiring.html';
@@ -39,9 +43,19 @@
     return;
   }
 
+  // 반려된 연장이 있으면 새 번호 대신 그 기안을 보완해 같은 번호로 다시 기안 (v0.58 기획자 결정)
+  const waiting = again ? [] : b.rejected.filter(function (o) { return o.kind === 'RENEW'; });
+  if (waiting.length) {
+    $('#notice').innerHTML = C.noticeBox('', '반려된 연장이 있습니다', waiting.map(function (o) {
+      return '<a href="review.html?id=' + encodeURIComponent(o.id) + '">' + esc(o.id) + '</a> ' + esc(C.kindLabel(o)) + ' ' + (o.round || 1) + '차 반려';
+    }).join('<br>') + '<br>새로 기안하지 않고 반려된 기안을 보완해 같은 번호의 다음 차수로 다시 기안합니다.',
+      '<a class="btn btn--primary btn--md" href="' + C.resubmitHref(waiting[0]) + '">보완 후 재기안</a><a class="btn btn--tertiary btn--md" href="' + back + '">계약 상세로</a>');
+    return;
+  }
+
   /* ---------- 연장할 계약 ---------- */
   const cur = b.current;
-  const newId = C.nextChildId(b.id, 'RENEW');
+  const newId = again ? again.id : C.nextChildId(b.id, 'RENEW');
   const newStart = addDays(b.end, 1); // 새 계약 시작일 기본값: 지금 종료일 다음 날
   const noticeDay = C.noticeDate(b);
   function info(label, value) { return '<div><dt>' + esc(label) + '</dt><dd>' + value + '</dd></div>'; }
@@ -53,8 +67,18 @@
     info('해지 통지 기한', noticeDay ? C.fmtDate(noticeDay) + ' (만료 ' + b.noticeDays + '일 전)' + (C.daysUntil(noticeDay) < 0 ? ' <span class="wait-long">지남</span>' : '') : '-'),
     info('영업대표', esc(C.ownerLabel(root.requesterId))),
   ].join('');
-  $('#keep-help').textContent = '기안하면 ' + newId + '(연장, 조건 그대로)로 묶이고, 승인되면 아래에 입력한 기간이 새 계약 기간이 됩니다. 금액과 조건은 그대로입니다.';
+  $('#keep-help').textContent = (again ? '같은 번호 ' + newId + '의 ' + ((again.round || 1) + 1) + '차로 기안하고' : '기안하면 ' + newId + '(연장, 조건 그대로)로 묶이고') +
+    ', 승인되면 아래에 입력한 기간이 새 계약 기간이 됩니다. 금액과 조건은 그대로입니다.';
   $('#f-start').value = newStart;
+  // 보완 후 재기안: 조건 그대로 연장만 다시 기안(다른 갈래는 감춤)하고 앞 차수 값을 채움
+  if (again) {
+    document.querySelector('.page-title').textContent = '연장 검토 보완 후 재기안';
+    $('#notice').innerHTML = C.rejectionNotice(again);
+    ['CHANGE', 'END'].forEach(function (v) { const r = document.querySelector('input[name="choice"][value="' + v + '"]'); if (r) r.closest('label').hidden = true; });
+    $('#f-start').value = again.startDate || newStart;
+    $('#f-end').value = again.endDate || '';
+    $('#f-reason').value = again.reason || '';
+  }
   $('#f-start').min = newStart;
   $('#btn-cancel').href = back;
 
@@ -121,14 +145,15 @@
     if (e.target === modal || e.target.closest('[data-act="close"]')) modal.hidden = true;
     if (!e.target.closest('[data-act="confirm"]')) return;
     // 연장 검토(그대로 자동갱신) 기록 (데이터 정의서 contract: kind RENEW, renew_mode AUTO)
-    const rec = {
+    const fields = { startDate: $('#f-start').value, endDate: $('#f-end').value, reason: $('#f-reason').value.trim() };
+    const rec = again ? C.resubmitRecord(again, fields) : Object.assign({
       id: newId, parentId: b.id, counterparty: root.counterparty, services: root.services, type: root.type,
       kind: 'RENEW', renewMode: 'AUTO', amount: cur.amount, requesterId: root.requesterId, requestedAt: C.nowStamp().slice(0, 16),
-      restricted: root.restricted, personalData: root.personalData, status: 'IN_REVIEW', history: [],
-      startDate: $('#f-start').value, endDate: $('#f-end').value, autoRenew: 'YES', noticeDays: b.noticeDays, reason: $('#f-reason').value.trim(),
-    };
+      restricted: root.restricted, personalData: root.personalData, status: 'IN_REVIEW', round: 1, history: [],
+      autoRenew: 'YES', noticeDays: b.noticeDays,
+    }, fields);
     C.saveDemoContract(rec);
-    C.flash(newId + ' 연장 검토(조건 그대로)를 기안했습니다. 다음 차례: ③ 영업 검토 (' + C.ownerLabel(C.stepUserNow('S03', root)) + ')');
+    C.flash(newId + ' 연장 검토(조건 그대로)를 ' + (rec.round || 1) + '차로 기안했습니다. 다음 차례: ③ 영업 검토 (' + C.ownerLabel(C.stepUserNow('S03', root)) + ')');
     location.href = 'review.html?id=' + encodeURIComponent(newId);
   });
   document.addEventListener('keydown', function (e) { if (!modal.hidden && e.key === 'Escape') modal.hidden = true; });

@@ -54,8 +54,8 @@
     if (c.status === 'SUPPLEMENT') {
       return '<div class="row-actions"><a class="btn btn--primary" href="review.html?id=' + encodeURIComponent(c.id) + '">보완하기</a></div>';
     }
-    if (C.canResubmit(c)) { // 신규, 변경, 바꿔서 연장만 (해지, 그대로 연장, 운영 변경은 반려되면 끝남)
-      return '<div class="row-actions"><a class="btn btn--secondary" href="new-contract.html?id=' + encodeURIComponent(c.id) + '">보완 후 재기안</a></div>';
+    if (C.canResubmit(c)) { // 반려된 기안: 그 종류의 화면에서 같은 번호의 다음 차수로 (v0.58 기획자 결정)
+      return '<div class="row-actions"><a class="btn btn--secondary" href="' + C.resubmitHref(c) + '">보완 후 재기안</a></div>';
     }
     const p = C.currentStep(c);
     if (p && p.step === 'S07') {

@@ -8,6 +8,7 @@
  *   2. 해지일(오늘부터 계약 종료일 사이), 해지 사유(필수), 환불과 위약금, 해지 관련 서류(선택)
  *   3. 결재선 미리 보기: ③ 영업 리더 → ④ 법무 → ⑨ 고객지원 운영 종료 → ⑩ 재무 확인
  *   4. 기안하면 -T01 번호로 원계약에 묶어 저장(프로토타입은 이 브라우저에만)하고 결재 문서로 이동
+ *   5. 보완 후 재기안(v0.58 기획자 결정): terminate.html?id=반려된 해지 번호로 열면 앞 차수 값을 채우고 같은 번호의 다음 차수로 기안
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -17,7 +18,10 @@
   const $ = function (s) { return document.querySelector(s); };
   const notice = function (title, body) { return C.noticeBox('', title, body); };
 
-  const origin = new URLSearchParams(location.search).get('origin');
+  // 보완 후 재기안: 반려된 해지를 같은 번호의 다음 차수로 (terminate.html?id=2601CL001-T01)
+  const params = new URLSearchParams(location.search);
+  const again = C.resubmitSource(params.get('id'), me, function (c) { return c.kind === 'TERMINATE'; });
+  const origin = again ? again.parentId : params.get('origin');
   const found = D.CONTRACTS.find(function (c) { return c.id === origin; });
   const b = found ? C.bundleOf(C.rootOf(found)) : null;
   const back = b ? 'contract.html?id=' + encodeURIComponent(b.id) : 'contracts.html';
@@ -42,9 +46,23 @@
     return;
   }
 
+  // 반려된 해지가 있으면 새 번호 대신 그 기안을 보완해 같은 번호로 다시 기안 (v0.58 기획자 결정)
+  const waiting = again ? [] : b.rejected.filter(function (o) { return o.kind === 'TERMINATE'; });
+  if (waiting.length) {
+    $('#notice').innerHTML = C.noticeBox('', '반려된 해지가 있습니다', waiting.map(function (o) {
+      return '<a href="review.html?id=' + encodeURIComponent(o.id) + '">' + esc(o.id) + '</a> ' + esc(C.kindLabel(o)) + ' ' + (o.round || 1) + '차 반려';
+    }).join('<br>') + '<br>새로 기안하지 않고 반려된 기안을 보완해 같은 번호의 다음 차수로 다시 기안합니다.',
+      '<a class="btn btn--primary btn--md" href="' + C.resubmitHref(waiting[0]) + '">보완 후 재기안</a><a class="btn btn--tertiary btn--md" href="' + back + '">계약 상세로</a>');
+    return;
+  }
+
   /* ---------- 해지할 계약 ---------- */
   const cur = b.current;
-  const newId = C.nextChildId(b.id, 'TERMINATE');
+  const newId = again ? again.id : C.nextChildId(b.id, 'TERMINATE');
+  if (again) {
+    document.querySelector('.page-title').textContent = '해지 보완 후 재기안';
+    $('#notice').innerHTML = C.rejectionNotice(again);
+  }
   function info(label, value) { return '<div><dt>' + esc(label) + '</dt><dd>' + value + '</dd></div>'; }
   $('#origin').innerHTML = [
     info('고객사', esc(root.counterparty)),
@@ -54,7 +72,7 @@
     info('계약 금액', Number(cur.amount || 0).toLocaleString('ko-KR') + '원'),
     info('영업대표', esc(C.ownerLabel(root.requesterId))),
   ].join('');
-  $('#number-help').textContent = '기안하면 ' + newId + '(해지)로 원계약과 함께 묶입니다.';
+  $('#number-help').textContent = again ? '같은 번호 ' + newId + '의 ' + ((again.round || 1) + 1) + '차로 기안합니다.' : '기안하면 ' + newId + '(해지)로 원계약과 함께 묶입니다.';
   $('#date-help').textContent = '오늘(' + C.fmtDate(D.TODAY) + ')부터 계약 종료일(' + C.fmtDate(b.end) + ') 사이의 날짜';
   $('#f-date').min = D.TODAY;
   $('#f-date').max = b.end;
@@ -79,6 +97,13 @@
   function setFile(n) { fileName = n; $('#file-name').textContent = n ? '고른 파일: ' + n : ''; }
   $('#f-file').addEventListener('change', function (e) { const f = e.target.files[0]; setFile(f && f.size <= 50 * 1048576 ? f.name : ''); });
   $('#demo-file').addEventListener('click', function () { setFile(root.counterparty + '_해지합의서.pdf'); });
+  // 보완 후 재기안: 앞 차수 값을 채움
+  if (again) {
+    $('#f-date').value = again.terminateDate || '';
+    $('#f-reason').value = again.reason || '';
+    $('#f-refund').value = again.refundNote || '';
+    setFile(((again.files || [])[0] || {}).name || '');
+  }
 
   /* ---------- 입력 검사 (KRDS 오류 패턴) ---------- */
   // 오류 표시와 aria-invalid는 공통 함수로 (KRDS, v0.28)
@@ -123,15 +148,17 @@
     if (e.target === modal || e.target.closest('[data-act="close"]')) modal.hidden = true;
     if (!e.target.closest('[data-act="confirm"]')) return;
     // 해지 기안 기록 (데이터 정의서 contract: kind TERMINATE, terminate_date, terminate_reason)
-    const rec = {
-      id: newId, parentId: b.id, counterparty: root.counterparty, services: root.services, type: root.type,
-      kind: 'TERMINATE', amount: 0, requesterId: root.requesterId, requestedAt: C.nowStamp().slice(0, 16),
-      restricted: root.restricted, personalData: false, status: 'IN_REVIEW', history: [],
+    const fields = {
       terminateDate: $('#f-date').value, reason: $('#f-reason').value.trim(), refundNote: $('#f-refund').value.trim(),
       files: fileName ? [{ kind: 'TERMINATE_DOC', name: fileName }] : [],
     };
+    const rec = again ? C.resubmitRecord(again, fields) : Object.assign({
+      id: newId, parentId: b.id, counterparty: root.counterparty, services: root.services, type: root.type,
+      kind: 'TERMINATE', amount: 0, requesterId: root.requesterId, requestedAt: C.nowStamp().slice(0, 16),
+      restricted: root.restricted, personalData: false, status: 'IN_REVIEW', round: 1, history: [],
+    }, fields);
     C.saveDemoContract(rec);
-    C.flash(newId + ' 해지를 기안했습니다. 다음 차례: ③ 영업 검토 (' + C.ownerLabel(C.stepUserNow('S03', root)) + ')');
+    C.flash(newId + ' 해지를 ' + (rec.round || 1) + '차로 기안했습니다. 다음 차례: ③ 영업 검토 (' + C.ownerLabel(C.stepUserNow('S03', root)) + ')');
     location.href = 'review.html?id=' + encodeURIComponent(newId);
   });
   document.addEventListener('keydown', function (e) { if (!modal.hidden && e.key === 'Escape') modal.hidden = true; });

@@ -38,10 +38,13 @@
   $('#btn-summary').href = 'contract-print.html?id=' + encodeURIComponent(b.id);
   $('#doc-tools').hidden = false;
 
-  // 진행 중인 변경, 연장, 해지 안내
-  if (b.open.length) {
-    $('#notice').innerHTML = notice('', '진행 중인 기안이 있습니다', b.open.map(function (o) {
-      return '<a href="review.html?id=' + encodeURIComponent(o.id) + '">' + esc(o.id) + '</a> ' + esc(C.kindLabel(o)) + ': ' + C.progressText(o);
+  // 진행 중인 변경, 연장, 해지 안내. 반려되어 다시 기안을 기다리는 기안도 함께(영업대표에게 보완 후 재기안 링크, v0.58)
+  const pend = b.open.concat(b.rejected);
+  const mine = root.requesterId === me.id || me.role === 'SUPER';
+  if (pend.length) {
+    $('#notice').innerHTML = notice('', '진행 중인 기안이 있습니다', pend.map(function (o) {
+      return '<a href="review.html?id=' + encodeURIComponent(o.id) + '">' + esc(o.id) + '</a> ' + esc(C.kindLabel(o)) + ': ' +
+        (o.status === 'REJECTED' ? (o.round || 1) + '차 반려' + (mine ? ' <a class="doc-link" href="' + C.resubmitHref(o) + '">보완 후 재기안</a>' : '') : C.progressText(o));
     }).join('<br>'));
   } else if (b.status === 'TERMINATED') {
     $('#notice').innerHTML = notice('', '해지된 계약입니다', '해지일 ' + C.fmtDate(root.terminateDate) + (root.terminatedAt ? ' (' + C.fmtDateTime(root.terminatedAt) + '에 해지 처리 완료)' : ''));
@@ -51,7 +54,10 @@
    * 지금 유효한 계약이 계약 완료일 때, 영업대표 본인(시연용 최고관리자 포함)에게만.
    * 진행 중인 연장이나 해지가 있으면 연장, 해지 버튼은 감춤 */
   const canDraft = root.requesterId === me.id || me.role === 'SUPER';
+  // 반려된 연장, 해지가 있으면 같은 종류의 새 버튼 대신 위 안내의 보완 후 재기안 (v0.58)
   const blocking = b.open.some(function (o) { return o.kind === 'RENEW' || o.kind === 'TERMINATE'; });
+  const rejRenew = b.rejected.some(function (o) { return o.kind === 'RENEW'; });
+  const rejEnd = b.rejected.some(function (o) { return o.kind === 'TERMINATE'; });
   // 기간을 바꾸는 운영 변경이 진행 중이면 연장은 그 뒤에 (v0.58 QA)
   const periodBusy = b.open.some(function (o) { return o.kind === 'CHANGE' && o.changeType === 'PERIOD'; });
   if (b.status === 'ACTIVE' && canDraft) {
@@ -60,10 +66,10 @@
       // 변경 기안: 계약서가 바뀌는 변경(전체 결재) / 운영 변경 기안: 기간 변경이나 추가 충전만 (v0.26 재무 문서 반영)
       '<a class="btn btn--tertiary btn--md" href="new-contract.html?kind=AMEND&origin=' + q + '">변경 기안</a>' +
       '<a class="btn btn--tertiary btn--md" href="ops-change.html?origin=' + q + '">운영 변경 기안</a>' +
-      (blocking ? '' : (periodBusy ? '' : b.autoRenew === 'YES'
+      (blocking ? '' : (periodBusy || rejRenew ? '' : b.autoRenew === 'YES'
         ? '<a class="btn btn--secondary btn--md" href="renewal.html?origin=' + q + '">연장 검토</a>'
         : '<a class="btn btn--secondary btn--md" href="new-contract.html?kind=RENEW&origin=' + q + '">연장 기안</a>') +
-        '<a class="btn btn--tertiary btn--md btn-reject" href="terminate.html?origin=' + q + '">해지 기안</a>');
+        (rejEnd ? '' : '<a class="btn btn--tertiary btn--md btn-reject" href="terminate.html?origin=' + q + '">해지 기안</a>'));
     $('#bundle-actions').hidden = false;
   }
 

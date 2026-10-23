@@ -19,13 +19,14 @@
   const me = C.init();
   const esc = C.esc;
   const $ = function (s) { return document.querySelector(s); };
-  if (!C.gate(me, ['ADMIN', 'SALES', 'SALES_ADMIN'], '가격 기준은 영업, 영업지원, 관리자만 볼 수 있습니다',
+  // 이 화면은 관리자와 영업지원(세일즈어드민, 보기만)이 엶 (기획자 결정 v0.58 C-34). 영업은 계약 등록의 제품 줄에서 표준 단가를 봄
+  if (!C.gate(me, ['ADMIN', 'SALES_ADMIN'], '가격 기준 관리는 관리자와 영업지원이 봅니다',
     '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 가격 기준은 열람을 제한하는 정보입니다(REQ-SCOPE-02).')) return;
   const canEdit = me.role === 'ADMIN' || me.role === 'SUPER';
   if (!canEdit) {
     $('#btn-add').hidden = true;
     $('#th-action').hidden = true;
-    $('#intro-sub').textContent = '영업과 영업지원은 볼 수만 있습니다. 가격 기준은 사내 품의 결재로 승인받은 뒤 관리자가 바꿉니다.';
+    $('#intro-sub').textContent = '영업지원은 볼 수만 있습니다. 가격 기준은 사내 품의 결재로 승인받은 뒤 관리자가 바꿉니다.';
   }
 
   function val(f, n) { return (f.elements[n].value || '').trim(); }

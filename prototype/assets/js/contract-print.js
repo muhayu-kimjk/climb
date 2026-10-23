@@ -91,7 +91,7 @@
   $('#approvals').innerHTML = b.items.map(function (c) {
     const many = (c.round || 1) > 1;
     const hist = [{ step: 'S01', action: 'SUBMIT', actorId: c.requesterId, at: c.requestedAt, comment: '', round: c.round || 1 }].concat(c.history || [])
-      .sort(function (x, y) { return (x.at || '').localeCompare(y.at || ''); });
+      .sort(function (x, y) { return (x.at || '').slice(0, 16).localeCompare((y.at || '').slice(0, 16)) || (x.round || 1) - (y.round || 1); }); // 분 단위로, 같은 때면 앞 차수 먼저
     const rows = hist.map(function (h) {
       return { step: (many ? (h.round || 1) + '차 ' : '') + C.stepLabel(h.step, c), act: C.actionLabel(h, c),
         who: C.ownerLabel(h.actorId) + (h.onBehalfOf ? ' (대신 처리: ' + C.ownerLabel(h.onBehalfOf) + ')' : ''), at: h.at, note: h.comment || '' };

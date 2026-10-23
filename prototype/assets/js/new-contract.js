@@ -199,16 +199,13 @@
   //   최고관리자는 시연으로 다른 사람 것도 열 수 있음(내 등록 목록에서 버튼이 보이므로)
   const source = srcId ? D.CONTRACTS.find(function (c) {
     return (c.id === srcId || c.draftKey === srcId) && (c.requesterId === me.id || me.role === 'SUPER') &&
-      (c.status === 'DRAFT' || C.canResubmit(c));
+      (c.status === 'DRAFT' || (C.canResubmit(c) && C.resubmitHref(c).indexOf('new-contract.html') === 0)); // 해지, 그대로 연장, 운영 변경은 그 화면에서
   }) : null;
   let round = 1;
   if (source && source.status === 'REJECTED') {
     round = (source.round || 1) + 1;
-    const rej = source.rejection; // 결재 기록에서 계산한 반려 정보 (common.js buildReview)
     setTitle('보완 후 재기안');
-    $('#notice').innerHTML = noticeHtml('', (round - 1) + '차 기안이 반려되었습니다',
-      '<strong>' + esc(C.roleShort(rej.role)) + ' 반려 (' + C.fmtDate(rej.at) + ')</strong><br>' + esc(source.rejectReason) +
-      '<br>내용을 보완해 ' + round + '차로 기안합니다. ' + (round - 1) + '차 기안 내용과 반려 사유는 그대로 남습니다.', '');
+    $('#notice').innerHTML = C.rejectionNotice(source); // 반려한 단계, 때, 사유 (해지, 연장 검토, 운영 변경과 같은 안내)
   } else if (source && source.status === 'DRAFT') {
     setTitle('새 계약 등록 (이어서 작성)');
     $('#notice').innerHTML = noticeHtml('', '임시 저장한 계약을 이어서 작성합니다',
@@ -387,7 +384,7 @@
   function totalAmount() { return readProducts().reduce(function (a, r) { return a + (r.amount || 0); }, 0); }
 
   /* ---------- 4. 체크리스트 2, 3번 자동 계산 (REQ-CHK-04) ----------
-   * 2번(표준단가표 적용): 모든 줄이 표준 단가 그대로면 예, 하나라도 다르면(할인했거나 표준보다 높게 받음) 아니요 [가정 v0.58]
+   * 2번(표준단가표 적용): 모든 줄이 표준 단가 그대로면 예, 하나라도 다르면(할인했거나 표준보다 높게 받음) 아니요 (v0.58 기획자 확인, C-34)
    * 3번(할인율 한도 준수): 모든 줄의 할인율이 그 기능의 한도 이하이면 예 (v0.49: 한도는 기능마다)
    * 모든 계약에는 제품과 금액이 있음(v0.41: 금액이 없는 계약은 플랫폼에 등록하지 않음) */
   function priceCheck(rows) {
@@ -850,15 +847,8 @@
   function done() {
     const no = newNumber();
     const now = C.nowStamp().slice(0, 16);
-    let rec = Object.assign(formRecord(), { id: no, status: 'IN_REVIEW', requestedAt: now, round: round, history: [] });
-    if (source && source.status === 'REJECTED') {
-      const prev = JSON.parse(JSON.stringify(source));
-      // 시연으로 남긴 결재 기록(contractId가 있음)은 화면을 열 때 다시 붙으므로 빼고 저장
-      const hist = (prev.history || []).filter(function (h) { return !h.contractId; });
-      hist.push({ step: 'S01', action: 'SUBMIT', at: source.requestedAt, actorId: source.requesterId, comment: '', round: source.round || 1 });
-      rec = Object.assign(prev, rec, { history: hist, viewers: source.viewers });
-      delete rec.notes;
-    }
+    const rec = source && source.status === 'REJECTED' ? C.resubmitRecord(source, formRecord())
+      : Object.assign(formRecord(), { id: no, status: 'IN_REVIEW', requestedAt: now, round: round, history: [] });
     if (source && source.status === 'DRAFT') C.deleteDraft(source);
     C.saveDemoContract(rec);
     C.flash(no + ' ' + round + '차로 기안했습니다. 다음 차례: ② 체크리스트 검토 (' + C.ownerLabel(C.stepUserNow('S02', rec)) + ')');

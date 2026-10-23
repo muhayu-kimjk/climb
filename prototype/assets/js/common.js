@@ -60,11 +60,12 @@ window.CLIMB = (function () {
     // 관리자 메뉴는 관리자(와 최고관리자)에게만 보임 (REQ-AUTH-02)
     //   접속 기록 점검(SCR-57)만 정보보호 담당자와 리더가 씀. 관리자가 자기 작업 기록을 스스로 점검하지 않게
     //   관리자에게는 보이지 않음 (REQ-SEC-05, 06, 기획자 결정 v0.25)
-    { label: '관리자', roles: ['ADMIN', 'PRIVACY'], children: [
+    //   가격 기준 관리(SCR-54)는 영업지원(세일즈어드민)도 열어 봄(보기만, 기획자 결정 v0.58 C-34)
+    { label: '관리자', roles: ['ADMIN', 'PRIVACY', 'SALES_ADMIN'], children: [
       { label: '사용자 권한 관리', scr: 'SCR-51', href: 'admin-users.html', roles: ['ADMIN'] },
       { label: '결재선 규칙', scr: 'SCR-52', href: 'admin-rules.html', roles: ['ADMIN'] },
       { label: '열람 제한 관리', scr: 'SCR-53', href: 'admin-restrict.html', roles: ['ADMIN'] },
-      { label: '가격 기준 관리', scr: 'SCR-54', href: 'admin-prices.html', roles: ['ADMIN'] },
+      { label: '가격 기준 관리', scr: 'SCR-54', href: 'admin-prices.html', roles: ['ADMIN', 'SALES_ADMIN'] },
       // 제품과 기능 관리 (v0.47 기획자 요청, v0.49 제품 → 기능 두 단계): 관리자와 최고관리자가 제품과 그 기능을 넣고 고침. 가격은 가격 기준 관리
       { label: '제품과 기능 관리', scr: 'SCR-58', href: 'admin-products.html', roles: ['ADMIN'] },
       { label: '거래처 관리', scr: 'SCR-55', href: 'admin-customers.html', roles: ['ADMIN'] },
@@ -711,9 +712,39 @@ window.CLIMB = (function () {
     });
   }
 
-  // 반려된 계약을 계약 등록 화면에서 보완해 다음 차수로 다시 기안할 수 있는지: 신규, 변경, 바꿔서 연장만
-  //   해지, 그대로 연장, 운영 변경은 반려되면 끝나고 필요하면 새로 기안 (v0.58 QA)
-  function canResubmit(c) { return c.status === 'REJECTED' && c.kind !== 'TERMINATE' && c.kind !== 'CHANGE' && c.renewMode !== 'AUTO'; }
+  /* 보완 후 재기안 (REQ-FLOW-17): 반려된 기안은 같은 번호의 다음 차수로 다시 기안
+   *   v0.58 기획자 결정(C-34): 신규, 변경, 바꿔서 연장(계약 등록 화면)뿐 아니라 해지(해지 기안), 조건 그대로 연장(연장 검토),
+   *   운영 변경(운영 변경 기안)도 같은 번호로. 그 화면을 ?id=반려된 번호로 열면 앞 차수 값이 채워짐 */
+  function canResubmit(c) { return c.status === 'REJECTED'; }
+  // 다시 기안하는 화면 주소
+  function resubmitHref(c) {
+    const q = '?id=' + encodeURIComponent(c.id);
+    return (c.kind === 'TERMINATE' ? 'terminate.html' : c.kind === 'CHANGE' ? 'ops-change.html' : c.renewMode === 'AUTO' ? 'renewal.html' : 'new-contract.html') + q;
+  }
+  // 주소의 번호로 다시 기안할 기록 찾기: 반려되었고, 그 화면이 맡는 종류(fits)이고, 기안자(시연은 최고관리자도)일 때
+  function resubmitSource(id, user, fits) {
+    const c = id ? D.CONTRACTS.filter(function (x) { return x.id === id; })[0] : null;
+    return c && canResubmit(c) && fits(c) && (c.requesterId === user.id || user.role === 'SUPER') ? c : null;
+  }
+  // 보완 후 재기안 화면 맨 위 안내: 반려한 단계, 때, 사유
+  function rejectionNotice(c) {
+    const r = c.rejection || {}, round = c.round || 1;
+    return noticeBox('', round + '차 기안이 반려되었습니다',
+      '<strong>' + esc(r.role ? roleShort(r.role) : '') + ' 반려 (' + fmtDate(r.at) + ')</strong><br>' + esc(c.rejectReason || '') +
+      '<br>내용을 보완해 같은 번호(' + esc(c.id) + ')의 ' + (round + 1) + '차로 기안합니다. ' + round + '차 기안 내용과 반려 사유는 그대로 남습니다.');
+  }
+  // 다시 기안한 기록: 같은 번호의 다음 차수. 앞 차수의 결재 기록과 기안 일시(SUBMIT 한 줄, 같은 일시면 맨 앞에 오게 앞에 둠)는 남김
+  //   시연으로 남긴 결재 기록(contractId가 있음)은 화면을 열 때 다시 붙으므로 빼고 저장
+  function resubmitRecord(source, fields) {
+    const prev = JSON.parse(JSON.stringify(source));
+    const hist = (prev.history || []).filter(function (h) { return !h.contractId; });
+    hist.unshift({ step: 'S01', action: 'SUBMIT', at: source.requestedAt, actorId: source.requesterId, comment: '', round: source.round || 1 });
+    const rec = Object.assign(prev, fields, {
+      id: source.id, status: 'IN_REVIEW', requestedAt: nowStamp().slice(0, 16), round: (source.round || 1) + 1, history: hist, viewers: source.viewers,
+    });
+    delete rec.notes;
+    return rec;
+  }
   // 결재 단계 점: 승인 완료(채움), 현재 차례(테두리), 대기(회색), 반려(핑크). 2단계 계약 검토에서 거치는 단계만
   function stepDots(c) {
     const stateClass = { DONE: 'is-done', PENDING: 'is-current', REJECTED: 'is-rejected' };
@@ -1247,19 +1278,17 @@ window.CLIMB = (function () {
     const done = ['ACTIVE', 'EXPIRED', 'TERMINATED'];
     // 원계약이 아직 진행 중이면 원계약 상태, 끝났으면 지금 유효한 계약의 상태(해지면 해지)
     const status = done.indexOf(root.status) < 0 ? root.status : root.status === 'TERMINATED' ? 'TERMINATED' : current.status;
-    // 진행 중인 변경, 연장, 연장 검토, 해지 기안
-    //   반려는 다시 기안할 수 있는 것(변경, 바꿔서 연장)만 진행 중으로 봄. 해지, 그대로 연장, 운영 변경은 반려되면 끝나고 새로 기안
-    //   (v0.58 QA: 반려된 해지나 연장 검토가 묶음을 막아 다시는 연장, 해지를 기안할 수 없었음)
-    const open = items.filter(function (c) {
-      return c !== root && (WORKING.concat(['SUPPLEMENT']).indexOf(c.status) > -1 || (c.status === 'REJECTED' && canResubmit(c)));
-    });
+    // 진행 중인 변경, 연장, 연장 검토, 해지 기안(결재 중, 보완 중)과 반려되어 다시 기안을 기다리는 기안
+    //   반려된 기안은 같은 종류의 새 기안을 막고 그 기안을 보완해 다시 올리게 함(다른 종류는 막지 않음, v0.58)
+    const open = items.filter(function (c) { return c !== root && WORKING.concat(['SUPPLEMENT']).indexOf(c.status) > -1; });
+    const rejected = items.filter(function (c) { return c !== root && c.status === 'REJECTED'; });
     // 운영 변경(기간 변경)이 끝났으면 그 종료일이 지금 유효한 계약의 종료일 (재무 문서: 끝나면 서비스 기간이 바뀜)
     const periodDone = items.filter(function (c) {
       return c.kind === 'CHANGE' && c.changeType === 'PERIOD' && c.status === 'ACTIVE' && (c.requestedAt || '') > (current === root ? '' : current.requestedAt || '');
     });
     const lastPeriod = periodDone[periodDone.length - 1];
     return {
-      id: rootId, root: root, items: items, current: current, status: status, open: open,
+      id: rootId, root: root, items: items, current: current, status: status, open: open, rejected: rejected,
       start: startOf(current), end: lastPeriod ? lastPeriod.endDate : endOf(current),
       autoRenew: current.autoRenew || root.autoRenew || 'NO', noticeDays: current.noticeDays || root.noticeDays || null,
       count: function (kind) { return items.filter(function (c) { return c.kind === kind; }).length; },
@@ -2140,7 +2169,7 @@ window.CLIMB = (function () {
     reviewRoute: reviewRoute, stepLabel: stepLabel, kindLabel: kindLabel, isShort: isShort, isChange: isChange, changeSales: changeSales,
     currentStep: currentStep, pendingSteps: pendingSteps, routedReview: routedReview, isReviewStep: isReviewStep, waitDays: waitDays,
     stepDots: stepDots, progressText: progressText, progressCells: progressCells, actionLabel: actionLabel, opsChecksFor: opsChecksFor, signDate: signDate, methodOf: methodOf,
-    canAct: canAct, canCancel: canCancel, canResubmit: canResubmit, recordAction: recordAction, pendingQueue: pendingQueue, myActions: myActions,
+    canAct: canAct, canCancel: canCancel, canResubmit: canResubmit, resubmitHref: resubmitHref, resubmitSource: resubmitSource, rejectionNotice: rejectionNotice, resubmitRecord: resubmitRecord, recordAction: recordAction, pendingQueue: pendingQueue, myActions: myActions,
     // 기안자 기준 지금 담당자 (결재선 미리 보기): C.stepUserNow('S03', { requesterId: 'u_sales1' })
     stepUserNow: function (code, c) { return stepUser(code, c, '9999'); },
     stepUserAt: stepUser,

@@ -221,14 +221,12 @@
           (me.id === c.requesterId ? '' : ' (시연: 최고관리자가 기안자 대신 처리해 볼 수 있습니다)'))
         : notice('', C.stepLabel(sp.step, c) + '에서 보완을 요청해 기안자가 고치는 중입니다', head + '기안자가 고치면 ' + no + '부터 이어서 결재합니다.');
     } else if (c.status === 'REJECTED') {
-      // 신규, 변경, 바꿔서 연장은 기안자가 보완해 다음 차수로 다시 기안(버튼). 해지, 그대로 연장, 운영 변경은 반려되면 끝나고 필요하면 새로 기안 (v0.58 QA)
-      const again = C.canResubmit(c);
+      // 기안자가 보완해 같은 번호의 다음 차수로 다시 기안(버튼). 해지, 그대로 연장, 운영 변경도 같음 (v0.58 기획자 결정)
       const mineRej = me.id === c.requesterId || me.role === 'SUPER';
       html = notice('', C.stepLabel(c.rejection.step, c) + '에서 반려되었습니다',
         '<strong>' + esc(C.ownerLabel(c.rejection.by)) + ' (' + C.fmtDateTime(c.rejection.at) + ')</strong><br>' + esc(c.rejection.reason) +
-        (again ? '<br>기안자가 보완해 ' + (round + 1) + '차로 다시 기안합니다.'
-          : '<br>이 기안은 반려로 끝났습니다. 필요하면 <a class="doc-link" href="contract.html?id=' + encodeURIComponent(C.rootOf(c)) + '">계약 상세</a>에서 새로 기안합니다.'),
-        again && mineRej ? '<a class="btn btn--primary btn--md" href="new-contract.html?id=' + encodeURIComponent(c.id) + '">보완 후 재기안</a>' : '');
+        '<br>기안자가 보완해 같은 번호의 ' + (round + 1) + '차로 다시 기안합니다.',
+        mineRej ? '<a class="btn btn--primary btn--md" href="' + C.resubmitHref(c) + '">보완 후 재기안</a>' : '');
     } else if (actionable.length && me.role === 'SUPER') {
       html = notice('', '시연: 담당자 대신 처리해 볼 수 있습니다',
         '최고관리자는 모든 결재 문서를 볼 수 있고, 프로토타입에서는 담당자 대신 각 단계를 처리해 볼 수 있습니다. 실제 시스템에서는 담당자 본인과 관리자가 대리로 지정한 사람만 처리합니다(결재선 규칙의 대리 지정).' + ret);
@@ -449,7 +447,7 @@
   function renderHistory() {
     // 지금 차수의 기안 줄을 더해 일시 순서로. 앞 차수의 기안은 다시 기안할 때 결재 기록에 남김 (v0.58)
     const rows = [{ at: c.requestedAt, step: 'S01', action: 'SUBMIT', actorId: c.requesterId, comment: '', round: c.round || 1 }].concat(c.history || [])
-      .sort(function (a, b) { return (a.at || '').localeCompare(b.at || ''); });
+      .sort(function (a, b) { return (a.at || '').slice(0, 16).localeCompare((b.at || '').slice(0, 16)) || (a.round || 1) - (b.round || 1); }); // 분 단위로, 같은 때면 앞 차수 먼저
     $('#history').innerHTML =
       '<caption class="sr-only">결재 기록: 일시, 차수, 단계, 한 일, 처리한 사람, 의견</caption>' +
       '<thead><tr><th scope="col">일시</th><th scope="col">차수</th><th scope="col">단계</th><th scope="col">한 일</th><th scope="col">처리한 사람</th><th scope="col">의견, 사유</th></tr></thead>' +

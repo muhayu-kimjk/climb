@@ -62,13 +62,17 @@
       const open = b.open.map(function (o) { return C.kindLabel(o) + ' ' + D.STATUS[o.status].label; }).join(', ');
       const blocking = b.open.some(function (o) { return o.kind === 'RENEW' || o.kind === 'TERMINATE'; });
       const periodBusy = b.open.some(function (o) { return o.kind === 'CHANGE' && o.changeType === 'PERIOD'; }); // 기간 변경 중에는 연장 버튼 없음 (v0.58)
+      // 반려된 연장, 해지: 같은 종류의 새 기안 대신 그 기안을 보완 후 재기안 (v0.58)
+      const rejRenew = b.rejected.filter(function (o) { return o.kind === 'RENEW'; })[0];
+      const rejEnd = b.rejected.filter(function (o) { return o.kind === 'TERMINATE'; })[0];
       let todo = '-';
       if (visible && canDraft(b) && !blocking) {
         todo = '<div class="row-actions">' +
-          (periodBusy ? '' : b.autoRenew === 'YES'
+          (periodBusy ? '' : rejRenew ? '<a class="btn btn--secondary" href="' + C.resubmitHref(rejRenew) + '">연장 보완 후 재기안</a>' : b.autoRenew === 'YES'
             ? '<a class="btn btn--secondary" href="renewal.html?origin=' + encodeURIComponent(b.id) + '">연장 검토</a>'
             : '<a class="btn btn--secondary" href="new-contract.html?kind=RENEW&origin=' + encodeURIComponent(b.id) + '">연장 기안</a>') +
-          '<a class="btn btn--tertiary" href="terminate.html?origin=' + encodeURIComponent(b.id) + '">해지 기안</a></div>';
+          (rejEnd ? '<a class="btn btn--tertiary" href="' + C.resubmitHref(rejEnd) + '">해지 보완 후 재기안</a>'
+            : '<a class="btn btn--tertiary" href="terminate.html?origin=' + encodeURIComponent(b.id) + '">해지 기안</a>') + '</div>';
       }
       return '<tr>' +
         // 남은 일자(D-n)는 날짜에 딸린 값이라 가운데 (v0.55 기획자 요청, REQ-UI-16)

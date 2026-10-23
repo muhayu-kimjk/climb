@@ -9,6 +9,7 @@
  *   3. 변경 사유(필수), CRM 영업활동 링크(필수, https)
  *   4. 결재선 미리 보기: ③ 영업 검토(기간 2개월 넘게 바뀜, 무상 충전 50건 초과일 때만) → ⑨ 운영 변경(고객지원, HR 충전은 재무)
  *   5. 기안하면 -C01 번호로 원계약에 묶어 저장(프로토타입은 이 브라우저에만)하고 결재 문서로 이동
+ *   6. 보완 후 재기안(v0.58 기획자 결정): ops-change.html?id=반려된 운영 변경 번호로 열면 앞 차수 값을 채우고 같은 번호의 다음 차수로 기안
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -18,7 +19,10 @@
   const $ = function (s) { return document.querySelector(s); };
   const notice = function (title, body) { return C.noticeBox('', title, body); };
 
-  const origin = new URLSearchParams(location.search).get('origin');
+  // 보완 후 재기안: 반려된 운영 변경을 같은 번호의 다음 차수로 (ops-change.html?id=2601CL001-C01)
+  const params = new URLSearchParams(location.search);
+  const again = C.resubmitSource(params.get('id'), me, function (c) { return c.kind === 'CHANGE'; });
+  const origin = again ? again.parentId : params.get('origin');
   const found = D.CONTRACTS.find(function (c) { return c.id === origin; });
   const b = found ? C.bundleOf(C.rootOf(found)) : null;
   const back = b ? 'contract.html?id=' + encodeURIComponent(b.id) : 'contracts.html';
@@ -45,8 +49,22 @@
   // 기간 변경은 진행 중인 연장이나 다른 기간 변경과 겹치면 막음 [가정]
   const periodBusy = b.open.some(function (o) { return o.kind === 'RENEW' || (o.kind === 'CHANGE' && o.changeType === 'PERIOD'); });
 
+  // 반려된 운영 변경이 있으면 새 번호 대신 그 기안을 보완해 같은 번호로 다시 기안 (v0.58 기획자 결정)
+  const waiting = again ? [] : b.rejected.filter(function (o) { return o.kind === 'CHANGE'; });
+  if (waiting.length) {
+    $('#notice').innerHTML = C.noticeBox('', '반려된 운영 변경이 있습니다', waiting.map(function (o) {
+      return '<a href="review.html?id=' + encodeURIComponent(o.id) + '">' + esc(o.id) + '</a> ' + esc(C.kindLabel(o)) + ' ' + (o.round || 1) + '차 반려';
+    }).join('<br>') + '<br>새로 기안하지 않고 반려된 기안을 보완해 같은 번호의 다음 차수로 다시 기안합니다.',
+      '<a class="btn btn--primary btn--md" href="' + C.resubmitHref(waiting[0]) + '">보완 후 재기안</a><a class="btn btn--tertiary btn--md" href="' + back + '">계약 상세로</a>');
+    return;
+  }
+
   /* ---------- 1. 변경할 계약 ---------- */
-  const newId = C.nextChildId(b.id, 'CHANGE');
+  const newId = again ? again.id : C.nextChildId(b.id, 'CHANGE');
+  if (again) {
+    document.querySelector('.page-title').textContent = '운영 변경 보완 후 재기안';
+    $('#notice').innerHTML = C.rejectionNotice(again);
+  }
   function info(label, value) { return '<div><dt>' + esc(label) + '</dt><dd>' + value + '</dd></div>'; }
   $('#origin').innerHTML = [
     info('고객사', esc(root.counterparty)),
@@ -56,7 +74,7 @@
     info('영업대표', esc(C.ownerLabel(root.requesterId))),
     info('진행 중인 일', b.open.length ? b.open.map(function (o) { return esc(o.id + ' ' + C.kindLabel(o)); }).join('<br>') : '없음'),
   ].join('');
-  $('#number-help').textContent = '기안하면 ' + newId + '(운영 변경)로 원계약과 함께 묶입니다.';
+  $('#number-help').textContent = again ? '같은 번호 ' + newId + '의 ' + ((again.round || 1) + 1) + '차로 기안합니다.' : '기안하면 ' + newId + '(운영 변경)로 원계약과 함께 묶입니다.';
   $('#btn-cancel').href = back;
 
   /* ---------- 2. 변경 종류: 계약의 서비스에 있는 것만 ---------- */
@@ -114,6 +132,16 @@
   }
   $('#form').addEventListener('input', refresh);
   $('#form').addEventListener('change', refresh);
+  // 보완 후 재기안: 앞 차수 값을 채움
+  if (again) {
+    const tr = document.querySelector('[name="type"][value="' + again.changeType + '"]');
+    if (tr && !tr.disabled) tr.checked = true;
+    $('#f-end').value = again.changeType === 'PERIOD' ? again.endDate || '' : '';
+    $('#f-qty').value = again.changeQty ? again.changeQty.toLocaleString('ko-KR') : '';
+    $('#f-amount').value = again.changeAmount ? again.changeAmount.toLocaleString('ko-KR') : '';
+    $('#f-reason').value = again.reason || '';
+    $('#f-activity').value = again.activityUrl || '';
+  }
   refresh();
   $('#form').hidden = false;
 
@@ -167,10 +195,10 @@
     if (e.target === modal || e.target.closest('[data-act="close"]')) modal.hidden = true;
     if (!e.target.closest('[data-act="confirm"]')) return;
     // 운영 변경 기록 (데이터 정의서 contract: kind CHANGE, change_type, change_qty, change_amount, activity_url)
-    const rec = record();
+    const rec = again ? C.resubmitRecord(again, record()) : Object.assign(record(), { round: 1 });
     C.saveDemoContract(rec);
     const next = C.pendingSteps(rec).map(function (x) { return C.stepLabel(x.step, rec) + ' (' + C.ownerLabel(x.userId) + ')'; }).join(', ');
-    C.flash(newId + ' 운영 변경을 기안했습니다. 다음 차례: ' + next);
+    C.flash(newId + ' 운영 변경을 ' + (rec.round || 1) + '차로 기안했습니다. 다음 차례: ' + next);
     location.href = 'review.html?id=' + encodeURIComponent(newId);
   });
   document.addEventListener('keydown', function (e) { if (!modal.hidden && e.key === 'Escape') modal.hidden = true; });
