@@ -21,17 +21,20 @@ a.board-title:hover { color: var(--text-primary); text-decoration: underline; te
 .release-part li + li { margin-top: 0.6rem; }
 .post-edited { margin-top: 2.4rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
 /* 이전 글, 다음 글 */
-.post-nav { margin-top: 3.2rem; border-top: 1px solid var(--border-gray-light); }
-.post-nav > div { display: flex; gap: 1.6rem; padding: 1.4rem 0; border-bottom: 1px solid var(--border-gray-light); font-size: var(--fs-body-medium); }
+/* 본문이 아님을 알 수 있게 회색 상자에 조금 작은 글자로 (v0.55 기획자 요청). 이름(이전 글)은 흐리게, 값(글 제목)은 진하게 */
+.post-nav { margin-top: 3.2rem; padding: 0 1.6rem; border-radius: var(--radius-lg); background: var(--surface-gray-subtler); }
+.post-nav > div { display: flex; gap: 1.6rem; padding: 1.2rem 0; font-size: var(--fs-body-small); }
+.post-nav > div + div { border-top: 1px solid var(--border-gray-light); }
 .post-nav dt { flex-shrink: 0; width: 6.4rem; color: var(--text-subtle); }
-.post-nav dd { min-width: 0; text-align: left; }
+.post-nav dd { min-width: 0; text-align: left; color: var(--text-bolder); }
 .post-nav a:hover { color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; }
 .post-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.8rem; margin-top: 2.4rem; }
 @media print { .post-actions, .post-nav { display: none !important; } }
 
-/* ---------- 개요 맨 위: 가장 최근 공지 한 줄 (숫자, 종 모양 없음. REQ-ENV-09) ---------- */
+/* ---------- 개요: 가장 최근 공지 한 줄 (숫자, 종 모양 없음. REQ-ENV-09)
+ * v0.55부터 맨 위가 아니라 진행 현황, 만료 임박 다음 세 번째. 위아래 간격은 개요 상자 사이 간격(.dash-stack)이 맡음 ---------- */
 .notice-strip {
-  display: flex; align-items: center; gap: 0.8rem; margin-bottom: 2.4rem; padding: 1.2rem 1.6rem;
+  display: flex; align-items: center; gap: 0.8rem; padding: 1.2rem 1.6rem;
   border: 1px solid var(--border-gray-light); border-radius: var(--radius-lg); background: var(--surface-white);
 }
 .notice-strip .strip-label { flex-shrink: 0; font-size: var(--fs-body-small); font-weight: 700; color: var(--text-subtle); }

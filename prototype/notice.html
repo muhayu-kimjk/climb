@@ -20,7 +20,7 @@
 </head>
 <!-- =====================================================================
   SCR-92 공지 보기 (docs/02_화면목록.md, 요구사항 정의서 REQ-UI-29, v0.45)
-  - 주소: notice.html?id=글 번호(예: N-0007). 메뉴에 없는 화면이라 브레드크럼: 개요 > 공지사항 > 글 보기
+  - 주소: notice.html?id=글 번호(예: N-0007). 메뉴에 없는 화면. 경로(브레드크럼)는 두지 않음(v0.55)
   - 공지: 문단 / 릴리즈: 버전과 날짜, 새 기능, 개선, 바뀐 규칙, 고친 문제(묶음마다 배지)
   - 이전 글, 다음 글, 목록으로. 관리자와 최고관리자는 고치기, 내리기(되돌릴 수 없으니 확인 창, 진한 Pink 버튼)
 ====================================================================== -->
@@ -33,7 +33,6 @@
 
   <main id="main" class="page" tabindex="-1">
     <div class="inner">
-      <nav class="breadcrumb" id="breadcrumb" aria-label="브레드크럼" hidden></nav>
       <div id="notice"></div>
       <article class="panel" id="post" hidden>
         <div class="post-head">

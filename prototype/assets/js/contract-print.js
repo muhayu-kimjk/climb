@@ -15,7 +15,6 @@
   const $ = function (s) { return document.querySelector(s); };
 
   const id = new URLSearchParams(location.search).get('id');
-  C.breadcrumb([['보관함', 'contracts.html'], ['계약 상세' + (id ? ' ' + id : ''), 'contract.html?id=' + encodeURIComponent(id || '')], ['계약 요약서']]);
   const found = D.CONTRACTS.find(function (c) { return c.id === id; });
   const b = found ? C.bundleOf(C.rootOf(found)) : null;
   const notice = function (title, body) {
@@ -35,7 +34,7 @@
   /* ---------- 머리 ---------- */
   const st = D.STATUS[b.status];
   $('#doc-title').textContent = root.counterparty + ' 계약 요약서';
-  $('#doc-meta').innerHTML = C.meta([esc(b.id), esc(C.serviceLabel(root.services)), C.badge(st.tone, st.label), '기준일 ' + C.fmtDate(D.TODAY)]);
+  $('#doc-meta').innerHTML = C.meta([esc(b.id), esc(C.serviceLabel(root.services)), C.badge(st.tone, st.label), ['기준일', C.fmtDate(D.TODAY)]]);
   $('#doc-tools').hidden = false;
   $('#btn-print').addEventListener('click', function () { window.print(); });
 

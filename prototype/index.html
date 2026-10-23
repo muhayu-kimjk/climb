@@ -50,21 +50,21 @@
         </div>
         <p class="page-date" id="today"></p>
       </div>
-      <!-- 가장 최근 공지 한 줄 (공지사항 SCR-91, v0.45 기획자 결정). 숫자나 종 모양 없이 제목과 날짜만 (REQ-ENV-09) -->
-      <div id="notice-strip"></div>
-
-      <!-- 상자는 좌우로 나누지 않고 한 줄에 하나씩 쌓음 (REQ-DASH-15) -->
+      <!-- 상자는 좌우로 나누지 않고 한 줄에 하나씩 쌓음 (REQ-DASH-15)
+           순서(v0.55 기획자 요청): 계약이 먼저, 플랫폼 이야기는 나중. 진행 현황 → 만료 임박 → 최근 공지 → 그 밖의 계약 상자 → 점검할 일 -->
       <div class="dash-stack">
-        <!-- 계약 진행 현황: KRDS 단계 표시기 + 그 아래 진행 상세 표 (REQ-DASH-04, 06, 08, 14) -->
+        <!-- 1. 계약 진행 현황: KRDS 단계 표시기 + 그 아래 진행 상세 표 (REQ-DASH-04, 06, 08, 14) -->
         <section class="panel" id="progress" aria-labelledby="progress-title"></section>
+        <!-- 2. 만료 임박 (REQ-DASH-07) -->
+        <section class="panel" id="expiring" aria-labelledby="expiring-title"></section>
+        <!-- 3. 가장 최근 공지 한 줄 (공지사항 SCR-91, v0.45 기획자 결정). 숫자나 종 모양 없이 제목과 날짜만 (REQ-ENV-09) -->
+        <div id="notice-strip"></div>
         <!-- 내가 검토할 계약: 결재 역할에게만 보임 (REQ-DASH-03, 05) -->
         <section class="panel" id="my-reviews" aria-labelledby="my-reviews-title" hidden></section>
-        <!-- 점검할 일: 정보보호 담당자, 리더와 최고관리자에게만 (REQ-DASH-16, REQ-SEC-05, 06) -->
-        <section class="panel" id="audit" aria-labelledby="audit-title" hidden></section>
         <!-- 챙길 의무: 체결 후 의무를 맡는 분야(정보보호, 고객지원, 재무)와 최고관리자에게만 (v0.53, REQ-FLOW-35) -->
         <section class="panel" id="obligations" aria-labelledby="obligations-title" hidden></section>
-        <!-- 만료 임박 (REQ-DASH-07) -->
-        <section class="panel" id="expiring" aria-labelledby="expiring-title"></section>
+        <!-- 점검할 일: 정보보호 담당자, 리더와 최고관리자에게만 (REQ-DASH-16, REQ-SEC-05, 06). 플랫폼 점검이라 맨 뒤 -->
+        <section class="panel" id="audit" aria-labelledby="audit-title" hidden></section>
       </div>
     </div>
   </main>

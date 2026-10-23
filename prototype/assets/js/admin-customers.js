@@ -71,8 +71,8 @@
     const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
     if (page > pages) page = pages;
     const from = (page - 1) * PAGE_SIZE, rows = list.slice(from, from + PAGE_SIZE);
-    const counts = Object.keys(STATE).map(function (k) { return STATE[k][1] + ' ' + list.filter(function (cu) { return stateOf(cu) === k; }).length + '곳'; });
-    $('#list-count').innerHTML = C.meta(['<strong>' + (list.length !== D.CUSTOMERS.length ? '검색 결과 ' : '전체 ') + list.length + '곳</strong>'].concat(counts));
+    const counts = Object.keys(STATE).map(function (k) { return [STATE[k][1], list.filter(function (cu) { return stateOf(cu) === k; }).length + '곳']; });
+    $('#list-count').innerHTML = C.meta([[(list.length !== D.CUSTOMERS.length ? '검색 결과' : '전체'), '<strong>' + list.length + '곳</strong>']].concat(counts));
     $('#rows').innerHTML = rows.length ? rows.map(function (cu) {
       const st = stateOf(cu), into = cu.mergedInto ? find(cu.mergedInto) : null;
       return '<tr' + (st !== 'USE' ? ' class="is-muted"' : '') + '>' +

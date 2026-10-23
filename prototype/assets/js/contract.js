@@ -20,7 +20,6 @@
   };
 
   const id = new URLSearchParams(location.search).get('id');
-  C.breadcrumb([['보관함', 'contracts.html'], ['계약 상세' + (id ? ' ' + id : '')]]);
   const found = D.CONTRACTS.find(function (c) { return c.id === id; });
   const b = found ? C.bundleOf(C.rootOf(found)) : null;
   if (!b) {

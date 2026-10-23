@@ -58,10 +58,6 @@
   const legalNote = !short && !change && !!c.checklist && c.checklist.standard === 'NO';
   const isTerm = c.kind === 'TERMINATE';
   const rootId = C.rootOf(c);
-  // 브레드크럼: 진행 중이면 계약 현황, 끝난 계약이면 보관함 아래 (KRDS, v0.28)
-  C.breadcrumb(['ACTIVE', 'EXPIRED', 'TERMINATED'].indexOf(c.status) > -1
-    ? [['보관함', 'contracts.html'], ['계약 상세', 'contract.html?id=' + encodeURIComponent(rootId)], ['결재 문서 ' + c.id]]
-    : [['계약 현황', 'progress.html'], ['결재 문서 ' + c.id]]);
   const parent = c.parentId ? D.CONTRACTS.find(function (x) { return x.id === c.parentId; }) : null;
   const seq = Number(String(rootId).replace(/\D/g, '').slice(-4)) || 1;
   const reqDate = (c.requestedAt || '').slice(0, 10);

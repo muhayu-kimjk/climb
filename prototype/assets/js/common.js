@@ -13,7 +13,7 @@
  *   → 결재 흐름 계산(체크리스트로 결재선, 결재 기록을 차례로 다시 적용해 지금 상태: reviewRoute, buildReview)
  *   → 열람 권한(canView, 지정 열람자) → 처리 대기 목록 → 시연 기록 → 체결 후 의무 → 관리자 설정(applyAdmin)
  *   → 계약 묶음(bundleOf, 만료 예정, 해지 통지 기한) → HTML 조각 → 헤더, 메뉴, 푸터 그리기
- *   → 안내 메시지와 확인 창 → 입력 칸 → 브레드크럼, 쪽 번호 → 관리자 화면 부품 → 워터마크, 맨 위로
+ *   → 안내 메시지와 확인 창 → 입력 칸 → 쪽 번호 → 관리자 화면 부품 → 워터마크, 맨 위로
  *   → 날짜 입력과 달력 → 화면 시작(init)과 내보내기
  * 불러올 때 한 번 하는 일: 시연 기록 다시 적용(시연 기록 묶음), 관리자 설정 적용(applyAdmin 뒤 buildReview)
  * ===================================================================== */
@@ -107,9 +107,13 @@ window.CLIMB = (function () {
 
   // 여러 정보를 한 줄에 나열할 때 쓰는 묶음. 글자 '·' 대신 얇은 세로선으로 구분합니다. (REQ-UI-08)
   // items: 이미 안전하게 처리(esc)된 HTML 조각 목록. 빈 값은 빼고 표시합니다.
+  //   항목이 [이름, 값] 짝이면 이름(정해진 말)과 값(바뀌는 데이터)을 다른 모양으로 (v0.55 기획자 원칙, REQ-UI-32)
+  //   예: C.meta([['올린 일시', '2026-10-22 23:59'], ['쓴 사람', '경영지원유닛 원지안']]), 목록 위 건수 ['진행 중', '3건']
   function meta(items) {
     return '<span class="meta-list"><span class="meta-list-in">' +
-      items.filter(Boolean).map(function (it) { return '<span>' + it + '</span>'; }).join('') +
+      items.filter(Boolean).map(function (it) {
+        return Array.isArray(it) ? '<span><span class="meta-key">' + it[0] + '</span> <span class="meta-val">' + it[1] + '</span></span>' : '<span>' + it + '</span>';
+      }).join('') +
     '</span></span>';
   }
 
@@ -719,40 +723,53 @@ window.CLIMB = (function () {
     }).join('') + '</span>';
   }
 
-  // 현재 진행: 한 줄로 간단하게 (REQ-DASH-06). 개요, 진행 현황이 함께 씀
-  function progressText(c) {
-    if (c.status === 'DRAFT') return '임시 저장 (' + fmtDate(c.savedAt) + ')';
+  /* 현재 진행 (REQ-DASH-06, v0.55 기획자 결정: 두 칸으로 나눈 C안)
+   *   현재 진행 칸: 지금 단계의 번호와 이름만 한 줄로(왼쪽 정렬, 줄 바꾸지 않음). 예: "④ 법무", "④⑤ 법무, 개인정보",
+   *     "⑦ 체결본 등록", "④ 법무 반려", "④ 법무 보완 요청". "검토 중", "대기" 같은 말은 옆 상태 배지가 말하므로 쓰지 않음
+   *   대기 칸: 지금 단계에 온 날(반려, 보완 요청이면 그날)부터 오늘까지의 날수. 한 가지 기준으로만 셈(예전의 승인 후, 체결 후, 기안 후를 없앰)
+   *     독촉 기준(alert_rule)을 넘으면 강조: ②~⑥, ⑧~⑩은 approvalDelayDays(5일), ⑦ 체결본 등록은 signDelayDays(14일)
+   *   끝난 계약: 현재 진행 칸에 날짜(예: "만료 2027-04-30"), 대기 칸은 "-"
+   * 반환: { step: 글, days: 날수 또는 null, lim: 강조 기준(0이면 강조 없음) } */
+  function progressInfo(c) {
+    const R = D.ALERT_RULES;
+    if (c.status === 'DRAFT') return { step: D.STEPS.S01.no + ' 임시 저장', days: daysSince(c.savedAt), lim: 0 };
     if (c.status === 'REJECTED') {
-      return (phaseOf(c.rejection.step) === 2 ? stepDots(c) : '') + esc(roleShort(c.rejection.role)) + ' 반려 (' + fmtDate(c.rejection.at) + ')';
+      const s = D.STEPS[c.rejection.step];
+      return { step: s.no + ' ' + s.short + ' 반려', days: daysSince(c.rejection.at), lim: 0 };
     }
-    // 보완 중: 어느 단계에서 보완을 요청했는지와 일수 (REQ-REV-11)
+    // 보완 중: 어느 단계에서 보완을 요청했는지 (REQ-REV-11)
     if (c.status === 'SUPPLEMENT' && c.supplement) {
-      return stepDots(c) + esc(D.STEPS[c.supplement.step].short) + ' 보완 요청 (' + daysSince(c.supplement.at) + '일째)';
+      const s = D.STEPS[c.supplement.step];
+      return { step: s.no + ' ' + s.short + ' 보완 요청', days: daysSince(c.supplement.at), lim: 0 };
     }
-    // 검토 중: 지금 차례인 단계 이름. ④⑤는 동시에 차례일 수 있음 (예: 법무, 개인정보 검토 중)
-    if (c.status === 'IN_REVIEW') {
-      const names = pendingSteps(c).map(function (s) { return D.STEPS[s.step].short; }).join(', ');
-      return stepDots(c) + esc(names) + ' 검토 중 (' + waitDays(c) + '일째)';
+    // 검토 중(②~⑤): ④⑤는 동시에 차례일 수 있음 / 체결 대기(⑥~⑧)와 운영 검토(⑨, ⑩): 하는 일 이름
+    if (['IN_REVIEW', 'APPROVED', 'OPS_REVIEW'].indexOf(c.status) > -1) {
+      const ps = pendingSteps(c);
+      if (!ps.length) return { step: D.STATUS[c.status].label, days: null, lim: 0 };
+      const first = ps[0].step;
+      const step = isReviewStep(first)
+        ? ps.map(function (s) { return D.STEPS[s.step].no; }).join('') + ' ' + ps.map(function (s) { return D.STEPS[s.step].short; }).join(', ')
+        : D.STEPS[first].no + ' ' + stepIng(c, first).replace(/ (중|대기)$/, '');
+      return { step: step, days: waitDays(c), lim: first === 'S07' ? R.signDelayDays : R.approvalDelayDays };
     }
-    // 체결 대기(⑥ 인장 날인, ⑦ 체결본 등록, ⑧ 체결본 확인)와 운영 검토(⑨ 운영 적용, ⑩ 재무 확인)
-    if (c.status === 'APPROVED' || c.status === 'OPS_REVIEW') {
-      const p = currentStep(c);
-      const label = p ? D.STEPS[p.step].no + ' ' + stepIng(c, p.step) : D.STATUS[c.status].label;
-      // 짧은 결재(해지, 그대로 연장)는 체결본이 없으므로 승인 후 일수로
-      // 운영 변경은 체결본이 없으므로 승인 후(영업 검토가 없으면 기안 후) 일수로
-      if (isChange(c)) return esc(label) + (hasSalesReview(c) ? ' (승인 후 ' : ' (기안 후 ') + daysSince(c.approvedAt) + '일)';
-      return esc(label) + (c.status === 'APPROVED' || !c.signedAt
-        ? ' (승인 후 ' + daysSince(c.approvedAt) + '일)'
-        : ' (체결 후 ' + daysSince(c.signedAt) + '일)');
-    }
-    if (c.status === 'ACTIVE' && isChange(c)) return '운영 변경 완료 (' + fmtDate(c.completedAt) + ')';
-    if (c.status === 'ACTIVE') return '계약 완료 (만료 ' + fmtDate(c.endDate) + ')';
-    if (c.status === 'TERMINATED') return '해지 (해지일 ' + fmtDate(c.terminateDate) + ')';
-    if (c.status === 'EXPIRED') return '만료 (' + fmtDate(c.endDate) + ')';
-    return '-';
+    if (c.status === 'ACTIVE' && isChange(c)) return { step: '완료 ' + fmtDate(c.completedAt), days: null, lim: 0 };
+    if (c.status === 'ACTIVE') return { step: '만료 ' + fmtDate(c.endDate), days: null, lim: 0 };
+    if (c.status === 'TERMINATED') return { step: '해지일 ' + fmtDate(c.terminateDate), days: null, lim: 0 };
+    if (c.status === 'EXPIRED') return { step: '만료 ' + fmtDate(c.endDate), days: null, lim: 0 };
+    return { step: '-', days: null, lim: 0 };
   }
-  // 운영 변경에 ③ 영업 검토를 거쳤는지(거쳤으면 "승인 후", 아니면 "기안 후" 일수)
-  function hasSalesReview(c) { return (c.approvals || []).some(function (a) { return a.step === 'S03' && a.state !== 'SKIPPED'; }); }
+  // 표 밖에서 한 줄로 쓸 때(계약 상세의 차수 이력): "④ 법무 7일째"
+  function progressText(c) {
+    const p = progressInfo(c);
+    return esc(p.step) + (p.days == null ? '' : ' ' + p.days + '일째');
+  }
+  // 목록 표의 두 칸: 현재 진행(글, 왼쪽) + 대기(숫자, 오른쪽). 개요의 진행 상세, 전체 진행 현황, 내 등록 목록이 함께 씀
+  //   머리글은 '<th scope="col">현재 진행</th><th scope="col" class="num">대기</th>'
+  function progressCells(c) {
+    const p = progressInfo(c);
+    const d = p.days == null ? '-' : p.lim && p.days >= p.lim ? '<span class="wait-long">' + p.days + '일</span>' : p.days + '일';
+    return '<td class="col-progress">' + esc(p.step) + '</td><td class="num">' + d + '</td>';
+  }
   // 결재 기록의 "한 일" 이름: ⑥⑧⑨⑩의 승인은 단계에 맞는 말로 (예: 날인 완료)
   //   c를 주면 해지와 그대로 연장의 ⑨를 운영 종료 완료, 기간 연장 완료로
   function actionLabel(h, c) {
@@ -1540,19 +1557,6 @@ window.CLIMB = (function () {
     });
   }
 
-  /* ---------- 브레드크럼 (KRDS, 메뉴에 없는 상세 화면만, v0.28) ----------
-   * items: [[이름, 주소]]. 마지막은 지금 화면(주소 없음). 맨 앞은 늘 개요 */
-  function breadcrumb(items) {
-    const el = document.getElementById('breadcrumb');
-    if (!el) return;
-    const list = [['개요', 'index.html']].concat(items);
-    el.innerHTML = '<ol>' + list.map(function (it, i) {
-      const last = i === list.length - 1;
-      return '<li>' + (last ? '<span aria-current="page">' + esc(it[0]) + '</span>' : '<a href="' + it[1] + '">' + esc(it[0]) + '</a>') + '</li>';
-    }).join('') + '</ol>';
-    el.hidden = false;
-  }
-
   /* ---------- 쪽 번호 (KRDS 페이지네이션) ----------
    * 목록 화면이 함께 씀. 버튼마다 data-page가 있어 화면 스크립트가 눌린 쪽 번호를 읽습니다.
    * 한 쪽에 보이는 수는 화면이 A4 2장을 넘지 않게 정한 값(REQ-ADM-04, 목록마다 20) */
@@ -2081,7 +2085,7 @@ window.CLIMB = (function () {
     // 결재 흐름 (결재선, 지금 상태, 처리)
     reviewRoute: reviewRoute, stepLabel: stepLabel, kindLabel: kindLabel, isShort: isShort, isChange: isChange, changeSales: changeSales,
     currentStep: currentStep, pendingSteps: pendingSteps, routedReview: routedReview, isReviewStep: isReviewStep, waitDays: waitDays,
-    stepDots: stepDots, progressText: progressText, actionLabel: actionLabel, opsChecksFor: opsChecksFor, signDate: signDate, methodOf: methodOf,
+    stepDots: stepDots, progressText: progressText, progressCells: progressCells, actionLabel: actionLabel, opsChecksFor: opsChecksFor, signDate: signDate, methodOf: methodOf,
     canAct: canAct, canCancel: canCancel, recordAction: recordAction, pendingQueue: pendingQueue, myActions: myActions,
     // 기안자 기준 지금 담당자 (결재선 미리 보기): C.stepUserNow('S03', { requesterId: 'u_sales1' })
     stepUserNow: function (code, c) { return stepUser(code, c, '9999'); },
@@ -2106,6 +2110,6 @@ window.CLIMB = (function () {
     // 화면 조각과 부품
     esc: esc, badge: badge, statusBadge: statusBadge, icon: icon, meta: meta, toast: toast, todoAttrs: todoAttrs, securityNotice: SECURITY_NOTICE,
     gate: gate, fieldHtml: fieldHtml, formModal: formModal, focusModal: focusModal, setFieldError: setFieldError,
-    adminHistoryHtml: adminHistoryHtml, breadcrumb: breadcrumb, pagerHtml: pagerHtml,
+    adminHistoryHtml: adminHistoryHtml, pagerHtml: pagerHtml,
   };
 })();

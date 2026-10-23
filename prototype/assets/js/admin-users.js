@@ -95,10 +95,10 @@
 
     // 건수 요약: 전체 n명 | 사용 중 n명 | 첫 접속 전 n명 | 사용 중지 n명 (거른 결과 기준)
     const counts = Object.keys(D.ACCOUNT_STATUS).map(function (s) {
-      return esc(D.ACCOUNT_STATUS[s].label) + ' ' + list.filter(function (a) { return a.status === s; }).length + '명';
+      return [esc(D.ACCOUNT_STATUS[s].label), list.filter(function (a) { return a.status === s; }).length + '명'];
     });
     const isFiltered = list.length !== all.length;
-    $('#list-count').innerHTML = C.meta(['<strong>' + (isFiltered ? '검색 결과 ' : '전체 ') + list.length + '명</strong>'].concat(counts));
+    $('#list-count').innerHTML = C.meta([[(isFiltered ? '검색 결과' : '전체'), '<strong>' + list.length + '명</strong>']].concat(counts));
 
     $('#user-rows').innerHTML = rows.length ? rows.map(function (a) {
       return '<tr' + (a.status === 'SUSPENDED' ? ' class="is-muted"' : '') + '>' +

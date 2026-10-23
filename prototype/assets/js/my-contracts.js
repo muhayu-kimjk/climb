@@ -40,7 +40,7 @@
   }
   $('#f-status').innerHTML = options('전체 상태', Object.keys(D.STATUS).map(function (k) { return [k, D.STATUS[k].label]; }));
   $('#f-kind').innerHTML = options('전체 계약종류', Object.keys(D.KINDS).map(function (k) { return [k, D.KINDS[k]]; }));
-  $('#thead').innerHTML = '<tr><th scope="col" class="col-customer">고객사</th><th scope="col">계약종류</th><th scope="col">상태</th><th scope="col">현재 진행</th>' +
+  $('#thead').innerHTML = '<tr><th scope="col" class="col-customer">고객사</th><th scope="col">계약종류</th><th scope="col">상태</th><th scope="col">현재 진행</th><th scope="col" class="num">대기</th>' +
     (seeAll ? '<th scope="col">영업대표</th>' : '') + '<th scope="col">기안일</th><th scope="col">할 일</th></tr>';
 
   // 할 일 버튼 (내 계약일 때만)
@@ -83,9 +83,9 @@
     const from = (page - 1) * PAGE_SIZE;
     const rows = list.slice(from, from + PAGE_SIZE);
     const count = function (s) { return list.filter(function (c) { return c.status === s; }).length; };
-    $('#list-count').innerHTML = C.meta(['<strong>' + (list.length !== all.length ? '검색 결과 ' : '전체 ') + list.length + '건</strong>',
-      '작성 중 ' + count('DRAFT') + '건', '보완 중 ' + count('SUPPLEMENT') + '건', '반려 ' + count('REJECTED') + '건', '체결 대기 ' + count('APPROVED') + '건']);
-    const cols = seeAll ? 7 : 6;
+    $('#list-count').innerHTML = C.meta([[(list.length !== all.length ? '검색 결과' : '전체'), '<strong>' + list.length + '건</strong>'],
+      ['작성 중', count('DRAFT') + '건'], ['보완 중', count('SUPPLEMENT') + '건'], ['반려', count('REJECTED') + '건'], ['체결 대기', count('APPROVED') + '건']]);
+    const cols = seeAll ? 8 : 7;
     $('#rows').innerHTML = rows.length ? rows.map(function (c) {
       // 작성 중은 계약 등록 화면으로, 그 밖에는 결재 문서로
       // 계약번호는 날짜처럼 한 줄로 (2512CL001-R01이 마지막 하이픈에서 끊기지 않게)
@@ -96,7 +96,7 @@
         '<td>' + link + '</td>' +
         '<td>' + esc(C.kindLabel(c)) + '</td>' +
         '<td class="nowrap">' + C.statusBadge(c) + '</td>' +
-        '<td>' + C.progressText(c) + '</td>' +
+        C.progressCells(c) + // 현재 진행(단계) + 대기(날수) 두 칸 (v0.55)
         (seeAll ? '<td class="center">' + esc(C.ownerLabel(c.requesterId)) + '</td>' : '') +
         '<td class="num-left">' + C.fmtDate(dateOf(c)) + '</td>' +
         '<td>' + todo(c) + '</td>' +

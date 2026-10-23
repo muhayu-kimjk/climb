@@ -64,8 +64,8 @@
     const from = (page - 1) * PAGE_SIZE;
     const rows = list.slice(from, from + PAGE_SIZE);
     const acc = list.filter(function (x) { return x.c.checklist && x.c.checklist.accounting === 'YES'; }).length;
-    $('#list-count').innerHTML = C.meta(['<strong>' + (list.length !== all.length ? '검색 결과 ' : '전체 ') + list.length + '건</strong>',
-      '회계 영향 조건 ' + acc + '건', LONG + '일 이상 ' + list.filter(function (x) { return x.wait >= LONG; }).length + '건']);
+    $('#list-count').innerHTML = C.meta([[(list.length !== all.length ? '검색 결과' : '전체'), '<strong>' + list.length + '건</strong>'],
+      ['회계 영향 조건', acc + '건'], [LONG + '일 이상', list.filter(function (x) { return x.wait >= LONG; }).length + '건']]);
     const cols = showWho ? 6 : 5;
     $('#rows').innerHTML = rows.length ? rows.map(function (x) {
       const service = esc(C.serviceLabel(x.c.services));

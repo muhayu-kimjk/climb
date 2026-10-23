@@ -41,9 +41,9 @@
     const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
     if (page > pages) page = pages;
     const from = (page - 1) * PAGE_SIZE, rows = list.slice(from, from + PAGE_SIZE);
-    $('#list-count').innerHTML = C.meta(['<strong>' + (list.length !== all.length ? '검색 결과 ' : '전체 ') + list.length + '건</strong>',
-      '공지 ' + list.filter(function (n) { return n.kind === 'NOTICE'; }).length + '건',
-      '릴리즈 ' + list.filter(function (n) { return n.kind === 'RELEASE'; }).length + '건']);
+    $('#list-count').innerHTML = C.meta([[(list.length !== all.length ? '검색 결과' : '전체'), '<strong>' + list.length + '건</strong>'],
+      ['공지', list.filter(function (n) { return n.kind === 'NOTICE'; }).length + '건'],
+      ['릴리즈', list.filter(function (n) { return n.kind === 'RELEASE'; }).length + '건']]);
     $('#rows').innerHTML = rows.length ? rows.map(function (n) {
       return '<tr><td class="col-kind">' + kindBadge(n) + '</td>' +
         '<td><a class="board-title" href="notice.html?id=' + encodeURIComponent(n.id) + '">' + titleHtml(n) + '</a></td>' +

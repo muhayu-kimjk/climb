@@ -66,8 +66,8 @@
     const from = (page - 1) * PAGE_SIZE;
     const rows = list.slice(from, from + PAGE_SIZE);
     const count = function (a) { return list.filter(function (x) { return x.h.action === a; }).length; };
-    $('#list-count').innerHTML = C.meta(['<strong>' + (list.length !== all.length ? '검색 결과 ' : '전체 ') + list.length + '건</strong>',
-      '승인, 완료 ' + count('APPROVE') + '건', '반려 ' + count('REJECT') + '건', '승인 취소 ' + count('CANCEL') + '건', '다시 등록 요청 ' + count('RETURN') + '건']);
+    $('#list-count').innerHTML = C.meta([[(list.length !== all.length ? '검색 결과' : '전체'), '<strong>' + list.length + '건</strong>'],
+      ['승인, 완료', count('APPROVE') + '건'], ['반려', count('REJECT') + '건'], ['승인 취소', count('CANCEL') + '건'], ['다시 등록 요청', count('RETURN') + '건']]);
     const cols = seeAll ? 7 : 6;
     $('#rows').innerHTML = rows.length ? rows.map(function (x) {
       const a = D.APPROVAL_ACTIONS[x.h.action];

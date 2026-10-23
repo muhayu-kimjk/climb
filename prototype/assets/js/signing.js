@@ -62,9 +62,9 @@
     const rows = list.slice(from, from + PAGE_SIZE);
     const mine = list.filter(function (x) { return x.s && x.s.step === 'S07' && x.s.userId === me.id; }).length;
     const long = list.filter(function (x) { return x.days >= LONG; }).length;
-    $('#list-count').innerHTML = C.meta(['<strong>' + (list.length !== all.length ? '검색 결과 ' : '전체 ') + list.length + '건</strong>',
-      (seeAll ? '⑦ 체결본 등록 대기 ' + list.filter(function (x) { return x.s && x.s.step === 'S07'; }).length : '⑦ 내 차례 ' + mine) + '건',
-      LONG + '일 이상 ' + long + '건']);
+    $('#list-count').innerHTML = C.meta([[(list.length !== all.length ? '검색 결과' : '전체'), '<strong>' + list.length + '건</strong>'],
+      seeAll ? ['⑦ 체결본 등록 대기', list.filter(function (x) { return x.s && x.s.step === 'S07'; }).length + '건'] : ['⑦ 내 차례', mine + '건'],
+      [LONG + '일 이상', long + '건']]);
     const cols = seeAll ? 6 : 5;
     $('#rows').innerHTML = rows.length ? rows.map(function (x) {
       const visible = C.canView(x.c, me);

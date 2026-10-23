@@ -65,7 +65,7 @@
     const from = (page - 1) * PAGE_SIZE;
     const rows = list.slice(from, from + PAGE_SIZE);
     const long = list.filter(function (x) { return x.wait >= LONG; }).length;
-    $('#list-count').innerHTML = C.meta(['<strong>' + (list.length !== all.length ? '검색 결과 ' : '전체 ') + list.length + '건</strong>', LONG + '일 이상 ' + long + '건']);
+    $('#list-count').innerHTML = C.meta([[(list.length !== all.length ? '검색 결과' : '전체'), '<strong>' + list.length + '건</strong>'], [LONG + '일 이상', long + '건']]);
     const cols = showWho ? 7 : 6;
     $('#rows').innerHTML = rows.length ? rows.map(function (x) {
       const service = esc(C.serviceLabel(x.c.services));

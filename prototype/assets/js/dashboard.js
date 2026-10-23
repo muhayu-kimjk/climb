@@ -2,12 +2,13 @@
  * SCR-01 개요(대시보드) 화면 로직 (dashboard.js)
  * ---------------------------------------------------------------------
  * 관련 요구사항: REQ-DASH-01~15, REQ-AUTH-04, REQ-AUTH-09
- * 상자는 한 줄에 하나씩 쌓습니다. (REQ-DASH-15)
+ * 상자는 한 줄에 하나씩, 계약이 먼저이고 플랫폼 이야기는 나중 (REQ-DASH-15, v0.55 순서). 쌓는 순서는 index.html이 정함
  *   1. 계약 진행 현황: KRDS 단계 표시기(계약 등록 → 계약 검토 → 계약 체결 → 운영 검토 → 계약 완료)
- *      + 그 아래 진행 상세 표(고객사, 서비스, 상태, 현재 진행). 최대한 간단하게 진행 상황만 보여줌
- *   2. 내가 검토할 계약: 결재 역할에게만
- *   2-1. 점검할 일: 정보보호 담당자, 리더와 최고관리자에게만. 이상 행위 알림, 매월 기록 점검, 분기 권한 검토 (v0.27)
- *   3. 만료 임박
+ *      + 그 아래 진행 상세 표(고객사, 서비스, 상태, 현재 진행, 대기). 현재 진행은 한 줄(C.progressCells, v0.55)
+ *   2. 만료 임박
+ *   3. 가장 최근 공지 한 줄(인사말과 함께 renderGreeting이 그림)
+ *   4. 내가 검토할 계약(결재 역할에게만), 챙길 의무(의무를 맡는 분야와 최고관리자에게만)
+ *   5. 점검할 일: 정보보호 담당자, 리더와 최고관리자에게만. 이상 행위 알림, 매월 기록 점검, 분기 권한 검토 (v0.27)
  * 계약명은 따로 두지 않으므로 계약은 고객사와 서비스로 표시합니다. (v0.12)
  * "확인 필요" 상자는 뺐습니다. (REQ-DASH-09, v0.12)
  * 범위 [가정, REQ-DASH-14]: 영업은 내가 등록한 계약, 그 외 역할은 전체 계약
@@ -79,9 +80,11 @@
   // 고객사 칸과 서비스 칸: 계약명 대신 고객사와 서비스로 계약을 구분 (v0.12)
   // 휴대폰에서는 서비스 칸을 감추고 고객사 아래 작은 글자로 보여줌 (칸이 넘치지 않게, REQ-ENV-08)
   // 열람 권한이 없으면 "열람 제한 계약"으로만 보여주고 서비스도 가림 (REQ-AUTH-09)
-  function customerCells(c) {
+  //   sub: 휴대폰에서 고객사 아래에 더 보일 것(진행 상세는 상태 배지, v0.55)
+  function customerCells(c, sub) {
+    sub = sub || '';
     if (!C.canView(c, me)) {
-      return '<td><span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span></td><td class="col-service">-</td>';
+      return '<td><span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>' + sub + '</td><td class="col-service">-</td>';
     }
     // 작성 중인 계약은 계약 등록 화면(SCR-11)에서 이어서 작성, 그 밖에는 결재 문서 화면(검토 상세, SCR-23)
     // 계약 완료, 만료, 해지된 계약은 계약 상세(묶음, SCR-42)로 (v0.24)
@@ -90,11 +93,11 @@
       : 'review.html?id=' + encodeURIComponent(c.id);
     const link = '<a class="cell-title" href="' + href + '">' + esc(c.counterparty) + '</a>';
     const service = esc(C.serviceLabel(c.services));
-    return '<td>' + link + '<span class="cell-sub">' + service + '</span></td><td class="col-service">' + service + '</td>';
+    return '<td>' + link + '<span class="cell-sub">' + service + '</span>' + sub + '</td><td class="col-service">' + service + '</td>';
   }
 
-  // 결재 단계 점과 현재 진행 한 줄은 목록 화면들이 함께 쓰므로 common.js로 옮김 (C.stepDots, C.progressText)
-  const stepDots = C.stepDots, progressText = C.progressText;
+  // 결재 단계 점과 현재 진행 두 칸은 목록 화면들이 함께 쓰므로 common.js에 둠 (C.stepDots, C.progressCells)
+  const stepDots = C.stepDots;
 
   // more: 오른쪽 '전체 보기' 링크. href가 있으면 그 화면으로, 없으면 아직 안 만든 화면 안내
   function panelHead(id, title, sub, moreLabel, moreScr, moreHref) {
@@ -126,7 +129,7 @@
     if (C.hasRole(me, ['PRIVACY']) && auditCount) msg += ' 점검할 일도 <strong class="em">' + auditCount + '건</strong> 있습니다.';
     document.getElementById('greeting').innerHTML = msg;
     document.getElementById('today').textContent = C.fmtToday() + ' 기준';
-    // 가장 최근 공지 한 줄 (v0.45): 공지사항의 맨 위 글. 내린 글은 빼고 글 번호가 큰 것
+    // 가장 최근 공지 한 줄 (v0.45, v0.55부터 개요의 세 번째 자리): 공지사항의 맨 위 글. 내린 글은 빼고 글 번호가 큰 것
     const latest = D.NOTICES.filter(function (n) { return !n.hidden; })
       .sort(function (a, b) { return Number(String(b.id).slice(2)) - Number(String(a.id).slice(2)); })[0];
     if (latest) {
@@ -179,13 +182,14 @@
     const sub = (isSales ? '내가 등록한 계약 ' : '전체 계약 ') + scope.length + '건';
     const table = rows.length
       ? '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
-          '<caption class="sr-only">진행 상세: 고객사, 서비스, 상태, 현재 진행</caption>' +
-          '<thead><tr><th scope="col" class="col-customer">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col">상태</th><th scope="col">현재 진행</th></tr></thead>' +
+          '<caption class="sr-only">진행 상세: 고객사, 서비스, 상태, 현재 진행, 대기</caption>' +
+          '<thead><tr><th scope="col" class="col-customer">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col" class="col-status">상태</th><th scope="col">현재 진행</th><th scope="col" class="num">대기</th></tr></thead>' +
           '<tbody>' + rows.map(function (c) {
+            // 휴대폰은 칸이 좁아 상태 칸을 감추고 고객사 아래에 상태 배지를 둠(현재 진행이 한 줄에 들어가게, v0.55)
             return '<tr' + (c.status === 'REJECTED' ? ' class="is-alert"' : '') + '>' +
-              customerCells(c) +
-              '<td class="nowrap">' + C.statusBadge(c) + '</td>' +
-              '<td>' + progressText(c) + '</td>' +
+              customerCells(c, '<span class="cell-sub">' + C.statusBadge(c) + '</span>') +
+              '<td class="nowrap col-status">' + C.statusBadge(c) + '</td>' +
+              C.progressCells(c) + // 현재 진행(단계) + 대기(날수) 두 칸 (v0.55)
             '</tr>';
           }).join('') + '</tbody>' +
         '</table></div>'
@@ -308,11 +312,12 @@
       // 열람 제한 계약은 고객사, 서비스, 담당자를 가림 (REQ-AUTH-09)
       const owner = C.canView(c, me) ? esc(C.ownerLabel(c.requesterId)) : '-';
       return '<tr>' +
-        '<td class="num">' + dday + '</td>' + // 숫자라 오른쪽 정렬 (REQ-UI-16)
+        '<td class="center">' + dday + '</td>' + // 날짜에 딸린 값이라 가운데 (v0.55 기획자 요청, REQ-UI-16)
         customerCells(c) +
         // 휴대폰에서는 담당자 칸을 감추고 만료일 아래 작은 글자로 보여줌 (REQ-ENV-08)
         // 자동갱신 계약은 해지 통지 기한을 만료일 아래에 (30일 안이거나 지났으면 강조)
-        '<td class="nowrap">' + C.fmtDate(c.endDate) + (C.canView(c, me) && C.noticeDate(c.bundle) ? '<span class="cell-meta">' + C.noticeText(c.bundle) + '</span>' : '') +
+        // 휴대폰은 이 칸이 줄을 바꿀 수 있게 해(col-expiry) 고객사 이름이 꺾이지 않게 함(v0.55). 날짜와 D-n은 한 덩어리로 남음
+        '<td class="nowrap col-expiry">' + C.fmtDate(c.endDate) + (C.canView(c, me) && C.noticeDate(c.bundle) ? '<span class="cell-meta">' + C.noticeText(c.bundle) + '</span>' : '') +
           (C.canView(c, me) ? '<span class="cell-sub">담당 ' + owner + '</span>' : '') + '</td>' +
         '<td class="center col-owner">' + owner + '</td>' +
       '</tr>';

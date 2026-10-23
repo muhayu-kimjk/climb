@@ -25,7 +25,6 @@
   const found = D.CONTRACTS.find(function (c) { return c.id === origin; });
   const b = found ? C.bundleOf(C.rootOf(found)) : null;
   const back = b ? 'contract.html?id=' + encodeURIComponent(b.id) : 'expiring.html';
-  C.breadcrumb([['보관함', 'contracts.html'], ['만료 예정 계약', 'expiring.html'], ['연장 검토']]);
   if (!b || !C.canView(b.root, me)) {
     $('#notice').innerHTML = notice('연장할 계약을 찾을 수 없습니다', '계약 상세나 만료 예정 계약에서 "연장 검토"를 눌러 들어와 주세요.');
     return;

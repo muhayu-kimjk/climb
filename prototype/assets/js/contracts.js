@@ -58,11 +58,11 @@
     const from = (page - 1) * PAGE_SIZE;
     const rows = list.slice(from, from + PAGE_SIZE);
     const count = function (fn) { return list.filter(fn).length; };
-    $('#list-count').innerHTML = C.meta(['<strong>' + (list.length !== all.length ? '검색 결과 ' : '전체 ') + list.length + '건</strong>',
-      '진행 중 ' + count(function (b) { return WORKING.indexOf(b.status) > -1; }) + '건',
-      '계약 완료 ' + count(function (b) { return b.status === 'ACTIVE'; }) + '건',
-      '만료 ' + count(function (b) { return b.status === 'EXPIRED'; }) + '건',
-      '해지 ' + count(function (b) { return b.status === 'TERMINATED'; }) + '건']);
+    $('#list-count').innerHTML = C.meta([[(list.length !== all.length ? '검색 결과' : '전체'), '<strong>' + list.length + '건</strong>'],
+      ['진행 중', count(function (b) { return WORKING.indexOf(b.status) > -1; }) + '건'],
+      ['계약 완료', count(function (b) { return b.status === 'ACTIVE'; }) + '건'],
+      ['만료', count(function (b) { return b.status === 'EXPIRED'; }) + '건'],
+      ['해지', count(function (b) { return b.status === 'TERMINATED'; }) + '건']]);
     $('#rows').innerHTML = rows.length ? rows.map(function (b) {
       const c = b.root;
       const visible = C.canView(c, me);

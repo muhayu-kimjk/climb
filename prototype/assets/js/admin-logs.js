@@ -243,7 +243,7 @@
     const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
     if (page > pages) page = pages;
     const from = (page - 1) * PAGE_SIZE, rows = list.slice(from, from + PAGE_SIZE);
-    $('#list-count').innerHTML = C.meta(['<strong>' + (list.length !== logs.length ? '검색 결과 ' : '전체 ') + list.length + '건</strong>', '고치거나 지울 수 없음, 영구 보관']);
+    $('#list-count').innerHTML = C.meta([[(list.length !== logs.length ? '검색 결과' : '전체'), '<strong>' + list.length + '건</strong>'], '고치거나 지울 수 없음, 영구 보관']);
     $('#log-rows').innerHTML = rows.length ? rows.map(function (l) {
       return '<tr><td class="num-left">' + C.fmtDateTime(l.at) + '</td><td class="center">' + esc(C.ownerLabel(l.userId)) + '</td>' +
         '<td class="nowrap">' + esc(ACTS[l.act]) + '</td><td>' + esc(l.target) + '</td><td class="nowrap">' + esc(l.place) + '</td></tr>';

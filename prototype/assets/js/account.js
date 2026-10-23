@@ -12,7 +12,6 @@
   const me = C.init();
   const esc = C.esc;
   const $ = function (s) { return document.querySelector(s); };
-  C.breadcrumb([['내 계정']]);
 
   /* ---------- 1. 계정 정보 ---------- */
   const acc = C.accountOf(me.id) || {};

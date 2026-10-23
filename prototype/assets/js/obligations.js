@@ -59,8 +59,8 @@
       return ORDER[sa.code] - ORDER[sb.code] || String(sa.next || '9').localeCompare(String(sb.next || '9')) || a.id.localeCompare(b.id);
     });
     const count = function (code) { return list.filter(function (o) { return C.obligationState(o).code === code; }).length; };
-    $('#list-count').innerHTML = C.meta(['<strong>' + (list.length !== seen.length ? '거른 결과 ' : '전체 ') + list.length + '건</strong>',
-      '기한 지남 ' + count('LATE') + '건', D.ALERT_RULES.obligationSoonDays + '일 이내 ' + count('SOON') + '건']);
+    $('#list-count').innerHTML = C.meta([[(list.length !== seen.length ? '거른 결과' : '전체'), '<strong>' + list.length + '건</strong>'],
+      ['기한 지남', count('LATE') + '건'], [D.ALERT_RULES.obligationSoonDays + '일 이내', count('SOON') + '건']]);
     $('#rows').innerHTML = list.length ? list.map(function (o) {
       const s = C.obligationState(o);
       return '<tr' + (s.code === 'LATE' ? ' class="is-alert"' : s.code === 'ENDED' ? ' class="is-muted"' : '') + '>' +

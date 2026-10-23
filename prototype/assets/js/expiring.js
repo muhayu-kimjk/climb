@@ -44,8 +44,8 @@
     const autoCount = list.filter(function (b) { return b.autoRenew === 'YES'; }).length;
     const soon = list.filter(function (b) { return noticeIn(b, SOON); }).length;
     const late = list.filter(function (b) { const n = noticeDate(b); return n && C.daysUntil(n) < 0; }).length;
-    $('#list-count').innerHTML = C.meta(['<strong>' + (list.length !== all.length ? '검색 결과 ' : '전체 ') + list.length + '건</strong>',
-      '자동갱신 ' + autoCount + '건', '해지 통지 기한 ' + SOON + '일 이내 ' + soon + '건', '지남 ' + late + '건']);
+    $('#list-count').innerHTML = C.meta([[(list.length !== all.length ? '검색 결과' : '전체'), '<strong>' + list.length + '건</strong>'],
+      ['자동갱신', autoCount + '건'], ['해지 통지 기한 ' + SOON + '일 이내', soon + '건'], ['지남', late + '건']]);
     $('#rows').innerHTML = list.length ? list.map(function (b) {
       const c = b.root;
       const visible = C.canView(c, me);
@@ -70,7 +70,8 @@
           '<a class="btn btn--tertiary" href="terminate.html?origin=' + encodeURIComponent(b.id) + '">해지 기안</a></div>';
       }
       return '<tr>' +
-        '<td class="num"><span class="badge badge--' + tone + '" aria-label="만료까지 ' + d + '일">D-' + d + '</span></td>' +
+        // 남은 일자(D-n)는 날짜에 딸린 값이라 가운데 (v0.55 기획자 요청, REQ-UI-16)
+        '<td class="center"><span class="badge badge--' + tone + '" aria-label="만료까지 ' + d + '일">D-' + d + '</span></td>' +
         '<td>' + cust + '</td>' +
         '<td class="num-left nowrap">' + C.fmtDate(b.end) + '</td>' +
         '<td>' + autoCell + '</td>' +

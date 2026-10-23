@@ -25,14 +25,12 @@
       $('#notice').innerHTML = '<div class="notice" role="status"><p class="notice-title">' + C.icon('alert') + '글을 찾을 수 없습니다</p>' +
         '<p>내렸거나 없는 글입니다. <a class="doc-link" href="notices.html">공지사항 목록</a>에서 다시 골라 주세요.</p></div>';
       $('#post').hidden = true;
-      C.breadcrumb([['공지사항', 'notices.html'], ['글 보기']]);
       return;
     }
-    C.breadcrumb([['공지사항', 'notices.html'], [n.kind === 'RELEASE' ? '릴리즈' : '공지']]);
     $('#post').hidden = false;
     $('#post-kind').textContent = D.NOTICE_KINDS[n.kind];
     $('#post-title').innerHTML = (n.important ? C.badge('danger', '중요') + ' ' : '') + (n.version ? '<span class="board-ver">' + esc(n.version) + '</span>' : '') + esc(n.title);
-    $('#post-meta').innerHTML = C.meta(['올린 날 ' + C.fmtDateTime(n.at), '쓴 사람 ' + esc(C.ownerLabel(n.by))].concat(n.important ? ['전체 사용자에게 이메일로 알림'] : []));
+    $('#post-meta').innerHTML = C.meta([['올린 일시', C.fmtDateTime(n.at)], ['쓴 사람', esc(C.ownerLabel(n.by))]].concat(n.important ? ['전체 사용자에게 이메일로 알림'] : []));
     if (n.kind === 'RELEASE') {
       $('#post-body').innerHTML = D.RELEASE_PARTS.filter(function (p) { return ((n.items || {})[p[0]] || []).length; }).map(function (p) {
         return '<section class="release-part"><h2>' + C.badge(PART_TONE[p[0]], p[1]) + '</h2><ul>' +

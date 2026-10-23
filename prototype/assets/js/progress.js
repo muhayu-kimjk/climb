@@ -52,8 +52,8 @@
     const from = (page - 1) * PAGE_SIZE;
     const rows = list.slice(from, from + PAGE_SIZE);
     const count = function (s) { return list.filter(function (c) { return c.status === s; }).length; };
-    $('#list-count').innerHTML = C.meta(['<strong>' + (list.length !== all.length ? '검색 결과 ' : '전체 ') + list.length + '건</strong>'].concat(OPEN.map(function (s) {
-      return esc(D.STATUS[s].label) + ' ' + count(s) + '건';
+    $('#list-count').innerHTML = C.meta([[(list.length !== all.length ? '검색 결과' : '전체'), '<strong>' + list.length + '건</strong>']].concat(OPEN.map(function (s) {
+      return [esc(D.STATUS[s].label), count(s) + '건'];
     })));
     $('#rows').innerHTML = rows.length ? rows.map(function (c) {
       const visible = C.canView(c, me);
@@ -66,11 +66,11 @@
         '<td>' + cust + '</td>' +
         '<td class="col-service">' + (visible ? service : '-') + '</td>' +
         '<td class="nowrap">' + C.statusBadge(c) + '</td>' +
-        '<td>' + C.progressText(c) + '</td>' +
+        C.progressCells(c) + // 현재 진행(단계) + 대기(날수) 두 칸 (v0.55)
         '<td class="center">' + esc(C.ownerLabel(c.requesterId)) + '</td>' +
         '<td class="num-left">' + C.fmtDate(c.requestedAt) + '</td>' +
       '</tr>';
-    }).join('') : '<tr><td class="empty-row" colspan="6">조건에 맞는 계약이 없습니다.</td></tr>';
+    }).join('') : '<tr><td class="empty-row" colspan="7">조건에 맞는 계약이 없습니다.</td></tr>';
     $('#pagination').innerHTML = C.pagerHtml(page, pages, list.length, from, rows.length, PAGE_SIZE, '건');
   }
 
