@@ -151,7 +151,7 @@ svg { flex-shrink: 0; }
  *   푸터: 헤더와 같은 묶음 + 셋째 줄 영문 이름(SUITE 14px, 중간 굵기)
  *   로그인: 로고 글자 없이 무하유 계약 관리 플랫폼(.brand-ko) + 영문 이름
  * 글꼴(v0.54 기획자 결정): 영어(climb, 영문 이름)는 SUITE, 한글은 Noto Sans KR. 로고 묶음에만 적용하고 본문 글은 그대로 */
-.brand-title { font-size: var(--fs-heading-medium); font-weight: 700; line-height: 1.3; color: var(--text-bolder); }
+.brand-title { font-size: var(--fs-brand); font-weight: 700; line-height: 1.3; color: var(--text-bolder); }
 a.brand-title:hover { color: var(--text-primary); }
 /* 심볼: 파비콘과 같은 파일을 글자 높이에 맞춤(v0.22). 어두운 화면에서는 흰 심볼(v0.53) */
 /* 심볼 크기(v0.55 기획자 요청으로 0.95em → 0.85em 조금 줄임). 글자 climb과 가운데가 맞게 내림 값도 함께 바꿈 */
@@ -389,11 +389,11 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
 .site-footer { background: var(--surface-gray-subtler); border-top: 1px solid var(--border-gray-light); }
 .site-footer .inner { display: flex; flex-direction: column; gap: 1.2rem; padding-top: 4rem; padding-bottom: 4.8rem; }
 .footer-brand { display: flex; flex-direction: column; gap: 0.2rem; }
-/* 시스템 이름은 머리글과 같은 모양(v0.54 기획자 요청): [심볼] climb / 무하유 계약 관리 플랫폼 / 영문 이름
- *   climb과 둘째 줄 사이는 머리글과 같게(약 3px). 둘째 줄 크기와 색은 .brand-en 그대로 */
+/* 시스템 이름: [심볼] climb / 영문 이름 (v0.55 기획자 요청으로 한글 이름 줄은 푸터에서 뺌, 머리글에는 그대로)
+ *   climb과 둘째 줄 사이는 머리글과 같게(약 3px) */
 .footer-brand .brand-title { margin-bottom: 0.3rem; }
 /* 영문 이름(SUITE)은 소문자가 작고 가늘어 읽기 어려워 14px, 중간 굵기(500)로 (v0.54 기획자 선택: 보기 E) */
-.footer-brand .brand-en:not(.is-ko) { font-size: 1.4rem; font-weight: 500; }
+.footer-brand .brand-en { font-size: 1.4rem; font-weight: 500; }
 /* 보안 안내 문구 (REQ-UI-15): 영문 이름 줄 아래, 저작권 줄 위. 작은 글자로 읽기 좋게 줄 간격을 넉넉히, 양쪽 정렬 */
 .footer-notice { font-size: var(--fs-body-xsmall); line-height: 1.7; color: var(--text-subtle); text-align: justify; }
 .footer-copy { font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
@@ -443,7 +443,7 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
    * 둘째 줄(무하유 계약 관리 플랫폼)도 감추고, 사용자 줄을 climb과 같은 줄 가운데에 맞춤
    * (기획자 요청 v0.36: 오른쪽 사용자 줄과 균형. 푸터와 로그인 화면의 이름 줄은 그대로) */
   .header-top .inner { min-height: 6.4rem; column-gap: 1.2rem; align-items: center; }
-  .header-top .brand-title, .footer-brand .brand-title { font-size: var(--fs-body-large); } /* 푸터 로고도 머리글과 같은 크기 (v0.54) */
+  /* 로고(.brand-title)는 줄이지 않음: PC와 같은 24px (v0.55 기획자 요청, 로고는 아이덴티티라 기기마다 같게) */
   .header-top .brand-en { display: none; }
   .header-top .user-line { grid-row: 1; }
   .user-line .user-org { display: none; }

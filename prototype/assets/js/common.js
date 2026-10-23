@@ -1467,10 +1467,10 @@ window.CLIMB = (function () {
     el.className = 'site-footer';
     el.innerHTML =
       // 푸터: 시스템 이름 + 보안 안내 문구 + 저작권. 이용 안내는 메뉴 줄로 옮기고 시스템 문의는 뺌 (REQ-UI-14, 15)
-      //   시스템 이름은 머리글과 같은 모양(v0.54 기획자 요청): [심볼] climb / 무하유 계약 관리 플랫폼(작게), 그 아래 영문 이름(작게). 영어는 SUITE, 한글은 Noto Sans KR
+      //   시스템 이름: [심볼] climb, 그 아래 영문 이름(작게, SUITE). 한글 이름 줄(무하유 계약 관리 플랫폼)은 머리글에만 두고 푸터에서는 뺌(v0.55 기획자 요청)
       '<div class="inner">' +
         '<div class="footer-brand"><p class="brand-title">' + brandTitleHtml({ mark: true }) + '</p>' +
-          '<span class="brand-en is-ko">' + esc(D.BRAND.ko) + '</span><span class="brand-en">' + esc(D.BRAND.en) + '</span></div>' +
+          '<span class="brand-en">' + esc(D.BRAND.en) + '</span></div>' +
         '<p class="footer-notice">' + esc(SECURITY_NOTICE) + '</p>' +
         '<p class="footer-copy">' + meta(['© 2026 ' + D.BRAND.company + ' All rights reserved.', '프로토타입 v0.1']) + '</p>' +
       '</div>';
