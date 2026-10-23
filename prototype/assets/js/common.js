@@ -1388,13 +1388,13 @@ window.CLIMB = (function () {
     // 메뉴 한 줄(v0.42 휴대폰, v0.50 기획자 요청으로 PC와 태블릿도): 다 들어가지 않으면 옆으로 밀어 봄.
     //   지금 화면의 메뉴가 보이게 미리 밀어 두고, 더 있는 쪽 끝을 흐리게 표시
     const gnbList = el.querySelector('.gnb-list');
-    // 메뉴가 더 있는 쪽에 그라데이션과 화살표를 보임(v0.43). 하위 메뉴가 열려 있으면 감춤
+    // 메뉴가 더 있는 쪽에 그라데이션과 화살표를 보임(v0.43). 하위 메뉴를 열어도 그대로 둠
+    //   (v0.55 기획자 요청: 무언가를 눌렀을 때 고정된 곳이 바뀌지 않게. v0.42~v0.54는 열면 감췄음)
     const gnbScroll = gnbList.parentNode;
     function gnbEdge() {
       const max = gnbList.scrollWidth - gnbList.clientWidth;
-      const open = !!gnbList.querySelector('.gnb-item.is-open');
-      gnbScroll.classList.toggle('is-more-left', !open && max > 2 && gnbList.scrollLeft > 2);
-      gnbScroll.classList.toggle('is-more-right', !open && max > 2 && gnbList.scrollLeft < max - 2);
+      gnbScroll.classList.toggle('is-more-left', max > 2 && gnbList.scrollLeft > 2);
+      gnbScroll.classList.toggle('is-more-right', max > 2 && gnbList.scrollLeft < max - 2);
     }
     gnbScroll.querySelectorAll('.gnb-more').forEach(function (b) {
       b.addEventListener('click', function () {
@@ -1407,18 +1407,29 @@ window.CLIMB = (function () {
     if (gnbCur && gnbList.scrollWidth > gnbList.clientWidth) {
       gnbList.scrollLeft += gnbCur.getBoundingClientRect().left - gnbList.getBoundingClientRect().left - 16;
     }
-    // 하위 메뉴 자리(v0.50): 밀어 보는 줄에 잘리지 않게 .gnb-scroll 기준으로 둠. PC와 태블릿은 연 메뉴 바로 아래(오른쪽 끝을 넘지 않게),
-    //   스마트폰은 CSS대로 메뉴 줄 아래 폭 가득
+    // 하위 메뉴 자리(v0.50): 밀어 보는 줄에 잘리지 않게 .gnb-scroll 기준으로 둠. 연 메뉴 바로 아래(오른쪽 끝을 넘지 않게)
+    //   스마트폰도 같음(v0.55 기획자 요청: 폭 가득 펼치던 것을 글자 폭에 맞게 줄임)
     function placeSub() {
       const item = gnbList.querySelector('.gnb-item.is-open'), sub = item && item.querySelector('.gnb-sub');
+      placeDim(!!sub);
       if (!sub) return;
-      if (isPhoneLayout()) { sub.style.left = ''; return; }
       const box = gnbScroll.getBoundingClientRect();
       const left = item.querySelector('.gnb-link').getBoundingClientRect().left - box.left;
       sub.style.left = Math.max(0, Math.min(left, box.width - sub.offsetWidth)) + 'px';
     }
+    // 하위 메뉴를 열면 메뉴 줄 아래를 흐리게(스마트폰, v0.55 기획자 요청): 메뉴를 누른 것은 다른 화면으로 가려는 뜻이라
+    //   아래 화면은 흐리게 두고, 흐린 곳을 누르면 메뉴만 닫힘(아래 버튼이 잘못 눌리지 않게)
+    const dim = document.createElement('div');
+    dim.className = 'gnb-dim';
+    dim.hidden = true;
+    document.body.appendChild(dim);
+    function placeDim(open) {
+      dim.hidden = !(open && isPhoneLayout());
+      if (!dim.hidden) dim.style.top = Math.max(0, el.getBoundingClientRect().bottom) + 'px';
+    }
     gnbList.addEventListener('scroll', function () { gnbEdge(); placeSub(); }, { passive: true });
     window.addEventListener('resize', function () { gnbEdge(); placeSub(); });
+    window.addEventListener('scroll', function () { if (!dim.hidden) placeDim(true); }, { passive: true });
     gnbEdge();
 
     // 하위 메뉴 열기·닫기
@@ -1446,6 +1457,7 @@ window.CLIMB = (function () {
         item.classList.remove('is-open');
         item.querySelector('button').setAttribute('aria-expanded', 'false');
       });
+      placeDim(false);
       gnbEdge();
     }
   }

@@ -29,6 +29,10 @@
 /* scrollbar-gutter: 스크롤바 자리를 늘 비워 둠. 짧은 화면(스크롤바 없음)과 긴 화면(스크롤바 있음)을 오갈 때
  * A4 시트가 옆으로 몇 픽셀씩 움직여 흔들려 보이던 것을 막음 (v0.55 기획자 요청: 화면이 흔들리지 않고 단단하게) */
 html { font-size: 62.5%; -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; }
+/* 다 그리고 글꼴이 올 때까지 새 화면을 감춤(theme.js가 붙이고 뗌, v0.55). 스크립트가 멈춰도 1.2초 뒤에는 보이게(안전장치) */
+html.is-loading body { visibility: hidden; animation: climb-show 0s linear 1.2s forwards; }
+@keyframes climb-show { to { visibility: visible; } }
+@media print { html.is-loading body { visibility: visible; animation: none; } }
 
 body {
   margin: 0;
@@ -154,8 +158,9 @@ svg { flex-shrink: 0; }
 .brand-title { font-size: var(--fs-brand); font-weight: 700; line-height: 1.3; color: var(--text-bolder); }
 a.brand-title:hover { color: var(--text-primary); }
 /* 심볼: 파비콘과 같은 파일을 글자 높이에 맞춤(v0.22). 어두운 화면에서는 흰 심볼(v0.53) */
-/* 심볼 크기(v0.55 기획자 요청으로 0.95em → 0.85em 조금 줄임). 글자 climb과 가운데가 맞게 내림 값도 함께 바꿈 */
-.brand-mark { display: inline-block; width: 0.85em; height: 0.85em; margin-right: 0.35em; vertical-align: -0.07em; filter: var(--brand-mark-filter); }
+/* 심볼 크기(v0.55 기획자 요청으로 0.95em → 0.85em 조금 줄임). 글자 climb과 가운데가 맞게 내림 값도 함께 바꿈
+ * 심볼과 climb 사이(v0.55 기획자 요청으로 0.35em → 0.25em 조금 좁힘, 24px 기준 약 8px → 6px) */
+.brand-mark { display: inline-block; width: 0.85em; height: 0.85em; margin-right: 0.25em; vertical-align: -0.07em; filter: var(--brand-mark-filter); }
 .brand-name, .brand-ko { white-space: nowrap; }
 /* 로고 글자 climb: SUITE를 얇게(Light 300). 얇은 글자가 심볼보다 작아 보여 1.15배로 키움(기획자 요청). 줄 높이는 그대로 */
 .brand-name { font-family: var(--font-brand); font-weight: 300; font-size: 1.15em; line-height: 1; letter-spacing: 0; }
@@ -226,6 +231,11 @@ a.user-name:hover, a.user-name[aria-current] { color: var(--text-primary); text-
 .gnb-item.is-open .gnb-sub { display: block; }
 .gnb-sub a { display: block; padding: 1rem 1.2rem; border-radius: var(--radius-md); font-size: var(--fs-body-medium); }
 .gnb-sub a:hover { background: var(--action-hover); }
+/* 하위 메뉴를 열면 메뉴 줄 아래를 흐리게 덮음(스마트폰, v0.55 기획자 요청). 머리글(.site-header z-index 20, 하위 메뉴 포함)보다 아래, 본문보다 위.
+ * 위치(top)는 메뉴 줄 바로 아래로 common.js가 맞춤. 누르면 메뉴만 닫힘 */
+.gnb-dim { position: fixed; left: 0; right: 0; bottom: 0; z-index: 15; background: var(--overlay-menu); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+.gnb-dim[hidden] { display: none; }
+@media print { .gnb-dim { display: none !important; } }
 
 /* ---------- 5. 본문 공통 ---------- */
 /* 메뉴 줄과 본문 첫 줄 사이 간격: 너무 넓지 않게 2.4rem (v0.15에서 4rem을 줄임) */
@@ -444,6 +454,10 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
    * (기획자 요청 v0.36: 오른쪽 사용자 줄과 균형. 푸터와 로그인 화면의 이름 줄은 그대로) */
   .header-top .inner { min-height: 6.4rem; column-gap: 1.2rem; align-items: center; }
   /* 로고(.brand-title)는 줄이지 않음: PC와 같은 24px (v0.55 기획자 요청, 로고는 아이덴티티라 기기마다 같게) */
+  /* 영문 이름(MUHAYU Contract Lifecycle Intelligent Management Base, v0.55)은 휴대폰에서 칸보다 길면 낱말 사이에서
+   * 두 줄로 고르게 나눔(로그인 상자는 좁아 두 줄, 푸터는 기준 휴대폰에서 한 줄이고 더 좁은 휴대폰에서만 두 줄) */
+  .footer-brand .brand-en, .login-brand .brand-en { white-space: normal; text-wrap: balance; }
+  .login-brand .brand-en { text-align: center; } /* 로그인은 제목이 가운데라 두 줄일 때도 가운데 */
   .header-top .brand-en { display: none; }
   .header-top .user-line { grid-row: 1; }
   .user-line .user-org { display: none; }
@@ -458,7 +472,7 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
    * 기획자 요청(2026-10-22): 화살표와 ?(이용 안내) 사이를 30px에서 16px로 좁힘 */
   .gnb .inner { gap: 0.4rem; }
   .gnb-scroll { margin-left: -1rem; }
-  .gnb-sub { left: 0; right: 0; min-width: 0; } /* 스마트폰은 하위 메뉴를 메뉴 줄 아래 폭 가득 */
+  .gnb-sub { min-width: 18rem; } /* 스마트폰도 연 메뉴 바로 아래에 글자 폭만큼(v0.55 기획자 요청, 예전에는 폭 가득). 자리는 common.js placeSub */
   .gnb-link { height: var(--height-md); padding: 0 1rem; font-size: var(--fs-body-medium); }
   .gnb-link .icon { display: none; } /* 펼침 화살표를 감춰 메뉴 칸을 줄임 */
   .gnb-link.is-current::after { left: 1rem; right: 1rem; }

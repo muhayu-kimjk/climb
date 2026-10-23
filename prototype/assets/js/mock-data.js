@@ -14,13 +14,13 @@ window.CLIMB_DATA = (function () {
   // 시스템 명칭 (REQ-NAME-01~05)
   //   climb = Contract Lifecycle Intelligent Management Base (v0.53 기획자 요청: I는 Intelligent, B는 Base)
   //   머리글(맨 위) 둘째 줄: 한글 이름 "무하유 계약 관리 플랫폼" (v0.53 기획자 요청)
-  //   푸터(맨 아래)와 로그인 화면: "Contract Lifecycle Intelligent Management Base" (MUHAYU를 붙이면 한 줄을 넘어 뺌, v0.53)
+  //   푸터(맨 아래)와 로그인 화면: "MUHAYU Contract Lifecycle Intelligent Management Base" (v0.53에 MUHAYU를 뺐다가 v0.55 기획자 요청으로 다시 붙임)
   //   회사 이름은 저작권 줄에만: "© 2026 MUHAYU Inc."
   const BRAND = {
     name: 'climb',                 // 로고 글자(소문자, SUITE 글꼴)와 브라우저 탭 제목 (v0.53 기획자 요청: 대문자 CLIMB에서 바꿈. 본문 글에는 이름을 쓰지 않고 필요하면 "플랫폼")
     ko: '무하유 계약 관리 플랫폼',   // 머리글 둘째 줄, 푸터 둘째 줄, 로그인 첫 줄
     // 영문 이름(climb의 머리글자 풀이). 끝에 (climb)은 붙이지 않음
-    en: 'Contract Lifecycle Intelligent Management Base',
+    en: 'MUHAYU Contract Lifecycle Intelligent Management Base',
     company: 'MUHAYU Inc.',        // 저작권 줄 (v0.53 기획자 요청)
   };
 
@@ -817,12 +817,14 @@ window.CLIMB_DATA = (function () {
           '휴대폰 개요에서 고객사 이름이 서너 줄로 꺾이던 것을 고쳤습니다.',
           '새 계약 등록의 좁은 칸에서 칸 이름의 낱말 사이가 벌어지던 것을 고쳤습니다.'],
       } },
-    // v0.10.3 (요구사항 정의서 v0.55, REQ-ENV-08, REQ-NAME-06): 휴대폰 제목 비례 크기, 로고 크기 고정
-    { id: 'N-0020', kind: 'RELEASE', version: 'v0.10.3', title: '휴대폰 제목 크기', at: '2026-10-23 10:00', by: 'u_super',
+    // v0.10.3 (요구사항 정의서 v0.55, REQ-ENV-08, REQ-NAME-03~06, REQ-UI-14, 33): 휴대폰 제목 비례 크기, 로고, 영문 명칭, 휴대폰 메뉴, 화면 전환
+    { id: 'N-0020', kind: 'RELEASE', version: 'v0.10.3', title: '휴대폰과 화면 전환', at: '2026-10-23 10:00', by: 'u_super',
       items: {
         changed: ['휴대폰에서 제목을 같은 비율로 줄입니다: 화면 제목 27px, 상자 제목 18px. 본문 글자(17px)는 PC와 같습니다.',
-          '로고는 PC와 휴대폰에서 같은 크기로 보입니다.',
-          '화면 맨 아래 로고에서 한글 이름 줄을 빼고 climb과 영문 이름만 둡니다.'],
+          '로고는 PC와 휴대폰에서 같은 크기로 보이고, 심볼과 climb 사이를 조금 좁혔습니다.',
+          '화면 맨 아래 로고에서 한글 이름 줄을 빼고 climb과 영문 이름(MUHAYU Contract Lifecycle Intelligent Management Base)만 둡니다.',
+          '휴대폰 메뉴의 하위 메뉴를 작게 열고, 열어도 화살표와 그라데이션은 그대로 둡니다. 열면 아래 화면이 흐려지고, 흐린 곳을 누르면 닫힙니다.'],
+        fixed: ['화면을 옮길 때 반쯤 그려진 화면이나 글꼴이 바뀌는 순간이 보이던 것을 고쳤습니다. 새 화면은 다 그린 뒤 한 번에 보입니다.'],
       } },
   ];
 

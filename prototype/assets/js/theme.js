@@ -40,3 +40,23 @@
     apply: apply,
   };
 })();
+
+/* ---------- 화면을 한 번에 보이기 (v0.55 기획자 요청: 화면을 옮길 때 렌더링하듯 조정되는 순간 없이, REQ-UI-33) ----------
+ * 머리글, 메뉴, 푸터, 본문은 화면 스크립트가 그리고, 글꼴(Noto Sans KR, SUITE)은 조금 늦게 와서 글자 폭이 바뀜.
+ * 그래서 다 그리고 글꼴이 올 때까지 새 화면을 감췄다가(html.is-loading, common.css) 한 번에 보임.
+ * 그동안 Chrome은 앞 화면을 그대로 보여 주므로(paint holding) 화면이 바로 바뀐 것처럼 보임.
+ *   - 화면 스크립트는 <body> 끝에서 바로 그리므로 DOMContentLoaded면 다 그린 것
+ *   - 기다리는 시간은 길어도 0.8초. 스크립트가 멈춰도 CSS가 1.2초 뒤에 보이게 함(안전장치)
+ * 실제 시스템에서도 같은 결과(반쯤 그려진 화면, 글꼴 바뀜이 보이지 않게)가 나오게 만들면 됨 */
+(function () {
+  var root = document.documentElement;
+  root.classList.add('is-loading');
+  function show() { root.classList.remove('is-loading'); }
+  document.addEventListener('DOMContentLoaded', function () {
+    void document.body.offsetHeight; // 배치를 먼저 계산해 이 화면에 쓰는 글꼴을 받기 시작하게 함
+    var fonts = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+    Promise.race([fonts, new Promise(function (r) { setTimeout(r, 800); })]).then(function () { requestAnimationFrame(show); });
+  });
+  // 뒤로 가기로 저장된 화면을 되살릴 때(bfcache)는 이미 다 그려져 있으므로 바로 보임
+  window.addEventListener('pageshow', function (e) { if (e.persisted) show(); });
+})();
