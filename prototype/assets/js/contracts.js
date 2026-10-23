@@ -26,6 +26,9 @@
   $('#f-service').innerHTML = options('전체 서비스', Object.keys(D.SERVICES).map(function (k) { return [k, D.SERVICES[k]]; }));
   const owners = all.map(function (b) { return b.root.requesterId; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
   $('#f-owner').innerHTML = options('전체', owners.map(function (u) { return [u, C.ownerLabel(u)]; }));
+  // 개요에서 영업이 누르면 나로 거름 (?owner=, v0.58 QA)
+  const presetOwner = new URLSearchParams(location.search).get('owner');
+  if (owners.indexOf(presetOwner) > -1) $('#f-owner').value = presetOwner;
 
   // 변경과 연장 칸: "변경 1, 연장 1(조건 그대로), 해지 기안"
   function childText(b) {

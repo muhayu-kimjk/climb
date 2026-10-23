@@ -7,10 +7,11 @@
  * 하는 일
  *   1. 영업만 쓸 수 있게 막기
  *   2. 이어서 작성(임시 저장 건), 보완 후 재기안(반려 건)일 때 값 미리 채우기
- *   3. 제품별 금액 줄 추가, 삭제와 총액, 연도별 금액 계산 (v0.49: 줄마다 제품 → 기능)
+ *   3. 제품별 금액 줄 추가, 삭제와 총액, 연도별 금액 계산 (v0.56: 줄마다 서비스 → 제품 → 기능)
  *   4. 체크리스트 2, 3번 자동 계산과 결재선 표시
- *   5. 필수 항목 검사(오류 요약 + 항목별 오류), 기안 확인 창, 기안 완료 안내
- * 프로토타입: 저장, 파일 업로드, 기안은 화면만 동작합니다. 실제 시스템에서는 서버에 저장하고,
+ *   5. 필수 항목 검사(오류 요약 + 항목별 오류), 기안 확인 창
+ *   7. 임시 저장과 기안: 계약 기록으로 저장하고 결재 문서로 감 (v0.58 QA: 예전에는 안내만 하고 저장하지 않았음)
+ * 프로토타입: 임시 저장과 기안은 이 브라우저에만 저장(시연 기록), 파일은 이름만 남습니다. 실제 시스템에서는 서버에 저장하고,
  *   가격 기준 계산과 결재선 결정도 서버에서 다시 검증해야 합니다(화면 값은 바꿀 수 있으므로).
  * ===================================================================== */
 (function () {
@@ -56,13 +57,7 @@
     return;
   }
 
-  function noticeHtml(kind, title, body, actions) {
-    return '<div class="notice' + (kind ? ' notice--' + kind : '') + '" role="status">' +
-      '<p class="notice-title">' + C.icon(kind === 'success' ? 'check' : 'alert') + esc(title) + '</p>' +
-      '<p class="notice-body">' + body + '</p>' +
-      (actions ? '<div class="notice-actions">' + actions + '</div>' : '') +
-    '</div>';
-  }
+  function noticeHtml(kind, title, body, actions) { return C.noticeBox(kind, title, body, actions); } // 위에서도 쓰므로 함수로
 
   /* ---------- 선택지 채우기 (3.4) ---------- */
   $('#f-owner').value = C.ownerLabel(me.id); // "경영지원유닛 원지안" (님 없이, v0.32)
@@ -189,16 +184,22 @@
     if (r) setCustomer(r.key, r.name, r.bizNo, unit);
     else { setCustomer(NEW_CUSTOMER, name, bizNo || '', unit); }
   }
-  // 원계약 후보: 보관함의 계약 완료 묶음(원계약 번호) 중 볼 수 있는 것
-  const origins = D.CONTRACTS.filter(function (c) { return c.status === 'ACTIVE' && !c.parentId && C.canView(c, me); });
+  // 원계약 후보: 보관함의 계약 완료 묶음(원계약 번호) 중 볼 수 있는 것.
+  //   묶음 상태로 봄: 원계약 기간이 끝났어도 연장 계약이 유효하면 후보 (v0.58 QA: 만료 예정에서 "연장 기안"으로 와도 원계약이 비어 있었음)
+  const origins = D.CONTRACTS.filter(function (c) {
+    return c.id && !c.parentId && C.canView(c, me) && (C.bundleOf(c.id) || {}).status === 'ACTIVE';
+  });
   $('#f-origin').innerHTML = '<option value="">고르세요</option>' + origins.map(function (c) {
     return '<option value="' + esc(c.id) + '">' + esc(c.id + ' ' + c.counterparty + ' (' + C.serviceLabel(c.services) + ')') + '</option>';
   }).join('');
 
   /* ---------- 2. 이어서 작성, 보완 후 재기안 (REQ-FLOW-14, REQ-FLOW-17) ---------- */
   const srcId = new URLSearchParams(location.search).get('id');
+  //   임시 저장한 계약과 다시 기안할 수 있는 반려 계약만(검토 중인 계약을 열어 새 계약으로 또 기안하지 않게, v0.58 QA).
+  //   최고관리자는 시연으로 다른 사람 것도 열 수 있음(내 등록 목록에서 버튼이 보이므로)
   const source = srcId ? D.CONTRACTS.find(function (c) {
-    return (c.id === srcId || c.draftKey === srcId) && c.requesterId === me.id;
+    return (c.id === srcId || c.draftKey === srcId) && (c.requesterId === me.id || me.role === 'SUPER') &&
+      (c.status === 'DRAFT' || C.canResubmit(c));
   }) : null;
   let round = 1;
   if (source && source.status === 'REJECTED') {
@@ -330,7 +331,8 @@
       const retired = !!feature && liveFeatureIds().indexOf(feature) < 0; // 다시 연 줄의 사용 안 함 기능
       const p = retired ? null : PRICE[feature];
       const std = p && qty ? p.listPrice * qty : null;
-      const discount = std && amount != null ? Math.max(0, (std - amount) / std) : null;
+      // 할인율: 표준 금액보다 높게 받으면 음수(표준 단가보다 높음). v0.58 QA: 예전에는 0으로 보아 "표준 단가"라고 잘못 보였음
+      const discount = std && amount != null ? (std - amount) / std : null;
       return { li: li, feature: feature, retired: retired, qty: qty, amount: amount, product: p, std: std, discount: discount, cap: p ? p.discountCap : null };
     });
   }
@@ -385,7 +387,7 @@
   function totalAmount() { return readProducts().reduce(function (a, r) { return a + (r.amount || 0); }, 0); }
 
   /* ---------- 4. 체크리스트 2, 3번 자동 계산 (REQ-CHK-04) ----------
-   * 2번(표준단가표 적용): 모든 줄이 표준 단가 그대로면 예, 하나라도 할인이 있으면 아니요
+   * 2번(표준단가표 적용): 모든 줄이 표준 단가 그대로면 예, 하나라도 다르면(할인했거나 표준보다 높게 받음) 아니요 [가정 v0.58]
    * 3번(할인율 한도 준수): 모든 줄의 할인율이 그 기능의 한도 이하이면 예 (v0.49: 한도는 기능마다)
    * 모든 계약에는 제품과 금액이 있음(v0.41: 금액이 없는 계약은 플랫폼에 등록하지 않음) */
   function priceCheck(rows) {
@@ -394,23 +396,24 @@
       const msg = '서비스, 제품, 기능, 수량, 계약 금액을 모두 넣으면 계산됩니다.';
       return { q2: 'WAIT', q3: 'WAIT', d2: msg, d3: msg };
     }
-    const discounted = rows.filter(function (r) { return r.discount > 0; });
+    const discounted = rows.filter(function (r) { return Math.abs(r.discount) > 1e-9; });
     const over = rows.filter(function (r) { return r.discount > r.cap + 1e-9; });
     return {
       q2: discounted.length ? 'NO' : 'YES',
       q3: over.length ? 'NO' : 'YES',
       d2: discounted.length
-        ? discounted.map(function (r) { return C.featureLabel(r.product) + ' ' + pct(r.discount) + ' 할인'; }).join(', ')
+        ? discounted.map(function (r) { return C.featureLabel(r.product) + ' ' + discountText(r.discount); }).join(', ')
         : '모든 제품이 표준 단가 그대로입니다.',
       d3: over.length
         ? over.map(function (r) { return C.featureLabel(r.product) + ' 할인율 ' + pct(r.discount) + ', 한도 ' + pct(r.cap) + ' 초과'; }).join(', ')
         : (discounted.length ? '할인한 제품 모두 한도 이내입니다.' : '할인이 없습니다.'),
     };
   }
+  // "10% 할인" 또는 "표준 단가보다 5% 높음"
+  function discountText(d) { return d < 0 ? '표준 단가보다 ' + pct(-d) + ' 높음' : pct(d) + ' 할인'; }
   function answerHtml(v) {
     if (v === 'YES') return '<span class="badge badge--success">예</span>';
     if (v === 'NO') return '<span class="badge badge--danger">아니요</span>';
-    if (v === 'NA') return '<span class="badge badge--neutral">해당 없음</span>';
     return '<span class="badge badge--line">계산 대기</span>';
   }
 
@@ -434,18 +437,18 @@
     const name = function (code) { return C.ownerLabel(C.stepUserNow(code, req)); };
     return [
       { stage: '2단계 계약 검토 (② 다음 ③, 그다음 ④와 ⑤ 동시)', items: [
-        { no: '②', name: '체크리스트 검토', who: '영업지원', state: 'go', reason: '어떤 경우에도 생략하지 않음' }, // REQ-CHK-02
+        { no: '②', name: '체크리스트 검토', who: '영업지원 ' + name('S02'), state: 'go', reason: '어떤 경우에도 생략하지 않음' }, // REQ-CHK-02
         { no: '③', name: '영업 검토', who: '영업 리더 ' + name('S03'), state: sales[0], reason: sales[1] }, // 가격 예외 승인, 법무보다 먼저 (v0.20)
         { no: '④', name: '법무 검토', who: '법무 ' + name('S04'), state: legal[0], reason: legal[1] },
         { no: '⑤', name: '개인정보 검토', who: '정보보호 담당자 ' + name('S05'), state: privacy[0], reason: privacy[1] },
       ] },
       { stage: '3단계 계약 체결', items: [
-        { no: '⑥', name: '인장 날인 검토', who: '총무', state: 'go', reason: '기초 정보 확인 후 인장 날인' },
+        { no: '⑥', name: '인장 날인 검토', who: '총무 ' + name('S06'), state: 'go', reason: '기초 정보 확인 후 인장 날인' },
         { no: '⑦', name: '상대방 서명, 체결본 등록', who: '영업 (나)', state: 'go', reason: '서명은 시스템 밖에서' },
-        { no: '⑧', name: '체결본 확인', who: '영업지원', state: 'go', reason: '승인된 내용과 같은지 확인' },
+        { no: '⑧', name: '체결본 확인', who: '영업지원 ' + name('S08'), state: 'go', reason: '승인된 내용과 같은지 확인' },
       ] },
       { stage: '4단계 운영 검토', items: [
-        { no: '⑨', name: '운영 적용', who: '고객지원', state: 'go', reason: '라이선스나 도메인 열기' },
+        { no: '⑨', name: '운영 적용', who: '고객지원 ' + name('S09'), state: 'go', reason: '라이선스나 도메인 열기' },
         { no: '⑩', name: '재무 확인', who: '재무 ' + name('S10'), state: 'go', reason: '회계 인식 (결재선에는 없음)' },
       ] },
       { stage: '5단계 계약 완료', items: [
@@ -482,7 +485,8 @@
       info.textContent = '표준 단가 ' + krw(r.product.listPrice) + ' (' + r.product.unit + ')' + (r.qty ? ' x ' + r.qty + ' = ' + krw(r.std) : '') +
         ', 할인율 한도 ' + pct(r.cap);
       if (r.amount == null || r.discount == null) badge.innerHTML = '<span class="badge badge--line">금액 입력 대기</span>';
-      else if (r.discount === 0) badge.innerHTML = '<span class="badge badge--success">표준 단가</span>';
+      else if (Math.abs(r.discount) < 1e-9) badge.innerHTML = '<span class="badge badge--success">표준 단가</span>';
+      else if (r.discount < 0) badge.innerHTML = '<span class="badge badge--line">' + esc(discountText(r.discount)) + '</span>';
       else if (r.discount > r.cap + 1e-9) badge.innerHTML = '<span class="badge badge--danger">' + pct(r.discount) + ' 할인, 한도 초과</span>';
       else badge.innerHTML = '<span class="badge badge--progress">' + pct(r.discount) + ' 할인, 한도 이내</span>';
     });
@@ -525,7 +529,6 @@
     if (e.target.id === 'f-opportunity') { e.target.value = e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, ''); updateOppLink(); }
     clearError(e.target);
     refresh();
-    updateYearSum();
   });
   form.addEventListener('change', function (e) {
     clearError(e.target);
@@ -561,6 +564,7 @@
     const kind = val('kind');
     const origin = $('#f-origin').value;
     if (kind === 'NEW' || !origin) return null;
+    if (source && source.status === 'REJECTED') return source.id; // 다시 기안: 같은 번호의 다음 차수
     return C.nextChildId(origin, kind); // 예: 2601CL001-A02 (common.js)
   }
   function onOriginChange() {
@@ -688,6 +692,10 @@
         : ['service', 'product', 'feature'].map(function (k) { return r.li.querySelector('[data-k="' + k + '"]'); }).filter(function (s) { return !s.value; })[0];
       errors.push({ msg: msg, target: !r.product ? empty : (!r.qty ? r.li.querySelector('[data-k="qty"]') : r.li.querySelector('[data-k="amount"]')) });
     });
+    // 금전 거래가 있는 계약만 등록 (REQ-SCOPE-05, v0.58 QA: 금액을 모두 0으로 넣어도 기안되었음)
+    if (rows.length && rows.every(function (r) { return r.product && r.qty && r.amount != null; })) {
+      need(totalAmount() > 0, 'products', '계약 금액 총액이 0원입니다. 금전 거래가 있는 계약만 등록합니다.', rows[0].li.querySelector('[data-k="amount"]'));
+    }
     // 연도별 금액 합계 = 총액
     if (!$('#yearly-field').hidden) {
       const ys = yearlyAmounts();
@@ -729,8 +737,49 @@
   }
 
   /* ---------- 7. 임시 저장, 기안 ---------- */
+  // 화면에 넣은 값을 계약 기록으로 (데이터 정의서 contract, contract_product, attachment. 다시 채울 값은 form에)
+  function formRecord() {
+    const rows = readProducts().filter(function (r) { return r.feature; });
+    const services = [];
+    rows.forEach(function (r) { const sv = r.product && r.product.service; if (sv && services.indexOf(sv) < 0) services.push(sv); });
+    const products = rows.map(function (r) {
+      const org = r.li.querySelector('[data-k="org"]').value.trim();
+      return Object.assign({ feature: r.feature, qty: r.qty, amount: r.amount }, org ? { org: org } : {});
+    });
+    const checklist = {
+      standard: val('standard'), standardNote: val('standardNote'), price: current.pc.q2, priceNote: val('priceNote'),
+      cap: current.pc.q3, capNote: val('capNote'), accounting: val('accounting'), accountingNote: val('accountingNote'),
+    };
+    const kind = val('kind') || 'NEW';
+    const tp = templatePick();
+    const fileList = [];
+    [['draft', 'DRAFT_DOC'], ['diff', 'CLAUSE_DIFF'], ['annex', 'ANNEX'], ['quote', 'QUOTE']].forEach(function (k) {
+      files[k[0]].forEach(function (x) { fileList.push({ kind: k[1], name: x.name, size: x.size }); });
+    });
+    const formVals = {
+      bizNo: val('bizNo'), method: val('method'), settlement: val('settlement'), opportunity: val('opportunity'),
+      startDate: val('startDate'), endDate: val('endDate'), autoRenew: val('autoRenew'), noticeDays: parseNum(val('noticeDays')),
+      products: products, checklist: checklist, yearly: $('#yearly-field').hidden ? [] : yearlyAmounts(),
+      ledger: val('ledger'), taxInvoice: val('taxInvoice'), purchase: val('purchase'), memo: val('memo'), template: tp,
+    };
+    return {
+      counterparty: val('counterparty'), unit: unitValue(), services: services, kind: kind,
+      parentId: kind !== 'NEW' ? ($('#f-origin').value || null) : null,
+      amount: totalAmount(), requesterId: source ? source.requesterId : me.id,
+      restricted: !!val('restricted'), personalData: val('personalData') === 'YES', sla: val('sla'),
+      startDate: formVals.startDate, endDate: formVals.endDate, autoRenew: formVals.autoRenew, noticeDays: formVals.noticeDays,
+      template: tp, checklist: checklist, products: products, memo: formVals.memo, files: fileList, form: formVals,
+    };
+  }
+
+  // 임시 저장: 나만 보는 작성 중 기록(계약번호 없이 임시 키 D-0002 꼴). 이어서 작성하면 같은 기록을 바꿔 씀 (REQ-FLOW-14, 31)
+  //   보완 후 재기안은 반려된 계약을 고치는 것이라 임시 저장 없이 바로 기안
+  if (source && source.status === 'REJECTED') $('#btn-save').hidden = true;
   $('#btn-save').addEventListener('click', function () {
-    C.toast('임시 저장했고, 나만 볼 수 있습니다(시안이라 실제로 저장되지는 않음).');
+    const key = source && source.status === 'DRAFT' ? source.draftKey : C.newDraftKey();
+    C.saveDemoContract(Object.assign(formRecord(), { id: null, draftKey: key, status: 'DRAFT', savedAt: D.TODAY, history: [] }));
+    C.flash('임시 저장했습니다. 나만 볼 수 있고, 내 등록 목록에서 이어서 작성할 수 있습니다.');
+    location.replace('new-contract.html?id=' + encodeURIComponent(key));
   });
 
   function newNumber() {
@@ -757,7 +806,7 @@
     const rows = [
       ['거래처', val('counterparty') + (val('bizNo') ? ' (' + val('bizNo') + ')' : '') + (unitValue() ? ', 기관 또는 부서: ' + unitValue() : '')],
       ['서비스', serviceOfProducts()],
-      ['계약 금액', current.total ? krw(current.total) + ' (부가세 별도)' : '금액 없음'],
+      ['계약 금액', fmtNum(current.total || 0) + '원 (부가세 별도)'],
       ['계약 기간', C.fmtPeriod(val('startDate'), val('endDate'))],
       ['서비스 수준 협약(SLA)', val('sla') === 'YES' ? '있음' : '없음'],
       ['기준 표준계약서', templatePick() ? (templatePick().id === 'OWN' ? '상대방 양식(표준계약서 없음)' : templatePick().label) : '-'], // v0.53
@@ -795,23 +844,42 @@
     openModal();
   });
 
+  // 기안: 계약번호를 붙여 저장하고 결재 문서(SCR-23)로 감. ② 체크리스트 검토부터 시작 (v0.58 QA: 예전에는 저장하지 않았음)
+  //   보완 후 재기안: 같은 계약번호의 다음 차수. 앞 차수의 결재 기록과 기안 일시는 그대로 남김(REQ-FLOW-17)
+  //   이어서 작성한 임시 저장은 기안하면 지움
   function done() {
     const no = newNumber();
-    form.hidden = true;
-    $('#error-summary').hidden = true;
-    $('#notice').innerHTML = noticeHtml('success', '기안했습니다',
-      '계약번호 <strong>' + esc(no) + '</strong> (' + round + '차 기안, 프로토타입 예시 번호)<br>' +
-      '다음 단계: ② 체크리스트 검토 (영업지원). 진행 상황은 개요의 계약 진행 현황에서 볼 수 있습니다.<br>' +
-      '프로토타입이라 실제로 저장되지는 않습니다.',
-      '<a class="btn btn--primary btn--md" href="index.html">개요로 가기</a><a class="btn btn--tertiary btn--md" href="new-contract.html">새 계약 하나 더 등록</a>');
-    window.scrollTo(0, 0);
-    C.toast('기안했습니다. (프로토타입)');
+    const now = C.nowStamp().slice(0, 16);
+    let rec = Object.assign(formRecord(), { id: no, status: 'IN_REVIEW', requestedAt: now, round: round, history: [] });
+    if (source && source.status === 'REJECTED') {
+      const prev = JSON.parse(JSON.stringify(source));
+      // 시연으로 남긴 결재 기록(contractId가 있음)은 화면을 열 때 다시 붙으므로 빼고 저장
+      const hist = (prev.history || []).filter(function (h) { return !h.contractId; });
+      hist.push({ step: 'S01', action: 'SUBMIT', at: source.requestedAt, actorId: source.requesterId, comment: '', round: source.round || 1 });
+      rec = Object.assign(prev, rec, { history: hist, viewers: source.viewers });
+      delete rec.notes;
+    }
+    if (source && source.status === 'DRAFT') C.deleteDraft(source);
+    C.saveDemoContract(rec);
+    C.flash(no + ' ' + round + '차로 기안했습니다. 다음 차례: ② 체크리스트 검토 (' + C.ownerLabel(C.stepUserNow('S02', rec)) + ')');
+    location.href = 'review.html?id=' + encodeURIComponent(no);
   }
 
   /* ---------- 미리 채우기 (이어서 작성, 보완 후 재기안) ---------- */
   if (source) {
     const f = source.form || {};
     setRadio('kind', source.kind || 'NEW');
+    // 다시 기안하는 변경, 연장: 원계약과 계약종류는 그대로(같은 번호의 다음 차수라 바꿀 수 없음, v0.58 QA)
+    if (source.parentId) {
+      if (!origins.some(function (c) { return c.id === source.parentId; })) {
+        $('#f-origin').insertAdjacentHTML('beforeend', '<option value="' + esc(source.parentId) + '">' + esc(source.parentId + ' ' + source.counterparty) + '</option>');
+      }
+      $('#f-origin').value = source.parentId;
+    }
+    if (source.status === 'REJECTED') {
+      $('#f-origin').disabled = true;
+      $$('[name="kind"]', form).forEach(function (r) { r.disabled = true; });
+    }
     pickCustomerByName(source.counterparty, f.bizNo, source.unit || f.unit);
     $('#f-opportunity').value = f.opportunity || '';
     updateOppLink();
@@ -825,16 +893,23 @@
     if (source.sla || f.sla) setRadio('sla', source.sla || f.sla); // 서비스 수준 협약 (v0.40)
     $('#f-restricted').checked = !!source.restricted;
     setRadio('settlement', f.settlement);
-    if (f.checklist) {
-      setRadio('standard', f.checklist.standard); $('#f-standard-note').value = f.checklist.standardNote || '';
-      const tp = source.template || f.template; // 기준 표준계약서 (v0.53)
-      if (tp) $('#f-template').value = tp.id;
-      setRadio('accounting', f.checklist.accounting); $('#f-accounting-note').value = f.checklist.accountingNote || '';
-    }
+    const ck = Object.assign({}, source.checklist || {}, f.checklist || {}); // 계약 기록의 답과 다시 채울 값 (v0.58 QA: 4번 답과 비고가 빠졌음)
+    setRadio('standard', ck.standard); $('#f-standard-note').value = ck.standardNote || '';
+    $('#f-price-note').value = ck.priceNote || ''; $('#f-cap-note').value = ck.capNote || '';
+    setRadio('accounting', ck.accounting); $('#f-accounting-note').value = ck.accountingNote || '';
+    const tp = source.template || f.template; // 기준 표준계약서 (v0.53)
+    if (tp) $('#f-template').value = tp.id;
+    setRadio('ledger', f.ledger); $('#f-tax').value = f.taxInvoice || ''; $('#f-purchase').value = f.purchase || '';
     $('#f-memo').value = f.memo || '';
     (f.products || []).forEach(function (p) { addProduct(p); });
-    if (source.status === 'REJECTED') { files.draft.push({ name: source.counterparty + ' 계약서 1차 기안본.docx', size: 84000 }); renderFiles('draft'); }
-    if (source.status === 'REJECTED' && f.checklist && f.checklist.standard === 'NO') { files.diff.push({ name: source.counterparty + ' 조항 대비표.docx', size: 36000 }); renderFiles('diff'); }
+    // 첨부: 저장해 둔 파일 이름. 예시 반려 건처럼 없으면 계약서 초안(과 조항 대비표)을 예로 채움
+    const saved = source.files || [];
+    [['draft', 'DRAFT_DOC'], ['diff', 'CLAUSE_DIFF'], ['annex', 'ANNEX'], ['quote', 'QUOTE']].forEach(function (k) {
+      saved.filter(function (x) { return x.kind === k[1]; }).forEach(function (x) { files[k[0]].push({ name: x.name, size: x.size || 50000 }); });
+      renderFiles(k[0]);
+    });
+    if (source.status === 'REJECTED' && !files.draft.length) { files.draft.push({ name: source.counterparty + ' 계약서 ' + (round - 1) + '차 기안본.docx', size: 84000 }); renderFiles('draft'); }
+    if (source.status === 'REJECTED' && ck.standard === 'NO' && !files.diff.length) { files.diff.push({ name: source.counterparty + ' 조항 대비표.docx', size: 36000 }); renderFiles('diff'); }
   }
   // 계약 상세, 만료 예정에서 "변경 기안", "연장 기안"으로 들어오면 구분과 원계약을 미리 고름
   //   new-contract.html?kind=AMEND&origin=2601CL001 (REQ-ARC-02, 05)
@@ -846,4 +921,9 @@
   if (!$$('#product-list > li').length) addProduct();
   onKindChange();
   refresh();
+  // 연도별 금액은 기간으로 칸이 생긴 뒤에 채움
+  if (source && source.form && (source.form.yearly || []).length) {
+    $$('.yearly-input').forEach(function (inp, i) { if (source.form.yearly[i] != null) inp.value = fmtNum(source.form.yearly[i]); });
+    updateYearSum();
+  }
 })();

@@ -25,7 +25,7 @@
   let group = 'DEPT';
   function val(f, n) { return (f.elements[n].value || '').trim(); }
   function find(code) { return D.CODES.filter(function (c) { return c.group === group && c.code === code; })[0]; }
-  function serviceLabel(code) { const c = D.CODES.filter(function (x) { return x.group === group && x.code === code; })[0]; return c ? c.label : code; }
+  function codeLabel(code) { const c = D.CODES.filter(function (x) { return x.group === group && x.code === code; })[0]; return c ? c.label : code; }
 
   // 단계가 있는 코드표는 상위 아래에 하위가 오도록 줄 세움
   function ordered() {
@@ -43,27 +43,29 @@
     if (group === 'DEPT') return '사용자 ' + D.ACCOUNTS.filter(function (a) { return a.dept === c.label; }).length + '명';
     // 서비스는 v0.47부터 한 단계. 그 아래 제품 수는 제품과 기능 관리(SCR-58)의 제품
     if (group === 'SERVICE') return '계약 ' + ctr(function (x) { return (x.services || []).indexOf(c.code) > -1; }) + '건, 제품 ' + D.PRODUCTS.filter(function (p) { return p.service === c.code; }).length + '개';
-    if (group === 'METHOD') return '계약 ' + ctr(function (x) { return (x.form || {}).method === c.code; }) + '건';
-    if (group === 'SETTLEMENT') return '계약 ' + ctr(function (x) { return (x.form || {}).settlement === c.code; }) + '건';
+    // 계약 방식, 정산 방식: 계약서를 쓰는 기안만(해지, 운영 변경, 그대로 연장 빼고). 화면과 같은 규칙(C.methodOf, 정산 기본 일시) (v0.58 QA)
+    const own = function (x) { return x.kind !== 'TERMINATE' && x.kind !== 'CHANGE' && x.renewMode !== 'AUTO'; };
+    if (group === 'METHOD') return '계약 ' + ctr(function (x) { return own(x) && C.methodOf(x) === c.code; }) + '건';
+    if (group === 'SETTLEMENT') return '계약 ' + ctr(function (x) { return own(x) && ((x.form || {}).settlement || 'LUMP') === c.code; }) + '건';
     if (group === 'AFTERCARE') return '기록 ' + D.CONTRACTS.reduce(function (n, x) { return n + (x.notes || []).filter(function (t) { return t.type === c.code; }).length; }, 0) + '건';
     return '-';
   }
 
   function render() {
-    const g = D.CODE_GROUPS[group], svc = !!levels(), LEVEL = levels() || {};
+    const g = D.CODE_GROUPS[group], leveled = !!levels(), LEVEL = levels() || {};
     $('#groups').innerHTML = Object.keys(D.CODE_GROUPS).map(function (k) {
       return '<button type="button" data-group="' + k + '" aria-pressed="' + (k === group) + '">' + esc(D.CODE_GROUPS[k].name) + '</button>';
     }).join('');
     $('#group-name').textContent = g.name;
     $('#group-table').textContent = g.table;
     $('#group-note').textContent = g.note + '.';
-    $('#caption').textContent = g.name + ' 코드: 코드, 화면 이름, ' + (svc ? '단계, 상위, ' : '') + '쓰는 곳, 상태, 관리';
-    $('#thead').innerHTML = '<tr><th scope="col">코드</th><th scope="col">화면 이름</th>' + (svc ? '<th scope="col">단계</th><th scope="col">상위</th>' : '') +
+    $('#caption').textContent = g.name + ' 코드: 코드, 화면 이름, ' + (leveled ? '단계, 상위, ' : '') + '쓰는 곳, 상태, 관리';
+    $('#thead').innerHTML = '<tr><th scope="col">코드</th><th scope="col">화면 이름</th>' + (leveled ? '<th scope="col">단계</th><th scope="col">상위</th>' : '') +
       '<th scope="col">쓰는 곳</th><th scope="col">상태</th><th scope="col" class="col-action">관리</th></tr>';
     $('#rows').innerHTML = ordered().map(function (c) {
       return '<tr' + (c.use ? '' : ' class="is-muted"') + '><td class="nowrap"><code>' + esc(c.code) + '</code></td>' +
-        '<td class="cell-strong' + (svc ? ' nowrap' : '') + '">' + (svc && c.level > 1 ? '<span aria-hidden="true">' + new Array(c.level).join('　') + '└ </span>' : '') + esc(c.label) + '</td>' +
-        (svc ? '<td class="nowrap">' + esc(LEVEL[c.level]) + '</td><td>' + (c.parent ? esc(serviceLabel(c.parent)) : '-') + '</td>' : '') +
+        '<td class="cell-strong' + (leveled ? ' nowrap' : '') + '">' + (leveled && c.level > 1 ? '<span aria-hidden="true">' + new Array(c.level).join('　') + '└ </span>' : '') + esc(c.label) + '</td>' +
+        (leveled ? '<td class="nowrap">' + esc(LEVEL[c.level]) + '</td><td>' + (c.parent ? esc(codeLabel(c.parent)) : '-') + '</td>' : '') +
         '<td>' + esc(usage(c)) + '</td>' +
         '<td class="nowrap">' + (c.use ? C.badge('success', '사용 중') : C.badge('neutral', '사용 안 함')) + '</td>' +
         '<td class="col-action"><button type="button" class="link-act" data-edit="' + esc(c.code) + '" aria-label="' + esc(c.label) + ' 고치기">고치기</button></td></tr>';
@@ -104,7 +106,7 @@
         if (f.elements.parent && val(f, 'parent') !== c.parent) set.parent = val(f, 'parent');
         const parts = [];
         if (set.label !== c.label) parts.push('화면 이름: ' + c.label + ' → ' + set.label);
-        if (set.parent) parts.push('상위: ' + serviceLabel(c.parent) + ' → ' + serviceLabel(set.parent));
+        if (set.parent) parts.push('상위: ' + codeLabel(c.parent) + ' → ' + codeLabel(set.parent));
         if (set.use !== c.use) parts.push('상태: ' + (c.use ? '사용 중 → 사용 안 함' : '사용 안 함 → 사용 중'));
         C.adminSave('CODE', g.name + ' ' + c.code, parts.join(', '), val(f, 'reason'), { k: 'CODE_EDIT', group: group, code: c.code, set: set });
         render();
@@ -113,7 +115,7 @@
     });
   }
   function openAdd() {
-    const g = D.CODE_GROUPS[group], svc = !!levels(), LEVEL = levels() || {};
+    const g = D.CODE_GROUPS[group], leveled = !!levels(), LEVEL = levels() || {};
     const lvOpts = Object.keys(LEVEL).map(function (k) { return [k, LEVEL[k]]; });
     function parents(level) {
       return C.codeList(group, true).filter(function (x) { return x.level === level - 1; }).map(function (x) { return [x.code, x.label + ' (' + x.code + ')']; });
@@ -125,14 +127,14 @@
           C.fieldHtml({ name: 'code', label: '코드', required: true, placeholder: '예: SALES_4', help: '영문 대문자, 숫자, 밑줄(_)' }) +
           C.fieldHtml({ name: 'label', label: '화면 이름', required: true }) +
         '</div>' +
-        (svc ? '<div class="field-row">' +
+        (leveled ? '<div class="field-row">' +
           C.fieldHtml({ name: 'level', label: '단계', type: 'select', required: true, value: '2', options: lvOpts }) +
           C.fieldHtml({ name: 'parent', label: '상위', type: 'select', required: true, options: [['', '고르세요']].concat(parents(2)) }) +
         '</div>' : '') +
         C.fieldHtml({ name: 'reason', label: '추가하는 사유', type: 'textarea', required: true }),
       btn: '코드 추가',
       open: function (f) {
-        if (!svc) return;
+        if (!leveled) return;
         f.elements.level.addEventListener('change', function () {
           const lv = Number(f.elements.level.value);
           f.elements.parent.disabled = lv === 1;
@@ -142,19 +144,19 @@
       },
       check: function (f) {
         const code = val(f, 'code').toUpperCase(), label = val(f, 'label');
-        const lv = svc ? Number(val(f, 'level')) : null;
+        const lv = leveled ? Number(val(f, 'level')) : null;
         return {
           code: !/^[A-Z][A-Z0-9_]*$/.test(code) ? '코드를 영문 대문자로 시작하는 영문 대문자, 숫자, 밑줄로 넣으세요.'
             : D.CODES.some(function (x) { return x.group === group && x.code === code; }) ? '이미 있는 코드입니다.' : '',
           label: !label ? '화면 이름을 넣으세요.' : D.CODES.some(function (x) { return x.group === group && x.label === label; }) ? '같은 화면 이름이 이미 있습니다.' : '',
-          parent: svc && lv > 1 && !val(f, 'parent') ? '상위 코드를 고르세요.' : '',
+          parent: leveled && lv > 1 && !val(f, 'parent') ? '상위 코드를 고르세요.' : '',
           reason: val(f, 'reason') ? '' : '추가하는 사유를 적으세요.',
         };
       },
       done: function (f) {
         const c = { group: group, code: val(f, 'code').toUpperCase(), label: val(f, 'label') };
-        if (svc) { c.level = Number(val(f, 'level')); c.parent = c.level > 1 ? val(f, 'parent') : null; }
-        C.adminSave('CODE', g.name + ' ' + c.code, '코드 추가: ' + c.label + (svc ? ' (' + LEVEL[c.level] + (c.parent ? ', 상위 ' + serviceLabel(c.parent) : '') + ')' : ''),
+        if (leveled) { c.level = Number(val(f, 'level')); c.parent = c.level > 1 ? val(f, 'parent') : null; }
+        C.adminSave('CODE', g.name + ' ' + c.code, '코드 추가: ' + c.label + (leveled ? ' (' + LEVEL[c.level] + (c.parent ? ', 상위 ' + codeLabel(c.parent) : '') + ')' : ''),
           val(f, 'reason'), { k: 'CODE_ADD', c: c });
         render();
         C.toast(g.name + ' 코드를 추가했습니다: ' + c.code);

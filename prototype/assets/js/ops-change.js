@@ -16,9 +16,7 @@
   const me = C.init();
   const esc = C.esc;
   const $ = function (s) { return document.querySelector(s); };
-  const notice = function (title, body) {
-    return '<div class="notice" role="status"><p class="notice-title">' + C.icon('alert') + esc(title) + '</p><p>' + body + '</p></div>';
-  };
+  const notice = function (title, body) { return C.noticeBox('', title, body); };
 
   const origin = new URLSearchParams(location.search).get('origin');
   const found = D.CONTRACTS.find(function (c) { return c.id === origin; });

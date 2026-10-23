@@ -18,8 +18,8 @@
 
   const seeAll = me.role === 'SUPER' || me.role === 'ADMIN';
   if (!seeAll && me.role !== 'SALES') {
-    $('#notice').innerHTML = '<div class="notice" role="status"><p class="notice-title">' + C.icon('alert') + '내 등록 목록은 영업이 씁니다</p>' +
-      '<p>지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 모든 계약은 보관함 > 전체 계약에서 볼 수 있습니다.</p></div>';
+    $('#notice').innerHTML = C.noticeBox('', '내 등록 목록은 영업이 씁니다',
+      '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 모든 계약은 보관함 > 전체 계약에서 볼 수 있습니다.');
     $('#list').hidden = true;
     return;
   }
@@ -54,7 +54,7 @@
     if (c.status === 'SUPPLEMENT') {
       return '<div class="row-actions"><a class="btn btn--primary" href="review.html?id=' + encodeURIComponent(c.id) + '">보완하기</a></div>';
     }
-    if (c.status === 'REJECTED' && c.kind !== 'TERMINATE' && c.renewMode !== 'AUTO' && c.kind !== 'CHANGE') {
+    if (C.canResubmit(c)) { // 신규, 변경, 바꿔서 연장만 (해지, 그대로 연장, 운영 변경은 반려되면 끝남)
       return '<div class="row-actions"><a class="btn btn--secondary" href="new-contract.html?id=' + encodeURIComponent(c.id) + '">보완 후 재기안</a></div>';
     }
     const p = C.currentStep(c);

@@ -41,6 +41,13 @@
   $('#mail-desc').innerHTML = '받는 곳: <strong>' + esc(acc.email || '회사 이메일') + '</strong> (회사 Google 계정 이메일. 바꿀 수 없음)';
   // 이 알림이 내 역할에 오는지 (역할이 없으면 모두에게). 최고관리자는 모든 알림을 볼 수 있어 다 내 것으로 봄
   function mine(t) { return !t.roles || me.role === 'SUPER' || C.hasRole(me, t.roles); }
+  // 보내는 때: 독촉과 의무 알림의 날수는 결재선 규칙(SCR-52)에서 바꿀 수 있어 그 값으로 씀 (v0.58 QA)
+  function whenText(t) {
+    const R = D.ALERT_RULES;
+    if (t.code === 'REMIND') return '내 차례가 ' + R.approvalDelayDays + '일 넘게 머물거나, 승인 뒤 ' + R.signDelayDays + '일 동안 체결본이 없을 때';
+    if (t.code === 'OBLIGATION') return '내 분야가 맡은 체결 후 의무의 기한 ' + R.obligationMailDays.join('일 전과 ') + '일 전, 기한이 지나면 다음 날';
+    return t.when;
+  }
   function render() {
     const prefs = C.mailPrefs(me.id);
     $('#mail-list').innerHTML = D.EMAIL_TYPES.map(function (t) {
@@ -50,7 +57,7 @@
         '<label class="choice"><input type="checkbox" name="' + t.code + '"' + (prefs[t.code] ? ' checked' : '') +
           (t.must || !own ? ' disabled' : '') + ' aria-describedby="mail-when-' + t.code + '"><span class="mail-name">' + esc(t.name) + '</span></label>' +
         '<span class="mail-state" id="mail-state-' + t.code + '">' + state + '</span>' +
-        '<p class="mail-when" id="mail-when-' + t.code + '">' + esc(t.when) + '</p>' +
+        '<p class="mail-when" id="mail-when-' + t.code + '">' + esc(whenText(t)) + '</p>' +
         (t.sample ? '<button type="button" class="link-act mail-preview-btn" data-preview="' + t.code + '" aria-label="' + esc(t.name) + ' 이메일 미리 보기">미리 보기</button>' : '') + '</li>';
     }).join('');
   }

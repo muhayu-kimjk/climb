@@ -31,12 +31,10 @@
   function stateOf(cu) { return cu.mergedInto ? 'MERGED' : cu.use ? 'USE' : 'OFF'; }
   function contractsOf(cu) { return D.CONTRACTS.filter(function (c) { return c.id && c.counterparty === cu.name; }).length; }
   function tag(cu) { return cu.name + '(' + cu.id + ')'; }
-  // 받침에 따라 "로"와 "으로" (ㄹ 받침은 "로")
-  function ro(word) {
-    const code = word.charCodeAt(word.length - 1) - 0xAC00;
-    if (code < 0 || code > 11171) return word + '(으)로';
-    const jong = code % 28;
-    return word + (jong === 0 || jong === 8 ? '로' : '으로');
+  function ro(word) { return C.josa(word, '으로', '로'); } // ㄹ 받침은 "로"
+  // 같은 상호가 다른 거래처에 있는지 (계약은 상호로 이어지므로 같은 이름이면 두 거래처의 계약이 섞임, v0.58 QA)
+  function nameTaken(name, selfId) {
+    return D.CUSTOMERS.filter(function (cu) { return cu.name === name && cu.id !== selfId && !cu.mergedInto; })[0] || null;
   }
 
   /* ---------- 2. 같은 거래처로 보이는 곳 ---------- */
@@ -56,16 +54,18 @@
   function filtered() {
     const q = $('#f-q').value.trim().toLowerCase(), st = $('#f-use').value;
     return D.CUSTOMERS.filter(function (cu) {
-      if (q && cu.name.toLowerCase().indexOf(q) < 0 && cu.bizNo.indexOf(q) < 0) return false;
+      // 사업자등록번호는 '-' 없이 숫자만 넣어도 찾음 (v0.58 QA)
+      const qd = q.replace(/[^0-9]/g, '');
+      if (q && cu.name.toLowerCase().indexOf(q) < 0 && cu.bizNo.indexOf(q) < 0 && !(qd && cu.bizNo.replace(/-/g, '').indexOf(qd) > -1)) return false;
       if (st && stateOf(cu) !== st) return false;
       return true;
     });
   }
   function render() {
     const pairs = dupPairs();
-    $('#dup').innerHTML = pairs.length ? '<div class="notice" role="status"><p class="notice-title">' + C.icon('alert') + '같은 거래처로 보이는 곳이 있습니다</p>' +
-      '<p class="notice-body">' + pairs.map(function (p) { return '<strong>' + esc(tag(p[0]) + ', ' + tag(p[1])) + '</strong>'; }).join('<br>') +
-      '<br>사업자등록번호 앞자리가 같고 상호가 비슷합니다. 사업자등록증을 확인한 뒤 같은 곳이면 둘을 골라 합치세요.</p></div>' : '';
+    $('#dup').innerHTML = pairs.length ? C.noticeBox('', '같은 거래처로 보이는 곳이 있습니다',
+      pairs.map(function (p) { return '<strong>' + esc(tag(p[0]) + ', ' + tag(p[1])) + '</strong>'; }).join('<br>') +
+      '<br>사업자등록번호 앞자리가 같고 상호가 비슷합니다. 사업자등록증을 확인한 뒤 같은 곳이면 둘을 골라 합치세요.') : '';
 
     const list = filtered();
     const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
@@ -73,6 +73,8 @@
     const from = (page - 1) * PAGE_SIZE, rows = list.slice(from, from + PAGE_SIZE);
     const counts = Object.keys(STATE).map(function (k) { return [STATE[k][1], list.filter(function (cu) { return stateOf(cu) === k; }).length + '곳']; });
     $('#list-count').innerHTML = C.meta([[(list.length !== D.CUSTOMERS.length ? '검색 결과' : '전체'), '<strong>' + list.length + '곳</strong>']].concat(counts));
+    // 사용 안 함으로 돌린 거래처는 합치기에서 뺌(고르는 칸이 사라져 뺄 수 없었음, v0.58 QA)
+    picked = picked.filter(function (id) { return find(id) && stateOf(find(id)) === 'USE'; });
     $('#rows').innerHTML = rows.length ? rows.map(function (cu) {
       const st = stateOf(cu), into = cu.mergedInto ? find(cu.mergedInto) : null;
       return '<tr' + (st !== 'USE' ? ' class="is-muted"' : '') + '>' +
@@ -146,7 +148,8 @@
       check: function (f) {
         const same = val(f, 'cuName') === cu.name && val(f, 'bizNo') === cu.bizNo && val(f, 'use') === String(cu.use);
         return {
-          cuName: !val(f, 'cuName') ? '상호를 넣으세요.' : same ? '바뀐 내용이 없습니다.' : '',
+          cuName: !val(f, 'cuName') ? '상호를 넣으세요.' : same ? '바뀐 내용이 없습니다.'
+            : nameTaken(val(f, 'cuName'), cu.id) ? '같은 상호의 거래처가 이미 있습니다(' + nameTaken(val(f, 'cuName'), cu.id).id + '). 같은 곳이면 합치기를 쓰세요.' : '',
           bizNo: bizNoError(val(f, 'bizNo'), cu.id),
           reason: val(f, 'reason') ? '' : '고치는 사유를 적으세요.',
         };
@@ -173,7 +176,7 @@
       btn: '추가',
       open: formatOnInput,
       check: function (f) {
-        return { cuName: val(f, 'cuName') ? '' : '상호를 넣으세요.', bizNo: bizNoError(val(f, 'bizNo'), null), reason: val(f, 'reason') ? '' : '추가하는 사유를 적으세요.' };
+        return { cuName: !val(f, 'cuName') ? '상호를 넣으세요.' : nameTaken(val(f, 'cuName'), null) ? '같은 상호의 거래처가 이미 있습니다(' + nameTaken(val(f, 'cuName'), null).id + ').' : '', bizNo: bizNoError(val(f, 'bizNo'), null), reason: val(f, 'reason') ? '' : '추가하는 사유를 적으세요.' };
       },
       done: function (f) {
         const cu = { id: 'C-' + String(D.CUSTOMERS.length + 1).padStart(4, '0'), name: val(f, 'cuName'), bizNo: val(f, 'bizNo') };

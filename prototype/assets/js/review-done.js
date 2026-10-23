@@ -18,8 +18,8 @@
 
   const seeAll = me.role === 'SUPER' || me.role === 'ADMIN';
   if (!seeAll && !C.hasRole(me, D.PROCESS_ROLES)) {
-    $('#notice').innerHTML = '<div class="notice" role="status"><p class="notice-title">' + C.icon('alert') + '검토 완료는 단계를 처리하는 역할만 씁니다</p>' +
-      '<p>지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다.</p></div>';
+    $('#notice').innerHTML = C.noticeBox('', '검토 완료는 단계를 처리하는 역할만 씁니다',
+      '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다.');
     $('#list').hidden = true;
     return;
   }

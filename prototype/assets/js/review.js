@@ -20,12 +20,10 @@
   const $ = function (s) { return document.querySelector(s); };
 
   const id = new URLSearchParams(location.search).get('id');
-  const c = D.CONTRACTS.find(function (x) { return x.id === id; });
+  // 주소에 번호가 없으면 찾지 않음(번호가 없는 임시 저장과 맞물리지 않게, v0.58 QA)
+  const c = id ? D.CONTRACTS.find(function (x) { return x.id === id; }) : null;
 
-  function notice(kind, title, body) {
-    return '<div class="notice' + (kind ? ' notice--' + kind : '') + '" role="status"><p class="notice-title">' +
-      C.icon(kind === 'success' ? 'check' : 'alert') + esc(title) + '</p>' + (body ? '<p>' + body + '</p>' : '') + '</div>';
-  }
+  const notice = C.noticeBox; // (kind, title, body)
 
   /* ---------- 1. 계약 찾기와 열람 권한 ---------- */
   if (!c) {
@@ -91,7 +89,8 @@
     return list.map(function (r) {
       const p = PRICE[r.feature];
       const std = p.listPrice * r.qty;
-      return { product: p, qty: r.qty, amount: r.amount, std: std, discount: Math.max(0, (std - r.amount) / std) };
+      // 할인율은 부호 그대로: 표준보다 높게 받으면 음수 (v0.58 QA: 예전에는 "표준 단가"로 보였음)
+      return { product: p, qty: r.qty, amount: r.amount, std: std, discount: (std - r.amount) / std };
     });
   }
   /* 첨부 파일과 판(버전) 관리 (데이터 정의서 attachment, v0.53 기획자 요청 REQ-REV-13). 예시 이름은 고객사 이름으로 만듦
@@ -111,8 +110,9 @@
     const hist = c.history || [], last = c.round || 1, out = [];
     for (let k = 1; k <= last; k++) {
       const inRound = hist.filter(function (h) { return (h.round || 1) === k; });
+      // 앞 차수의 기안 일시는 다시 기안할 때 남긴 SUBMIT 기록, 지금 차수는 기안 일시 (v0.58)
       const sub = inRound.filter(function (h) { return h.action === 'SUBMIT'; })[0];
-      out.push({ round: k, at: k === 1 ? c.requestedAt : (sub || inRound[0] || { at: c.requestedAt }).at, by: c.requesterId, why: k + '차 기안' });
+      out.push({ round: k, at: sub ? sub.at : k === last ? c.requestedAt : (inRound[0] || { at: c.requestedAt }).at, by: c.requesterId, why: k + '차 기안' });
       inRound.filter(function (h) { return h.action === 'RESUBMIT'; }).forEach(function (h) {
         out.push({ round: k, at: h.at, by: h.actorId || c.requesterId, why: k + '차 보완 완료' });
       });
@@ -221,9 +221,14 @@
           (me.id === c.requesterId ? '' : ' (시연: 최고관리자가 기안자 대신 처리해 볼 수 있습니다)'))
         : notice('', C.stepLabel(sp.step, c) + '에서 보완을 요청해 기안자가 고치는 중입니다', head + '기안자가 고치면 ' + no + '부터 이어서 결재합니다.');
     } else if (c.status === 'REJECTED') {
+      // 신규, 변경, 바꿔서 연장은 기안자가 보완해 다음 차수로 다시 기안(버튼). 해지, 그대로 연장, 운영 변경은 반려되면 끝나고 필요하면 새로 기안 (v0.58 QA)
+      const again = C.canResubmit(c);
+      const mineRej = me.id === c.requesterId || me.role === 'SUPER';
       html = notice('', C.stepLabel(c.rejection.step, c) + '에서 반려되었습니다',
         '<strong>' + esc(C.ownerLabel(c.rejection.by)) + ' (' + C.fmtDateTime(c.rejection.at) + ')</strong><br>' + esc(c.rejection.reason) +
-        '<br>기안자가 보완해 ' + (round + 1) + '차로 다시 기안합니다.');
+        (again ? '<br>기안자가 보완해 ' + (round + 1) + '차로 다시 기안합니다.'
+          : '<br>이 기안은 반려로 끝났습니다. 필요하면 <a class="doc-link" href="contract.html?id=' + encodeURIComponent(C.rootOf(c)) + '">계약 상세</a>에서 새로 기안합니다.'),
+        again && mineRej ? '<a class="btn btn--primary btn--md" href="new-contract.html?id=' + encodeURIComponent(c.id) + '">보완 후 재기안</a>' : '');
     } else if (actionable.length && me.role === 'SUPER') {
       html = notice('', '시연: 담당자 대신 처리해 볼 수 있습니다',
         '최고관리자는 모든 결재 문서를 볼 수 있고, 프로토타입에서는 담당자 대신 각 단계를 처리해 볼 수 있습니다. 실제 시스템에서는 담당자 본인과 관리자가 대리로 지정한 사람만 처리합니다(결재선 규칙의 대리 지정).' + ret);
@@ -353,7 +358,7 @@
         dd('원계약', '<a href="contract.html?id=' + encodeURIComponent(rootId) + '">' + esc(c.parentId) + '</a>'),
         dd('검토 결과', '그대로 자동갱신 (금액과 조건 그대로)'),
         dd('새 계약 기간', C.fmtPeriod(c.startDate, c.endDate)),
-        dd('계약 금액', c.amount ? won(c.amount) + ' (부가세 별도)' : '금액 없음'),
+        dd('계약 금액', won(c.amount) + ' (부가세 별도)'),
         dd('그대로 연장하는 이유', esc(c.reason || '-')),
       ]).join('') + '</dl>';
       return;
@@ -362,7 +367,7 @@
     if (!rows.length) { $('#amount').innerHTML = '<p class="empty">제품 정보가 없습니다.</p>'; return; }
     const total = rows.reduce(function (a, r) { return a + r.amount; }, 0);
     const stdTotal = rows.reduce(function (a, r) { return a + r.std; }, 0);
-    // 할인율 칸은 "표준 단가" 또는 "N% 할인"만 보여 줌. 할인율 한도 값과 한도 초과 여부는 이 표에 두지 않음
+    // 할인율 칸은 "표준 단가", "N% 할인", "N% 높음"만 보여 줌. 할인율 한도 값과 한도 초과 여부는 이 표에 두지 않음
     // (한도를 지켰는지는 체크리스트 3번에서 봄). 금액에는 원을 붙임 (REQ-UI-17)
     $('#amount').innerHTML =
       '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
@@ -371,7 +376,7 @@
         '<tbody>' + rows.map(function (r) {
           // "프리즘 결함검사" 아래에 단위(예: 기관, 1년). v0.49에 플랜을 없애 플랜 이름 대신 단위
           return '<tr><td>' + esc(C.featureLabel(r.product)) + '<span class="product-unit">' + esc(r.product.unit) + '</span></td><td class="num">' + num(r.qty) + '</td><td class="num">' + won(r.std) + '</td>' +
-            '<td class="num">' + won(r.amount) + '</td><td class="num">' + (r.discount === 0 ? '표준 단가' : pct(r.discount) + ' 할인') + '</td></tr>';
+            '<td class="num">' + won(r.amount) + '</td><td class="num">' + (Math.abs(r.discount) < 1e-9 ? '표준 단가' : r.discount < 0 ? pct(-r.discount) + ' 높음' : pct(r.discount) + ' 할인') + '</td></tr>';
         }).join('') + '</tbody>' +
         '<tfoot><tr><th scope="row">총액 (부가세 별도)</th><td></td><td class="num total">' + won(stdTotal) + '</td>' +
           '<td class="num total">' + won(total) + '<span class="total-read">' + esc(C.fmtKRW(total)) + '</span></td><td></td></tr></tfoot>' +
@@ -381,7 +386,6 @@
   function answer(v) {
     if (v === 'YES') return C.badge('success', '예');
     if (v === 'NO') return C.badge('danger', '아니요');
-    if (v === 'NA') return C.badge('neutral', '해당 없음');
     return C.badge('line', '-');
   }
   function renderChecklist() {
@@ -413,7 +417,7 @@
     // 4번: 회계 영향 특수 조건. 결재선에는 영향 없고, 예면 기안할 때 재무에 이메일로 알림 (REQ-CHK-08)
     '<ul class="doc-checks doc-checks--extra"><li><p class="check-q-text">' + esc('4. 회계에 영향을 주는 특수 조건이 있나요?') + ' ' + answer(ck.accounting) + '</p>' +
       '<p class="check-note">비고: ' + (ck.accountingNote ? esc(ck.accountingNote) : '없음') + '</p>' +
-      '<span class="check-effect">' + (ck.accounting === 'YES' ? '재무 알림: 기안할 때 재무 ' + esc(C.ownerLabel(C.stepUserNow('S10', c))) + '에게 이메일로 알렸습니다(결재선 아님)' : '재무 알림 없음') + '</span></li></ul>';
+      '<span class="check-effect">' + (ck.accounting === 'YES' ? '재무 알림: 기안할 때 재무 ' + esc(C.ownerLabel(C.stepUserAt('S10', c, c.requestedAt))) + '에게 이메일로 알렸습니다(결재선 아님)' : '재무 알림 없음') + '</span></li></ul>';
   }
 
   /* 첨부 파일 (REQ-SEC-08): 내려받으면 워터마크 PDF. 고칠 수 있는 원본은 기안자, 법무, 관리자만.
@@ -443,7 +447,9 @@
   }
 
   function renderHistory() {
-    const rows = [{ at: c.requestedAt, step: 'S01', action: 'SUBMIT', actorId: c.requesterId, comment: '', round: 1 }].concat(c.history || []);
+    // 지금 차수의 기안 줄을 더해 일시 순서로. 앞 차수의 기안은 다시 기안할 때 결재 기록에 남김 (v0.58)
+    const rows = [{ at: c.requestedAt, step: 'S01', action: 'SUBMIT', actorId: c.requesterId, comment: '', round: c.round || 1 }].concat(c.history || [])
+      .sort(function (a, b) { return (a.at || '').localeCompare(b.at || ''); });
     $('#history').innerHTML =
       '<caption class="sr-only">결재 기록: 일시, 차수, 단계, 한 일, 처리한 사람, 의견</caption>' +
       '<thead><tr><th scope="col">일시</th><th scope="col">차수</th><th scope="col">단계</th><th scope="col">한 일</th><th scope="col">처리한 사람</th><th scope="col">의견, 사유</th></tr></thead>' +

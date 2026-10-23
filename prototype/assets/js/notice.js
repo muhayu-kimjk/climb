@@ -22,8 +22,8 @@
   function render() {
     const n = D.NOTICES.filter(function (x) { return x.id === id && !x.hidden; })[0];
     if (!n) {
-      $('#notice').innerHTML = '<div class="notice" role="status"><p class="notice-title">' + C.icon('alert') + '글을 찾을 수 없습니다</p>' +
-        '<p>내렸거나 없는 글입니다. <a class="doc-link" href="notices.html">공지사항 목록</a>에서 다시 골라 주세요.</p></div>';
+      $('#notice').innerHTML = C.noticeBox('', '글을 찾을 수 없습니다',
+        '내렸거나 없는 글입니다. <a class="doc-link" href="notices.html">공지사항 목록</a>에서 다시 골라 주세요.');
       $('#post').hidden = true;
       return;
     }

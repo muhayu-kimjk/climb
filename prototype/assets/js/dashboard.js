@@ -29,6 +29,7 @@
   const isProcessor = C.hasRole(me, D.PROCESS_ROLES) && !viewOnly;
   const doWord = isApprover ? '검토할' : '처리할';
   const isSales = me.role === 'SALES';
+  const mineQ = isSales ? '&owner=' + encodeURIComponent(me.id) : ''; // 영업이 누르는 목록 링크는 나로 거름
 
   /* ---------- 집계 ---------- */
   const all = D.CONTRACTS;
@@ -37,7 +38,9 @@
   const active = byStatus(all, 'ACTIVE');
   // 만료 임박: 계약 묶음의 지금 유효한 계약 기준 (조건 그대로 연장한 기록이 있으면 그 기간, common.js expiringBundles)
   //   해지 통지 기한이 90일 안에 오는 자동갱신 계약도 넣음 (v0.53, REQ-FLOW-32). bundle: 통지 기한 계산용
-  const expiring = C.expiringBundles(R.expiryWindowDays, true).map(function (b) { return Object.assign({}, b.root, { endDate: b.end, bundle: b }); });
+  //   영업은 내가 영업대표인 묶음만 (만료 예정 화면과 같은 범위, v0.58 QA: 건수와 링크한 목록이 달랐음)
+  const expiring = C.expiringBundles(R.expiryWindowDays, true).filter(function (b) { return !isSales || b.root.requesterId === me.id; })
+    .map(function (b) { return Object.assign({}, b.root, { endDate: b.end, bundle: b }); });
   const restricted = all.filter(function (c) { return c.restricted && c.status !== 'DRAFT'; });
   const myActions = C.myActions(me);
 
@@ -59,7 +62,7 @@
     const open = D.SEC_ALERTS.filter(function (a) { return a.status === 'OPEN'; });
     items.push({ what: '이상 행위 알림 확인', todo: open.length > 0, state: open.length ? '확인 전 ' + open.length + '건' : '모두 확인', due: null });
     // 매월 기록 점검: 끝난 달 중 점검하지 않은 달
-    let y = 2026, m = 9;
+    let y = Number(START.slice(0, 4)), m = Number(START.slice(5, 7));
     const months = [];
     for (; (y + '-' + pad(m)) < THIS; [y, m] = next(y, m)) months.push([y, m]);
     const monthTodo = months.filter(function (x) { return !D.LOG_REVIEWS.some(function (r) { return r.month === x[0] + '-' + pad(x[1]); }); });
@@ -99,9 +102,9 @@
   // 결재 단계 점과 현재 진행 두 칸은 목록 화면들이 함께 쓰므로 common.js에 둠 (C.stepDots, C.progressCells)
   const stepDots = C.stepDots;
 
-  // more: 오른쪽 '전체 보기' 링크. href가 있으면 그 화면으로, 없으면 아직 안 만든 화면 안내
-  function panelHead(id, title, sub, moreLabel, moreScr, moreHref) {
-    const attrs = moreHref ? 'href="' + moreHref + '"' : C.todoAttrs(moreLabel, moreScr);
+  // more: 오른쪽 '전체 보기' 링크(moreLabel, moreHref)
+  function panelHead(id, title, sub, moreLabel, moreHref) {
+    const attrs = 'href="' + moreHref + '"';
     return '<div class="panel-head">' +
       '<h2 class="panel-title" id="' + id + '">' + esc(title) + (sub ? ' <span class="panel-sub">' + sub + '</span>' : '') + '</h2>' +
       (moreLabel ? '<a class="link-more" ' + attrs + '>' + esc(moreLabel) + C.icon('chevronRight', 'sm') + '</a>' : '') +
@@ -146,13 +149,14 @@
    * 진행 표시로 읽히지 않게 단계 번호를 담은 원으로 그리고, 건수가 있는 단계는 Dark Green 테두리입니다(has-items, KRDS v0.28).
    * 단계마다 단계 번호, 단계 이름, 건수만 보여 주고 아래 작은 설명 글은 두지 않습니다. (v0.14) */
   const STEPS = [
-    { label: '계약 등록', statuses: ['DRAFT'], target: '내 등록 목록', scr: 'SCR-12', href: 'my-contracts.html' },
-    { label: '계약 검토', statuses: ['IN_REVIEW', 'SUPPLEMENT', 'REJECTED'], target: '전체 진행 현황', scr: 'SCR-20', href: 'progress.html?status=REVIEW' },
+    // 영업은 내가 등록한 계약만 세므로 목록도 나로 거름(&owner=, v0.58 QA)
+    { label: '계약 등록', statuses: ['DRAFT'], href: 'my-contracts.html' },
+    { label: '계약 검토', statuses: ['IN_REVIEW', 'SUPPLEMENT', 'REJECTED'], href: 'progress.html?status=REVIEW' + mineQ },
     // 계약 체결: 영업은 체결 대기 화면, 그 외는 전체 진행 현황(체결 대기로 거름)
-    { label: '계약 체결', statuses: ['APPROVED'], target: '체결 대기', scr: 'SCR-31', href: isSales ? 'signing.html' : 'progress.html?status=APPROVED' },
-    { label: '운영 검토', statuses: ['OPS_REVIEW'], target: '전체 진행 현황', scr: 'SCR-20', href: 'progress.html?status=OPS_REVIEW' },
+    { label: '계약 체결', statuses: ['APPROVED'], href: isSales ? 'signing.html' : 'progress.html?status=APPROVED' },
+    { label: '운영 검토', statuses: ['OPS_REVIEW'], href: 'progress.html?status=OPS_REVIEW' + mineQ },
     // 계약 완료는 묶음마다 셈(조건 그대로 연장한 기록을 따로 세지 않음)
-    { label: '계약 완료', statuses: ['ACTIVE'], target: '보관함 전체 계약', scr: 'SCR-41', href: 'contracts.html', bundles: true },
+    { label: '계약 완료', statuses: ['ACTIVE'], href: 'contracts.html' + (isSales ? '?owner=' + encodeURIComponent(me.id) : ''), bundles: true },
   ];
 
   function renderProgress() {
@@ -164,7 +168,7 @@
       const count = unknown ? '-' : list.length;
       const cls = !unknown && list.length ? ' class="has-items"' : ''; // 건수가 있는 단계 (v0.28: is-on 대신)
       return '<li' + cls + '>' +
-        '<a class="step-body" ' + (s.href ? 'href="' + s.href + '"' : C.todoAttrs(s.target, s.scr)) + '>' +
+        '<a class="step-body" href="' + s.href + '">' +
           '<i class="step">' + (i + 1) + '단계</i>' +
           '<span class="step-tit">' + esc(s.label) + '</span>' +
           '<span class="step-count">' + count + (unknown ? '' : '<span class="unit">건</span>') + '</span>' +
@@ -212,8 +216,10 @@
     const rows = myActions.slice().sort(function (a, b) { return C.waitDays(b, mine(b)) - C.waitDays(a, mine(a)); });
     // 고객지원과 재무는 운영 검토 대기로, 그 외는 검토 대기로
     const ops = C.hasRole(me, ['CEM', 'FINANCE']);
+    // 영업은 검토 대기를 쓰지 않으므로 내 등록 목록으로 (v0.58 QA)
     const head = panelHead('my-reviews-title', '내가 ' + doWord + ' 계약', rows.length + '건',
-      ops ? '운영 검토 대기 전체 보기' : '검토 대기 전체 보기', ops ? 'SCR-34' : 'SCR-21', ops ? 'ops-queue.html' : 'review-queue.html');
+      isSales ? '내 등록 목록 전체 보기' : ops ? '운영 검토 대기 전체 보기' : '검토 대기 전체 보기',
+      isSales ? 'my-contracts.html' : ops ? 'ops-queue.html' : 'review-queue.html');
     if (!rows.length) { el.innerHTML = head + '<p class="empty">지금 검토할 계약이 없습니다.</p>'; return; }
     el.innerHTML = head +
       '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
@@ -241,7 +247,7 @@
     if (!isAuditor) return;
     el.hidden = false;
     const todo = audits.filter(function (a) { return a.todo; }).length;
-    el.innerHTML = panelHead('audit-title', '점검할 일', todo + '건', '접속 기록 점검으로', 'SCR-57', 'admin-logs.html') +
+    el.innerHTML = panelHead('audit-title', '점검할 일', todo + '건', '접속 기록 점검으로', 'admin-logs.html') +
       '<p class="panel-desc">접속 기록 점검은 정보보호 담당자가 합니다. 기한이 지나면 강조합니다.</p>' +
       '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
         '<caption class="sr-only">점검할 일: 할 일, 상태, 기한</caption>' +
@@ -269,7 +275,7 @@
       return areas.indexOf(C.obligationOwner(o)) > -1 && ['LATE', 'SOON'].indexOf(s.code) > -1 && C.canSeeObligation(me, o);
     }).sort(function (a, b) { return C.obligationState(a).next.localeCompare(C.obligationState(b).next); });
     const late = list.filter(function (o) { return C.obligationState(o).code === 'LATE'; }).length;
-    el.innerHTML = panelHead('obligations-title', '챙길 의무', list.length + '건', '의무 관리로', 'SCR-48', 'obligations.html') +
+    el.innerHTML = panelHead('obligations-title', '챙길 의무', list.length + '건', '의무 관리로', 'obligations.html') +
       '<p class="panel-desc">' + (me.role === 'SUPER' ? '모든 분야' : areas.map(function (r) { return D.ROLE_AREA[r]; }).join(', ') + ' 분야') +
         '가 맡은 체결 후 의무 가운데 기한이 지났거나 ' + R.obligationSoonDays + '일 안인 것입니다.' + (late ? ' 기한이 지난 의무가 ' + late + '건 있습니다.' : '') + '</p>' +
       (list.length ? '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
@@ -298,7 +304,7 @@
       const n = C.noticeDate(c.bundle);
       return n && C.daysUntil(n) >= 0 && C.daysUntil(n) <= D.ALERT_RULES.noticeSoonDays && C.canView(c, me);
     }).length;
-    const head = panelHead('expiring-title', '만료 임박', null, '전체 보기', 'SCR-43', 'expiring.html') +
+    const head = panelHead('expiring-title', '만료 임박', null, '전체 보기', 'expiring.html') +
       '<p class="panel-desc">' + R.expiryWindowDays + '일 이내에 만료되거나 해지 통지 기한이 오는 계약입니다.' +
       (soon ? ' 해지 통지 기한이 ' + D.ALERT_RULES.noticeSoonDays + '일 안에 오는 자동갱신 계약이 <a href="expiring.html?view=notice">' + soon + '건</a> 있습니다. 연장하지 않으려면 기한까지 상대방에게 알려야 합니다.' : '') + '</p>';
     if (!expiring.length) {

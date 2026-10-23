@@ -426,7 +426,7 @@ window.CLIMB_DATA = (function () {
       form: {
         bizNo: '214-82-10457', method: 'DIRECT', settlement: 'LUMP',
         startDate: '2027-01-01', endDate: '2027-12-31', autoRenew: 'NO',
-        products: [{ feature: 'HR_PRISM_DEFECT', qty: 1, amount: 7200000 }], // 표준 960만 원에서 25% 할인 → 한도 20% 초과 예시
+        products: [{ feature: 'HR_PRISM_DEFECT', qty: 1200, amount: 7200000 }], // 표준 960만 원(건당 8,000원 x 1,200건)에서 25% 할인 → 한도 초과 예시
         checklist: { standard: 'YES', standardNote: '' },
       },
     },
@@ -540,7 +540,7 @@ window.CLIMB_DATA = (function () {
       // 보완 후 재기안 때 계약 등록 화면(SCR-11)에 미리 채울 값
       form: {
         bizNo: '107-86-33922', method: 'DIRECT', settlement: 'SPLIT', opportunity: '2610SU031',
-        contractDate: '2026-10-06', startDate: '2026-11-01', endDate: '2027-10-31', autoRenew: 'YES', noticeDays: 60,
+        startDate: '2026-11-01', endDate: '2027-10-31', autoRenew: 'YES', noticeDays: 60,
         products: [{ feature: 'CK_CAMPUS_PLAG', qty: 1, amount: 12000000 }, { feature: 'CK_CAMPUS_USER', qty: 4, amount: 6000000 }],
         checklist: { standard: 'NO', standardNote: '고객 요청으로 손해배상 한도 조항 수정' },
         memo: '손해배상 한도를 계약 금액의 2배로 요청받아 협의 중입니다.',
@@ -644,7 +644,7 @@ window.CLIMB_DATA = (function () {
       amount: 120000000, requesterId: 'u_sales2', requestedAt: '2026-02-10 10:00', restricted: false, personalData: false,
       status: 'ACTIVE', approvedAt: '2026-02-16 15:00', autoHistory: true, startDate: '2026-03-01', endDate: '2028-02-29',
       // 할인율 한도를 넘어 ③ 영업 검토를 거친 예시 (v0.53)
-      checklist: { standard: 'NO', price: 'YES', cap: 'NO', capNote: '총판 공급가 30% 할인(한도 20%), 2년 최소 구매 약정 조건' },
+      checklist: { standard: 'NO', price: 'NO', priceNote: '총판 공급가로 계약', cap: 'NO', capNote: '총판 공급가 30% 할인(한도 20%), 2년 최소 구매 약정 조건' },
     },
     {
       id: '2604CL001', counterparty: '이음병원', sla: 'YES', services: ['HR'], type: 'SaaS 이용계약', kind: 'NEW',
@@ -955,6 +955,17 @@ window.CLIMB_DATA = (function () {
           '제품 추가 버튼을 한 줄 전체로 키웠고, 총액은 5,000,000원처럼 정확한 금액 하나를 오른쪽에 보입니다.',
           '입력 칸을 고른 파란 테두리를 칸 안쪽으로 옮겨, 드롭다운 목록이 열려도 잘려 보이지 않습니다.'],
       } },
+    { id: 'N-0023', kind: 'RELEASE', version: 'v0.10.6', title: 'QA 점검과 고침', at: '2026-10-23 18:00', by: 'u_super',
+      items: {
+        changed: ['계약 등록의 기안, 임시 저장, 보완 후 재기안이 저장되어 결재로 이어집니다.',
+          '반려된 해지, 그대로 연장, 운영 변경은 끝나고 새로 기안할 수 있습니다.',
+          '재무도 검토 대기에서 대신 검토할 차례를 봅니다.'],
+        fixed: ['검토 대기에서 볼 수 없는 열람 제한 계약의 이름을 가립니다.',
+          '시연 역할을 바꿔도 보던 결재 문서와 계약 상세가 그대로 열립니다.',
+          '반려되면 동시에 차례였던 다른 검토도 멈춥니다.',
+          '영업이 보는 개요의 건수와 누르면 나오는 목록이 같습니다.',
+          '관리자 화면에서 새 계정 번호가 겹치거나 바뀐 것 없는 저장이 남던 문제를 고쳤습니다.'],
+      } },
   ];
 
   /* ---------- 이메일 알림 (내 계정 SCR-93, v0.45 기획자 요청. 보내는 때는 요구사항 정의서 REQ-ENV-10) ----------
@@ -1191,7 +1202,7 @@ window.CLIMB_DATA = (function () {
     // levels: 단계가 있는 코드표의 단계 이름 (조직은 실과 그 아래 유닛)
     DEPT: { name: '조직', table: 'CODE-DEPT', note: '사용자 권한 관리에서 고르는 조직(실, 유닛). 화면 맨 위 이름 앞에 보임', levels: { 1: '1단계', 2: '2단계' } },
     SERVICE: { name: '서비스', table: 'CODE-SERVICE', note: '계약을 구분하는 서비스. 그 아래 제품과 기능은 제품과 기능 관리에서 관리' },
-    // 계약 유형(CONTRACT_TYPE)은 v0.34에서 없애 코드 관리에 보이지 않음. 코드 줄은 예전 기록을 읽을 때만 씀
+    // 계약 유형(CONTRACT_TYPE)은 v0.34에서 없앰(계약 방식으로 합침). 읽는 곳이 없어 코드 줄도 v0.58에 뺌
     METHOD: { name: '계약 방식', table: 'CODE-METHOD', note: '계약 등록에서 고르는 방식' },
     SETTLEMENT: { name: '정산 방식', table: 'CODE-SETTLEMENT', note: '계약 등록에서 고르는 방식' },
     AFTERCARE: { name: '사후관리 기록 종류', table: 'CODE-AFTERCARE-TYPE', note: '계약 상세의 사후관리 기록에서 고르는 종류' },
@@ -1205,8 +1216,6 @@ window.CLIMB_DATA = (function () {
     ['DEPT', 'BIZ_3', '비즈니스3유닛', 2, 'BIZ'], ['DEPT', 'SALES_ADMIN', '세일즈어드민유닛', 2, 'BIZ'], ['DEPT', 'CEM', 'CEM유닛', 1], // C-21 ② v0.39: 어느 실에도 속하지 않는 1단계 조직
     ['DEPT', 'INFOSEC', '정보보호유닛', 1],
     ['SERVICE', 'CK', SERVICES.CK], ['SERVICE', 'HR', SERVICES.HR], ['SERVICE', 'ETC', SERVICES.ETC], // 대분류. 중분류는 제품(PRODUCTS), 소분류는 기능(FEATURES)
-    ['CONTRACT_TYPE', 'SAAS', 'SaaS 이용계약'], ['CONTRACT_TYPE', 'NDA', '비밀유지계약(NDA)'], ['CONTRACT_TYPE', 'RESELLER', '리셀러 계약'],
-    ['CONTRACT_TYPE', 'DPA', '개인정보 처리위탁 계약'], ['CONTRACT_TYPE', 'ETC', '기타'],
     ['METHOD', 'DIRECT', '직접'], ['METHOD', 'PROCURE', '조달'], ['METHOD', 'INDIRECT', '간접'],
     ['SETTLEMENT', 'LUMP', '일시'], ['SETTLEMENT', 'SPLIT', '분할'], ['SETTLEMENT', 'POST', '후불'],
     ['AFTERCARE', 'CONTACT_CHANGE', '담당자 변경'], ['AFTERCARE', 'ISSUE', '특이사항'],

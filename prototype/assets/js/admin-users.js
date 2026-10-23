@@ -30,8 +30,8 @@
   /* ---------- 1. 관리자와 최고관리자만 (REQ-AUTH-02) ---------- */
   if (me.role !== 'ADMIN' && me.role !== 'SUPER') {
     $('#notice').innerHTML =
-      '<div class="notice" role="status"><p class="notice-title">' + C.icon('alert') + '사용자 권한 관리는 관리자만 볼 수 있습니다</p>' +
-      '<p>지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 화면 맨 위 검은 띠에서 관리자나 최고관리자로 바꾸면 볼 수 있습니다.</p></div>';
+      C.noticeBox('', '사용자 권한 관리는 관리자만 볼 수 있습니다',
+        '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 화면 맨 위 검은 띠에서 관리자나 최고관리자로 바꾸면 볼 수 있습니다.');
     $('#users').hidden = true;
     return;
   }
@@ -41,8 +41,18 @@
   // 조직은 코드표 순서(실 아래 유닛)대로
   const deptOrder = C.codeList('DEPT', true).map(function (c) { return c.label; });
   const rank = function (d) { const i = deptOrder.indexOf(d); return i < 0 ? 999 : i; };
-  const depts = all.map(function (a) { return a.dept; }).filter(function (d, i, arr) { return arr.indexOf(d) === i; })
-    .sort(function (a, b) { return rank(a) - rank(b); });
+  // 지금 사람이 있는 조직: 사람을 더하거나 옮긴 뒤에도 맞게 그때그때 셈 (v0.58 QA: 화면을 연 때의 목록에 머물렀음)
+  function deptList() {
+    return all.map(function (a) { return a.dept; }).filter(function (d, i, arr) { return d && arr.indexOf(d) === i; })
+      .sort(function (a, b) { return rank(a) - rank(b); });
+  }
+  function fillDeptFilter() {
+    const keep = $('#f-dept').value;
+    $('#f-dept').innerHTML = options('전체 조직', deptList().map(function (d) { return [d, d]; }));
+    $('#f-dept').value = deptList().indexOf(keep) > -1 ? keep : '';
+  }
+  // 권한 목록이 같은지: 고른 순서와 상관없이 (v0.58 QA: 순서만 달라도 바뀐 것으로 남았음)
+  function sameRoles(x, y) { return x.slice().sort().join() === y.slice().sort().join(); }
   function options(first, pairs) {
     return '<option value="">' + esc(first) + '</option>' + pairs.map(function (p) {
       return '<option value="' + esc(p[0]) + '">' + esc(p[1]) + '</option>';
@@ -54,7 +64,7 @@
       return '<option value="' + esc(r) + '">' + esc(D.ROLES[r]) + '</option>';
     }).join('') + '</optgroup>';
   }).join('');
-  $('#f-dept').innerHTML = options('전체 조직', depts.map(function (d) { return [d, d]; }));
+  fillDeptFilter();
   $('#f-status').innerHTML = options('전체 상태', Object.keys(D.ACCOUNT_STATUS).map(function (s) { return [s, D.ACCOUNT_STATUS[s].label]; }));
 
   /* ---------- 표시 도우미 ---------- */
@@ -182,7 +192,8 @@
       done: function (f) {
         const a = { email: val(f, 'email').toLowerCase(), name: val(f, 'uname'), dept: val(f, 'dept'), roles: rolesOf(f) };
         C.adminSave('USER', a.name + ' (' + a.email + ')', '사용자 추가: ' + a.dept + ', ' + roleNames(a.roles), val(f, 'reason'), { k: 'ACCOUNT_ADD', a: a });
-        page = Math.ceil(filtered().length / PAGE_SIZE);
+        fillDeptFilter();
+        page = Math.max(1, Math.ceil(filtered().length / PAGE_SIZE)); // 거른 목록이 비어도 1쪽 (v0.58 QA)
         render();
         C.toast(C.josa((a.dept ? a.dept + ' ' : '') + a.name, '을', '를') + ' 첫 접속 전 상태로 추가했습니다.');
       },
@@ -193,7 +204,8 @@
     // 직무 분리 [가정]: 자기 권한은 다른 관리자가 바꿈. 최고관리자 계정은 최고관리자만
     if (a.id === me.id) { C.toast('자기 권한은 다른 관리자에게 바꿔 달라고 요청하세요.', true); return; }
     if (a.roles.indexOf('SUPER') > -1 && me.role !== 'SUPER') { C.toast('최고관리자 계정은 최고관리자만 바꿀 수 있습니다.', true); return; }
-    const states = a.status === 'SUSPENDED' ? [['SUSPENDED', '사용 중지'], ['ACTIVE', '다시 사용']]
+    // 다시 사용: 한 번도 접속하지 않은 사람은 첫 접속 전으로 (REQ-ADM-06, v0.58 QA)
+    const states = a.status === 'SUSPENDED' ? [['SUSPENDED', '사용 중지'], [a.firstLoginAt ? 'ACTIVE' : 'INVITED', '다시 사용']]
       : [[a.status, D.ACCOUNT_STATUS[a.status].label], ['SUSPENDED', '사용 중지']];
     C.formModal({
       title: (a.dept ? a.dept + ' ' : '') + a.name + '의 권한을 바꿀까요?',
@@ -207,7 +219,7 @@
       btn: '저장',
       check: function (f) {
         const roles = rolesOf(f), status = val(f, 'status');
-        const same = val(f, 'dept') === a.dept && status === a.status && roles.join() === a.roles.join();
+        const same = val(f, 'dept') === a.dept && status === a.status && sameRoles(roles, a.roles);
         // 결재 단계 담당자는 결재선 규칙에서 먼저 담당자를 바꿔야 함
         const steps = C.duties(a.id).filter(function (x) { return status === 'SUSPENDED' || !C.canTake(roles, x.role); });
         // 지금 이 사람 차례인 결재가 남아 있으면 사용 중지 전에 대리 지정으로 넘겨야 함 (차례인 건은 원래 담당자에게 남으므로)
@@ -227,10 +239,11 @@
         const set = {}, parts = [];
         const roles = rolesOf(f), status = val(f, 'status');
         if (val(f, 'dept') !== a.dept) { set.dept = val(f, 'dept'); parts.push('조직: ' + a.dept + ' → ' + set.dept); }
-        if (roles.join() !== a.roles.join()) { set.roles = roles; parts.push('권한: ' + roleNames(a.roles) + ' → ' + roleNames(roles)); }
+        if (!sameRoles(roles, a.roles)) { set.roles = roles; parts.push('권한: ' + roleNames(a.roles) + ' → ' + roleNames(roles)); }
         if (status !== a.status) { set.status = status; parts.push('상태: ' + D.ACCOUNT_STATUS[a.status].label + ' → ' + D.ACCOUNT_STATUS[status].label); }
         const label = (a.dept ? a.dept + ' ' : '') + a.name;
         const e = C.adminSave('USER', a.name + ' (' + a.email + ')', parts.join(', '), val(f, 'reason'), { k: 'ACCOUNT_EDIT', email: a.email, set: set });
+        fillDeptFilter();
         render();
         const n = releasedAt(e.at);
         C.toast(n ? label + '의 권한을 바꿨고, 사람으로 지정된 열람자 ' + n + '건이 풀려 관리자에게 이메일로 알렸습니다.' : label + '의 권한을 바꿨습니다.');
@@ -240,7 +253,7 @@
   /* ---------- 7. 조직 옮기기 (조직 개편, 기획자 결정 v0.31) ----------
    * 역할과 조직은 묶지 않으므로 옮겨도 역할은 그대로입니다. ③ 영업 검토는 기안자의 지금 조직으로 리더를 찾습니다. */
   function openMove() {
-    const used = depts.filter(function (d) { return all.some(function (a) { return a.dept === d; }); });
+    const used = deptList();
     C.formModal({
       title: '여러 사람을 다른 조직으로 옮길까요?',
       desc: '조직 개편 때 한 조직의 사람들을 한 번에 옮깁니다. 역할(권한)은 바뀌지 않고, 옮긴 기록은 권한 변경 이력에 남습니다.',

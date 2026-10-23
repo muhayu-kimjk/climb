@@ -52,9 +52,14 @@
     return restrictEvents().concat(viewerLog, released).sort(function (a, b) { return b.at.localeCompare(a.at); });
   }
   // 지금 걸려 있는 제한을 건 때와 사람
+  //   변경, 연장, 해지, 운영 변경은 원계약의 제한을 이어받음(D-13): 원계약에 건 때를 보여 줌 (v0.58 QA: "-"로 비어 보였음)
   function setInfo(id) {
-    const e = restrictEvents().filter(function (x) { return x.id === id && x.on; }).sort(function (a, b) { return b.at.localeCompare(a.at); })[0];
-    return e ? C.fmtDate(e.at) + '<span class="cell-meta">' + esc(C.ownerLabel(e.by)) + '</span>' : '-';
+    const c = D.CONTRACTS.filter(function (x) { return x.id === id; })[0];
+    const rootId = c ? C.rootOf(c) : id;
+    const e = restrictEvents().filter(function (x) { return (x.id === id || x.id === rootId) && x.on; }).sort(function (a, b) { return b.at.localeCompare(a.at); })[0];
+    const inherited = rootId !== id ? '원계약에서 이어받음' : '';
+    if (!e) return inherited ? '<span class="cell-meta">' + inherited + '</span>' : '-';
+    return C.fmtDate(e.at) + '<span class="cell-meta">' + esc(C.ownerLabel(e.by)) + (inherited && e.id !== id ? ', ' + inherited : '') + '</span>';
   }
   // 지정 열람자 칸: 효력 있는 지정(빼기 링크)과 풀린 지정(흐리게). 뺀 지정은 이력에만
   function viewersCell(c) {

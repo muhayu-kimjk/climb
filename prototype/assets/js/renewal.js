@@ -15,11 +15,8 @@
   const me = C.init();
   const esc = C.esc;
   const $ = function (s) { return document.querySelector(s); };
-  const notice = function (title, body) {
-    return '<div class="notice" role="status"><p class="notice-title">' + C.icon('alert') + esc(title) + '</p><p>' + body + '</p></div>';
-  };
-  function iso(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
-  function addDays(s, n) { const d = new Date(s.replace(/-/g, '/')); d.setDate(d.getDate() + n); return iso(d); }
+  const notice = function (title, body) { return C.noticeBox('', title, body); };
+  const addDays = C.addDays;
 
   const origin = new URLSearchParams(location.search).get('origin');
   const found = D.CONTRACTS.find(function (c) { return c.id === origin; });
@@ -30,12 +27,13 @@
     return;
   }
   const root = b.root;
-  const blocking = b.open.filter(function (o) { return o.kind === 'RENEW' || o.kind === 'TERMINATE'; });
+  // 진행 중인 연장, 해지, 기간을 바꾸는 운영 변경이 있으면 막음 (v0.58 QA: 기간 변경이 끝나기 전에 연장하면 바뀐 기간이 사라졌음)
+  const blocking = b.open.filter(function (o) { return o.kind === 'RENEW' || o.kind === 'TERMINATE' || (o.kind === 'CHANGE' && o.changeType === 'PERIOD'); });
   let stop = '';
   if (b.status !== 'ACTIVE') stop = '지금 유효한 계약이 계약 완료일 때만 연장을 검토합니다.';
   else if (b.autoRenew !== 'YES') stop = '자동갱신 계약이 아닙니다. 연장하려면 계약 상세에서 "연장 기안"을 눌러 주세요.';
   else if (root.requesterId !== me.id && me.role !== 'SUPER') stop = '영업대표(' + esc(C.ownerLabel(root.requesterId)) + ')만 연장 검토를 기안합니다.';
-  else if (blocking.length) stop = '진행 중인 연장이나 해지가 있습니다: ' + blocking.map(function (o) { return '<a href="review.html?id=' + encodeURIComponent(o.id) + '">' + esc(o.id) + '</a>'; }).join(', ');
+  else if (blocking.length) stop = '진행 중인 연장, 해지나 기간 변경이 있습니다: ' + blocking.map(function (o) { return '<a href="review.html?id=' + encodeURIComponent(o.id) + '">' + esc(o.id) + '</a>'; }).join(', ');
   if (stop) {
     $('#notice').innerHTML = notice('연장 검토를 할 수 없습니다', stop + ' <a href="' + back + '">계약 상세로</a>');
     return;
@@ -45,13 +43,13 @@
   const cur = b.current;
   const newId = C.nextChildId(b.id, 'RENEW');
   const newStart = addDays(b.end, 1); // 새 계약 시작일 기본값: 지금 종료일 다음 날
-  const noticeDay = b.noticeDays ? addDays(b.end, -b.noticeDays) : null;
+  const noticeDay = C.noticeDate(b);
   function info(label, value) { return '<div><dt>' + esc(label) + '</dt><dd>' + value + '</dd></div>'; }
   $('#origin').innerHTML = [
     info('고객사', esc(root.counterparty)),
     info('계약번호', '<a href="' + back + '">' + esc(b.id) + '</a>' + (cur !== root ? ' (지금 유효: ' + esc(cur.id) + ')' : '')),
     info('계약 기간', C.fmtPeriod(b.start, b.end) + ' (만료까지 ' + C.daysUntil(b.end) + '일)'),
-    info('계약 금액', cur.amount ? Number(cur.amount).toLocaleString('ko-KR') + '원' : '금액 없음'),
+    info('계약 금액', Number(cur.amount || 0).toLocaleString('ko-KR') + '원'),
     info('해지 통지 기한', noticeDay ? C.fmtDate(noticeDay) + ' (만료 ' + b.noticeDays + '일 전)' + (C.daysUntil(noticeDay) < 0 ? ' <span class="wait-long">지남</span>' : '') : '-'),
     info('영업대표', esc(C.ownerLabel(root.requesterId))),
   ].join('');

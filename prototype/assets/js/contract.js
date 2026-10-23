@@ -14,10 +14,7 @@
   const me = C.init();
   const esc = C.esc;
   const $ = function (s) { return document.querySelector(s); };
-  const notice = function (kind, title, body) {
-    return '<div class="notice' + (kind ? ' notice--' + kind : '') + '" role="status"><p class="notice-title">' +
-      C.icon(kind === 'success' ? 'check' : 'alert') + esc(title) + '</p>' + (body ? '<p>' + body + '</p>' : '') + '</div>';
-  };
+  const notice = C.noticeBox; // (kind, title, body)
 
   const id = new URLSearchParams(location.search).get('id');
   const found = D.CONTRACTS.find(function (c) { return c.id === id; });
@@ -55,13 +52,15 @@
    * 진행 중인 연장이나 해지가 있으면 연장, 해지 버튼은 감춤 */
   const canDraft = root.requesterId === me.id || me.role === 'SUPER';
   const blocking = b.open.some(function (o) { return o.kind === 'RENEW' || o.kind === 'TERMINATE'; });
+  // 기간을 바꾸는 운영 변경이 진행 중이면 연장은 그 뒤에 (v0.58 QA)
+  const periodBusy = b.open.some(function (o) { return o.kind === 'CHANGE' && o.changeType === 'PERIOD'; });
   if (b.status === 'ACTIVE' && canDraft) {
     const q = encodeURIComponent(b.id);
     $('#bundle-actions').innerHTML =
       // 변경 기안: 계약서가 바뀌는 변경(전체 결재) / 운영 변경 기안: 기간 변경이나 추가 충전만 (v0.26 재무 문서 반영)
       '<a class="btn btn--tertiary btn--md" href="new-contract.html?kind=AMEND&origin=' + q + '">변경 기안</a>' +
       '<a class="btn btn--tertiary btn--md" href="ops-change.html?origin=' + q + '">운영 변경 기안</a>' +
-      (blocking ? '' : (b.autoRenew === 'YES'
+      (blocking ? '' : (periodBusy ? '' : b.autoRenew === 'YES'
         ? '<a class="btn btn--secondary btn--md" href="renewal.html?origin=' + q + '">연장 검토</a>'
         : '<a class="btn btn--secondary btn--md" href="new-contract.html?kind=RENEW&origin=' + q + '">연장 기안</a>') +
         '<a class="btn btn--tertiary btn--md btn-reject" href="terminate.html?origin=' + q + '">해지 기안</a>');
@@ -80,7 +79,7 @@
     info('계약번호', '<a href="review.html?id=' + encodeURIComponent(cur.id) + '">' + esc(cur.id) + '</a>'),
     info('계약종류', esc(C.kindLabel(cur))),
     info('계약 기간', b.start ? C.fmtPeriod(b.start, b.end) : '-'),
-    info('계약 금액', cur.amount ? Number(cur.amount).toLocaleString('ko-KR') + '원 (' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도)' : '금액 없음'),
+    info('계약 금액', Number(cur.amount || 0).toLocaleString('ko-KR') + '원 (' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도)'),
     info('자동갱신', b.autoRenew === 'YES' ? '있음' + noticeDeadlineHtml() : '없음'),
     root.unit ? info('기관 또는 부서명', esc(root.unit)) : '', // 계약마다 직접 적은 기관 이름 (C-24 v0.39, 이름 v0.46)
     info('영업대표', esc(C.ownerLabel(root.requesterId))),

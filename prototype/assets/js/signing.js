@@ -20,8 +20,8 @@
 
   const seeAll = me.role === 'SUPER' || me.role === 'ADMIN';
   if (!seeAll && me.role !== 'SALES') {
-    $('#notice').innerHTML = '<div class="notice" role="status"><p class="notice-title">' + C.icon('alert') + '체결 대기는 영업이 씁니다</p>' +
-      '<p>지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. ⑥ 인장 날인과 ⑧ 체결본 확인 차례는 계약 현황 > 검토 대기에서 봅니다.</p></div>';
+    $('#notice').innerHTML = C.noticeBox('', '체결 대기는 영업이 씁니다',
+      '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. ⑥ 인장 날인과 ⑧ 체결본 확인 차례는 계약 현황 > 검토 대기에서 봅니다.');
     $('#list').hidden = true;
     return;
   }

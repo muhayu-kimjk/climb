@@ -17,9 +17,7 @@
   const id = new URLSearchParams(location.search).get('id');
   const found = D.CONTRACTS.find(function (c) { return c.id === id; });
   const b = found ? C.bundleOf(C.rootOf(found)) : null;
-  const notice = function (title, body) {
-    return '<div class="notice" role="status"><p class="notice-title">' + C.icon('alert') + esc(title) + '</p><p>' + body + '</p></div>';
-  };
+  const notice = function (title, body) { return C.noticeBox('', title, body); };
   if (!b) {
     $('#notice').innerHTML = notice('계약을 찾을 수 없습니다', '주소의 계약번호를 확인해 주세요. 예: contract-print.html?id=2601CL001');
     return;
@@ -49,7 +47,7 @@
     info('계약 방식', esc(D.METHODS[C.methodOf(root)])),
     info('지금 유효한 계약', esc(cur.id) + '<span class="cell-meta">' + esc(C.kindLabel(cur)) + '</span>'),
     info('계약 기간', b.start ? C.fmtPeriod(b.start, b.end) : '-'),
-    info('계약 금액', cur.amount ? Number(cur.amount).toLocaleString('ko-KR') + '원<span class="cell-meta">' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도</span>' : '금액 없음'),
+    info('계약 금액', Number(cur.amount || 0).toLocaleString('ko-KR') + '원<span class="cell-meta">' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도</span>'),
     info('자동갱신', b.autoRenew === 'YES' ? '있음' + (C.noticeDate(b) ? '<span class="cell-meta">' + C.noticeText(b) + '</span>' : '') : '없음'),
     // 표준계약서 판 관리(v0.53) 전에 맺은 계약은 판 기록이 없음
     info('기준 표준계약서', C.templateLabel(root) === '-' ? '판 기록 없음<span class="cell-meta">표준계약서 판 관리를 시작하기 전에 맺은 계약</span>' : esc(C.templateLabel(root))),
@@ -88,19 +86,18 @@
         '<td class="num nowrap">' + moneyOf(c) + '</td></tr>';
     }).join('') + '</tbody>';
 
-  /* ---------- 3. 결재 기록: 차수마다 ---------- */
-  function doneLabel(s) {
-    if (s.state === 'REJECTED') return '반려';
-    if (s.state === 'PENDING') return '처리 전(차례)';
-    return D.STEPS[s.step].doneAction || '승인';
-  }
+  /* ---------- 3. 결재 기록: 계약마다 모든 기록 (v0.58 QA: 예전에는 지금 차수의 단계별 마지막 상태만이라 앞 차수 반려, 승인 취소, 보완 요청이 빠졌음)
+   * 처리 이름은 결재 문서와 같게(C.actionLabel: 해지, 그대로 연장의 ⑨는 "운영 종료 완료" 등). 지금 차례인 단계는 맨 끝에 "처리 전(차례)" */
   $('#approvals').innerHTML = b.items.map(function (c) {
-    const rows = [{ step: '① 기안', act: '기안', who: C.ownerLabel(c.requesterId), at: c.requestedAt, note: '' }].concat(
-      (c.approvals || []).filter(function (s) { return ['DONE', 'REJECTED', 'PENDING'].indexOf(s.state) > -1; }).map(function (s) {
-        const who = s.state === 'PENDING' ? s.userId : s.decidedBy;
-        return { step: C.stepLabel(s.step, c), act: doneLabel(s), who: (who ? C.ownerLabel(who) : '-') + (s.onBehalfOf ? ' (대신 처리: ' + C.ownerLabel(s.onBehalfOf) + ')' : ''),
-          at: s.state === 'PENDING' ? '' : s.decidedAt, note: s.comment || '' };
-      }));
+    const many = (c.round || 1) > 1;
+    const hist = [{ step: 'S01', action: 'SUBMIT', actorId: c.requesterId, at: c.requestedAt, comment: '', round: c.round || 1 }].concat(c.history || [])
+      .sort(function (x, y) { return (x.at || '').localeCompare(y.at || ''); });
+    const rows = hist.map(function (h) {
+      return { step: (many ? (h.round || 1) + '차 ' : '') + C.stepLabel(h.step, c), act: C.actionLabel(h, c),
+        who: C.ownerLabel(h.actorId) + (h.onBehalfOf ? ' (대신 처리: ' + C.ownerLabel(h.onBehalfOf) + ')' : ''), at: h.at, note: h.comment || '' };
+    }).concat(C.pendingSteps(c).map(function (s) {
+      return { step: C.stepLabel(s.step, c), act: '처리 전(차례)', who: C.ownerLabel(s.userId), at: '', note: '' };
+    }));
     return '<h3 class="round-title">' + esc(c.id) + ' ' + esc(C.kindLabel(c)) + ' <span class="round-sub">' + esc(D.STATUS[c.status].label) + '</span></h3>' +
       '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
       '<caption class="sr-only">' + esc(c.id) + ' 결재 기록: 단계, 처리, 처리한 사람, 일시, 의견</caption>' +

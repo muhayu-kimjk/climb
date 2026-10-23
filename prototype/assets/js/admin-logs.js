@@ -57,7 +57,12 @@
       push(e.at, e.by, e.area === 'AUDIT' ? 'AUDIT' : 'ADMIN', (AREA[e.area] ? AREA[e.area] + ': ' : '') + e.target);
     });
     push(OPENED, me.id, 'VIEW', '접속 기록 점검 화면');
-    D.PRICE_ROWS.forEach(function (r) { push(r.at, r.by, 'ADMIN', '가격 기준: ' + C.featureLabel(r) + ' (' + C.fmtDate(r.validFrom) + '부터)'); }); // 제품과 기능 이름 (v0.49: 가격은 기능마다)
+    // 가격 기준: 변경 이력(가격 기준 관리에서 바꾼 것)에 이미 있는 줄은 빼고 예시 가격 줄만 (v0.58 QA: 두 번 남았음)
+    const priceLogged = D.ADMIN_LOG.filter(function (e) { return e.area === 'PRICE'; }).map(function (e) { return e.at + '|' + e.by; });
+    D.PRICE_ROWS.forEach(function (r) {
+      if (priceLogged.indexOf(r.at + '|' + r.by) > -1) return;
+      push(r.at, r.by, 'ADMIN', '가격 기준: ' + C.featureLabel(r) + ' (' + C.fmtDate(r.validFrom) + '부터)'); // 제품과 기능 이름 (v0.49: 가격은 기능마다)
+    });
     // 이상 행위 알림이 생긴 접속 (가상의 기록)
     D.SEC_ALERTS.forEach(function (al) {
       push(al.at, al.userId, al.kind === 'BULK' ? 'VIEW' : 'LOGIN', al.detail, al.kind === 'BULK' ? '사내망' : 'VPN');

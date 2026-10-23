@@ -21,9 +21,10 @@
   const seeAll = me.role === 'SUPER' || me.role === 'ADMIN';
   const lead = !seeAll && C.isLead(me);
   const showWho = seeAll || lead; // 담당자 칸을 보이는지
-  if (!seeAll && !C.hasRole(me, D.APPROVER_ROLES.concat(['GA']))) {
-    $('#notice').innerHTML = '<div class="notice" role="status"><p class="notice-title">' + C.icon('alert') + '검토 대기는 결재 역할과 총무가 씁니다</p>' +
-      '<p>지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 진행 상황은 계약 현황 > 전체 진행 현황에서 볼 수 있습니다.</p></div>';
+  // 재무는 영업지원이 기안한 계약의 ②, ⑧을 대신 검토 (REQ-AUTH-16, v0.58 QA)
+  if (!seeAll && !C.hasRole(me, D.APPROVER_ROLES.concat(['GA', 'FINANCE']))) {
+    $('#notice').innerHTML = C.noticeBox('', '검토 대기는 결재 역할과 총무가 씁니다',
+      '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 진행 상황은 계약 현황 > 전체 진행 현황에서 볼 수 있습니다.');
     $('#list').hidden = true;
     return;
   }
@@ -50,7 +51,8 @@
     const q = $('#f-q').value.trim().toLowerCase();
     const step = $('#f-step').value, service = $('#f-service').value, wait = $('#f-wait').value;
     return all.filter(function (x) {
-      if (q && x.c.counterparty.toLowerCase().indexOf(q) < 0 && String(x.c.id).toLowerCase().indexOf(q) < 0) return false;
+      // 볼 수 없는 계약은 고객사 이름이나 계약번호로 찾을 수 없게 함
+      if (q && (!C.canView(x.c, me) || (x.c.counterparty.toLowerCase().indexOf(q) < 0 && String(x.c.id).toLowerCase().indexOf(q) < 0))) return false;
       if (step && x.s.step !== step) return false;
       if (service && (x.c.services || []).indexOf(service) < 0) return false;
       if (wait === 'LONG' && x.wait < LONG) return false;
@@ -73,8 +75,11 @@
       const together = C.pendingSteps(x.c).filter(function (o) { return o.step !== x.s.step; })
         .map(function (o) { return D.STEPS[o.step].no; }).join(', ');
       return '<tr>' +
-        '<td><a class="cell-title" href="review.html?id=' + encodeURIComponent(x.c.id) + '">' + esc(x.c.counterparty) + '</a>' +
-          '<span class="cell-sub">' + service + '</span><span class="cell-meta">' + esc(x.c.id) + (x.c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span></td>' +
+        // 리더가 보는 분야 전체 목록에는 볼 수 없는 열람 제한 계약도 있음: 고객사를 가림 (v0.58 QA)
+        (C.canView(x.c, me)
+          ? '<td><a class="cell-title" href="review.html?id=' + encodeURIComponent(x.c.id) + '">' + esc(x.c.counterparty) + '</a>' +
+            '<span class="cell-sub">' + service + '</span><span class="cell-meta">' + esc(x.c.id) + (x.c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span></td>'
+          : '<td><span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span></td>') +
         '<td class="col-service">' + service + '</td>' +
         '<td class="nowrap">' + esc(C.stepLabel(x.s.step, x.c)) + (together ? '<span class="cell-meta">동시: ' + esc(together) + '</span>' : '') +
           // 대리 지정으로 내 차례가 된 건 (REQ-REV-08)

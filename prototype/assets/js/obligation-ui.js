@@ -88,7 +88,9 @@
         return {
           title: val(f, 'title') ? '' : '의무를 적으세요.',
           due: w === 'ONCE' && !val(f, 'due') ? '기한을 고르세요.' : '',
-          first: w === 'REPEAT' && !val(f, 'first') ? '첫 기한을 고르세요.' : '',
+          first: w === 'REPEAT' && !val(f, 'first') ? '첫 기한을 고르세요.'
+            // 첫 기한이 계약이 끝난 뒤면 기한이 하나도 생기지 않음 (v0.58 QA)
+            : w === 'REPEAT' && b && b.end && val(f, 'first') > b.end ? '첫 기한이 계약이 끝나는 날(' + C.fmtDate(b.end) + ') 뒤입니다. 한 번만 하는 의무로 넣으세요.' : '',
           within: w === 'EVENT' && !val(f, 'within') ? '얼마 안에 하는지 적으세요.' : '',
           amount: val(f, 'kind') === 'BILLING' && amt && !/^\d+$/.test(amt) ? '금액은 숫자만 적으세요.' : '',
         };
@@ -171,11 +173,12 @@
   // 할 일 버튼: 이행 기록(맡은 분야), 기록 보기(모두), 끝내기
   function actionsHtml(o, me) {
     const s = C.obligationState(o);
-    const live = ['ENDED', 'DONE'].indexOf(s.code) < 0;
+    const live = ['ENDED', 'DONE', 'NONE'].indexOf(s.code) < 0; // 기한 없음(NONE)은 기록할 기한이 없음
+    const endable = ['ENDED', 'DONE'].indexOf(s.code) < 0;
     // 좁은 칸에 들어가게 한 줄에 하나씩(ob-acts)
     return '<span class="ob-acts">' + (live && C.canRecordObligation(me, o) ? '<button type="button" class="link-act" data-ob-rec="' + o.id + '">이행 기록</button>' : '') +
       '<button type="button" class="link-act" data-ob-view="' + o.id + '">기록 보기</button>' +
-      (live && C.canEndObligation(me, o) ? '<button type="button" class="link-act link-act--danger" data-ob-end="' + o.id + '">끝내기</button>' : '') + '</span>';
+      (endable && C.canEndObligation(me, o) ? '<button type="button" class="link-act link-act--danger" data-ob-end="' + o.id + '">끝내기</button>' : '') + '</span>';
   }
   // 표 안의 버튼 연결: container 안의 data-ob-* 버튼을 누르면 창을 열고, 끝나면 rerender
   function wire(container, me, rerender) {

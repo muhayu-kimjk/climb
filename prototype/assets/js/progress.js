@@ -27,8 +27,11 @@
   $('#f-service').innerHTML = options('전체 서비스', Object.keys(D.SERVICES).map(function (k) { return [k, D.SERVICES[k]]; }));
   const owners = all.map(function (c) { return c.requesterId; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
   $('#f-owner').innerHTML = options('전체', owners.map(function (u) { return [u, C.ownerLabel(u)]; }));
-  const preset = new URLSearchParams(location.search).get('status');
+  const params = new URLSearchParams(location.search);
+  const preset = params.get('status');
   if (preset) $('#f-status').value = preset;
+  // 개요에서 영업이 누르면 나로 거름 (v0.58 QA)
+  if (owners.indexOf(params.get('owner')) > -1) $('#f-owner').value = params.get('owner');
 
   let page = 1;
   function filtered() {

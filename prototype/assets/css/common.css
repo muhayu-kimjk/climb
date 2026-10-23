@@ -238,7 +238,6 @@ a.user-name:hover, a.user-name[aria-current] { color: var(--text-primary); text-
 /* 하위 메뉴를 열면 메뉴 줄 아래를 흐리게 덮음(v0.55 기획자 요청, PC와 태블릿, 스마트폰 모두). 머리글(.site-header z-index 20, 하위 메뉴 포함)보다 아래, 본문보다 위.
  * 위치(top)는 메뉴 줄 바로 아래로 common.js가 맞춤. 누르면 메뉴만 닫힘 */
 .gnb-dim { position: fixed; left: 0; right: 0; bottom: 0; z-index: 15; background: var(--overlay-menu); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
-.gnb-dim[hidden] { display: none; }
 @media print { .gnb-dim { display: none !important; } }
 
 /* ---------- 5. 본문 공통 ---------- */

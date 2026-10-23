@@ -11,9 +11,13 @@
   var KEY = 'climb.demoTheme';
   var root = document.documentElement;
   var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  // 시연 역할: 주소의 ?role=, 저장한 역할, 없으면 기본 역할인 최고관리자 (common.js getRole과 같게, v0.58 QA: 예전에는 DEFAULT로 저장해 고른 밝기를 잃었음)
+  function roleKey() {
+    return (window.URLSearchParams && new URLSearchParams(location.search).get('role')) || localStorage.getItem('climb.demoRole') || 'SUPER';
+  }
   function choice() {
     try {
-      var role = localStorage.getItem('climb.demoRole') || 'DEFAULT';
+      var role = roleKey();
       var all = JSON.parse(localStorage.getItem(KEY) || '{}') || {};
       return all[role] || 'auto';
     } catch (e) { return 'auto'; }
@@ -30,7 +34,7 @@
     get: choice,
     set: function (value) {
       try {
-        var role = localStorage.getItem('climb.demoRole') || 'DEFAULT';
+        var role = roleKey();
         var all = JSON.parse(localStorage.getItem(KEY) || '{}') || {};
         all[role] = value;
         localStorage.setItem(KEY, JSON.stringify(all));

@@ -97,9 +97,11 @@
     $('#leader-rows').innerHTML = teams().map(function (team) {
       const id = C.leaderAt(team, '9999');
       const list = C.pendingQueue(me, true, ['S03']).filter(function (x) { return C.teamOf(x.c.requesterId) === team; });
-      const others = list.filter(function (x) { return x.s.userId !== id; }).length;
+      // 리더 본인 계약은 영업 임원이 검토하므로 따로 셈 (v0.58 QA: "원래 리더"로 잘못 셌음)
+      const own = list.filter(function (x) { return x.c.requesterId === id; }).length;
+      const others = list.filter(function (x) { return x.s.userId !== id && x.c.requesterId !== id; }).length;
       return '<tr><td class="nowrap cell-strong">' + esc(team) + '</td><td>' + (id ? person(id) + delegNote(id) : '<span class="cell-meta">리더 없음: 영업 임원이 검토</span>') + '</td>' +
-        '<td class="num">' + list.length + '건' + (others ? '<span class="cell-meta">원래 리더 ' + others + '건</span>' : '') + '</td>' +
+        '<td class="num">' + list.length + '건' + (others ? '<span class="cell-meta">원래 리더 ' + others + '건</span>' : '') + (own ? '<span class="cell-meta">리더 본인 계약 ' + own + '건(영업 임원)</span>' : '') + '</td>' +
         '<td class="col-action"><button type="button" class="link-act" data-team="' + esc(team) + '" aria-label="' + esc(team) + ' 리더 바꾸기">바꾸기</button></td></tr>';
     }).join('');
   }

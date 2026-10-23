@@ -41,6 +41,11 @@
       .sort(function (a, b) { return a.k[0] - b.k[0] || a.k[1] - b.k[1] || a.k[2] - b.k[2]; })
       .map(function (x) { return x.fid; });
   }
+  function retired(fid) {
+    const ft = D.FEATURES.filter(function (x) { return x.id === fid; })[0];
+    const p = ft && D.PRODUCTS.filter(function (x) { return x.id === ft.product; })[0];
+    return !ft || !ft.use || !p || !p.use;
+  }
   function current(fid) { return D.PRICE_BOOK.filter(function (r) { return r.feature === fid; })[0] || null; }
   function planned(fid) {
     return D.PRICE_ROWS.filter(function (r) { return r.feature === fid && r.validFrom > D.TODAY; })
@@ -60,12 +65,14 @@
         return '<span class="cell-meta">' + C.badge('line', '예정') + ' ' + C.fmtDate(p.validFrom) + '부터 ' + won(p.listPrice) + ', 한도 ' + pct(p.discountCap) + '</span>';
       }).join('');
       // 제품과 기능 칸: "프리즘 결함검사" 아래에 서비스(대분류)와 단위를 함께 (A4 폭 안에 들어가게)
-      return '<tr><td><span class="cell-strong">' + esc(C.featureLabel(any)) + '</span>' +
-          '<span class="cell-meta">' + esc((D.SERVICES[any.service] || any.service) + ', ' + any.unit) + '</span>' + plan + '</td>' +
+      //   제품이나 기능이 사용 안 함이면 표시하고 바꾸기를 두지 않음(새 계약에서 고를 수 없으므로, v0.58 QA)
+      const off = retired(fid);
+      return '<tr' + (off ? ' class="is-muted"' : '') + '><td><span class="cell-strong">' + esc(C.featureLabel(any)) + '</span>' +
+          '<span class="cell-meta">' + esc((D.SERVICES[any.service] || any.service) + ', ' + any.unit) + (off ? ' ' + C.badge('neutral', '사용 안 함') : '') + '</span>' + plan + '</td>' +
         (r ? '<td class="num">' + won(r.listPrice) + '</td><td class="num">' + pct(r.discountCap) + '</td>' +
           '<td class="num-left">' + C.fmtDate(r.validFrom) + '</td><td class="nowrap">' + docLink(r) + '</td>'
           : '<td class="num" colspan="4">아직 적용 전</td>') +
-        (canEdit ? '<td class="col-action"><button type="button" class="link-act" data-change="' + esc(fid) + '" aria-label="' + esc(C.featureLabel(any)) + ' 가격 기준 바꾸기">바꾸기</button></td>' : '') +
+        (canEdit ? '<td class="col-action">' + (off ? '-' : '<button type="button" class="link-act" data-change="' + esc(fid) + '" aria-label="' + esc(C.featureLabel(any)) + ' 가격 기준 바꾸기">바꾸기</button>') + '</td>' : '') +
       '</tr>';
     }).join('');
 
@@ -142,7 +149,10 @@
     });
   }
   // 가격 추가 (v0.49): 제품 → 기능을 고르고 단위와 가격. 사용 중이고 아직 가격이 없는 기능만 고를 수 있음(가격은 기능마다 하나)
-  function liveProducts() { return D.PRODUCTS.filter(function (p) { return p.use && D.SERVICES[p.service]; }); }
+  function liveProducts() {
+    const svc = C.codeList('SERVICE').map(function (c) { return c.code; }); // 사용 중인 서비스 아래 제품만
+    return D.PRODUCTS.filter(function (p) { return p.use && svc.indexOf(p.service) > -1; });
+  }
   function openFeatures(pid) {
     const has = priced();
     return D.FEATURES.filter(function (x) { return x.product === pid && x.use && has.indexOf(x.id) < 0; });

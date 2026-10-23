@@ -15,9 +15,7 @@
   const me = C.init();
   const esc = C.esc;
   const $ = function (s) { return document.querySelector(s); };
-  const notice = function (title, body) {
-    return '<div class="notice" role="status"><p class="notice-title">' + C.icon('alert') + esc(title) + '</p><p>' + body + '</p></div>';
-  };
+  const notice = function (title, body) { return C.noticeBox('', title, body); };
 
   const origin = new URLSearchParams(location.search).get('origin');
   const found = D.CONTRACTS.find(function (c) { return c.id === origin; });
@@ -53,7 +51,7 @@
     info('계약번호', '<a href="' + back + '">' + esc(b.id) + '</a>' + (cur !== root ? ' (지금 유효: ' + esc(cur.id) + ')' : '')),
     info('서비스', esc(C.serviceLabel(root.services))),
     info('계약 기간', C.fmtPeriod(b.start, b.end)),
-    info('계약 금액', cur.amount ? Number(cur.amount).toLocaleString('ko-KR') + '원' : '금액 없음'),
+    info('계약 금액', Number(cur.amount || 0).toLocaleString('ko-KR') + '원'),
     info('영업대표', esc(C.ownerLabel(root.requesterId))),
   ].join('');
   $('#number-help').textContent = '기안하면 ' + newId + '(해지)로 원계약과 함께 묶입니다.';

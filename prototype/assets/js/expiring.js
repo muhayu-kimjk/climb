@@ -61,10 +61,11 @@
       // 진행 중인 연장, 해지 (변경은 만료와 상관없으므로 함께 보여 주기만 함)
       const open = b.open.map(function (o) { return C.kindLabel(o) + ' ' + D.STATUS[o.status].label; }).join(', ');
       const blocking = b.open.some(function (o) { return o.kind === 'RENEW' || o.kind === 'TERMINATE'; });
+      const periodBusy = b.open.some(function (o) { return o.kind === 'CHANGE' && o.changeType === 'PERIOD'; }); // 기간 변경 중에는 연장 버튼 없음 (v0.58)
       let todo = '-';
       if (visible && canDraft(b) && !blocking) {
         todo = '<div class="row-actions">' +
-          (b.autoRenew === 'YES'
+          (periodBusy ? '' : b.autoRenew === 'YES'
             ? '<a class="btn btn--secondary" href="renewal.html?origin=' + encodeURIComponent(b.id) + '">연장 검토</a>'
             : '<a class="btn btn--secondary" href="new-contract.html?kind=RENEW&origin=' + encodeURIComponent(b.id) + '">연장 기안</a>') +
           '<a class="btn btn--tertiary" href="terminate.html?origin=' + encodeURIComponent(b.id) + '">해지 기안</a></div>';

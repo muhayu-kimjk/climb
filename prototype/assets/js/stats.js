@@ -187,7 +187,7 @@
       return Object.keys(g).map(function (k) { return { label: k, sum: g[k].sum, count: g[k].count }; })
         .sort(function (a, b) { return b.sum - a.sum; });
     }
-    const svc = group(function (c) { return c.services.length > 1 ? '두 서비스 함께' : D.SERVICES[c.services[0]] || c.services[0]; });
+    const svc = group(function (c) { return c.services.length > 1 ? '여러 서비스 함께' : D.SERVICES[c.services[0]] || c.services[0]; }); // 서비스는 CK, HR, 기타 (v0.56)
     const unt = group(function (c) { return C.teamOf(c.requesterId) || '조직 없음'; });
     const toRows = function (list) {
       return list.map(function (g) { return { label: g.label, value: g.sum, text: fmtShort(g.sum) + ' 원', tip: g.label + ': ' + g.count + '건, ' + fmtMoney(g.sum) }; });
