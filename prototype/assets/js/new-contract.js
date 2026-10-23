@@ -217,9 +217,11 @@
 
   /* ---------- 3. 제품별 금액 (CPQ, REQ-SCOPE-02) ----------
    * 서비스 > 제품 > 기능 = 대분류 > 중분류 > 소분류(v0.56 기획자 결정). 서비스는 CK, HR, 기타 세 가지. 가격은 기능마다 하나(v0.49에 플랜을 없앰)
-   *   줄마다 제품 → 기능을 차례로 고름. 제품 목록은 서비스(CK, HR, 기타)마다 묶어 보임. 계약의 서비스는 고른 제품의 서비스
-   *   고를 수 있는 것: 사용 중인 제품과 기능 중 오늘 적용되는 가격(PRICE_BOOK)이 있는 것. 기능이 하나뿐이면 저절로 고름
-   *   저장하는 값은 기능(feature), 수량, 금액, 사용 업체. 이어서 작성할 때는 기능에서 제품을 다시 채움 */
+   *   줄마다 서비스 → 제품 → 기능을 차례로 고름(v0.56 기획자 요청: 세 칸). 앞 칸을 고르면 다음 칸이 그 아래 것만 보임.
+   *   하나뿐이면 저절로 고름(기능이 따로 없는 제품은 "기능 구분 없음" 하나). 계약의 서비스는 고른 제품의 서비스
+   *   고를 수 있는 것: 사용 중인 제품과 기능 중 오늘 적용되는 가격(PRICE_BOOK)이 있는 것
+   *   저장하는 값은 기능(feature), 수량, 금액, 사용 업체. 이어서 작성할 때는 기능에서 제품과 서비스를 다시 채움
+   *   지금 쓰지 않는 기능(사용 안 함)이 든 줄을 다시 열면 "(사용 안 함)"으로 보이고 다른 기능을 골라야 기안됨 */
   let productSeq = 0;
   // 고를 수 있는 기능의 가격 줄 (제품과 기능이 사용 중이고 서비스가 있는 것)
   function livePrices() {
@@ -235,44 +237,61 @@
     }).join('');
   }
   // 제품 고르기: 서비스(대분류)마다 묶어 보임(v0.56 기획자 결정: 서비스 > 제품 > 기능). 묶음 순서는 코드 관리의 서비스 순서
-  function productOptions(selected) {
-    const prices = livePrices();
-    const live = D.PRODUCTS.filter(function (p) { return prices.some(function (r) { return r.product === p.id; }); });
-    return '<option value="">고르세요</option>' + C.codeList('SERVICE', true).map(function (s) {
-      const items = live.filter(function (p) { return p.service === s.code; });
-      return items.length ? '<optgroup label="' + esc(s.label) + '">' + items.map(function (p) {
-        return '<option value="' + esc(p.id) + '"' + (p.id === selected ? ' selected' : '') + '>' + esc(p.name) + '</option>';
-      }).join('') + '</optgroup>' : '';
-    }).join('');
-  }
-  // 고른 제품에 맞춰 기능 칸을 다시 채움
-  function syncPick(li) {
-    const sp = li.querySelector('[data-k="product"]'), sf = li.querySelector('[data-k="feature"]');
-    const prices = livePrices();
-    const pid = sp.value;
+  function liveFeatureIds() { return livePrices().map(function (r) { return r.feature; }); }
+  function featureOf(id) { return D.FEATURES.filter(function (f) { return f.id === id; })[0] || null; }
+  function productOf(id) { return D.PRODUCTS.filter(function (x) { return x.id === id; })[0] || null; }
+  // 줄마다 서비스 → 제품 → 기능 칸을 다시 채움. keep: 지금 쓰지 않아도 보여 줄 기능(다시 연 줄의 사용 안 함 기능)
+  function syncPick(li, keep) {
+    const ss = li.querySelector('[data-k="service"]'), sp = li.querySelector('[data-k="product"]'), sf = li.querySelector('[data-k="feature"]');
+    const live = liveFeatureIds();
+    const keepF = keep ? featureOf(keep) : null;
+    const usable = function (f) { return live.indexOf(f.id) > -1 || (keepF && f.id === keepF.id); };
+    const feats = D.FEATURES.filter(usable);
+    const prods = D.PRODUCTS.filter(function (x) { return feats.some(function (f) { return f.product === x.id; }); });
+    const svcs = C.codeList('SERVICE', true).filter(function (c) { return prods.some(function (x) { return x.service === c.code; }); });
+    // 서비스
+    let svc = ss.value;
+    if (!svcs.some(function (c) { return c.code === svc; })) svc = svcs.length === 1 ? svcs[0].code : '';
+    ss.innerHTML = optionsHtml(svcs.map(function (c) { return [c.code, c.label]; }), svc, '고르세요');
+    // 제품: 고른 서비스 아래 것만
+    const plist = svc ? prods.filter(function (x) { return x.service === svc; }) : [];
+    let pid = sp.value;
+    if (!plist.some(function (x) { return x.id === pid; })) pid = plist.length === 1 ? plist[0].id : '';
+    sp.innerHTML = optionsHtml(plist.map(function (x) { return [x.id, x.name]; }), pid, svc ? '고르세요' : '서비스를 먼저 고르세요');
+    sp.disabled = !svc;
+    // 기능: 고른 제품 아래 것만
+    const flist = pid ? feats.filter(function (f) { return f.product === pid; }) : [];
     let fid = sf.value;
-    const feats = pid ? D.FEATURES.filter(function (f) { return f.product === pid && prices.some(function (r) { return r.feature === f.id; }); }) : [];
-    if (!feats.some(function (f) { return f.id === fid; })) fid = feats.length === 1 ? feats[0].id : '';
-    sf.innerHTML = optionsHtml(feats.map(function (f) { return [f.id, f.name]; }), fid, pid ? '고르세요' : '제품을 먼저 고르세요');
+    if (!flist.some(function (f) { return f.id === fid; })) fid = flist.length === 1 ? flist[0].id : '';
+    sf.innerHTML = optionsHtml(flist.map(function (f) {
+      return [f.id, C.featureText(f.id) + (live.indexOf(f.id) < 0 ? ' (사용 안 함)' : '')];
+    }), fid, pid ? '고르세요' : '제품을 먼저 고르세요');
     sf.disabled = !pid;
+    // 수량 단위: 가격 단위가 건이면 건, 그 밖에는 개
+    const pr = PRICE[fid];
+    li.querySelector('.qty-unit').textContent = pr && /^건/.test(pr.unit) ? '건' : '개';
   }
   function addProduct(data) {
     data = data || {};
     productSeq += 1;
     const n = productSeq;
-    const price = PRICE[data.feature]; // 이어서 작성, 재기안: 기능에서 제품을 찾음
+    // 이어서 작성, 재기안: 기능에서 제품과 서비스를 찾음(사용 안 함인 기능이어도)
+    const feat = data.feature ? featureOf(data.feature) : null;
+    const prod = feat ? productOf(feat.product) : null;
     const li = document.createElement('li');
     li.className = 'product-item';
     li.innerHTML =
       '<div class="product-pick">' +
+        '<div class="field"><label class="field-label field-label--sm" for="p-svc-' + n + '">서비스</label>' +
+          '<select class="select" id="p-svc-' + n + '" data-k="service">' + optionsHtml(prod ? [[prod.service, C.serviceLabel([prod.service])]] : [], prod ? prod.service : '', '고르세요') + '</select></div>' +
         '<div class="field"><label class="field-label field-label--sm" for="p-prod-' + n + '">제품</label>' +
-          '<select class="select" id="p-prod-' + n + '" data-k="product">' + productOptions(price ? price.product : '') + '</select></div>' +
+          '<select class="select" id="p-prod-' + n + '" data-k="product">' + optionsHtml(prod ? [[prod.id, prod.name]] : [], prod ? prod.id : '', '서비스를 먼저 고르세요') + '</select></div>' +
         '<div class="field"><label class="field-label field-label--sm" for="p-feat-' + n + '">기능</label>' +
-          '<select class="select" id="p-feat-' + n + '" data-k="feature">' + optionsHtml(price ? [[price.feature, C.featureName(price.feature)]] : [], price ? price.feature : '', '제품을 먼저 고르세요') + '</select></div>' +
+          '<select class="select" id="p-feat-' + n + '" data-k="feature">' + optionsHtml(feat ? [[feat.id, C.featureText(feat.id)]] : [], feat ? feat.id : '', '제품을 먼저 고르세요') + '</select></div>' +
       '</div>' +
       '<div class="product-grid">' +
         '<div class="field"><label class="field-label field-label--sm" for="p-qty-' + n + '">수량</label>' +
-          '<div class="input-unit"><input class="input" id="p-qty-' + n + '" data-k="qty" inputmode="numeric" maxlength="4" value="' + (data.qty || 1) + '"><span class="unit">개</span></div></div>' +
+          '<div class="input-unit"><input class="input" id="p-qty-' + n + '" data-k="qty" inputmode="numeric" maxlength="6" value="' + (data.qty || 1) + '"><span class="unit qty-unit">개</span></div></div>' +
         '<div class="field"><label class="field-label field-label--sm" for="p-amt-' + n + '">계약 금액</label>' +
           '<div class="input-unit"><input class="input" id="p-amt-' + n + '" data-k="amount" inputmode="numeric" value="' + fmtNum(data.amount != null ? data.amount : null) + '"><span class="unit">원</span></div></div>' +
       '</div>' +
@@ -282,17 +301,18 @@
         '<button type="button" class="btn-text" data-act="remove">이 제품 삭제</button></div>' +
       '<p class="field-error" hidden></p>';
     $('#product-list').appendChild(li);
-    syncPick(li);
+    syncPick(li, data.feature);
     refresh();
     return li;
   }
+  $('#btn-add-product').insertAdjacentHTML('afterbegin', C.icon('plus')); // + 아이콘 (v0.57)
   $('#btn-add-product').addEventListener('click', function () { addProduct().querySelector('select').focus(); });
   $('#product-list').addEventListener('click', function (e) {
     if (e.target.closest('[data-act="remove"]')) { e.target.closest('li').remove(); refresh(); }
   });
-  // 제품을 바꾸면 기능 칸을 다시 채움 (폼 전체의 change보다 먼저 돌아 계산에 새 기능이 쓰임)
+  // 서비스나 제품을 바꾸면 다음 칸을 다시 채움, 기능을 바꾸면 수량 단위를 맞춤 (폼 전체의 change보다 먼저 돌아 계산에 새 기능이 쓰임)
   $('#product-list').addEventListener('change', function (e) {
-    if (e.target.matches('[data-k="product"]')) syncPick(e.target.closest('li'));
+    if (e.target.matches('[data-k="service"], [data-k="product"], [data-k="feature"]')) syncPick(e.target.closest('li'));
   });
   // 금액 칸은 입력하는 동안 숫자만 남기고, 칸을 벗어나면 쉼표를 붙임
   form.addEventListener('focusout', function (e) {
@@ -307,10 +327,11 @@
       const feature = li.querySelector('[data-k="feature"]').value;
       const qty = parseNum(li.querySelector('[data-k="qty"]').value);
       const amount = parseNum(li.querySelector('[data-k="amount"]').value);
-      const p = PRICE[feature];
+      const retired = !!feature && liveFeatureIds().indexOf(feature) < 0; // 다시 연 줄의 사용 안 함 기능
+      const p = retired ? null : PRICE[feature];
       const std = p && qty ? p.listPrice * qty : null;
       const discount = std && amount != null ? Math.max(0, (std - amount) / std) : null;
-      return { li: li, feature: feature, qty: qty, amount: amount, product: p, std: std, discount: discount, cap: p ? p.discountCap : null };
+      return { li: li, feature: feature, retired: retired, qty: qty, amount: amount, product: p, std: std, discount: discount, cap: p ? p.discountCap : null };
     });
   }
 
@@ -370,7 +391,7 @@
   function priceCheck(rows) {
     if (!rows.length) return { q2: 'WAIT', q3: 'WAIT', d2: '제품을 넣으면 자동으로 계산됩니다.', d3: '제품을 넣으면 자동으로 계산됩니다.' };
     if (rows.some(function (r) { return !r.product || !r.qty || r.amount == null; })) {
-      const msg = '제품, 기능, 수량, 계약 금액을 모두 넣으면 계산됩니다.';
+      const msg = '서비스, 제품, 기능, 수량, 계약 금액을 모두 넣으면 계산됩니다.';
       return { q2: 'WAIT', q3: 'WAIT', d2: msg, d3: msg };
     }
     const discounted = rows.filter(function (r) { return r.discount > 0; });
@@ -456,7 +477,8 @@
     rows.forEach(function (r) {
       const info = r.li.querySelector('.price-info');
       const badge = r.li.querySelector('.price-badge');
-      if (!r.product) { info.textContent = '제품과 기능을 고르면 표준 단가가 나옵니다.'; badge.innerHTML = ''; return; }
+      if (r.retired) { info.textContent = '지금 쓰지 않는 기능입니다. 다른 기능을 고르세요.'; badge.innerHTML = '<span class="badge badge--danger">사용 안 함</span>'; return; }
+      if (!r.product) { info.textContent = '서비스, 제품, 기능을 고르면 표준 단가가 나옵니다.'; badge.innerHTML = ''; return; }
       info.textContent = '표준 단가 ' + krw(r.product.listPrice) + ' (' + r.product.unit + ')' + (r.qty ? ' x ' + r.qty + ' = ' + krw(r.std) : '') +
         ', 할인율 한도 ' + pct(r.cap);
       if (r.amount == null || r.discount == null) badge.innerHTML = '<span class="badge badge--line">금액 입력 대기</span>';
@@ -466,7 +488,8 @@
     });
     // 총액
     const total = totalAmount();
-    $('#amount-total').innerHTML = esc(total ? krw(total) : '0원') + (total ? '<span class="exact">' + fmtNum(total) + '원</span>' : '');
+    // 총액은 정확한 금액 하나만(예: 5,000,000원). 예전의 줄인 금액(500만 원)과 작은 글씨의 정확한 금액은 뺌 (v0.57 기획자 요청)
+    $('#amount-total').textContent = fmtNum(total || 0) + '원';
     renderYearly();
     // 체크리스트
     const q1 = val('standard');
@@ -656,11 +679,13 @@
       if (r.product && r.qty && r.amount != null) return;
       r.li.classList.add('is-invalid');
       const err = r.li.querySelector(':scope > .field-error');
-      const msg = (i + 1) + '번째 줄의 제품, 기능, 수량, 계약 금액을 모두 넣으세요.';
+      const msg = r.retired ? (i + 1) + '번째 줄의 기능은 지금 쓰지 않습니다. 다른 기능을 고르세요.'
+        : (i + 1) + '번째 줄의 서비스, 제품, 기능, 수량, 계약 금액을 모두 넣으세요.';
       err.hidden = false;
       err.innerHTML = C.icon('alert', 'sm') + '<span>' + esc(msg) + '</span>';
-      // 비어 있는 첫 칸으로 (제품 → 기능 → 수량 → 금액)
-      const empty = ['product', 'feature'].map(function (k) { return r.li.querySelector('[data-k="' + k + '"]'); }).filter(function (s) { return !s.value; })[0];
+      // 비어 있는 첫 칸으로 (서비스 → 제품 → 기능 → 수량 → 금액). 사용 안 함인 기능이면 기능 칸으로
+      const empty = r.retired ? r.li.querySelector('[data-k="feature"]')
+        : ['service', 'product', 'feature'].map(function (k) { return r.li.querySelector('[data-k="' + k + '"]'); }).filter(function (s) { return !s.value; })[0];
       errors.push({ msg: msg, target: !r.product ? empty : (!r.qty ? r.li.querySelector('[data-k="qty"]') : r.li.querySelector('[data-k="amount"]')) });
     });
     // 연도별 금액 합계 = 총액

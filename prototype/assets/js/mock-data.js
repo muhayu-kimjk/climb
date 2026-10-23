@@ -166,21 +166,87 @@ window.CLIMB_DATA = (function () {
    *   - 플랜은 없앰(v0.49). 가격(표준 단가, 할인율 한도)은 기능마다 하나(아래 PRICE_ROWS)
    *   - 제품은 어느 서비스 아래인지 관리자가 고름. 계약의 서비스는 고른 제품의 서비스를 모은 것
    *     (v0.49~v0.55는 서비스를 위계로 보지 않고 제품 이름에서 저절로 정했음)
-   *   기획자 예시: 제품 프리즘, 기능 결함검사, 표절검사, 블라인드 A, 블라인드 B, GPT Killer, BP 평가, RP 매칭, PAC
+   * 목록은 기획자 서비스 정리표(무하유_서비스_정리_261023_v2.xlsx, 2026-10-23)를 그대로 옮김(D-09): CK 제품 18개, HR 제품 3개
+   *   - crm: 판다(CRM) 코드번호. 옛 체계라 기획자가 다시 정할 예정 [가정]. 한 제품에 코드가 여럿(몬스터: MCT, MON)이면 기능마다 둠
+   *   - 기능이 따로 없는 제품(예: 카피킬러 플러그인)은 이름 없는 기능 하나를 둠(화면에는 "기능 구분 없음"). 계약 줄과 가격이 늘 기능을 가리키게 [가정]
+   *   - 표에 없는 예전 시연 기능(추가 이용자, API 연동, 프리즘 표절검사)과 제품 프리즘Q는 사용 안 함(지난 계약에는 그대로 보임)
    * 관리자와 최고관리자가 제품과 기능 관리(SCR-58)에서 넣고 고침. 지우지 않고 사용 안 함으로 돌림(지난 계약의 뜻이 남게)
-   * PRODUCTS: id, service(서비스 코드 = 대분류), name, use / FEATURES: id, product(제품 id), name, use
-   * 제품 id는 v0.46까지 코드 관리에 있던 서비스 중분류, 소분류 코드를 그대로 씀. 프리즘Q(예전 소분류)도 제품으로 둠 [가정]
-   * 프리즘 말고 다른 제품의 기능은 시연용 가상 값입니다. "추가 이용자"처럼 따로 값을 매기는 것도 기능으로 둠(v0.49) */
+   * PRODUCTS: id, service(서비스 코드 = 대분류), name, crm(CRM 코드, 기능마다 다르면 빈칸), use / FEATURES: id, product(제품 id), name, crm, use */
   const PRODUCTS = [
-    ['CK_CAMPUS', 'CK', '카피킬러 캠퍼스'], ['CK_SCHOOL', 'CK', '카피킬러 스쿨'], ['CK_CONTEST', 'CK', '카피킬러 콘테스트'],
-    ['HR_PRISM', 'HR', '프리즘'], ['HR_PRISM_Q', 'HR', '프리즘Q'], ['HR_MONSTER', 'HR', '몬스터'],
-  ].map(function (r) { return { id: r[0], service: r[1], name: r[2], use: true }; });
+    ['CK_CAMPUS', 'CK', '카피킬러 캠퍼스', 'CAM', true],
+    ['CK_GPK', 'CK', 'GPT Killer', 'GPK', true],
+    ['CK_BRD', 'CK', 'CK 브릿지', 'BRD', true],
+    ['CK_BCR', 'CK', '블라인드체커', 'BCR', true],
+    ['CK_CKP', 'CK', 'CK PASS', 'CKP', true],
+    ['CK_PLG', 'CK', '카피킬러 플러그인', 'PLG', true],
+    ['CK_SCHOOL', 'CK', '카피킬러 스쿨', 'SCL', true],
+    ['CK_CIT', 'CK', '카피킬러 출처검사', 'CIT', true],
+    ['CK_LNK', 'CK', '카피킬러 링크', 'LNK', true],
+    ['CK_CKV', 'CK', '카피킬러 자격검증', 'CKV', true],
+    ['CK_PLS', 'CK', '카피킬러 플러스', 'PLS', true],
+    ['CK_CHN', 'CK', '카피킬러 채널', 'CHN', true],
+    ['CK_CKM', 'CK', '카피킬러 MKT', 'CKM', true],
+    ['CK_ITP', 'CK', '카피킬러 아이템풀', 'ITP', true],
+    ['CK_CONTEST', 'CK', '카피킬러 콘테스트', 'CON', true],
+    ['CK_LTE', 'CK', '카피킬러 라이트', 'LTE', true],
+    ['CK_EDU', 'CK', '카피킬러 에듀', 'EDU', true],
+    ['CK_X', 'CK', '카피킬러 X', '', true],
+    ['HR_PRISM', 'HR', '프리즘', 'PRM', true],
+    ['HR_MONSTER', 'HR', '몬스터', '', true],
+    ['HR_CROSS', 'HR', '교차진단', 'TES', true],
+    ['HR_PRISM_Q', 'HR', '프리즘Q', '', false], // 표(2026-10-23)에서 프리즘의 기능이 되어 사용 안 함
+  ].map(function (r) { return { id: r[0], service: r[1], name: r[2], crm: r[3], use: r[4] }; });
   const FEATURES = [
-    ['CK_CAMPUS_PLAG', 'CK_CAMPUS', '표절검사'], ['CK_CAMPUS_USER', 'CK_CAMPUS', '추가 이용자'], ['CK_CAMPUS_GPTK', 'CK_CAMPUS', 'GPT Killer'], ['CK_CAMPUS_API', 'CK_CAMPUS', 'API 연동'],
-    ['HR_PRISM_DEFECT', 'HR_PRISM', '결함검사'], ['HR_PRISM_PLAG', 'HR_PRISM', '표절검사'], ['HR_PRISM_BLIND_A', 'HR_PRISM', '블라인드 A'],
-    ['HR_PRISM_BLIND_B', 'HR_PRISM', '블라인드 B'], ['HR_PRISM_GPTK', 'HR_PRISM', 'GPT Killer'], ['HR_PRISM_BP', 'HR_PRISM', 'BP 평가'],
-    ['HR_PRISM_RP', 'HR_PRISM', 'RP 매칭'], ['HR_PRISM_PAC', 'HR_PRISM', 'PAC'],
-  ].map(function (r) { return { id: r[0], product: r[1], name: r[2], use: true }; });
+    ['CK_CAMPUS_PLAG', 'CK_CAMPUS', '표절검사', 'CAM', true],
+    ['CK_CAMPUS_GPTK', 'CK_CAMPUS', 'GPT Killer', 'CAM', true],
+    ['CK_CAMPUS_CITE', 'CK_CAMPUS', '출처 표기법 검사', 'CAM', true],
+    ['CK_CAMPUS_FAKE', 'CK_CAMPUS', '가짜 출처 검사', 'CAM', true],
+    ['CK_CAMPUS_PATENT', 'CK_CAMPUS', 'CK Patent', 'CAM', true],
+    ['CK_CAMPUS_ORAL', 'CK_CAMPUS', 'CK 구술평가', 'CAM', true],
+    ['CK_GPK_ALL', 'CK_GPK', '', 'GPK', true],
+    ['CK_BRD_ALL', 'CK_BRD', '', 'BRD', true],
+    ['CK_BCR_ALL', 'CK_BCR', '', 'BCR', true],
+    ['CK_CKP_ALL', 'CK_CKP', '', 'CKP', true],
+    ['CK_PLG_ALL', 'CK_PLG', '', 'PLG', true],
+    ['CK_SCHOOL_ALL', 'CK_SCHOOL', '', 'SCL', true],
+    ['CK_CIT_ALL', 'CK_CIT', '', 'CIT', true],
+    ['CK_LNK_ALL', 'CK_LNK', '', 'LNK', true],
+    ['CK_CKV_ALL', 'CK_CKV', '', 'CKV', true],
+    ['CK_PLS_ALL', 'CK_PLS', '', 'PLS', true],
+    ['CK_CHN_ALL', 'CK_CHN', '', 'CHN', true],
+    ['CK_CKM_ALL', 'CK_CKM', '', 'CKM', true],
+    ['CK_ITP_ALL', 'CK_ITP', '', 'ITP', true],
+    ['CK_CONTEST_ALL', 'CK_CONTEST', '', 'CON', true],
+    ['CK_LTE_ALL', 'CK_LTE', '', 'LTE', true],
+    ['CK_EDU_ALL', 'CK_EDU', '', 'EDU', true],
+    ['CK_X_ALL', 'CK_X', '', '', true],
+    ['HR_PRISM_DEFECT', 'HR_PRISM', '결함·표절검사', 'PRM', true],
+    ['HR_PRISM_BLIND_A', 'HR_PRISM', '블라인드 A', 'PRM', true],
+    ['HR_PRISM_BLIND_B', 'HR_PRISM', '블라인드 B', 'PRM', true],
+    ['HR_PRISM_GPTK', 'HR_PRISM', 'GPT Killer', 'PRM', true],
+    ['HR_PRISM_BP', 'HR_PRISM', 'BP 평가', 'PRM', true],
+    ['HR_PRISM_RP', 'HR_PRISM', 'RP 매칭', 'PRM', true],
+    ['HR_PRISM_PRISMQ', 'HR_PRISM', '프리즘Q', 'PRM', true],
+    ['HR_PRISM_PAC', 'HR_PRISM', 'PAC', 'PRM', true],
+    ['HR_PRISM_FEEDBACK', 'HR_PRISM', '프리즘 피드백 자료', 'PRM', true],
+    ['HR_MONSTER_MCT_RISK', 'HR_MONSTER', '역량검사(부적응 가능성 검사)', 'MCT', true],
+    ['HR_MONSTER_MCT', 'HR_MONSTER', '역량검사', 'MCT', true],
+    ['HR_MONSTER_E', 'HR_MONSTER', '몬스터 E', 'MON', true],
+    ['HR_MONSTER_P', 'HR_MONSTER', '몬스터 P', 'MON', true],
+    ['HR_MONSTER_G', 'HR_MONSTER', '몬스터 G', 'MON', true],
+    ['HR_MONSTER_A', 'HR_MONSTER', '몬스터 A', 'MON', true],
+    ['HR_MONSTER_O', 'HR_MONSTER', '몬스터 O', 'MON', true],
+    ['HR_MONSTER_MAC', 'HR_MONSTER', 'MAC', 'MON', true],
+    ['HR_MONSTER_PROXY', 'HR_MONSTER', '응시운영대행', 'MON', true],
+    ['HR_MONSTER_DEEPQ', 'HR_MONSTER', '면접 답변 기반 심층 질문', 'MON', true],
+    ['HR_MONSTER_FEEDBACK', 'HR_MONSTER', '몬스터 피드백 자료', 'MON', true],
+    ['HR_CROSS_PRISM_MCT', 'HR_CROSS', '프리즘×역량검사', 'TES', true],
+    ['HR_CROSS_MONSTER_MCT', 'HR_CROSS', '몬스터×역량검사', 'TES', true],
+    ['HR_CROSS_PRISM_MONSTER', 'HR_CROSS', '프리즘×몬스터', 'TES', true],
+    // 표(2026-10-23)에 없는 예전 시연 기능: 지난 계약에 남아 있어 지우지 않고 사용 안 함
+    ['CK_CAMPUS_USER', 'CK_CAMPUS', '추가 이용자', 'CAM', false], ['CK_CAMPUS_API', 'CK_CAMPUS', 'API 연동', 'CAM', false],
+    ['HR_PRISM_PLAG', 'HR_PRISM', '표절검사', 'PRM', false], // 결함·표절검사(HR_PRISM_DEFECT)로 합쳐짐
+  ].map(function (r) { return { id: r[0], product: r[1], name: r[2], crm: r[3], use: r[4] }; });
 
   /* ---------- 가격 기준: 기능마다 표준 단가와 할인율 한도(cap) (REQ-SCOPE-02, REQ-CHK-04, REQ-CHK-07) ----------
    * 시연용 가상 값입니다. 실제 단가가 아닙니다.
@@ -206,8 +272,52 @@ window.CLIMB_DATA = (function () {
     { feature: 'HR_PRISM_GPTK', product: 'HR_PRISM', service: 'HR', unit: '기관, 1년', listPrice: 4800000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '플랫폼 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
     // 바뀐 예: 카피킬러 캠퍼스 추가 이용자 단가 인상(10월 1일부터)
     { feature: 'CK_CAMPUS_USER', product: 'CK_CAMPUS', service: 'CK', unit: '100명, 1년', listPrice: 1500000, discountCap: 0.15, validFrom: '2026-10-01', docUrl: PRICE_DOC + '2026-0915', docNo: '경영지원-2026-0915', reason: '추가 이용자 단가 인상(서버 비용 반영)', by: 'u_admin', at: '2026-09-24 15:10' },
-    // 예정된 예: 프리즘 표절검사 할인율 한도를 내년부터 넓힘 (아직 적용 전)
-    { feature: 'HR_PRISM_PLAG', product: 'HR_PRISM', service: 'HR', unit: '기관, 1년', listPrice: 3600000, discountCap: 0.20, validFrom: '2027-01-01', docUrl: PRICE_DOC + '2026-1007', docNo: '경영지원-2026-1007', reason: '프리즘 표절검사 판매 촉진: 할인율 한도 15%에서 20%로', by: 'u_admin', at: '2026-10-14 11:30' },
+    // ---- 기획자 서비스 정리표(2026-10-23 받음): HR은 표의 가격(원/건), CK는 표에 없어 임의 값(기획자가 나중에 줌) ----
+    //   할인율 한도는 표에 없어 0%(할인하면 체크리스트 3번이 아니요가 되어 영업 검토) [가정]
+    { feature: 'CK_CAMPUS_CITE', product: 'CK_CAMPUS', service: 'CK', unit: '기관, 1년', listPrice: 1200000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '임의 값: 기획자가 카피킬러 가격을 나중에 줌', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'CK_CAMPUS_FAKE', product: 'CK_CAMPUS', service: 'CK', unit: '기관, 1년', listPrice: 1200000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '임의 값: 기획자가 카피킬러 가격을 나중에 줌', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'CK_CAMPUS_PATENT', product: 'CK_CAMPUS', service: 'CK', unit: '기관, 1년', listPrice: 3000000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '임의 값: 기획자가 카피킬러 가격을 나중에 줌', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'CK_CAMPUS_ORAL', product: 'CK_CAMPUS', service: 'CK', unit: '기관, 1년', listPrice: 2400000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '임의 값: 기획자가 카피킬러 가격을 나중에 줌', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'CK_GPK_ALL', product: 'CK_GPK', service: 'CK', unit: '기관, 1년', listPrice: 1000000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '임의 값: 기획자가 카피킬러 가격을 나중에 줌', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'CK_BRD_ALL', product: 'CK_BRD', service: 'CK', unit: '기관, 1년', listPrice: 1000000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '임의 값: 기획자가 카피킬러 가격을 나중에 줌', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'CK_BCR_ALL', product: 'CK_BCR', service: 'CK', unit: '기관, 1년', listPrice: 1000000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '임의 값: 기획자가 카피킬러 가격을 나중에 줌', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'CK_CKP_ALL', product: 'CK_CKP', service: 'CK', unit: '기관, 1년', listPrice: 1000000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '임의 값: 기획자가 카피킬러 가격을 나중에 줌', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'CK_PLG_ALL', product: 'CK_PLG', service: 'CK', unit: '기관, 1년', listPrice: 1000000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '임의 값: 기획자가 카피킬러 가격을 나중에 줌', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'CK_SCHOOL_ALL', product: 'CK_SCHOOL', service: 'CK', unit: '기관, 1년', listPrice: 1000000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '임의 값: 기획자가 카피킬러 가격을 나중에 줌', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'CK_CIT_ALL', product: 'CK_CIT', service: 'CK', unit: '기관, 1년', listPrice: 1000000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '임의 값: 기획자가 카피킬러 가격을 나중에 줌', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'CK_LNK_ALL', product: 'CK_LNK', service: 'CK', unit: '기관, 1년', listPrice: 1000000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '임의 값: 기획자가 카피킬러 가격을 나중에 줌', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'CK_CKV_ALL', product: 'CK_CKV', service: 'CK', unit: '기관, 1년', listPrice: 1000000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '임의 값: 기획자가 카피킬러 가격을 나중에 줌', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'CK_PLS_ALL', product: 'CK_PLS', service: 'CK', unit: '기관, 1년', listPrice: 1000000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '임의 값: 기획자가 카피킬러 가격을 나중에 줌', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'CK_CHN_ALL', product: 'CK_CHN', service: 'CK', unit: '기관, 1년', listPrice: 1000000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '임의 값: 기획자가 카피킬러 가격을 나중에 줌', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'CK_CKM_ALL', product: 'CK_CKM', service: 'CK', unit: '기관, 1년', listPrice: 1000000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '임의 값: 기획자가 카피킬러 가격을 나중에 줌', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'CK_ITP_ALL', product: 'CK_ITP', service: 'CK', unit: '기관, 1년', listPrice: 1000000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '임의 값: 기획자가 카피킬러 가격을 나중에 줌', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'CK_CONTEST_ALL', product: 'CK_CONTEST', service: 'CK', unit: '기관, 1년', listPrice: 1000000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '임의 값: 기획자가 카피킬러 가격을 나중에 줌', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'CK_LTE_ALL', product: 'CK_LTE', service: 'CK', unit: '기관, 1년', listPrice: 1000000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '임의 값: 기획자가 카피킬러 가격을 나중에 줌', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'CK_EDU_ALL', product: 'CK_EDU', service: 'CK', unit: '기관, 1년', listPrice: 1000000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '임의 값: 기획자가 카피킬러 가격을 나중에 줌', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'CK_X_ALL', product: 'CK_X', service: 'CK', unit: '기관, 1년', listPrice: 1000000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '임의 값: 기획자가 카피킬러 가격을 나중에 줌', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'HR_PRISM_DEFECT', product: 'HR_PRISM', service: 'HR', unit: '건', listPrice: 8000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'HR_PRISM_BLIND_A', product: 'HR_PRISM', service: 'HR', unit: '건', listPrice: 4000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'HR_PRISM_BLIND_B', product: 'HR_PRISM', service: 'HR', unit: '건', listPrice: 4000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'HR_PRISM_GPTK', product: 'HR_PRISM', service: 'HR', unit: '건', listPrice: 6000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'HR_PRISM_BP', product: 'HR_PRISM', service: 'HR', unit: '건', listPrice: 20000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'HR_PRISM_RP', product: 'HR_PRISM', service: 'HR', unit: '건', listPrice: 10000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'HR_PRISM_PRISMQ', product: 'HR_PRISM', service: 'HR', unit: '건', listPrice: 50000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'HR_PRISM_PAC', product: 'HR_PRISM', service: 'HR', unit: '건', listPrice: 10000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'HR_PRISM_FEEDBACK', product: 'HR_PRISM', service: 'HR', unit: '건', listPrice: 10000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'HR_MONSTER_MCT_RISK', product: 'HR_MONSTER', service: 'HR', unit: '건', listPrice: 10000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'HR_MONSTER_MCT', product: 'HR_MONSTER', service: 'HR', unit: '건', listPrice: 20000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'HR_MONSTER_E', product: 'HR_MONSTER', service: 'HR', unit: '건', listPrice: 10000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'HR_MONSTER_P', product: 'HR_MONSTER', service: 'HR', unit: '건', listPrice: 20000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'HR_MONSTER_G', product: 'HR_MONSTER', service: 'HR', unit: '건', listPrice: 35000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'HR_MONSTER_A', product: 'HR_MONSTER', service: 'HR', unit: '건', listPrice: 70000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'HR_MONSTER_O', product: 'HR_MONSTER', service: 'HR', unit: '건', listPrice: 35000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'HR_MONSTER_MAC', product: 'HR_MONSTER', service: 'HR', unit: '건', listPrice: 35000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'HR_MONSTER_PROXY', product: 'HR_MONSTER', service: 'HR', unit: '건', listPrice: 2000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'HR_MONSTER_DEEPQ', product: 'HR_MONSTER', service: 'HR', unit: '건', listPrice: 8000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'HR_MONSTER_FEEDBACK', product: 'HR_MONSTER', service: 'HR', unit: '건', listPrice: 35000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'HR_CROSS_PRISM_MCT', product: 'HR_CROSS', service: 'HR', unit: '건', listPrice: 10000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'HR_CROSS_MONSTER_MCT', product: 'HR_CROSS', service: 'HR', unit: '건', listPrice: 10000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'HR_CROSS_PRISM_MONSTER', product: 'HR_CROSS', service: 'HR', unit: '건', listPrice: 10000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
   ];
   // 오늘 적용되는 줄: 기능마다 적용 시작일이 오늘 이전인 줄 중 가장 늦은 것
   function currentPrices(rows, today) {
@@ -833,6 +943,17 @@ window.CLIMB_DATA = (function () {
         changed: ['서비스를 CK, HR, 기타 세 가지로 보입니다. 서비스 > 제품 > 기능 순서로 나뉩니다.',
           '계약 등록에서 제품 목록을 서비스마다 묶어 보입니다.',
           '제품과 기능 관리에서 제품을 추가할 때 서비스를 먼저 고릅니다(제품 이름에서 저절로 정하지 않음).'],
+      } },
+    // v0.10.5 (요구사항 정의서 v0.57): 기획자 서비스 정리표 반영, 제품 줄 서비스 → 제품 → 기능
+    { id: 'N-0022', kind: 'RELEASE', version: 'v0.10.5', title: '서비스 목록과 가격', at: '2026-10-23 14:00', by: 'u_super',
+      items: {
+        added: ['서비스 정리표대로 제품과 기능을 넣었습니다. CK 제품 18개, HR 제품 3개(프리즘, 몬스터, 교차진단)와 CRM 코드번호입니다.'],
+        changed: ['계약 등록의 제품 줄에서 서비스, 제품, 기능을 차례로 고릅니다. 하나뿐이면 저절로 골라지고, 수량 단위는 가격 단위(건, 개)를 따릅니다.',
+          'HR 가격은 정리표의 건당 가격입니다. 카피킬러 가격은 받기 전까지 임의 값입니다.',
+          '결재 문서의 표준 금액과 할인율은 기안한 날의 가격으로 봅니다.',
+          '제품 칸의 줄을 맞추고, 단위(원, 개, 건)는 칸 오른쪽의 회색 상자로 나눴습니다. 휴대폰은 칸마다 한 줄입니다.',
+          '제품 추가 버튼을 한 줄 전체로 키웠고, 총액은 5,000,000원처럼 정확한 금액 하나를 오른쪽에 보입니다.',
+          '입력 칸을 고른 파란 테두리를 칸 안쪽으로 옮겨, 드롭다운 목록이 열려도 잘려 보이지 않습니다.'],
       } },
   ];
 

@@ -74,7 +74,7 @@
       const feats = featuresOf(p.id);
       const head = '<tr class="prod-row' + (p.use ? '' : ' is-muted') + '">' +
         '<th scope="rowgroup" colspan="2"><span class="cell-strong">' + esc(p.name) + '</span>' +
-          '<span class="cell-meta">' + esc(C.serviceLabel([p.service])) + ', 기능 ' + feats.length + '개</span></th>' +
+          '<span class="cell-meta">' + esc(C.serviceLabel([p.service])) + ', 기능 ' + feats.length + '개' + (p.crm ? ', CRM ' + esc(p.crm) : '') + '</span></th>' +
         '<td class="nowrap">' + useBadge(p.use) + '</td>' +
         '<td class="col-action"><button type="button" class="link-act" data-edit-product="' + esc(p.id) + '" aria-label="' + esc(p.name) + ' 고치기">고치기</button>' +
           '<button type="button" class="link-act" data-add-feature="' + esc(p.id) + '" aria-label="' + esc(p.name) + ' 기능 추가">기능 추가</button></td></tr>';
@@ -82,7 +82,7 @@
         const now = priceOf(f.id), next = plannedOf(f.id);
         const price = (now ? won(now.listPrice) + '<span class="cell-meta">' + esc(now.unit) + ', 할인율 한도 ' + Math.round(now.discountCap * 1000) / 10 + '%</span>' : '') +
           next.map(function (r) { return '<span class="cell-meta">' + C.badge('line', '예정') + ' ' + C.fmtDate(r.validFrom) + '부터 ' + won(r.listPrice) + '</span>'; }).join('');
-        return '<tr class="feat-row' + (f.use && p.use ? '' : ' is-muted') + '"><td class="feat-name">' + esc(f.name) + '</td>' +
+        return '<tr class="feat-row' + (f.use && p.use ? '' : ' is-muted') + '"><td class="feat-name">' + (f.name ? esc(f.name) : '<span class="cell-meta">기능 구분 없음</span>') + (!p.crm && f.crm ? '<span class="cell-meta">CRM ' + esc(f.crm) + '</span>' : '') + '</td>' +
           '<td class="num">' + (price || '<span class="cell-meta">가격 없음</span>') + '</td>' +
           '<td class="nowrap">' + useBadge(f.use) + '</td>' +
           '<td class="col-action"><button type="button" class="link-act" data-edit-feature="' + esc(f.id) + '" aria-label="' + esc(p.name + ' ' + f.name) + ' 고치기">고치기</button></td></tr>';

@@ -89,6 +89,7 @@ window.CLIMB = (function () {
     arrowUp: '<path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>',
     external: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
     search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+    plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
     calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
   };
   function icon(name, size) {
@@ -176,6 +177,8 @@ window.CLIMB = (function () {
   // 48000000 → "4,800만 원", 150000000 → "1억 5,000만 원"
   function fmtKRW(n) {
     if (!n) return '금액 없음';
+    // 만 원 아래가 있는 작은 금액(예: 건당 8,000원, 15,000원)은 반올림하지 않고 그대로 (v0.57: HR 가격이 건당이라)
+    if (n < 100000 && n % 10000) return Number(n).toLocaleString('ko-KR') + '원';
     const eok = Math.floor(n / 100000000);
     const man = Math.round((n % 100000000) / 10000);
     const parts = [];
@@ -293,6 +296,10 @@ window.CLIMB = (function () {
   function productName(id) { const p = findBy(D.PRODUCTS, 'id', id); return p ? p.name : (id || ''); }
   function featureName(id) { const f = findBy(D.FEATURES, 'id', id); return f ? f.name : (id || ''); }
   function featureLabel(r) { return r ? (productName(r.product) + ' ' + featureName(r.feature)).trim() : ''; }
+  // 고르는 칸에 쓰는 기능 이름: 기능이 따로 없는 제품의 기능은 이름이 비어 있어 "기능 구분 없음" (v0.56 서비스 정리표)
+  function featureText(id) { return featureName(id) || '기능 구분 없음'; }
+  // 그날 적용되는 가격 줄. 지난 계약은 기안한 날의 가격으로 봄(가격 기준은 적용 시작일 뒤 새 기안부터, REQ-ADM-15)
+  function priceAt(feature, day) { return D.currentPrices(D.PRICE_ROWS, day).filter(function (r) { return r.feature === feature; })[0] || null; }
   // '② 체크리스트 검토'
   // c를 주면 운영 변경의 ⑨는 "운영 변경"으로 (v0.26)
   function stepLabel(code, c) { const s = D.STEPS[code]; if (c && code === 'S09' && c.kind === 'CHANGE') return s.no + ' 운영 변경'; return s ? s.no + ' ' + s.name : code; }
@@ -2090,7 +2097,7 @@ window.CLIMB = (function () {
     // 거래처, 영업기회, 제품
     isBizNo: isBizNo, fmtBizNo: fmtBizNo, isUniqueNo: isUniqueNo, ntsStatus: ntsStatus, searchBusinesses: searchBusinesses,
     isOppNo: isOppNo, pandaUrl: pandaUrl, pandaLink: pandaLink,
-    serviceLabel: serviceLabel, featureName: featureName, featureLabel: featureLabel,
+    serviceLabel: serviceLabel, featureName: featureName, featureLabel: featureLabel, featureText: featureText, priceAt: priceAt,
     // 결재 흐름 (결재선, 지금 상태, 처리)
     reviewRoute: reviewRoute, stepLabel: stepLabel, kindLabel: kindLabel, isShort: isShort, isChange: isChange, changeSales: changeSales,
     currentStep: currentStep, pendingSteps: pendingSteps, routedReview: routedReview, isReviewStep: isReviewStep, waitDays: waitDays,

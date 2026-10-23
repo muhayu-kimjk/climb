@@ -232,13 +232,13 @@
              제품 목록은 서비스(CK, HR, 기타)마다 묶어 보이고, 계약의 서비스는 고른 제품의 서비스. 제품과 기능은 제품과 기능 관리(SCR-58), 가격은 가격 기준 관리(SCR-54)에서 기능마다 -->
         <section class="panel" aria-labelledby="sec-amount">
           <h2 class="section-title" id="sec-amount"><span class="num">2</span>제품과 금액</h2>
-          <p class="section-desc">제품과 기능을 차례로 고르고 계약 금액을 넣으면 그 기능의 표준 단가와 비교해 할인율이 자동으로 계산됩니다.</p><!-- v0.42: 가격 기준을 볼 수 있는 역할 안내는 뺌(규칙 REQ-SCOPE-02는 그대로) -->
+          <p class="section-desc">제품과 기능을 차례로 고르고 계약 금액을 넣으면 표준 단가와 비교해 할인율이 자동으로 계산됩니다.</p><!-- v0.42: 가격 기준을 볼 수 있는 역할 안내는 뺌(규칙 REQ-SCOPE-02는 그대로) -->
 
           <!-- 이 플랫폼에는 금전 거래가 있는 계약만 등록 (v0.41 기획자 결정). 비밀유지계약 등은 아래 "부속 서류"로 첨부. v0.34의 "금액이 없는 계약" 체크는 뺌 -->
           <div class="field" data-field="products" id="products-field">
             <p class="field-label" id="products-label">제품별 금액<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></p>
             <ul class="product-list" id="product-list" aria-labelledby="products-label"></ul>
-            <button type="button" class="btn btn--tertiary btn--add" id="btn-add-product">제품 추가</button>
+            <button type="button" class="btn btn--secondary btn--md btn--add" id="btn-add-product">제품 추가</button>
             <p class="field-error" hidden></p>
           </div>
 
@@ -261,22 +261,22 @@
             <p class="field-error" hidden></p>
           </fieldset>
 
-          <div class="field-row">
-            <fieldset class="field">
-              <legend class="field-label">수불부 연동 <span class="opt">(선택)</span><span class="badge badge--proposal tag-tbd">형식 미정</span></legend>
-              <div class="choice-row">
-                <label class="choice"><input type="radio" name="ledger" value="YES">예</label>
-                <label class="choice"><input type="radio" name="ledger" value="NO">아니요</label>
-              </div>
-            </fieldset>
-            <div class="field">
-              <label class="field-label" for="f-tax">세금계산서 <span class="opt">(선택)</span><span class="badge badge--proposal tag-tbd">형식 미정</span></label>
-              <input class="input" id="f-tax" name="taxInvoice" type="text" placeholder="예: 계약 시작일 기준 정발행">
+          <!-- 수불부 연동, 세금계산서, 매입: 다른 항목처럼 한 줄에 하나, 입력 칸은 전체 너비 (v0.57 기획자 요청.
+               예전에는 한 줄에 셋을 나란히 두어 이름이 두 줄로 꺾이고 칸이 좁아 예시 글자가 잘렸음) -->
+          <fieldset class="field">
+            <legend class="field-label">수불부 연동 <span class="opt">(선택)</span><span class="badge badge--proposal tag-tbd">형식 미정</span></legend>
+            <div class="choice-row">
+              <label class="choice"><input type="radio" name="ledger" value="YES">예</label>
+              <label class="choice"><input type="radio" name="ledger" value="NO">아니요</label>
             </div>
-            <div class="field">
-              <label class="field-label" for="f-purchase">매입 <span class="opt">(선택)</span><span class="badge badge--proposal tag-tbd">형식 미정</span></label>
-              <input class="input" id="f-purchase" name="purchase" type="text" placeholder="예: 매입처, 매입 금액">
-            </div>
+          </fieldset>
+          <div class="field">
+            <label class="field-label" for="f-tax">세금계산서 <span class="opt">(선택)</span><span class="badge badge--proposal tag-tbd">형식 미정</span></label>
+            <input class="input" id="f-tax" name="taxInvoice" type="text" placeholder="예: 계약 시작일 기준 정발행">
+          </div>
+          <div class="field">
+            <label class="field-label" for="f-purchase">매입 <span class="opt">(선택)</span><span class="badge badge--proposal tag-tbd">형식 미정</span></label>
+            <input class="input" id="f-purchase" name="purchase" type="text" placeholder="예: 매입처, 매입 금액">
           </div>
         </section>
 

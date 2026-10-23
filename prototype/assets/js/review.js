@@ -44,8 +44,11 @@
 
   /* ---------- 상세 값 (예시 데이터에 없으면 만들어 보여 줌, 프로토타입 전용) ---------- */
   const f = c.form || {};
+  // 가격 기준: 기능마다 하나(v0.49). 이 계약을 기안한 날 적용되던 가격으로 봄(v0.56: 뒤에 가격이 바뀌어도 지난 계약의 할인율이 그대로)
+  //   그날 가격이 없으면(가격 기준을 들이기 전 계약) 오늘 가격으로
   const PRICE = {};
-  D.PRICE_BOOK.forEach(function (p) { PRICE[p.feature] = p; }); // 가격 기준: 기능마다 하나(v0.49)
+  D.PRICE_BOOK.forEach(function (p) { PRICE[p.feature] = p; });
+  D.currentPrices(D.PRICE_ROWS, (c.requestedAt || D.TODAY).slice(0, 10)).forEach(function (p) { PRICE[p.feature] = p; });
   function num(n) { return Number(n || 0).toLocaleString('ko-KR'); }
   const won = C.fmtWon; // 돈은 반드시 원을 붙임 (REQ-UI-17)
   function pct(r) { return Math.round(r * 1000) / 10 + '%'; }
