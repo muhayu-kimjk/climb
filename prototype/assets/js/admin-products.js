@@ -2,11 +2,11 @@
  * SCR-58 제품과 기능 관리 화면 로직 (admin-products.js)
  * ---------------------------------------------------------------------
  * 관련 요구사항: REQ-ADM-23(v0.47 기획자 요청, v0.49 두 단계로 줄임), REQ-SCOPE-02(가격 기준), 데이터 정의서 product, feature
- * v0.49 기획자 결정: 제품 → 기능 두 단계만 둠(플랜 없음, 가격은 기능마다 하나). 서비스는 위계가 아니라 제품에 저절로 붙는 구분
+ * 서비스 > 제품 > 기능 = 대분류 > 중분류 > 소분류(v0.56 기획자 결정). 서비스는 CK, HR, 기타 세 가지. 플랜 없음, 가격은 기능마다 하나(v0.49)
  *   예: 카피킬러 캠퍼스 → 카피킬러. 제품 이름에 서비스 이름이 들어 있으면 저절로 고르고, 없으면(예: 프리즘) 관리자가 한 번 고름 [가정]
  * 하는 일
  *   1. 제품과 기능 표: 제품마다 기능, 오늘 적용되는 가격(가격 기준 관리에서 정함, 보기만), 상태. 서비스로 거름
- *   2. 제품 추가: 제품 이름(서비스가 저절로 붙음), 사유. 추가하면 이어서 기능 추가 창이 열림
+ *   2. 제품 추가: 서비스(대분류), 제품 이름, 사유. 추가하면 이어서 기능 추가 창이 열림
  *   3. 제품 고치기: 이름, 서비스(가격이 없는 제품만), 사용 여부, 사유
  *   4. 기능 추가: 한 줄에 하나씩 여러 개를 한 번에(예: 프리즘의 결함검사, 표절검사 ...), 사유
  *   5. 기능 고치기: 이름, 사용 여부, 사유
@@ -93,8 +93,8 @@
   }
 
   /* ---------- 2. 제품 추가 ----------
-   * 서비스는 제품 이름에서 저절로 정함(C.serviceFromName, v0.49). 이름을 바꾸는 대로 다시 맞추고,
-   * 이름으로 알 수 없으면(예: 프리즘) 관리자가 한 번 고름. 관리자가 직접 고른 뒤에는 이름을 바꿔도 덮어쓰지 않음 */
+   * 서비스 > 제품 > 기능(대분류 > 중분류 > 소분류, v0.56 기획자 결정): 제품은 어느 서비스(CK, HR, 기타) 아래인지 먼저 고름.
+   * 위에서 서비스 묶음을 골라 두었으면 그 서비스로 미리 채움. (v0.49~v0.55는 제품 이름에서 서비스를 저절로 정했음) */
   function openAddProduct() {
     const opts = C.codeList('SERVICE').map(function (c) { return [c.code, c.label]; });
     C.formModal({
@@ -102,23 +102,15 @@
       desc: '추가하면 이어서 기능을 넣는 창이 열립니다. 가격은 가격 기준 관리에서 기능마다 정합니다.',
       body: '<div class="field-row">' +
           C.fieldHtml({ name: 'name', label: '제품 이름', required: true, placeholder: '예: 카피킬러 캠퍼스', attrs: ' maxlength="40"' }) +
-          C.fieldHtml({ name: 'service', label: '서비스', type: 'select', required: true, value: svc === 'ALL' ? '' : svc, options: [['', '이름을 넣으면 저절로 고릅니다']].concat(opts),
-            help: '제품 이름에 서비스 이름이 들어 있으면 저절로 붙습니다(예: 카피킬러 캠퍼스 → 카피킬러). 없으면 한 번 고릅니다.' }) +
+          C.fieldHtml({ name: 'service', label: '서비스(대분류)', type: 'select', required: true, value: svc === 'ALL' ? '' : svc, options: [['', '고르세요']].concat(opts),
+            help: '제품이 들어갈 서비스입니다. 서비스 > 제품 > 기능 순서로 나뉩니다.' }) +
         '</div>' +
         C.fieldHtml({ name: 'reason', label: '추가하는 사유', type: 'textarea', required: true, placeholder: '예: 신규 제품 출시' }),
       btn: '제품 추가',
-      open: function (f) {
-        let picked = false; // 관리자가 서비스를 직접 골랐는지
-        f.elements.service.addEventListener('change', function () { picked = true; });
-        // 저절로 고른 값은 이름이 바뀌면 다시 맞춤(맞는 서비스가 없어지면 비움)
-        f.elements.name.addEventListener('input', function () {
-          if (!picked) f.elements.service.value = C.serviceFromName(f.elements.name.value);
-        });
-      },
       check: function (f) {
         const s = val(f, 'service'), name = val(f, 'name');
         return {
-          service: s ? '' : '이름으로 서비스를 알 수 없습니다. 서비스를 고르세요.',
+          service: s ? '' : '서비스를 고르세요.',
           name: !name ? '제품 이름을 넣으세요.'
             : D.PRODUCTS.some(function (p) { return p.service === s && sameName(p.name, name); }) ? '이 서비스에 같은 이름의 제품이 이미 있습니다.' : '',
           reason: val(f, 'reason') ? '' : '추가하는 사유를 적으세요.',

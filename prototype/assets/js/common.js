@@ -283,7 +283,7 @@ window.CLIMB = (function () {
       icon('external', 'sm') + '<span class="sr-only">(판다에서 열기, 새 창)</span></a>' : esc(v || '-');
   }
   // 서비스 이름: 계약명은 따로 두지 않고 고객사와 서비스로 계약을 구분 (v0.12)
-  //   codes: ['CK', 'HR'] 같은 서비스 코드 목록 → "카피킬러, HR 서비스"
+  //   codes: ['CK', 'HR'] 같은 서비스 코드 목록 → "CK, HR" (서비스는 대분류 CK, HR, 기타 세 가지, v0.56)
   function serviceLabel(codes) {
     return (codes || []).map(function (s) { return D.SERVICES[s] || s; }).join(', ') || '-';
   }
@@ -293,17 +293,6 @@ window.CLIMB = (function () {
   function productName(id) { const p = findBy(D.PRODUCTS, 'id', id); return p ? p.name : (id || ''); }
   function featureName(id) { const f = findBy(D.FEATURES, 'id', id); return f ? f.name : (id || ''); }
   function featureLabel(r) { return r ? (productName(r.product) + ' ' + featureName(r.feature)).trim() : ''; }
-  /* 서비스는 위계가 아니라 제품에 저절로 붙는 구분 (v0.49 기획자 결정. 예: 카피킬러 캠퍼스 → 카피킬러)
-   *   제품 이름에 서비스 이름(끝의 "서비스"는 빼고 봄)이 들어 있으면 그 서비스. 여럿이 맞으면 긴 이름. 없으면 '' (관리자가 한 번 고름 [가정]) */
-  function serviceFromName(name) {
-    const n = String(name || '').replace(/\s+/g, '').toLowerCase();
-    let best = '', len = 0;
-    codeList('SERVICE').forEach(function (c) {
-      const key = c.label.replace(/\s*서비스$/, '').replace(/\s+/g, '').toLowerCase();
-      if (key && key !== '기타' && n.indexOf(key) > -1 && key.length > len) { best = c.code; len = key.length; }
-    });
-    return best;
-  }
   // '② 체크리스트 검토'
   // c를 주면 운영 변경의 ⑨는 "운영 변경"으로 (v0.26)
   function stepLabel(code, c) { const s = D.STEPS[code]; if (c && code === 'S09' && c.kind === 'CHANGE') return s.no + ' 운영 변경'; return s ? s.no + ' ' + s.name : code; }
@@ -1413,18 +1402,23 @@ window.CLIMB = (function () {
       const item = gnbList.querySelector('.gnb-item.is-open'), sub = item && item.querySelector('.gnb-sub');
       placeDim(!!sub);
       if (!sub) return;
+      // 연 메뉴에서 내려온 것으로 보이게(v0.55 기획자 요청): 늘 연 메뉴의 왼쪽 끝에 맞춤(글자도 메뉴 글자와 같은 줄에 옴).
+      //   메뉴 줄 아래는 오른쪽 끝을 넘어도 됨. 화면 밖으로 나갈 때만(휴대폰) 연 메뉴의 오른쪽 끝에 맞춤
+      //   (예전에는 메뉴 줄 오른쪽 끝을 넘지 않게 밀어서 옆 메뉴 아래까지 걸쳐 보였음)
       const box = gnbScroll.getBoundingClientRect();
-      const left = item.querySelector('.gnb-link').getBoundingClientRect().left - box.left;
-      sub.style.left = Math.max(0, Math.min(left, box.width - sub.offsetWidth)) + 'px';
+      const link = item.querySelector('.gnb-link').getBoundingClientRect();
+      let x = link.left;
+      if (x + sub.offsetWidth > window.innerWidth - 8) x = link.right - sub.offsetWidth;
+      sub.style.left = (Math.max(8, x) - box.left) + 'px';
     }
-    // 하위 메뉴를 열면 메뉴 줄 아래를 흐리게(스마트폰, v0.55 기획자 요청): 메뉴를 누른 것은 다른 화면으로 가려는 뜻이라
-    //   아래 화면은 흐리게 두고, 흐린 곳을 누르면 메뉴만 닫힘(아래 버튼이 잘못 눌리지 않게)
+    // 하위 메뉴를 열면 메뉴 줄 아래를 흐리게(v0.55 기획자 요청, 처음에는 스마트폰만이었다가 PC와 태블릿도): 메뉴를 누른 것은
+    //   다른 화면으로 가려는 뜻이라 아래 화면은 흐리게 두고, 흐린 곳을 누르면 메뉴만 닫힘(아래 버튼이 잘못 눌리지 않게)
     const dim = document.createElement('div');
     dim.className = 'gnb-dim';
     dim.hidden = true;
     document.body.appendChild(dim);
     function placeDim(open) {
-      dim.hidden = !(open && isPhoneLayout());
+      dim.hidden = !open;
       if (!dim.hidden) dim.style.top = Math.max(0, el.getBoundingClientRect().bottom) + 'px';
     }
     gnbList.addEventListener('scroll', function () { gnbEdge(); placeSub(); }, { passive: true });
@@ -1440,6 +1434,8 @@ window.CLIMB = (function () {
         closeMenus();
         item.classList.toggle('is-open', willOpen);
         btn.setAttribute('aria-expanded', String(willOpen));
+        // 밑줄을 지금 누른 메뉴로 옮김(v0.55 기획자 요청, CSS .gnb-list.has-open). 닫으면 지금 화면의 메뉴로 돌아옴
+        gnbList.classList.toggle('has-open', willOpen);
         placeSub();
         gnbEdge();
       });
@@ -1457,6 +1453,7 @@ window.CLIMB = (function () {
         item.classList.remove('is-open');
         item.querySelector('button').setAttribute('aria-expanded', 'false');
       });
+      gnbList.classList.remove('has-open');
       placeDim(false);
       gnbEdge();
     }
@@ -2093,7 +2090,7 @@ window.CLIMB = (function () {
     // 거래처, 영업기회, 제품
     isBizNo: isBizNo, fmtBizNo: fmtBizNo, isUniqueNo: isUniqueNo, ntsStatus: ntsStatus, searchBusinesses: searchBusinesses,
     isOppNo: isOppNo, pandaUrl: pandaUrl, pandaLink: pandaLink,
-    serviceLabel: serviceLabel, featureName: featureName, featureLabel: featureLabel, serviceFromName: serviceFromName,
+    serviceLabel: serviceLabel, featureName: featureName, featureLabel: featureLabel,
     // 결재 흐름 (결재선, 지금 상태, 처리)
     reviewRoute: reviewRoute, stepLabel: stepLabel, kindLabel: kindLabel, isShort: isShort, isChange: isChange, changeSales: changeSales,
     currentStep: currentStep, pendingSteps: pendingSteps, routedReview: routedReview, isReviewStep: isReviewStep, waitDays: waitDays,

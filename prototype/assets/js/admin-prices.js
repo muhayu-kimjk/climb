@@ -7,7 +7,7 @@
  * 하는 일
  *   1. 오늘 적용되는 기준: 기능마다 적용 시작일이 오늘 이전인 줄 중 가장 늦은 것. 예정된 기준은 그 아래에 표시. 제품, 기능 순서로 줄 세움
  *   2. 바꾸기, 가격 추가: 적용 시작일(오늘 이후), 품의 문서 링크(필수, https), 품의 번호(선택), 변경 사유(필수)
- *      가격 추가는 제품 → 기능(사용 중이고 아직 가격이 없는 것만)을 고른 뒤 단위와 가격. 서비스는 제품에 붙은 서비스를 따름
+ *      가격 추가는 제품 → 기능(사용 중이고 아직 가격이 없는 것만)을 고른 뒤 단위와 가격. 서비스는 그 제품의 서비스(대분류, v0.56)
  *      기존 줄은 고치지 않고 새 줄을 더함. 이미 기안한 계약은 기안할 때의 기준을 씀
  *   3. 바뀐 이력: 모든 줄(지난 기준, 적용 중, 예정)
  * 볼 수 있는 사람: 영업, 영업지원, 관리자(바꾸기는 관리자만). 최고관리자는 모두
@@ -59,7 +59,7 @@
       const plan = next.map(function (p) {
         return '<span class="cell-meta">' + C.badge('line', '예정') + ' ' + C.fmtDate(p.validFrom) + '부터 ' + won(p.listPrice) + ', 한도 ' + pct(p.discountCap) + '</span>';
       }).join('');
-      // 제품과 기능 칸: "프리즘 결함검사" 아래에 서비스(제품에 저절로 붙음)와 단위를 함께 (A4 폭 안에 들어가게)
+      // 제품과 기능 칸: "프리즘 결함검사" 아래에 서비스(대분류)와 단위를 함께 (A4 폭 안에 들어가게)
       return '<tr><td><span class="cell-strong">' + esc(C.featureLabel(any)) + '</span>' +
           '<span class="cell-meta">' + esc((D.SERVICES[any.service] || any.service) + ', ' + any.unit) + '</span>' + plan + '</td>' +
         (r ? '<td class="num">' + won(r.listPrice) + '</td><td class="num">' + pct(r.discountCap) + '</td>' +

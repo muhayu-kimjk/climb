@@ -35,9 +35,8 @@
 /* 표 줄 안의 할 일 버튼 (만료 예정의 갱신 검토, 해지 기안, 내 등록 목록의 이어서 작성 등) */
 .row-actions { display: inline-flex; flex-wrap: wrap; gap: 0.6rem; }
 @media print { .row-actions { display: none; } }
-/* 전체 진행 현황: 현재 진행 칸에 자리를 더 줌 (서비스 칸은 좁게) */
-.tbl--progress .col-customer { width: 22%; }
-.tbl--progress .col-service { width: 14%; }
+/* 전체 진행 현황: 칸이 많아(영업대표, 기안일) 고객사는 26%. 서비스 칸은 공통 규칙대로 글자 폭만큼, 남는 자리는 현재 진행으로 (v0.56) */
+.tbl--progress .col-customer { width: 26%; }
 /* 칸이 많은 표를 종이 폭에 맞춤 (REQ-UI-10): 내 등록 목록, 검토 완료, 대리 지정(결재선 규칙), 코드 표(코드 관리)
  *   본문 폭(약 716px, 묶음 안 658px)을 조금 넘어 옆으로 밀어야 했던 표를 가로 스크롤 없이 보이게 함
  *   - 칸 좌우 여백을 휴대폰의 촘촘한 표와 같은 0.8rem으로 줄임 (글자 사이 16px)

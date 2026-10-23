@@ -219,19 +219,23 @@ a.user-name:hover, a.user-name[aria-current] { color: var(--text-primary); text-
 .gnb-link .icon { transition: transform 0.2s ease; }
 .gnb-item.is-open .gnb-link .icon { transform: rotate(180deg); }
 .gnb-link.is-current { color: var(--text-bolder); }
-.gnb-link.is-current::after {
+.gnb-link.is-current::after, .gnb-item.is-open .gnb-link::after {
   content: ""; position: absolute; left: 1.6rem; right: 1.6rem; bottom: 0; height: 0.4rem;
   border-radius: 0.2rem 0.2rem 0 0; background: var(--action-active);
 }
+/* 하위 메뉴를 열면 밑줄을 지금 누른 메뉴로 옮김(v0.55 기획자 요청: 지금 화면의 밑줄과 헷갈리지 않게). 닫으면 돌아옴(.has-open은 common.js) */
+.gnb-list.has-open .gnb-link.is-current:not([aria-expanded="true"])::after { display: none; }
+.gnb-item.is-open .gnb-link { color: var(--text-bolder); }
 .gnb-sub {
-  position: absolute; top: 100%; left: 0; z-index: 30; display: none; min-width: 22rem; padding: 0.8rem;
+  position: absolute; top: 100%; left: 0; z-index: 30; display: none; min-width: 16rem; padding: 0.6rem;
   background: var(--surface-white); border: 1px solid var(--border-gray-light);
   border-radius: 0 0 var(--radius-lg) var(--radius-lg); box-shadow: var(--shadow-1);
 }
 .gnb-item.is-open .gnb-sub { display: block; }
-.gnb-sub a { display: block; padding: 1rem 1.2rem; border-radius: var(--radius-md); font-size: var(--fs-body-medium); }
+/* 하위 메뉴 글자를 연 메뉴 글자와 같은 줄에(v0.55): 상자 안쪽 0.6rem + 줄 안쪽 1rem = 메뉴 글자 안쪽 1.6rem */
+.gnb-sub a { display: block; padding: 1rem; border-radius: var(--radius-md); font-size: var(--fs-body-medium); white-space: nowrap; }
 .gnb-sub a:hover { background: var(--action-hover); }
-/* 하위 메뉴를 열면 메뉴 줄 아래를 흐리게 덮음(스마트폰, v0.55 기획자 요청). 머리글(.site-header z-index 20, 하위 메뉴 포함)보다 아래, 본문보다 위.
+/* 하위 메뉴를 열면 메뉴 줄 아래를 흐리게 덮음(v0.55 기획자 요청, PC와 태블릿, 스마트폰 모두). 머리글(.site-header z-index 20, 하위 메뉴 포함)보다 아래, 본문보다 위.
  * 위치(top)는 메뉴 줄 바로 아래로 common.js가 맞춤. 누르면 메뉴만 닫힘 */
 .gnb-dim { position: fixed; left: 0; right: 0; bottom: 0; z-index: 15; background: var(--overlay-menu); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
 .gnb-dim[hidden] { display: none; }
@@ -373,10 +377,12 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
 /* 한 단계에 오래 머문 건: 진한 핑크 바탕 + 흰 굵은 글자 (REQ-UI-09) */
 .wait-long { display: inline-block; padding: 0 0.6rem; border-radius: var(--radius-sm); background: var(--status-danger-fill); color: var(--status-danger-text); font-weight: 700; }
 
-/* 고객사 칸과 서비스 칸 너비 (REQ-DASH-06): 고객사 이름은 짧으므로 고객사 칸은 좁히고,
- * 서비스는 여러 개(예: 카피킬러, HR 서비스)가 들어갈 수 있으므로 서비스 칸을 넉넉하게 둠 */
-.tbl .col-customer { width: 24%; }
-.tbl .col-service { width: 26%; }
+/* 고객사 칸과 서비스 칸 너비 (REQ-DASH-06)
+ *   서비스는 CK, HR, 기타 세 가지라(v0.56) 서비스 칸은 글자 폭만큼만("CK, HR"도 한 줄). 남는 자리는 길어질 수 있는
+ *   고객사(30%)와 현재 진행 같은 나머지 칸으로 감 (v0.56 기획자 요청. v0.14~v0.55는 고객사 24%, 서비스 26%) */
+.tbl .col-customer { width: 30%; }
+.tbl .col-service { width: 1%; white-space: nowrap; }
+.tbl td.col-service { text-align: center; } /* CK, HR, 기타처럼 짧은 값이라 상태 칸처럼 가운데 (REQ-UI-16) */
 
 /* 칸 아래 작은 글자 줄(.cell-sub): PC에서는 감추고, 휴대폰에서는 감춘 칸(서비스, 담당자, 맡은 분야, 상태) 대신 보여줌 (REQ-ENV-08)
  *   예: 고객사 아래 서비스, 만료일 아래 담당자, 개요 진행 상세의 고객사 아래 상태 배지(v0.55, 현재 진행을 한 줄로 두려고) */
@@ -472,10 +478,14 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
    * 기획자 요청(2026-10-22): 화살표와 ?(이용 안내) 사이를 30px에서 16px로 좁힘 */
   .gnb .inner { gap: 0.4rem; }
   .gnb-scroll { margin-left: -1rem; }
-  .gnb-sub { min-width: 18rem; } /* 스마트폰도 연 메뉴 바로 아래에 글자 폭만큼(v0.55 기획자 요청, 예전에는 폭 가득). 자리는 common.js placeSub */
+  /* 하위 메뉴: 연 메뉴 바로 아래에 글자 폭만큼 작게(v0.55 기획자 요청, 예전에는 폭 가득). 자리는 common.js placeSub
+   * 글자는 휴대폰에 맞게 15px, 한 줄 높이는 누르기 쉬운 44px를 지킴(15px x 1.5 + 위아래 1.1rem)
+   * 글자는 연 메뉴 글자와 같은 줄에: 상자 안쪽 0.4rem + 줄 안쪽 0.6rem = 메뉴 글자 안쪽 1rem */
+  .gnb-sub { min-width: 0; padding: 0.4rem; }
+  .gnb-sub a { padding: 1.1rem 0.6rem; font-size: var(--fs-body-small); }
   .gnb-link { height: var(--height-md); padding: 0 1rem; font-size: var(--fs-body-medium); }
   .gnb-link .icon { display: none; } /* 펼침 화살표를 감춰 메뉴 칸을 줄임 */
-  .gnb-link.is-current::after { left: 1rem; right: 1rem; }
+  .gnb-link.is-current::after, .gnb-item.is-open .gnb-link::after { left: 1rem; right: 1rem; }
   /* ?(이용 안내): 보이는 칸은 32px로 좁혀 화살표 가까이 두고, 누르는 영역은 오른쪽 여백까지 넓혀 44px를 지킴 */
   .gnb-aside { position: relative; flex-shrink: 0; min-width: 3.2rem; min-height: var(--touch-min); justify-content: flex-end; }
   .gnb-aside::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; right: -1.2rem; }

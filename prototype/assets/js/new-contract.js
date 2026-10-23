@@ -216,8 +216,8 @@
   function setTitle(t) { $('#page-title').textContent = t; }
 
   /* ---------- 3. 제품별 금액 (CPQ, REQ-SCOPE-02) ----------
-   * v0.47 기획자 요청: 제품과 기능을 나눔. v0.49 기획자 결정: 플랜 없이 제품 → 기능 두 단계, 가격은 기능마다 하나
-   *   줄마다 제품 → 기능을 차례로 고름. 서비스는 고른 제품에 저절로 붙음(카피킬러 캠퍼스 → 카피킬러)
+   * 서비스 > 제품 > 기능 = 대분류 > 중분류 > 소분류(v0.56 기획자 결정). 서비스는 CK, HR, 기타 세 가지. 가격은 기능마다 하나(v0.49에 플랜을 없앰)
+   *   줄마다 제품 → 기능을 차례로 고름. 제품 목록은 서비스(CK, HR, 기타)마다 묶어 보임. 계약의 서비스는 고른 제품의 서비스
    *   고를 수 있는 것: 사용 중인 제품과 기능 중 오늘 적용되는 가격(PRICE_BOOK)이 있는 것. 기능이 하나뿐이면 저절로 고름
    *   저장하는 값은 기능(feature), 수량, 금액, 사용 업체. 이어서 작성할 때는 기능에서 제품을 다시 채움 */
   let productSeq = 0;
@@ -234,10 +234,16 @@
       return '<option value="' + esc(o[0]) + '"' + (o[0] === selected ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
     }).join('');
   }
+  // 제품 고르기: 서비스(대분류)마다 묶어 보임(v0.56 기획자 결정: 서비스 > 제품 > 기능). 묶음 순서는 코드 관리의 서비스 순서
   function productOptions(selected) {
     const prices = livePrices();
-    return optionsHtml(D.PRODUCTS.filter(function (p) { return prices.some(function (r) { return r.product === p.id; }); })
-      .map(function (p) { return [p.id, p.name]; }), selected, '고르세요');
+    const live = D.PRODUCTS.filter(function (p) { return prices.some(function (r) { return r.product === p.id; }); });
+    return '<option value="">고르세요</option>' + C.codeList('SERVICE', true).map(function (s) {
+      const items = live.filter(function (p) { return p.service === s.code; });
+      return items.length ? '<optgroup label="' + esc(s.label) + '">' + items.map(function (p) {
+        return '<option value="' + esc(p.id) + '"' + (p.id === selected ? ' selected' : '') + '>' + esc(p.name) + '</option>';
+      }).join('') + '</optgroup>' : '';
+    }).join('');
   }
   // 고른 제품에 맞춰 기능 칸을 다시 채움
   function syncPick(li) {
