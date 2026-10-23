@@ -5,7 +5,7 @@ climb(Contract Lifecycle Intelligent Management Base, 무하유 계약 관리 �
 
 ## 프로토타입 보는 법
 
-1. 이 폴더(`Projects/CLM`)에서 아래 명령을 실행합니다.
+1. 이 폴더(`Projects/climb`)에서 아래 명령을 실행합니다.
 
    ```bash
    python serve.py
@@ -34,7 +34,7 @@ climb(Contract Lifecycle Intelligent Management Base, 무하유 계약 관리 �
 ## 폴더 구조
 
 ```
-Projects/CLM
+Projects/climb
 ├─ README.md               이 문서
 ├─ serve.py                프로토타입 미리보기 서버 (내 PC 전용)
 ├─ tools/device_shots.py   기준 기기(아이폰 18 Pro, 아이패드 프로 11인치) 크기와 터치 화면으로 시안을 찍음 (Chrome 필요, serve.py를 켠 뒤)

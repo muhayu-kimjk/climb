@@ -1,6 +1,6 @@
 """CLIMB 프로토타입 미리보기 서버.
 
-사용법 (Projects/CLM 폴더에서):
+사용법 (Projects/climb 폴더에서):
     python serve.py
 그다음 브라우저에서 http://localhost:8730 을 엽니다.
 
