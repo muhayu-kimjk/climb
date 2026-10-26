@@ -5,10 +5,13 @@
  *   다른 CSS 파일에 색상 코드(#...)를 직접 쓰지 않습니다.
  * - 색: 무하유 브랜드 색 8가지만 사용합니다. (REQ-UI-03)
  *   연한 배경색 등은 브랜드 색을 흰색에 섞어(투명도처럼) 만든 것입니다.
- * - 글자 크기·모서리·간격: KRDS 디자인 토큰 값입니다. (REQ-UI-01)
+ * - 글자 크기와 칸 높이 (v0.59 기획자 선택, REQ-UI-34): PC는 업무 화면과 A4 인쇄 기준(본문 15px = 인쇄 11.25pt),
+ *     휴대폰은 애플 iOS 글자 단계(본문 17pt), 손가락으로 누르는 화면은 칸 44px. 모서리와 간격도 v0.59에 애플식으로 고름 (REQ-UI-01)
+ * - 인쇄는 늘 흑백(6-1, v0.59 기획자 요청, REQ-UI-35). 기기의 대비 높이기 설정을 따름(8, REQ-UI-36)
  * - KRDS는 1rem = 10px 기준입니다. (html { font-size: 62.5% })
- * - 이 파일 밖에서 색을 직접 적은 곳(변수를 쓸 수 없는 곳) 두 군데. 이 파일의 색을 바꾸면 함께 바꿉니다.
- *     파비콘(assets/img/favicon.svg), 인쇄 쪽 아래 글자(common.css의 @page: #49595F, #021821)
+ * - 이 파일 밖에서 색을 직접 적은 곳(변수를 쓸 수 없는 곳) 세 군데. 이 파일의 색을 바꾸면 함께 바꿉니다.
+ *     파비콘(assets/img/favicon.svg), 인쇄 쪽 아래 글자(common.css의 @page: #4D4D4D, #000000, 6-1의 흑백 인쇄 색),
+ *     윈도우 고대비 모드의 시스템 색 이름(common.css 16. Canvas, CanvasText, Highlight 등: 사용자가 고른 색을 그대로 씀)
  *
  * [화면 두 가지] (v0.43 기획자 결정, v0.50에서 태블릿을 PC 쪽으로 옮김. 요구사항 정의서 REQ-ENV-07)
  *   - PC와 태블릿: A4 세로 폭 화면. 태블릿은 손가락으로 눌러도 하는 일은 같아 PC 화면을 그대로 씀(v0.50 기획자 결정)
@@ -76,7 +79,9 @@
   --text-primary: var(--mh-dark-green);     /* 강조 글자·숫자 */
   --text-inverse: var(--white);
   --text-watermark: rgba(2, 24, 33, 0.07);  /* Black 7%. 캡처 대비 워터마크 (REQ-SEC-07) */
-  --text-danger: var(--pink-strong);        /* 핑크 글자(필수 표시 *, 오류 문장, 일요일, 끝내기): 흰 바탕 4.6:1 */
+  /* 핑크 글자(필수 표시 *, 오류 문장, 일요일, 끝내기). v0.59 QA: 진한 핑크(4.6:1)는 회색 안내 상자 위에서 4.2:1이라
+   * 한 단계 더 진한 Pink 78% + Black 22%로 바꿈: 흰 바탕 5.6:1, 회색 상자 4.9:1, 베이지 안내 상자 4.7:1 */
+  --text-danger: var(--pink-pressed);
 
   /* 바탕 */
   --surface-white: var(--white);
@@ -171,33 +176,53 @@
   /* 로고 묶음의 영어(climb, 영문 이름)만 SUITE(v0.54 기획자 결정, 요구사항 정의서 REQ-NAME-06). 글꼴은 jsDelivr의 sun-typeface/SUITE(OFL) */
   --font-brand: "SUITE", var(--font-family);
 
-  --fs-display-small: 3.6rem;
-  --fs-heading-xlarge: 4rem;
-  --fs-heading-large: 3.2rem;
-  --fs-heading-medium: 2.4rem;
-  --fs-heading-small: 1.9rem;
-  --fs-heading-xsmall: 1.7rem;
-  --fs-body-large: 1.9rem;
-  --fs-body-medium: 1.7rem;
-  --fs-body-small: 1.5rem;
-  --fs-body-xsmall: 1.3rem;
+  /* PC와 인쇄 (v0.59 기획자 선택): 화면의 A4 종이는 실제 크기라 화면 크기 = 인쇄 크기. 괄호는 인쇄 크기
+   * 사무 문서 본문 10~11pt에 맞춤(본문 15px = 11.25pt). KRDS 때는 본문 17, 화면 제목 40
+   * 글자 사다리(v0.59 기획자 요청: 처음 줄였을 때 상자 제목 16이 항목 이름 15와 거의 같아 위계가 무너졌음):
+   *   가장 작은 글자 12px부터 한 단계마다 약 1.125배씩 키움. 12 → 13 → 15 → 17 → 19 → 21 → 24 → 27
+   * 제목 위계(v0.59 기획자 요청: 개요의 "진행 상세"가 그 아래 표의 고객사 이름보다 작아 보이고, 상자 제목도 약했음):
+   *   본문 글자는 그대로 두고 제목만 한 단계씩 올려 제목끼리 두 단계(약 1.25배) 차이
+   *   화면 제목 27 > 상자 제목 21(예: "1 기본 정보", "계약 진행 현황") > 작은 제목 17(예: "진행 상세", 결재 기록의 차수) > 본문과 항목 이름 15 > 표 13 */
+  --fs-display-small: 3rem;
+  --fs-heading-xlarge: 2.7rem;  /* 화면 제목 (20pt) */
+  --fs-heading-large: 2.4rem;   /* 로그인 제목 (18pt) */
+  --fs-heading-medium: 2.1rem;  /* 확인 창 제목, 계약 금액 총액 (15.75pt) */
+  --fs-heading-small: 2.1rem;   /* 상자 제목, 묶음 제목 예: "1 기본 정보" (15.75pt). v0.59 위계 요청으로 19 → 21 */
+  --fs-heading-xsmall: 1.7rem;  /* 작은 제목, 상자 안 소제목 예: "진행 상세" (12.75pt) */
+  --fs-body-large: 1.7rem;      /* 메뉴, 화면 설명 (12.75pt) */
+  --fs-body-medium: 1.5rem;     /* 본문, 입력 칸 글자, 항목 이름 (11.25pt) */
+  --fs-body-small: 1.3rem;      /* 표 글자, 보조 글자 (9.75pt) */
+  --fs-body-xsmall: 1.2rem;     /* 도움말, 작은 글자 (9pt) */
   /* 로고 묶음 첫 줄(심볼 + climb): 휴대폰에서도 줄이지 않음(v0.55 기획자 요청: 로고는 아이덴티티라 PC와 휴대폰이 같게) */
   --fs-brand: 2.4rem;
 
   /* ---------------------------------------------------------------
-   * 5. 형태·크기 (KRDS radius / size-height / layout)
+   * 5. 형태·크기
+   *    모서리는 애플식 곡률(v0.59 기획자 선택, REQ-UI-34. 괄호는 KRDS 때 값). 메뉴 줄 아래로 펼쳐지는 메뉴만 직각(common.css)
    * --------------------------------------------------------------- */
-  --radius-sm: 0.4rem;
-  --radius-md: 0.6rem;
-  --radius-lg: 0.8rem;
-  --radius-xl: 1.2rem;
+  --radius-sm: 0.6rem;  /* 배지 (4) */
+  --radius-md: 1rem;    /* 입력 칸, 단추 (6) */
+  --radius-lg: 1.2rem;  /* 안내 상자, 제품 상자 (8) */
+  --radius-xl: 1.4rem;  /* 내용 묶음 상자, 확인 창 (12) */
   --radius-max: 100rem;
 
-  --height-xs: 3.2rem;  /* 작은 버튼 */
-  --height-sm: 4rem;    /* 기본 버튼(small) */
-  --height-md: 4.8rem;  /* 입력창·버튼(medium) */
-  --height-lg: 5.6rem;  /* 큰 버튼, 메인 메뉴 높이 */
-  --touch-min: 4.4rem;  /* 손가락으로 누르기 쉬운 최소 크기 (44px) */
+  /* 칸 높이 (v0.59 기획자 선택): PC는 마우스 기준. 휴대폰과 터치 화면은 아래에서 44px로 */
+  --height-xs: 2.8rem;  /* 작은 버튼 */
+  --height-sm: 3.2rem;  /* 기본 버튼(small) */
+  --height-md: 3.6rem;  /* 입력 칸, 버튼(medium) (인쇄 약 9.5mm) */
+  --height-lg: 4.4rem;  /* 큰 버튼, 메인 메뉴 높이 */
+  --touch-min: 3.2rem;  /* 누르는 최소 크기: PC는 마우스라 32px, 휴대폰과 터치 화면은 44px(아래) */
+  --control-size: 1.8rem; /* 라디오, 체크박스 크기: 본문 15px에 맞춤(v0.59 기획자 요청, KRDS 때 24px). 휴대폰은 20px(아래) */
+  --tabbar-h: 5.6rem;     /* 휴대폰 아래 탭 막대 높이 (v0.59, iOS 탭 막대 49pt + 글자 여유) */
+
+  /* 간격 (v0.59 기획자 선택 1안 "촘촘하게", REQ-UI-34). 괄호는 KRDS 때 값. 화면 CSS는 이 이름으로 씀 */
+  --gap-item: 1.6rem;      /* 입력 항목 사이, 체크리스트 문항 사이 (24) */
+  --gap-label: 0.6rem;     /* 항목 이름과 입력 칸 사이 (8) */
+  --gap-box: 1.6rem;       /* 상자와 상자 사이, 안내 상자 아래 (24) */
+  --pad-box-y: 1.6rem;     /* 상자 안쪽 위아래 (24) */
+  --pad-box-x: 2rem;       /* 상자 안쪽 좌우 (28) */
+  --pad-row: 0.8rem;       /* 표 한 줄 위아래 (14) */
+  --gap-page-top: 1.6rem;  /* 메뉴 줄과 본문 첫 줄 사이 (24) */
 
   /* A4 세로 문서 틀 (REQ-UI-10)
    * 화면도 A4 폭으로 보여 주고, 좌우 여백을 인쇄 여백과 같게 해서
@@ -278,25 +303,139 @@
 }
 
 /* ---------------------------------------------------------------
+ * 6-1. 인쇄는 흑백 (v0.59 기획자 요청, 요구사항 정의서 REQ-UI-35)
+ *    잉크와 토너를 아끼려고 인쇄(PDF로 저장 포함)는 늘 흑백. 사용자가 고르는 기능이 아니라 강제
+ *    - 무채색(검정과 회색)만 씀. 무하유 Black(#021821)도 푸른 기가 있어 컬러 프린터가 색 잉크를 섞으므로 순수 검정(#000000)으로.
+ *      브랜드 색 8가지만 쓴다는 규칙(REQ-UI-03)의 인쇄 예외
+ *    - 넓은 바탕은 칠하지 않음(흰 종이 그대로). 바탕 칠로만 구분하던 상자는 얇은 회색 선으로(common.css 14. 인쇄)
+ *    - 뜻이 있는 작은 칠만 남김: 체크한 칸, 결재 단계 점, 그래프 막대
+ *    - 화면을 어둡게 쓰고 있어도 인쇄는 이 흑백 문서(6의 어두운 색은 'screen'에만 적용)
+ *    - 브라우저 인쇄 창의 "컬러/흑백" 고르기는 웹 화면이 바꿀 수 없음. 다만 보내는 내용이 모두 무채색이라
+ *      컬러로 두고 찍어도 대부분의 프린터가 검정 잉크만 씀. 완전히 막으려면 회사 프린터 서버의 기본값을 흑백으로(운영 안내)
+ * --------------------------------------------------------------- */
+@media print {
+  :root {
+    /* 글자: 강조는 색 대신 굵기로 */
+    --text-bolder: #000000;
+    --text-basic: #000000;
+    --text-subtle: #4D4D4D;             /* 검정 70%: 흰 종이 8.4:1 */
+    --text-disabled: #808080;
+    --text-primary: #000000;
+    --text-danger: #000000;
+    --text-inverse: #FFFFFF;
+    --text-watermark: rgba(0, 0, 0, 0.07);
+    /* 바탕: 칠하지 않음 */
+    --surface-white: #FFFFFF;
+    --surface-gray-subtler: #FFFFFF;
+    --surface-primary-subtler: #FFFFFF;
+    --surface-secondary-subtler: #FFFFFF;
+    --surface-warm: #FFFFFF;
+    --surface-inverse: #000000;
+    --desk-bg: #FFFFFF;
+    /* 선 */
+    --border-gray-light: #BFBFBF;
+    --border-gray: #808080;
+    --border-primary: #000000;
+    --border-primary-light: #BFBFBF;
+    --border-secondary-light: #808080;  /* 표 머리글 아래 선: 머리글 바탕을 칠하지 않는 대신 조금 진하게 */
+    --border-focus: #000000;
+    /* 버튼(종이에 남는 것만): 칠 없이 회색 테두리(common.css 14. 인쇄) */
+    --button-primary-fill: #FFFFFF;
+    --button-primary-text: #000000;
+    --button-secondary-fill: #FFFFFF;
+    --button-secondary-border: #808080;
+    --button-secondary-text: #000000;
+    --button-danger-fill: #FFFFFF;
+    --button-danger-text: #000000;
+    /* 메뉴, 고른 것 */
+    --action-hover: #FFFFFF;
+    --action-active: #000000;
+    --control-checked: #000000;
+    --control-checked-text: #FFFFFF;
+    --scroll-shadow: transparent;
+    --brand-mark-filter: brightness(0); /* 머리글 심볼을 순수 검정으로 */
+    /* 그래프: 막대는 중간 회색(흰 종이 4.7:1, 검정보다 잉크가 적음), 빈 칸과 눈금선은 옅은 회색 */
+    --chart-bar: #737373;
+    --chart-track: #E0E0E0;
+    --chart-grid: #CCCCCC;
+    --chart-ref: #000000;
+    /* 결재 단계 점: 끝난 단계 검정, 지금 단계 테두리, 기다리는 단계 옅은 회색. 반려는 네모(common.css 14. 인쇄) */
+    --step-done: #000000;
+    --step-current: #4D4D4D;
+    --step-waiting: #BFBFBF;
+    /* 상태 배지와 강조 줄: 칠 없이 글자로. 진한 핑크 자리(반려, 입력 오류 선)는 검정 */
+    --status-progress-bg: #FFFFFF;
+    --status-progress-line: #808080;
+    --status-danger-fill: #000000;
+    --status-danger-text: #FFFFFF;
+    --status-danger-line: #000000;
+    --status-danger-row: #FFFFFF;
+    --status-attention-bg: #FFFFFF;
+    --status-attention-line: #808080;
+    --status-success-bg: #FFFFFF;
+    --status-success-line: #808080;
+    --status-neutral-bg: #FFFFFF;
+    --status-neutral-line: #808080;
+    --status-notice-bg: #FFFFFF;
+    --status-notice-icon: #000000;
+    --shadow-1: none;
+    --shadow-up: none;
+  }
+}
+
+/* ---------------------------------------------------------------
  * 7. 휴대폰 화면 (REQ-ENV-07, 방식 B)
- *    배치는 PC와 같게 두고, 크기만 화면에 맞춥니다.
- *    - 본문(17px), 보조 글자(15px), 작은 글자(13px), 버튼 높이는 PC와 같게 유지해 읽기와 누르기가 편하게 합니다.
- *    - 제목만 비례해서 줄입니다(v0.55 기획자 결정, REQ-ENV-08). 규칙: 제목이 본문(17px)보다 큰 만큼을
- *      모두 같은 비율(약 0.45)로 줄임. 휴대폰 내용 폭(약 370px)이 PC A4 내용 폭(약 718px)의 절반쯤이라서.
- *      처음에는 0.57(화면 제목 30px)로 했다가 조금 크다는 기획자 의견으로 더 줄임
- *        화면 제목 40 → 27, 큰 제목 32 → 24, 중간 제목 24 → 20, 상자 제목 19 → 18, 작은 제목 17 그대로
+ *    v0.59 기획자 선택(REQ-UI-34): 앞으로 iOS 앱도 만들 계획이라 애플 iOS 글자 단계를 따름.
+ *      본문 17(Body), 보조 15(Subheadline), 작은 글자 13(Footnote), 상자 제목 17(Headline),
+ *      확인 창 제목 22(Title 2), 화면 제목 28(Title 1)  (v0.55의 휴대폰 제목 27, 24, 20, 18과 거의 같음)
  *    - 로고(--fs-brand 24px)는 아이덴티티라 줄이지 않습니다.
- *    - 종이 좌우 여백은 10mm 대신 16px로 줄입니다.
+ *    - 종이 좌우 여백은 10mm 대신 16px(iOS 기본 여백)로 줄입니다.
  *    'screen' 조건이라 인쇄에는 적용되지 않습니다.
  * --------------------------------------------------------------- */
 @media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
   :root {
-    --fs-display-small: 2.6rem;   /* 36 → 26 (같은 규칙, 지금 쓰는 곳 없음) */
-    --fs-heading-xlarge: 2.7rem;  /* 화면 제목 */
-    --fs-heading-large: 2.4rem;   /* 로그인 제목 */
-    --fs-heading-medium: 2rem;    /* 확인 창 제목, 계약 금액 총액 */
-    --fs-heading-small: 1.8rem;   /* 상자 제목, 묶음 제목 */
+    --fs-display-small: 3.4rem;   /* Large Title (지금 쓰는 곳 없음) */
+    --fs-heading-xlarge: 2.8rem;  /* 화면 제목: Title 1 */
+    --fs-heading-large: 2.4rem;   /* 로그인 제목: Title 2와 Title 1 사이 */
+    --fs-heading-medium: 2.2rem;  /* 확인 창 제목: Title 2 */
+    --fs-heading-small: 2rem;     /* 상자 제목, 묶음 제목: Title 3 (항목 이름 17보다 한 단계 위, v0.59 위계) */
+    --fs-heading-xsmall: 1.8rem;  /* 작은 제목(예: 진행 상세): 본문 17보다 한 단계 위, 상자 제목 20보다 아래 (v0.59 QA 위계) */
+    --fs-body-large: 1.7rem;      /* 메뉴, 화면 설명: Body */
+    --fs-body-medium: 1.7rem;     /* 본문: Body */
+    --fs-body-small: 1.5rem;      /* 보조 글자: Subheadline */
+    --fs-body-xsmall: 1.3rem;     /* 작은 글자: Footnote */
+    --control-size: 2rem;         /* 라디오, 체크박스: 본문 17에 맞춤 */
     --page-margin: 1.6rem;
+  }
+}
+/* 손가락으로 누르는 화면(스마트폰, 태블릿): 누르는 칸 44px (애플 기준 44pt). 글자는 PC 크기 그대로(태블릿은 PC 화면) */
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) {
+  :root {
+    --height-xs: 3.2rem;
+    --height-sm: 4rem;
+    --height-md: 4.4rem;
+    --height-lg: 4.8rem;
+    --touch-min: 4.4rem;
+  }
+}
+
+/* ---------------------------------------------------------------
+ * 8. 대비 높이기 (v0.59 기획자 요청, 요구사항 정의서 REQ-UI-36)
+ *    아이폰과 맥의 "대비 증가", 윈도우의 대비 설정을 켠 사람에게: 보조 글자를 본문 색으로, 옅은 선을 진하게
+ *    밝은 화면과 어두운 화면 각각. 'screen' 조건이라 인쇄(6-1)에는 적용 안 됨
+ * --------------------------------------------------------------- */
+@media screen and (prefers-contrast: more) {
+  :root {
+    --text-subtle: var(--mh-black);
+    --border-gray-light: var(--mh-gray);       /* 흰 바탕 3.2:1 (평소 1.4:1) */
+    --border-secondary-light: var(--mh-gray);
+    --border-gray: var(--black-72);
+  }
+  :root[data-theme="dark"] {
+    --text-subtle: #E6E8E9;
+    --border-gray-light: var(--mh-gray);       /* 어두운 바탕 5.6:1 */
+    --border-secondary-light: var(--mh-gray);
+    --border-gray: #B3BABC;
   }
 }
 

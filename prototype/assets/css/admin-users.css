@@ -11,7 +11,7 @@
 /* 줄이 많은 관리 표라 위아래 여백을 조금 줄여 한 쪽 20명이 A4 2장 안에 넉넉히 들어가게 */
 .tbl--users td { padding-top: 1.2rem; padding-bottom: 1.2rem; }
 .tbl--users .cell-name { font-weight: 700; color: var(--text-basic); }
-.role-badges { display: inline-flex; gap: 0.4rem; }
+.role-badges { display: inline-flex; gap: 0.4rem; vertical-align: 0.18rem; } /* 배지 묶음도 옆 글자 가운데에 (v0.59 QA 세로 줄맞춤, common.css 6) */
 /* 사용 중지 계정: 글자를 흐리게(줄 전체는 admin.css의 .tbl tr.is-muted) */
 .tbl--users tr.is-muted .cell-name { color: var(--text-subtle); }
 

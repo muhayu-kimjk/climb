@@ -37,7 +37,7 @@
   $('#btn-print').addEventListener('click', function () { window.print(); });
 
   /* ---------- 1. 계약 개요 ---------- */
-  function info(label, value) { return '<div><dt>' + esc(label) + '</dt><dd>' + value + '</dd></div>'; }
+  function info(label, value, cls) { return '<div><dt>' + esc(label) + '</dt><dd' + (cls ? ' class="' + cls + '"' : '') + '>' + value + '</dd></div>'; } // cls amount: 금액은 오른쪽(REQ-UI-16)
   const bizNo = (root.form && root.form.bizNo) || (D.CUSTOMERS.filter(function (cu) { return cu.name === root.counterparty; })[0] || {}).bizNo;
   const yes = function (v) { return v ? '있음' : '없음'; };
   $('#summary').innerHTML = [
@@ -47,7 +47,7 @@
     info('계약 방식', esc(D.METHODS[C.methodOf(root)])),
     info('지금 유효한 계약', esc(cur.id) + '<span class="cell-meta">' + esc(C.kindLabel(cur)) + '</span>'),
     info('계약 기간', b.start ? C.fmtPeriod(b.start, b.end) : '-'),
-    info('계약 금액', Number(cur.amount || 0).toLocaleString('ko-KR') + '원<span class="cell-meta">' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도</span>'),
+    info('계약 금액', Number(cur.amount || 0).toLocaleString('ko-KR') + '원<span class="cell-meta">' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도</span>', 'amount'),
     info('자동갱신', b.autoRenew === 'YES' ? '있음' + (C.noticeDate(b) ? '<span class="cell-meta">' + C.noticeText(b) + '</span>' : '') : '없음'),
     // 표준계약서 판 관리(v0.53) 전에 맺은 계약은 판 기록이 없음
     info('기준 표준계약서', C.templateLabel(root) === '-' ? '판 기록 없음<span class="cell-meta">표준계약서 판 관리를 시작하기 전에 맺은 계약</span>' : esc(C.templateLabel(root))),
@@ -147,6 +147,6 @@
         '<td>' + esc(n.content) + '</td><td class="center">' + esc(C.ownerLabel(n.by)) + '</td></tr>';
     }).join('') : '<tr><td class="empty-row" colspan="4">남긴 기록이 없습니다.</td></tr>') + '</tbody>';
 
-  $('#endnote').textContent = '이 요약서는 플랫폼에 남은 기록으로 만들었습니다(기준일 ' + C.fmtDate(D.TODAY) + '). 제품 줄, 체크리스트 비고, 첨부 파일과 판은 차수별 결재 문서에서, 체결본 파일은 계약 상세에서 확인합니다.';
+  $('#endnote').textContent = '이 요약서는 시스템에 남은 기록으로 만들었습니다(기준일 ' + C.fmtDate(D.TODAY) + '). 제품 줄, 체크리스트 비고, 첨부 파일과 판은 차수별 결재 문서에서, 체결본 파일은 계약 상세에서 확인합니다.';
   $('#doc').hidden = false;
 })();

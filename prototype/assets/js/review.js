@@ -55,7 +55,7 @@
   const short = C.isShort(c);
   const change = C.isChange(c); // 운영 변경(-C): 기간 변경이나 추가 충전 (v0.26)
   const hrChange = change && /^HR_/.test(c.changeType);
-  // 표준계약서를 바꾼 계약: 조항 대비표 첨부, ④ 법무 승인 의견 필수 (기획자 결정 v0.27, C-20: flex 품의 대신 플랫폼 안에 남김)
+  // 표준계약서를 바꾼 계약: 조항 대비표 첨부, ④ 법무 승인 의견 필수 (기획자 결정 v0.27, C-20: flex 품의 대신 시스템 안에 남김)
   const legalNote = !short && !change && !!c.checklist && c.checklist.standard === 'NO';
   const isTerm = c.kind === 'TERMINATE';
   const rootId = C.rootOf(c);
@@ -327,7 +327,7 @@
   function renderAmount() {
     if (change) {
       // 변경 내용 (REQ-CHG-06~11): 종류, 기간이나 수량, 사유, CRM 영업활동 링크, 영업 검토를 거치는 까닭
-      const dd = function (label, value) { return '<div><dt>' + esc(label) + '</dt><dd>' + value + '</dd></div>'; };
+      const dd = function (label, value, cls) { return '<div><dt>' + esc(label) + '</dt><dd' + (cls ? ' class="' + cls + '"' : '') + '>' + value + '</dd></div>'; }; // cls amount: 금액은 오른쪽
       const sales = C.changeSales(c);
       $('#amount-title').innerHTML = '<span class="num">2</span>변경 내용';
       $('#amount').innerHTML = '<dl class="info-grid">' + [
@@ -345,7 +345,7 @@
     }
     if (short) {
       // 해지 내용, 연장 내용 (REQ-ARC-06, 07)
-      const dd = function (label, value) { return '<div><dt>' + esc(label) + '</dt><dd>' + value + '</dd></div>'; };
+      const dd = function (label, value, cls) { return '<div><dt>' + esc(label) + '</dt><dd' + (cls ? ' class="' + cls + '"' : '') + '>' + value + '</dd></div>'; }; // cls amount: 금액은 오른쪽
       $('#amount-title').innerHTML = '<span class="num">2</span>' + (isTerm ? '해지 내용' : '연장 내용');
       $('#amount').innerHTML = '<dl class="info-grid">' + (isTerm ? [
         dd('원계약', '<a href="contract.html?id=' + encodeURIComponent(rootId) + '">' + esc(c.parentId) + '</a>'),
@@ -356,7 +356,7 @@
         dd('원계약', '<a href="contract.html?id=' + encodeURIComponent(rootId) + '">' + esc(c.parentId) + '</a>'),
         dd('검토 결과', '그대로 자동갱신 (금액과 조건 그대로)'),
         dd('새 계약 기간', C.fmtPeriod(c.startDate, c.endDate)),
-        dd('계약 금액', won(c.amount) + ' (부가세 별도)'),
+        dd('계약 금액', won(c.amount) + ' (부가세 별도)', 'amount'),
         dd('그대로 연장하는 이유', esc(c.reason || '-')),
       ]).join('') + '</dl>';
       return;

@@ -75,7 +75,7 @@
 
   /* ---------- 1. 지금 유효한 계약 ---------- */
   const cur = b.current;
-  function info(label, value) { return '<div><dt>' + esc(label) + '</dt><dd>' + value + '</dd></div>'; }
+  function info(label, value, cls) { return '<div><dt>' + esc(label) + '</dt><dd' + (cls ? ' class="' + cls + '"' : '') + '>' + value + '</dd></div>'; } // cls amount: 금액은 오른쪽(REQ-UI-16)
   // 해지 통지 기한: 만료 n일 전. 30일 안이거나 지났으면 강조 (v0.53, REQ-FLOW-32)
   function noticeDeadlineHtml() {
     if (!C.noticeDate(b)) return '';
@@ -85,7 +85,8 @@
     info('계약번호', '<a href="review.html?id=' + encodeURIComponent(cur.id) + '">' + esc(cur.id) + '</a>'),
     info('계약종류', esc(C.kindLabel(cur))),
     info('계약 기간', b.start ? C.fmtPeriod(b.start, b.end) : '-'),
-    info('계약 금액', Number(cur.amount || 0).toLocaleString('ko-KR') + '원 (' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도)'),
+    // 정확한 금액 한 줄 + 아래 작은 줄(어림 금액, 부가세 별도). 계약 요약서와 같은 모양 (v0.59 QA: 오른쪽 정렬에서 두 줄로 어색하게 꺾였음)
+    info('계약 금액', Number(cur.amount || 0).toLocaleString('ko-KR') + '원<span class="cell-meta">' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도</span>', 'amount'),
     info('자동갱신', b.autoRenew === 'YES' ? '있음' + noticeDeadlineHtml() : '없음'),
     root.unit ? info('기관 또는 부서명', esc(root.unit)) : '', // 계약마다 직접 적은 기관 이름 (C-24 v0.39, 이름 v0.46)
     info('영업대표', esc(C.ownerLabel(root.requesterId))),

@@ -12,23 +12,23 @@ a.board-title:hover { color: var(--text-primary); text-decoration: underline; te
 
 /* ---------- 글 보기 ---------- */
 .post-head { padding-bottom: 2rem; border-bottom: 1px solid var(--border-gray-light); }
-.post-body { margin-top: 2.4rem; font-size: var(--fs-body-medium); line-height: 1.7; color: var(--text-basic); }
+.post-body { margin-top: var(--gap-box); font-size: var(--fs-body-medium); line-height: 1.7; color: var(--text-basic); }
 .post-body p + p { margin-top: 1.2rem; }
 /* 릴리즈: 새 기능, 개선, 바뀐 규칙, 고친 문제 (게임 패치 노트처럼 묶음마다 배지) */
-.release-part + .release-part { margin-top: 2.8rem; }
+.release-part + .release-part { margin-top: 2rem; }
 .release-part h2 { display: flex; align-items: center; gap: 0.8rem; font-size: var(--fs-heading-xsmall); font-weight: 700; color: var(--text-bolder); }
 .release-part ul { margin-top: 1rem; padding-left: 2.2rem; list-style: disc; }
 .release-part li + li { margin-top: 0.6rem; }
-.post-edited { margin-top: 2.4rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
+.post-edited { margin-top: var(--gap-box); font-size: var(--fs-body-small); color: var(--text-subtle); }
 /* 이전 글, 다음 글 */
 /* 본문이 아님을 알 수 있게 회색 상자에 조금 작은 글자로 (v0.55 기획자 요청). 이름(이전 글)은 흐리게, 값(글 제목)은 진하게 */
-.post-nav { margin-top: 3.2rem; padding: 0 1.6rem; border-radius: var(--radius-lg); background: var(--surface-gray-subtler); }
+.post-nav { margin-top: 2.4rem; padding: 0 1.6rem; border-radius: var(--radius-lg); background: var(--surface-gray-subtler); }
 .post-nav > div { display: flex; gap: 1.6rem; padding: 1.2rem 0; font-size: var(--fs-body-small); }
 .post-nav > div + div { border-top: 1px solid var(--border-gray-light); }
 .post-nav dt { flex-shrink: 0; width: 6.4rem; color: var(--text-subtle); }
 .post-nav dd { min-width: 0; text-align: left; color: var(--text-bolder); }
 .post-nav a:hover { color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; }
-.post-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.8rem; margin-top: 2.4rem; }
+.post-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.8rem; margin-top: var(--gap-box); }
 @media print { .post-actions, .post-nav { display: none !important; } }
 
 /* ---------- 개요: 가장 최근 공지 한 줄 (숫자, 종 모양 없음. REQ-ENV-09)

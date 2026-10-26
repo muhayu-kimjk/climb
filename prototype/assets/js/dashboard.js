@@ -2,7 +2,7 @@
  * SCR-01 개요(대시보드) 화면 로직 (dashboard.js)
  * ---------------------------------------------------------------------
  * 관련 요구사항: REQ-DASH-01~15, REQ-AUTH-04, REQ-AUTH-09
- * 상자는 한 줄에 하나씩, 계약이 먼저이고 플랫폼 이야기는 나중 (REQ-DASH-15, v0.55 순서). 쌓는 순서는 index.html이 정함
+ * 상자는 한 줄에 하나씩, 계약이 먼저이고 시스템 이야기는 나중 (REQ-DASH-15, v0.55 순서). 쌓는 순서는 index.html이 정함
  *   1. 계약 진행 현황: KRDS 단계 표시기(계약 등록 → 계약 검토 → 계약 체결 → 운영 검토 → 계약 완료)
  *      + 그 아래 진행 상세 표(고객사, 서비스, 상태, 현재 진행, 대기). 현재 진행은 한 줄(C.progressCells, v0.55)
  *   2. 만료 임박
@@ -50,7 +50,7 @@
     : all.filter(function (c) { return c.status !== 'DRAFT'; });
 
   /* ---------- 점검할 일 (REQ-DASH-16, REQ-SEC-05, 06, REQ-ADM-19~21) ----------
-   * 접속 기록 점검(SCR-57)과 같은 기준: 이 플랫폼을 쓰기 시작한 달(D.SERVICE_START_MONTH, 2026-09)부터,
+   * 접속 기록 점검(SCR-57)과 같은 기준: 이 시스템을 쓰기 시작한 달(D.SERVICE_START_MONTH, 2026-09)부터,
    * [가정] 매월 점검 기한은 다음 달 말일, 분기 권한 검토 기한은 분기가 끝난 다음 달 말일 */
   const isAuditor = C.hasRole(me, ['PRIVACY']) || me.role === 'SUPER'; // 정보보호 담당자와 리더(v0.29)
   function auditItems() {
@@ -321,9 +321,9 @@
         '<td class="center">' + dday + '</td>' + // 날짜에 딸린 값이라 가운데 (v0.55 기획자 요청, REQ-UI-16)
         customerCells(c) +
         // 휴대폰에서는 담당자 칸을 감추고 만료일 아래 작은 글자로 보여줌 (REQ-ENV-08)
-        // 자동갱신 계약은 해지 통지 기한을 만료일 아래에 (30일 안이거나 지났으면 강조)
-        // 휴대폰은 이 칸이 줄을 바꿀 수 있게 해(col-expiry) 고객사 이름이 꺾이지 않게 함(v0.55). 날짜와 D-n은 한 덩어리로 남음
-        '<td class="nowrap col-expiry">' + C.fmtDate(c.endDate) + (C.canView(c, me) && C.noticeDate(c.bundle) ? '<span class="cell-meta">' + C.noticeText(c.bundle) + '</span>' : '') +
+        // 해지 통지 기한 줄은 두지 않음(v0.59 기획자 요청: 남은 일자로 충분히 알아봄). 통지 기한은 만료 예정 화면(SCR-43)과 계약 상세에서 봄
+        // 휴대폰은 이 칸이 줄을 바꿀 수 있게 해(col-expiry) 고객사 이름이 꺾이지 않게 함(v0.55)
+        '<td class="nowrap col-expiry">' + C.fmtDate(c.endDate) +
           (C.canView(c, me) ? '<span class="cell-sub">담당 ' + owner + '</span>' : '') + '</td>' +
         '<td class="center col-owner">' + owner + '</td>' +
       '</tr>';

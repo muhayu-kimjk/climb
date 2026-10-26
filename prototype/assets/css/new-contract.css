@@ -9,13 +9,13 @@
 
 /* ---------- 제품별 금액 (CPQ) ----------
  * 제품 하나 = 상자 하나: [제품] [수량] [계약 금액] / [사용 업체] / 표준 금액과 할인율 */
-.product-list > li { padding: 1.6rem; border: 1px solid var(--border-gray-light); border-radius: var(--radius-lg); }
+.product-list > li { padding: 1.2rem 1.6rem; border: 1px solid var(--border-gray-light); border-radius: var(--radius-lg); }
 .product-list > li + li { margin-top: 1.2rem; }
 .product-list > li.is-invalid { border-color: var(--status-danger-fill); }
-/* 줄마다 윗줄 제품 | 기능(v0.49: 플랜 칸을 없앰), 아랫줄 수량 | 계약 금액(윗줄 칸 폭에 맞춤) */
-/* 서비스 → 제품 → 기능 세 칸(v0.56 기획자 요청). 휴대폰은 한 줄에 하나씩(아래 휴대폰 규칙) */
-.product-pick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 1.2rem; }
-/* 수량, 계약 금액도 위 세 칸과 같은 칸 선에 맞춤(v0.57 기획자 요청): 수량은 서비스 아래, 계약 금액은 제품과 기능 아래 두 칸 */
+/* 서비스 → 제품 → 기능은 PC에서도 한 줄에 하나 (v0.58 기획자 요청: 세 칸이 나란하면 마우스로 고를 때 옆 칸으로 미끄러지듯 너무 민감했음.
+ * v0.56~v0.57에는 한 줄에 세 칸). 칸 폭은 제품 상자 전체 */
+.product-pick { display: grid; grid-template-columns: minmax(0, 1fr); }
+/* 수량, 계약 금액: 수량은 3분의 1, 계약 금액은 3분의 2로 위 칸과 왼쪽, 오른쪽 끝을 같은 선에 (v0.57 기획자 요청). 휴대폰은 한 줄에 하나 */
 .product-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 1.2rem; }
 .product-grid > .field:nth-child(2) { grid-column: span 2; }
 .product-pick > .field, .product-grid > .field, .product-list .field { margin-bottom: 1.2rem; }
@@ -28,7 +28,7 @@
 
 .amount-total {
   display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.4rem 1.6rem;
-  margin: 0 0 2.4rem; padding: 1.6rem 2rem; border-radius: var(--radius-lg); background: var(--surface-secondary-subtler);
+  margin: 0 0 var(--gap-item); padding: 1.2rem 1.6rem; border-radius: var(--radius-lg); background: var(--surface-secondary-subtler);
 }
 .amount-total-label { font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
 /* 금액은 언제나 오른쪽 정렬 (v0.57 기획자 요청): 휴대폰에서 이름 아래로 내려가도 오른쪽 끝에.
@@ -43,13 +43,15 @@
 .year-sum { margin-top: 0.8rem; font-size: var(--fs-body-small); color: var(--text-subtle); text-align: right; }
 
 /* ---------- 체크리스트 ---------- */
-.check-q { margin-bottom: 1.2rem; }
+/* 문항 사이는 다른 항목과 같은 2.4rem. 바로 아래 비고가 보이면 1.2rem로 붙여 한 묶음으로 (v0.58: 비고는 적어야 할 때만 보임) */
+.check-q { margin-bottom: var(--gap-item); }
+.check-q:has(+ .field[data-field$="Note"]:not([hidden])) { margin-bottom: 0.8rem; }
 .check-q--auto .field-label { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.8rem; }
 .check-q--auto .field-label .badge { align-self: center; }
 .check-answer { display: flex; flex-wrap: wrap; align-items: center; gap: 0.8rem; min-height: var(--touch-min); font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
 .check-result { margin-top: 0.4rem; font-size: var(--fs-body-small); color: var(--text-primary); font-weight: 700; }
 .check-result:empty { display: none; }
-.case-summary { margin-top: 0.8rem; padding: 1.6rem 2rem; border-radius: var(--radius-lg); background: var(--surface-primary-subtler); font-size: var(--fs-body-small); color: var(--text-basic); }
+.case-summary { margin-top: 0.8rem; padding: 1.2rem 1.6rem; border-radius: var(--radius-lg); background: var(--surface-primary-subtler); font-size: var(--fs-body-small); color: var(--text-basic); }
 .case-summary strong { color: var(--text-bolder); }
 .case-summary:empty { display: none; }
 
@@ -79,9 +81,7 @@
 /* ---------- 휴대폰 화면 (방식 B) ----------
  * 제품 상자: 서비스, 제품, 기능, 수량, 계약 금액 모두 한 줄에 하나 */
 @media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
-  /* 스마트폰: 서비스, 제품, 기능은 한 줄에 하나(이름이 길어서). 수량과 금액도 한 줄에 하나
-   * (v0.57: 나란히 두면 수량 칸이 좁아 단위 상자에 500도 잘려 보여서. 칸 왼쪽, 오른쪽 끝이 모두 같은 선) */
-  .product-pick { grid-template-columns: 1fr; }
+  /* 스마트폰: 수량과 금액도 한 줄에 하나 (v0.57: 나란히 두면 수량 칸이 좁아 단위 상자에 500도 잘려 보여서. 칸 왼쪽, 오른쪽 끝이 모두 같은 선) */
   .product-grid { grid-template-columns: 1fr; }
   .product-grid > .field:nth-child(2) { grid-column: auto; }
   .year-row { grid-template-columns: minmax(0, 1fr); gap: 0.4rem; }

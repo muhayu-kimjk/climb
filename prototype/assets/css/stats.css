@@ -18,14 +18,14 @@
 .stat-sub { margin-top: 0.4rem; font-size: var(--fs-body-xsmall); color: var(--text-subtle); word-break: keep-all; }
 
 /* ---------- 그래프 공통 ---------- */
-.chart-title { margin-bottom: 1.2rem; font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
+.chart-title { margin-bottom: 1.2rem; font-size: var(--fs-heading-xsmall); /* 상자 안 소제목 17px (v0.59 위계) */ font-weight: 700; color: var(--text-bolder); }
 .chart-empty { padding: 2.4rem 1.6rem; border-radius: var(--radius-lg); background: var(--surface-gray-subtler); text-align: center; font-size: var(--fs-body-small); color: var(--text-subtle); }
 .chart-table { margin-top: 1.6rem; }
 .chart-table summary { cursor: pointer; width: fit-content; font-size: var(--fs-body-small); font-weight: 500; color: var(--text-primary); }
 .chart-table summary:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
 .chart-table[open] summary { margin-bottom: 1.2rem; }
 .row-total th, .row-total td { font-weight: 700; background: var(--surface-gray-subtler); }
-.split-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2.4rem; }
+.split-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--gap-box); }
 
 /* 마우스를 올리면 보이는 설명 */
 .chart-tip {

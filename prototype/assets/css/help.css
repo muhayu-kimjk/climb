@@ -5,7 +5,7 @@
  * 관련 요구사항: REQ-FLOW-13, REQ-UI-14
  * ===================================================================== */
 
-.help-stack { display: flex; flex-direction: column; gap: 2.4rem; }
+.help-stack { display: flex; flex-direction: column; gap: var(--gap-box); }
 .help-toc ol { display: flex; flex-wrap: wrap; gap: 0.4rem 2rem; counter-reset: toc; font-size: var(--fs-body-small); }
 .help-toc li { counter-increment: toc; }
 .help-toc li::before { content: counter(toc) ". "; color: var(--text-primary); font-weight: 700; }
@@ -44,4 +44,4 @@
 .help-stack .col-who { width: 18%; }
 
 /* 역할별 할 일 표의 분야 칸(여러 줄을 묶음): 다른 칸처럼 위쪽에 맞추고 왼쪽 정렬 (역할 2단계, v0.29) */
-.help-stack .tbl tbody th[scope="row"] { vertical-align: top; text-align: left; padding: 1.4rem 1.6rem; border-bottom: 1px solid var(--border-gray-light); color: var(--text-bolder); white-space: nowrap; }
+.help-stack .tbl tbody th[scope="row"] { vertical-align: top; text-align: left; padding: var(--pad-row) 1.6rem; /* 옆 칸과 같은 안쪽 여백 (v0.59 QA: 예전 14px라 6px 어긋났음) */ border-bottom: 1px solid var(--border-gray-light); color: var(--text-bolder); white-space: nowrap; }

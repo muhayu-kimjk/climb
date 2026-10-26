@@ -386,7 +386,7 @@
   /* ---------- 4. 체크리스트 2, 3번 자동 계산 (REQ-CHK-04) ----------
    * 2번(표준단가표 적용): 모든 줄이 표준 단가 그대로면 예, 하나라도 다르면(할인했거나 표준보다 높게 받음) 아니요 (v0.58 기획자 확인, C-34)
    * 3번(할인율 한도 준수): 모든 줄의 할인율이 그 기능의 한도 이하이면 예 (v0.49: 한도는 기능마다)
-   * 모든 계약에는 제품과 금액이 있음(v0.41: 금액이 없는 계약은 플랫폼에 등록하지 않음) */
+   * 모든 계약에는 제품과 금액이 있음(v0.41: 금액이 없는 계약은 시스템에 등록하지 않음) */
   function priceCheck(rows) {
     if (!rows.length) return { q2: 'WAIT', q3: 'WAIT', d2: '제품을 넣으면 자동으로 계산됩니다.', d3: '제품을 넣으면 자동으로 계산됩니다.' };
     if (rows.some(function (r) { return !r.product || !r.qty || r.amount == null; })) {
@@ -508,12 +508,25 @@
     const route = buildRoute(q1, pc);
     const reviews = route[0].items.filter(function (i) { return i.state === 'go'; }).map(function (i) { return i.name; });
     const passText = '계약 검토에서 거치는 단계는 ' + esc(reviews.join(', ')) + '입니다.';
+    // 비고는 적어야 할 때만 보임 (v0.58 기획자 요청): 1번 아니요(표준계약서를 쓰지 않음), 2번, 3번 자동 계산이 아니요, 4번 예
+    //   감춘 비고에 적어 둔 글은 지우지 않지만 저장하지 않음(formRecord)
+    showNote('standardNote', q1 === 'NO');
+    showNote('priceNote', pc.q2 === 'NO');
+    showNote('capNote', pc.q3 === 'NO');
+    showNote('accountingNote', q4 === 'YES');
     $('#case-summary').innerHTML = cn
       ? '<strong>경우 ' + cn + '</strong>: ' + passText // 경우의 수: 요구사항 정의서 3.5
       : '';
     $('#route').innerHTML = routeHtml(route);
     current = { route: route, pc: pc, q1: q1, total: total };
   }
+  function showNote(name, on) {
+    const box = form.querySelector('[data-field="' + name + '"]');
+    if (box.hidden === !on) return;
+    box.hidden = !on;
+    if (!on && box.classList.contains('is-invalid')) C.setFieldError(box, ''); // 감추면 오류 표시도 지움
+  }
+  function noteIf(on, name) { return on ? val(name) : ''; }
   // 영업기회번호: 영문은 대문자로, 규칙에 맞으면 판다 링크 (v0.32)
   function updateOppLink() {
     const v = $('#f-opportunity').value;
@@ -744,8 +757,11 @@
       return Object.assign({ feature: r.feature, qty: r.qty, amount: r.amount }, org ? { org: org } : {});
     });
     const checklist = {
-      standard: val('standard'), standardNote: val('standardNote'), price: current.pc.q2, priceNote: val('priceNote'),
-      cap: current.pc.q3, capNote: val('capNote'), accounting: val('accounting'), accountingNote: val('accountingNote'),
+      // 비고는 보이는 것만(적어야 할 때만) 저장
+      standard: val('standard'), standardNote: noteIf(val('standard') === 'NO', 'standardNote'),
+      price: current.pc.q2, priceNote: noteIf(current.pc.q2 === 'NO', 'priceNote'),
+      cap: current.pc.q3, capNote: noteIf(current.pc.q3 === 'NO', 'capNote'),
+      accounting: val('accounting'), accountingNote: noteIf(val('accounting') === 'YES', 'accountingNote'),
     };
     const kind = val('kind') || 'NEW';
     const tp = templatePick();

@@ -2,7 +2,7 @@
  * SCR-01 개요(대시보드) 전용 스타일 (dashboard.css)
  * 관련 요구사항: REQ-DASH-01~15, REQ-UI-10~12
  * 상자는 좌우로 나누지 않고 한 줄에 하나씩 쌓습니다. (REQ-DASH-15)
- * 순서는 계약이 먼저, 플랫폼 이야기는 나중 (v0.55 기획자 요청, REQ-DASH-15)
+ * 순서는 계약이 먼저, 시스템 이야기는 나중 (v0.55 기획자 요청, REQ-DASH-15)
  *   1. 계약 진행 현황 (KRDS 단계 표시기 + 진행 상세)
  *   2. 만료 임박
  *   3. 가장 최근 공지 한 줄 (board.css의 .notice-strip)
@@ -12,7 +12,7 @@
  * 단계 표시기 스타일은 여러 화면이 같이 쓰므로 common.css(15. 화면 공통 부품)에 있습니다.
  * ===================================================================== */
 
-.dash-stack { display: flex; flex-direction: column; gap: 2.4rem; }
+.dash-stack { display: flex; flex-direction: column; gap: var(--gap-box); }
 /* 공지가 하나도 없으면 빈 자리(상자 사이 간격)를 남기지 않음. 인쇄에서는 공지 줄을 뺌 */
 #notice-strip:empty { display: none; }
 @media print { #notice-strip { display: none; } }
@@ -22,7 +22,8 @@
   #expiring th.col-customer { width: 38%; }
 }
 .panel-sub { font-size: var(--fs-body-small); font-weight: 500; color: var(--text-subtle); }
-.block-subtitle { margin: 0 0 1.2rem; font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
+/* 상자 안 소제목 "진행 상세": 표의 고객사 이름(15)보다 한 단계 크게 (v0.59 위계 요청) */
+.block-subtitle { margin: 0 0 1.2rem; font-size: var(--fs-heading-xsmall); font-weight: 700; color: var(--text-bolder); }
 
 /* 설명 글 안의 링크("1건" → 만료 예정의 통지 기한 보기): 밑줄로 링크임을 알림 */
 .panel-desc a { font-weight: 700; color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; }

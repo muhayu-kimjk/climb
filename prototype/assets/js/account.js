@@ -72,10 +72,10 @@
     const a = isUser ? C.accountOf(s.to) : null;
     const to = isUser ? C.ownerLabel(s.to) + (a && a.email ? ' <' + a.email + '>' : '') : s.to;
     const head = function (k, v) { return '<div><dt>' + esc(k) + '</dt><dd>' + v + '</dd></div>'; };
-    // 글에는 이름(climb)을 쓰지 않고 "계약 관리 플랫폼"으로 (v0.53 기획자 요청). 메일 머리의 로고만 climb(SUITE 글꼴)
+    // 글에는 이름(climb)을 쓰지 않고 "계약 관리 시스템"으로 (v0.53 기획자 요청). 메일 머리의 로고만 climb(SUITE 글꼴)
     return '<dl class="mail-head">' +
-        head('보낸 사람', '계약 관리 플랫폼(보내기 전용)') + head('받는 사람', esc(to)) + head('보낸 때', esc(C.fmtDateTime(s.at))) +
-        head('제목', '<strong>' + esc('[계약 관리 플랫폼] ' + s.subject) + '</strong>') +
+        head('보낸 사람', '계약 관리 시스템(보내기 전용)') + head('받는 사람', esc(to)) + head('보낸 때', esc(C.fmtDateTime(s.at))) +
+        head('제목', '<strong>' + esc('[계약 관리 시스템] ' + s.subject) + '</strong>') +
       '</dl>' +
       '<div class="mail-body">' +
         '<p class="mail-brand"><span class="brand-name">' + esc(D.BRAND.name) + '</span> <span>' + esc(D.BRAND.ko) + '</span></p>' +
@@ -85,8 +85,8 @@
           return '<tr><th scope="row">' + esc(f[0]) + '</th><td>' + esc(person(f[1])) + '</td></tr>';
         }).join('') + '</tbody></table>' +
         '<p class="mail-cta"><a class="btn btn--primary btn--md" href="' + esc(s.button[1]) + '">' + esc(s.button[0]) + '</a></p>' +
-        '<p class="mail-note">' + (t.must ? '업무 처리와 내부 통제에 필요한 알림이라 끌 수 없습니다.' : '이 알림은 플랫폼의 내 계정, 받을 이메일에서 끌 수 있습니다.') +
-          ' 이 메일은 보내기 전용이라 답장을 받지 않습니다. 계약 금액과 첨부 파일은 메일에 넣지 않으니 플랫폼에서 확인해 주세요.</p>' +
+        '<p class="mail-note">' + (t.must ? '업무 처리와 내부 통제에 필요한 알림이라 끌 수 없습니다.' : '이 알림은 시스템의 내 계정, 받을 이메일에서 끌 수 있습니다.') +
+          ' 이 메일은 보내기 전용이라 답장을 받지 않습니다. 계약 금액과 첨부 파일은 메일에 넣지 않으니 시스템에서 확인해 주세요.</p>' +
       '</div>';
   }
   $('#mail-list').addEventListener('click', function (e) {

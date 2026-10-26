@@ -1,6 +1,6 @@
-# climb | 무하유 계약 관리 플랫폼 프로토타입
+# climb | 무하유 계약 관리 시스템 프로토타입
 
-climb(Contract Lifecycle Intelligent Management Base, 무하유 계약 관리 플랫폼. 로고 글자는 소문자 climb을 SUITE 글꼴로, 화면 글에는 이름을 쓰지 않음). 계약 등록, 계약 검토, 계약 체결, 운영 검토, 계약 완료 5단계로 계약을 관리하는 사내 시스템의 **화면 시안**입니다.
+climb(Contract Lifecycle Intelligent Management Base, 무하유 계약 관리 시스템. 로고 글자는 소문자 climb을 SUITE 글꼴로, 화면 글에는 이름을 쓰지 않음). 계약 등록, 계약 검토, 계약 체결, 운영 검토, 계약 완료 5단계로 계약을 관리하는 사내 시스템의 **화면 시안**입니다.
 실제 시스템은 사내 개발팀이 이 시안과 아래 문서를 바탕으로 구현합니다.
 
 ## 프로토타입 보는 법

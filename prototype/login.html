@@ -60,7 +60,7 @@
       const C = window.CLIMB;
       const role = C.getRole();
 
-      // 이름 영역: 무하유 계약 관리 플랫폼 + 영문 명칭. 로고 글자(climb)는 두지 않음 (REQ-NAME-03~04, v0.31)
+      // 이름 영역: 무하유 계약 관리 시스템 + 영문 명칭. 로고 글자(climb)는 두지 않음 (REQ-NAME-03~04, v0.31)
       document.getElementById('login-brand').innerHTML =
         '<h1 class="brand-title"><span class="brand-ko">' + C.esc(D.BRAND.ko) + '</span></h1><span class="brand-en">' + C.esc(D.BRAND.en) + '</span>';
       document.getElementById('login-notice').textContent = C.securityNotice;

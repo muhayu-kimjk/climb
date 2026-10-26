@@ -91,6 +91,12 @@ window.CLIMB = (function () {
     search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
     calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
+    // 휴대폰 아래 탭 막대 (v0.59): 개요, 계약 등록, 계약 현황, 보관함, 더보기
+    home: '<path d="m3 10.5 9-7 9 7"/><path d="M5 9.5V20h5v-6h4v6h5V9.5"/>',
+    filePlus: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M12 12v6"/><path d="M9 15h6"/>',
+    clipboard: '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>',
+    archive: '<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
+    more: '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
   };
   function icon(name, size) {
     const cls = 'icon' + (size ? ' icon--' + size : '');
@@ -98,7 +104,7 @@ window.CLIMB = (function () {
   }
 
   // 로고 글자 (REQ-NAME-01~06): [무하유 심볼] climb. 헤더와 푸터가 씀(둘째 줄 한글 이름, 푸터 셋째 줄 영문 이름은 그리는 곳에서)
-  //   이름 climb은 로고와 브라우저 탭에만 쓰고 화면 글에는 쓰지 않음(필요하면 "플랫폼"). 로그인 화면은 로고 글자 없이 한글, 영문 이름
+  //   이름 climb은 로고와 브라우저 탭에만 쓰고 화면 글에는 쓰지 않음(필요하면 "시스템"). 로그인 화면은 로고 글자 없이 한글, 영문 이름
   //   opt.mark: 앞에 심볼(파비콘과 같은 파일)
   function brandTitleHtml(opt) {
     opt = opt || {};
@@ -298,7 +304,12 @@ window.CLIMB = (function () {
    *   프로토타입은 지금 이름으로 보여 줌. [가정] 실제 시스템은 기안할 때의 제품, 기능 이름을 계약 줄에 함께 저장 */
   function productName(id) { const p = findBy(D.PRODUCTS, 'id', id); return p ? p.name : (id || ''); }
   function featureName(id) { const f = findBy(D.FEATURES, 'id', id); return f ? f.name : (id || ''); }
-  function featureLabel(r) { return r ? (productName(r.product) + ' ' + featureName(r.feature)).trim() : ''; }
+  // 기능 이름이 제품 이름으로 시작하면(예: 몬스터 > 몬스터 A) 제품 이름을 한 번만 (v0.58: 서비스 정리표의 기능 이름)
+  function featureLabel(r) {
+    if (!r) return '';
+    const pn = productName(r.product), fn = featureName(r.feature);
+    return (fn && fn.indexOf(pn) === 0 ? fn : pn + ' ' + fn).trim();
+  }
   // 고르는 칸에 쓰는 기능 이름: 기능이 따로 없는 제품의 기능은 이름이 비어 있어 "기능 구분 없음" (v0.56 서비스 정리표)
   function featureText(id) { return featureName(id) || '기능 구분 없음'; }
   // '② 체크리스트 검토'
@@ -1296,7 +1307,7 @@ window.CLIMB = (function () {
   }
   // 모든 묶음 (작성 중은 빼고). 보관함 전체 계약(SCR-41)과 개요가 씀
   function bundles() {
-    // 기존 계약은 옮기지 않으므로(C-32) 모든 후속 기안에는 이 플랫폼의 원계약이 있음
+    // 기존 계약은 옮기지 않으므로(C-32) 모든 후속 기안에는 이 시스템의 원계약이 있음
     return D.CONTRACTS.filter(function (c) { return c.id && !c.parentId; }).map(function (c) { return bundleOf(c.id); }).filter(Boolean);
   }
   // 만료 예정: 지금 유효한 계약이 계약 완료이고 days일 안에 끝나는 묶음 (REQ-FLOW-07, REQ-DASH-07)
@@ -1425,7 +1436,7 @@ window.CLIMB = (function () {
 
     /* 헤더 구성 (REQ-UI-13)
      *   1줄: [심볼] climb
-     *   2줄: 무하유 계약 관리 플랫폼     [비즈니스1유닛 이도윤님 | (아이콘)로그아웃]
+     *   2줄: 무하유 계약 관리 시스템     [비즈니스1유닛 이도윤님 | (아이콘)로그아웃]
      *   (v0.53 기획자 요청: 머리글 둘째 줄은 한글 이름. 영문 이름은 푸터와 로그인에만)
      * 오른쪽 한 줄은 왼쪽 둘째 줄과 글자 밑선(baseline)을 맞추고, 오른쪽 끝은 본문 오른쪽 끝에 맞춥니다. (v0.15)
      * 화면 알림(종 모양, 알림 숫자)은 두지 않습니다. 알림은 이메일로 보냅니다. (REQ-ENV-09) */
@@ -1539,6 +1550,78 @@ window.CLIMB = (function () {
       placeDim(false);
       gnbEdge();
     }
+    renderTabBar(menu, pageId);
+  }
+
+  /* ---------- 휴대폰 아래 탭 막대 (v0.59 기획자 선택, REQ-UI-34: 앞으로 만들 iOS 앱과 같은 메뉴) ----------
+   * 휴대폰에서는 위 메뉴 줄 대신 화면 아래에 탭 다섯 개: 개요, 계약 등록, 계약 현황, 보관함, 더보기
+   *   - 하위 메뉴가 있는 탭을 누르면 탭 막대 바로 위로 하위 메뉴 목록이 펼쳐짐(직각 네모, 뒤 화면은 흐리게). 흐린 곳, 같은 탭, Esc로 닫힘
+   *   - 더보기: 관리자 메뉴(역할에 맞는 것만), 공지사항, 이용 안내, 내 계정
+   *   - 역할에 따라 보이지 않는 메뉴의 탭은 뺌(예: 계약 등록은 영업만). 지금 화면이 든 탭은 진한 초록
+   *   - PC와 태블릿, 인쇄에서는 보이지 않음(CSS의 휴대폰 규칙에서만 보임) */
+  function renderTabBar(menu, pageId) {
+    const find = function (label) { return menu.filter(function (m) { return m.label === label; })[0]; };
+    const more = [];
+    const admin = find('관리자');
+    if (admin) more.push({ title: '관리자', items: admin.children });
+    const extra = [find('공지사항'), { label: '이용 안내', scr: 'SCR-90', href: 'help.html' }, { label: '내 계정', scr: 'SCR-93', href: 'account.html' }].filter(Boolean);
+    more.push({ title: '', items: extra });
+    const tabs = [
+      { m: find('개요'), icon: 'home' },
+      { m: find('계약 등록'), icon: 'filePlus' },
+      { m: find('계약 현황'), icon: 'clipboard' },
+      { m: find('보관함'), icon: 'archive' },
+      { m: { label: '더보기', groups: more }, icon: 'more' },
+    ].filter(function (t) { return t.m; });
+    const has = function (list) { return list.some(function (c) { return c.scr === pageId; }); };
+    const linkHtml = function (c) {
+      return '<li><a href="' + c.href + '"' + (c.scr === pageId ? ' aria-current="page"' : '') + '>' + esc(c.label) + '</a></li>';
+    };
+    const nav = document.createElement('nav');
+    nav.className = 'tabbar';
+    nav.setAttribute('aria-label', '주 메뉴');
+    nav.innerHTML = '<ul class="tabbar-list">' + tabs.map(function (t, i) {
+      const m = t.m;
+      const groups = m.groups || (m.children ? [{ title: '', items: m.children }] : null);
+      const current = m.scr === pageId || (groups && groups.some(function (g) { return has(g.items); }));
+      const label = icon(t.icon) + '<span class="tab-label">' + esc(m.label) + '</span>';
+      if (!groups) {
+        return '<li><a class="tab' + (current ? ' is-current' : '') + '" href="' + m.href + '"' + (current ? ' aria-current="page"' : '') + '>' + label + '</a></li>';
+      }
+      return '<li><button type="button" class="tab' + (current ? ' is-current' : '') + '" aria-expanded="false" aria-controls="tab-sheet-' + i + '">' + label + '</button>' +
+        '<div class="tab-sheet" id="tab-sheet-' + i + '" hidden>' + groups.map(function (g) {
+          return (g.title ? '<p class="tab-sheet-title">' + esc(g.title) + '</p>' : '') + '<ul>' + g.items.map(linkHtml).join('') + '</ul>';
+        }).join('') + '</div></li>';
+    }).join('') + '</ul>';
+    document.body.appendChild(nav);
+    // 펼친 목록 뒤를 흐리게 덮는 막(누르면 닫힘). 위 메뉴 줄의 하위 메뉴와 같은 흐림(v0.55)
+    const dim = document.createElement('div');
+    dim.className = 'tab-dim';
+    dim.hidden = true;
+    document.body.appendChild(dim);
+    function closeSheets() {
+      nav.querySelectorAll('.tab-sheet').forEach(function (s) { s.hidden = true; });
+      nav.querySelectorAll('button.tab').forEach(function (b) { b.setAttribute('aria-expanded', 'false'); });
+      dim.hidden = true;
+    }
+    nav.querySelectorAll('button.tab').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const sheet = document.getElementById(btn.getAttribute('aria-controls'));
+        const willOpen = sheet.hidden;
+        closeSheets();
+        if (!willOpen) return;
+        sheet.hidden = false;
+        btn.setAttribute('aria-expanded', 'true');
+        dim.hidden = false;
+      });
+    });
+    dim.addEventListener('click', closeSheets);
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      const open = nav.querySelector('button.tab[aria-expanded="true"]');
+      closeSheets();
+      if (open) open.focus();
+    });
   }
 
   // 보안 안내 문구 (REQ-UI-15): 기획자 초안을 법령, 시스템 요구사항, 어문 규범에 맞게 다듬은 문장
@@ -1558,7 +1641,7 @@ window.CLIMB = (function () {
     el.className = 'site-footer';
     el.innerHTML =
       // 푸터: 시스템 이름 + 보안 안내 문구 + 저작권. 이용 안내는 메뉴 줄로 옮기고 시스템 문의는 뺌 (REQ-UI-14, 15)
-      //   시스템 이름: [심볼] climb, 그 아래 영문 이름(작게, SUITE). 한글 이름 줄(무하유 계약 관리 플랫폼)은 머리글에만 두고 푸터에서는 뺌(v0.55 기획자 요청)
+      //   시스템 이름: [심볼] climb, 그 아래 영문 이름(작게, SUITE). 한글 이름 줄(무하유 계약 관리 시스템)은 머리글에만 두고 푸터에서는 뺌(v0.55 기획자 요청)
       '<div class="inner">' +
         '<div class="footer-brand"><p class="brand-title">' + brandTitleHtml({ mark: true }) + '</p>' +
           '<span class="brand-en">' + esc(D.BRAND.en) + '</span></div>' +
@@ -1750,7 +1833,7 @@ window.CLIMB = (function () {
       '<thead><tr><th scope="col">일시</th><th scope="col">대상</th><th scope="col">바뀐 내용</th><th scope="col">사유</th><th scope="col">바꾼 사람</th></tr></thead><tbody>' +
       (list.length ? list.map(function (e) {
         return '<tr><td class="num-left">' + fmtDateTime(e.at) + '</td><td>' + esc(e.target) + '</td><td>' + esc(e.change) + '</td>' +
-          '<td>' + esc(e.reason) + '</td><td class="center">' + esc(e.byLabel || ownerLabel(e.by)) + '</td></tr>'; // byLabel: 사람이 아닌 기록(예: 플랫폼(자동))
+          '<td>' + esc(e.reason) + '</td><td class="center">' + esc(e.byLabel || ownerLabel(e.by)) + '</td></tr>'; // byLabel: 사람이 아닌 기록(예: 시스템(자동))
       }).join('') : '<tr><td class="empty-row" colspan="5">아직 바꾼 기록이 없습니다.</td></tr>') + '</tbody></table></div>';
   }
 
@@ -1773,8 +1856,8 @@ window.CLIMB = (function () {
   }
 
   /* ---------- 맨 위로 이동 (KRDS 플로팅 버튼, REQ-UI-20) ----------
-   * 화면을 한 화면 반쯤(400px) 내리면 오른쪽 아래에 나타나고, 누르면 맨 위로 올라가며 본문(#main) 처음으로 포커스를 옮깁니다.
-   * 넓은 화면에서는 A4 종이 틀 바깥 오른쪽에, 좁은 화면에서는 화면 오른쪽 아래에 둡니다. 인쇄에서는 감춥니다. */
+   * 맨 위에서 조금 내리면 오른쪽 아래에 나타나고, 누르면 맨 위로 올라가며 본문(#main) 처음으로 포커스를 옮깁니다.
+   * 넓은 화면에서는 A4 종이 틀 바깥 오른쪽에, 휴대폰에서는 화면 오른쪽 아래에 두되 위로 올릴 때만 잠깐 보입니다(v0.58). 인쇄에서는 감춥니다. */
   function renderTopButton() {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -1785,13 +1868,33 @@ window.CLIMB = (function () {
     btn.innerHTML = icon('arrowUp') + '<span class="sr-only">맨 위로</span>';
     document.body.appendChild(btn);
     // 결재 문서처럼 아래에 붙는 처리 막대가 있으면 그 위로 올려 승인 버튼을 가리지 않게 함 (KRDS: 플로팅 버튼은 하단 막대를 가리지 않음)
+    // 휴대폰(v0.58 기획자 요청: 오른쪽 아래 버튼이 드롭다운 화살표를 덮어, 누르면 드롭다운 대신 맨 위로 올라갔음):
+    //   위로 올릴 때만 나타나고 2.5초 멈추면 사라짐. 아래로 내리거나 입력 칸, 드롭다운을 쓰는 중에는 감춤
+    //   PC와 태블릿은 A4 종이 밖에 있어 겹치지 않으므로 그대로(맨 위에서 조금만 내려도 나타남)
+    let lastY = window.scrollY, idle = null, typing = false;
     const toggle = function () {
-      // 맨 위에서 조금만 내려도 나타남 (기획자 요청 v0.30, 예전에는 400px)
-      btn.hidden = window.scrollY < 10;
+      const y = window.scrollY;
+      clearTimeout(idle);
+      if (isPhoneLayout()) {
+        btn.hidden = y < 10 || typing || y >= lastY;
+        if (!btn.hidden) idle = setTimeout(function () { btn.hidden = true; }, 2500);
+      } else {
+        btn.hidden = y < 10; // 맨 위에서 조금만 내려도 나타남 (기획자 요청 v0.30, 예전에는 400px)
+      }
+      lastY = y;
       const bar = document.querySelector('.action-bar:not([hidden])');
-      btn.style.bottom = bar ? (bar.getBoundingClientRect().height + 16) + 'px' : '';
+      // 휴대폰 아래 탭 막대(v0.59)가 있으면 그 위로
+      const tab = document.querySelector('.tabbar');
+      const tabH = tab && tab.offsetHeight ? tab.offsetHeight : 0;
+      btn.style.bottom = bar || tabH ? (tabH + (bar ? bar.getBoundingClientRect().height : 0) + 16) + 'px' : '';
     };
     window.addEventListener('scroll', toggle, { passive: true });
+    document.addEventListener('focusin', function (e) {
+      if (!e.target.matches || !e.target.matches('input, select, textarea')) return;
+      typing = true;
+      if (isPhoneLayout()) btn.hidden = true;
+    });
+    document.addEventListener('focusout', function () { typing = false; });
     toggle();
     btn.addEventListener('click', function () {
       const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;

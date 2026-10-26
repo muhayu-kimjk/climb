@@ -234,7 +234,7 @@
           <h2 class="section-title" id="sec-amount"><span class="num">2</span>제품과 금액</h2>
           <p class="section-desc">제품과 기능을 차례로 고르고 계약 금액을 넣으면 표준 단가와 비교해 할인율이 자동으로 계산됩니다.</p><!-- v0.42: 가격 기준을 볼 수 있는 역할 안내는 뺌(규칙 REQ-SCOPE-02는 그대로) -->
 
-          <!-- 이 플랫폼에는 금전 거래가 있는 계약만 등록 (v0.41 기획자 결정). 비밀유지계약 등은 아래 "부속 서류"로 첨부. v0.34의 "금액이 없는 계약" 체크는 뺌 -->
+          <!-- 이 시스템에는 금전 거래가 있는 계약만 등록 (v0.41 기획자 결정). 비밀유지계약 등은 아래 "부속 서류"로 첨부. v0.34의 "금액이 없는 계약" 체크는 뺌 -->
           <div class="field" data-field="products" id="products-field">
             <p class="field-label" id="products-label">제품별 금액<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></p>
             <ul class="product-list" id="product-list" aria-labelledby="products-label"></ul>
@@ -283,7 +283,7 @@
         <!-- ============ 3. 체크리스트 (3.5) ============ -->
         <section class="panel" aria-labelledby="sec-check">
           <h2 class="section-title" id="sec-check"><span class="num">3</span>체크리스트</h2>
-          <p class="section-desc">1~3번 답에 따라 결재선이 정해집니다. 1~3번이 "아니요"이거나 4번이 "예"이면 비고를 꼭 적습니다. 체크리스트 검토(영업지원)는 어떤 경우에도 생략되지 않습니다.</p>
+          <p class="section-desc">1~3번 답에 따라 결재선이 정해집니다. 1~3번이 "아니요"이거나 4번이 "예"이면 비고 칸이 나타나고, 꼭 적습니다. 체크리스트 검토(영업지원)는 어떤 경우에도 생략되지 않습니다.</p>
 
           <fieldset class="field check-q" data-field="standard">
             <legend class="field-label">1. 표준계약서를 사용하나요?<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
@@ -302,7 +302,8 @@
             <p class="field-help">계약서를 쓸 때 바탕으로 한 표준계약서입니다. 지금 판이 함께 남습니다. 표준계약서는 보관함의 표준계약서에서 내려받습니다.</p>
             <p class="field-error" hidden></p>
           </div>
-          <div class="field" data-field="standardNote">
+          <!-- 비고 4개는 적어야 할 때만 보임 (v0.58 기획자 요청, new-contract.js showNote) -->
+          <div class="field" data-field="standardNote" hidden>
             <label class="field-label field-label--sm" for="f-standard-note">1번 비고</label>
             <textarea class="textarea textarea--sm" id="f-standard-note" name="standardNote" placeholder="바꾼 조항과 이유"></textarea>
             <p class="field-error" hidden></p>
@@ -313,7 +314,7 @@
             <p class="check-answer" id="q2-answer" aria-live="polite"></p>
             <p class="field-help" id="q2-detail"></p>
           </div>
-          <div class="field" data-field="priceNote">
+          <div class="field" data-field="priceNote" hidden>
             <label class="field-label field-label--sm" for="f-price-note">2번 비고</label>
             <textarea class="textarea textarea--sm" id="f-price-note" name="priceNote" placeholder="표준 단가와 다르게 정한 이유"></textarea>
             <p class="field-error" hidden></p>
@@ -324,7 +325,7 @@
             <p class="check-answer" id="q3-answer" aria-live="polite"></p>
             <p class="field-help" id="q3-detail"></p>
           </div>
-          <div class="field" data-field="capNote">
+          <div class="field" data-field="capNote" hidden>
             <label class="field-label field-label--sm" for="f-cap-note">3번 비고</label>
             <textarea class="textarea textarea--sm" id="f-cap-note" name="capNote" placeholder="할인율 한도를 넘긴 영업적 사유 (예: 레퍼런스 확보)"></textarea>
             <p class="field-error" hidden></p>
@@ -341,7 +342,7 @@
             <p class="check-result" id="q4-result" aria-live="polite"></p>
             <p class="field-error" hidden></p>
           </fieldset>
-          <div class="field" data-field="accountingNote">
+          <div class="field" data-field="accountingNote" hidden>
             <label class="field-label field-label--sm" for="f-accounting-note">4번 비고</label>
             <textarea class="textarea textarea--sm" id="f-accounting-note" name="accountingNote" placeholder="어떤 조건인지 (예: 첫 3개월 무상 사용)"></textarea>
             <p class="field-error" hidden></p>
@@ -368,7 +369,7 @@
 
           <!-- 조항 대비표: 체크리스트 1번이 "아니요"(표준계약서를 바꿈)면 필수 (기획자 결정 v0.27, C-20)
                바꾼 조항마다 표준계약서 문구와 바꾼 문구를 나란히 적은 표. ④ 법무 검토가 이것을 보고 판단을 의견으로 남김
-               flex 품의를 쓰지 않고 품의에 쓰던 내용을 플랫폼의 결재 기록에 남기기 위함 -->
+               flex 품의를 쓰지 않고 품의에 쓰던 내용을 시스템의 결재 기록에 남기기 위함 -->
           <div class="field" data-field="diffFile" id="diff-field" hidden>
             <p class="field-label" id="diff-label">조항 대비표<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></p>
             <div class="file-drop" data-target="diff">

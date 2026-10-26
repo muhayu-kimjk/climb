@@ -9,7 +9,7 @@
  * 윗줄: 검색어 + 초기화 / 아랫줄: 선택 칸 셋 (A4 폭에서 선택 글자가 잘리지 않게 두 줄로) */
 .filter-bar {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; align-items: end; gap: 1.2rem;
-  margin-bottom: 2rem; padding: 1.6rem 2rem; border-radius: var(--radius-lg); background: var(--surface-gray-subtler);
+  margin-bottom: var(--gap-box); padding: 1.2rem 1.6rem; border-radius: var(--radius-lg); background: var(--surface-gray-subtler);
 }
 .filter-bar .field { margin: 0; }
 .filter-bar .field:first-child { grid-column: 1 / 4; grid-row: 1; }
@@ -48,7 +48,7 @@
 .tbl--fit .col-customer { width: auto; }
 
 /* ---------- KRDS 페이지네이션 (REQ-ADM-04) ---------- */
-.pagination { margin-top: 2.4rem; text-align: center; }
+.pagination { margin-top: var(--gap-box); text-align: center; }
 .page-btns { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 0.4rem; }
 .page-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.2rem; min-width: var(--touch-min); height: var(--touch-min); padding: 0 0.8rem;

@@ -13,12 +13,12 @@ window.CLIMB_DATA = (function () {
 
   // 시스템 명칭 (REQ-NAME-01~05)
   //   climb = Contract Lifecycle Intelligent Management Base (v0.53 기획자 요청: I는 Intelligent, B는 Base)
-  //   머리글(맨 위) 둘째 줄: 한글 이름 "무하유 계약 관리 플랫폼" (v0.53 기획자 요청)
+  //   머리글(맨 위) 둘째 줄: 한글 이름 "무하유 계약 관리 시스템" (v0.53 기획자 요청)
   //   푸터(맨 아래)와 로그인 화면: "MUHAYU Contract Lifecycle Intelligent Management Base" (v0.53에 MUHAYU를 뺐다가 v0.55 기획자 요청으로 다시 붙임)
   //   회사 이름은 저작권 줄에만: "© 2026 MUHAYU Inc."
   const BRAND = {
-    name: 'climb',                 // 로고 글자(소문자, SUITE 글꼴)와 브라우저 탭 제목 (v0.53 기획자 요청: 대문자 CLIMB에서 바꿈. 본문 글에는 이름을 쓰지 않고 필요하면 "플랫폼")
-    ko: '무하유 계약 관리 플랫폼',   // 머리글 둘째 줄, 푸터 둘째 줄, 로그인 첫 줄
+    name: 'climb',                 // 로고 글자(소문자, SUITE 글꼴)와 브라우저 탭 제목 (v0.53 기획자 요청: 대문자 CLIMB에서 바꿈. 본문 글에는 이름을 쓰지 않고 필요하면 "시스템")
+    ko: '무하유 계약 관리 시스템',   // 머리글 둘째 줄, 푸터 둘째 줄, 로그인 첫 줄
     // 영문 이름(climb의 머리글자 풀이). 끝에 (climb)은 붙이지 않음
     en: 'MUHAYU Contract Lifecycle Intelligent Management Base',
     company: 'MUHAYU Inc.',        // 저작권 줄 (v0.53 기획자 요청)
@@ -146,18 +146,18 @@ window.CLIMB_DATA = (function () {
    * 시연용 가상 값입니다. 실제 표준계약서와 조항 번호가 아닙니다. */
   const TEMPLATES = [
     { id: 'TPL-CK', name: '카피킬러 SaaS 이용계약서', service: 'CK', versions: [
-      { no: 1, from: '2026-09-01', summary: '플랫폼 도입: 지금 쓰는 표준계약서를 그대로 올림', basis: '법무 검토 기록 2026-08-28', by: 'u_legal', at: '2026-09-01 09:00' },
+      { no: 1, from: '2026-09-01', summary: '시스템 도입: 지금 쓰는 표준계약서를 그대로 올림', basis: '법무 검토 기록 2026-08-28', by: 'u_legal', at: '2026-09-01 09:00' },
       { no: 2, from: '2026-10-01', summary: '제12조 손해배상 한도를 "연간 이용료 총액"으로 분명히 함, 제15조 개인정보 처리 조항을 개정 법령에 맞춤', basis: '법무 검토 기록 2026-09-24', by: 'u_legal', at: '2026-09-25 14:00' },
     ] },
     { id: 'TPL-HR', name: 'HR 서비스 이용계약서', service: 'HR', versions: [
-      { no: 1, from: '2026-09-01', summary: '플랫폼 도입: 지금 쓰는 표준계약서를 그대로 올림', basis: '법무 검토 기록 2026-08-28', by: 'u_legal', at: '2026-09-01 09:00' },
+      { no: 1, from: '2026-09-01', summary: '시스템 도입: 지금 쓰는 표준계약서를 그대로 올림', basis: '법무 검토 기록 2026-08-28', by: 'u_legal', at: '2026-09-01 09:00' },
     ] },
     { id: 'TPL-DPA', name: '개인정보 처리위탁 계약서', service: '', versions: [
-      { no: 1, from: '2026-09-01', summary: '플랫폼 도입: 지금 쓰는 표준계약서를 그대로 올림', basis: '정보보호유닛 검토 2026-08-27', by: 'u_legal', at: '2026-09-01 09:00' },
+      { no: 1, from: '2026-09-01', summary: '시스템 도입: 지금 쓰는 표준계약서를 그대로 올림', basis: '정보보호유닛 검토 2026-08-27', by: 'u_legal', at: '2026-09-01 09:00' },
       { no: 2, from: '2026-11-01', summary: '제7조 재위탁 사전 동의 절차와 제10조 파기 확인서 서식을 더함', basis: '정보보호유닛 검토 2026-10-15', by: 'u_legal', at: '2026-10-16 11:00' },
     ] },
     { id: 'TPL-SLA', name: '서비스 수준 협약서(SLA)', service: '', versions: [
-      { no: 1, from: '2026-09-01', summary: '플랫폼 도입: 지금 쓰는 표준 협약서를 그대로 올림', basis: '법무 검토 기록 2026-08-28', by: 'u_legal', at: '2026-09-01 09:00' },
+      { no: 1, from: '2026-09-01', summary: '시스템 도입: 지금 쓰는 표준 협약서를 그대로 올림', basis: '법무 검토 기록 2026-08-28', by: 'u_legal', at: '2026-09-01 09:00' },
     ] },
   ];
 
@@ -262,14 +262,14 @@ window.CLIMB_DATA = (function () {
    *   HR 추가 모듈 = 프리즘 표절검사 등)을 기능에 하나씩 붙임. 프리즘 GPT Killer의 두 플랜(v0.47)은 하나로 합침 */
   const PRICE_DOC = 'https://gw.muhayu.com/approval/';
   const PRICE_ROWS = [
-    { feature: 'CK_CAMPUS_PLAG', product: 'CK_CAMPUS', service: 'CK', unit: '기관, 1년', listPrice: 12000000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '플랫폼 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { feature: 'CK_CAMPUS_USER', product: 'CK_CAMPUS', service: 'CK', unit: '100명, 1년', listPrice: 1400000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '플랫폼 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { feature: 'CK_CAMPUS_GPTK', product: 'CK_CAMPUS', service: 'CK', unit: '기관, 1년', listPrice: 2400000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '플랫폼 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { feature: 'CK_CAMPUS_API', product: 'CK_CAMPUS', service: 'CK', unit: '1식, 1년', listPrice: 6000000, discountCap: 0.10, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '플랫폼 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { feature: 'HR_PRISM_DEFECT', product: 'HR_PRISM', service: 'HR', unit: '기관, 1년', listPrice: 9600000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '플랫폼 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { feature: 'HR_PRISM_PLAG', product: 'HR_PRISM', service: 'HR', unit: '기관, 1년', listPrice: 3600000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '플랫폼 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { feature: 'HR_PRISM_BLIND_A', product: 'HR_PRISM', service: 'HR', unit: '기관, 1년', listPrice: 3000000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '플랫폼 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
-    { feature: 'HR_PRISM_GPTK', product: 'HR_PRISM', service: 'HR', unit: '기관, 1년', listPrice: 4800000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '플랫폼 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { feature: 'CK_CAMPUS_PLAG', product: 'CK_CAMPUS', service: 'CK', unit: '기관, 1년', listPrice: 12000000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '시스템 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { feature: 'CK_CAMPUS_USER', product: 'CK_CAMPUS', service: 'CK', unit: '100명, 1년', listPrice: 1400000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '시스템 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { feature: 'CK_CAMPUS_GPTK', product: 'CK_CAMPUS', service: 'CK', unit: '기관, 1년', listPrice: 2400000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '시스템 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { feature: 'CK_CAMPUS_API', product: 'CK_CAMPUS', service: 'CK', unit: '1식, 1년', listPrice: 6000000, discountCap: 0.10, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '시스템 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { feature: 'HR_PRISM_DEFECT', product: 'HR_PRISM', service: 'HR', unit: '기관, 1년', listPrice: 9600000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '시스템 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { feature: 'HR_PRISM_PLAG', product: 'HR_PRISM', service: 'HR', unit: '기관, 1년', listPrice: 3600000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '시스템 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { feature: 'HR_PRISM_BLIND_A', product: 'HR_PRISM', service: 'HR', unit: '기관, 1년', listPrice: 3000000, discountCap: 0.20, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '시스템 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
+    { feature: 'HR_PRISM_GPTK', product: 'HR_PRISM', service: 'HR', unit: '기관, 1년', listPrice: 4800000, discountCap: 0.15, validFrom: '2026-09-01', docUrl: PRICE_DOC + '2026-0812', docNo: '경영지원-2026-0812', reason: '시스템 도입: 2026년 표준단가표 등록', by: 'u_super', at: '2026-09-01 09:00' },
     // 바뀐 예: 카피킬러 캠퍼스 추가 이용자 단가 인상(10월 1일부터)
     { feature: 'CK_CAMPUS_USER', product: 'CK_CAMPUS', service: 'CK', unit: '100명, 1년', listPrice: 1500000, discountCap: 0.15, validFrom: '2026-10-01', docUrl: PRICE_DOC + '2026-0915', docNo: '경영지원-2026-0915', reason: '추가 이용자 단가 인상(서버 비용 반영)', by: 'u_admin', at: '2026-09-24 15:10' },
     // ---- 기획자 서비스 정리표(2026-10-23 받음): HR은 표의 가격(원/건), CK는 표에 없어 임의 값(기획자가 나중에 줌) ----
@@ -723,7 +723,7 @@ window.CLIMB_DATA = (function () {
     obligationMailDays: [14, 3], // 기한 14일 전과 3일 전에 맡은 분야에 이메일(OBLIGATION). 지나면 다음 날 그 분야 리더에게도
     expiryWindowDays: 90,        // 만료 예정(개요의 만료 임박, 만료 예정 계약)에 넣는 날수: 90일 안에 끝나거나 해지 통지 기한이 오는 계약
   };
-  // 이 플랫폼을 쓰기 시작한 달(계정 등록일 기준). 매월 기록 점검과 분기 권한 검토는 이달부터 셈(개요의 점검할 일, 접속 기록 점검)
+  // 이 시스템을 쓰기 시작한 달(계정 등록일 기준). 매월 기록 점검과 분기 권한 검토는 이달부터 셈(개요의 점검할 일, 접속 기록 점검)
   const SERVICE_START_MONTH = '2026-09';
 
   /* ---------- 체결 후 의무 (v0.53 기획자 결정, 요구사항 정의서 REQ-FLOW-33~36, 데이터 정의서 obligation) ----------
@@ -795,8 +795,8 @@ window.CLIMB_DATA = (function () {
   const NOTICE_KINDS = { NOTICE: '공지', RELEASE: '릴리즈' };
   const RELEASE_PARTS = [['added', '새 기능'], ['improved', '개선'], ['changed', '바뀐 규칙'], ['fixed', '고친 문제']];
   const NOTICES = [
-    { id: 'N-0001', kind: 'NOTICE', important: true, title: '플랫폼 시범 운영 시작', at: '2026-10-19 09:00', by: 'u_super',
-      body: ['오늘부터 계약 등록과 결재를 이 플랫폼에서 시범 운영합니다. 기존 전자결재로 올리던 계약 품의는 이 플랫폼으로 올려 주세요.',
+    { id: 'N-0001', kind: 'NOTICE', important: true, title: '시스템 시범 운영 시작', at: '2026-10-19 09:00', by: 'u_super',
+      body: ['오늘부터 계약 등록과 결재를 이 시스템에서 시범 운영합니다. 기존 전자결재로 올리던 계약 품의는 이 시스템으로 올려 주세요.',
         '로그인은 회사 Google 계정으로 하고, 사내망이나 VPN에서만 접속할 수 있습니다.',
         '쓰다가 불편한 점은 경영지원유닛 원지안에게 알려 주세요. 고친 내용은 이 게시판의 릴리즈로 알려 드립니다.'] },
     { id: 'N-0002', kind: 'NOTICE', important: false, title: '휴대폰에서 결재하는 방법', at: '2026-10-19 09:30', by: 'u_super',
@@ -961,12 +961,39 @@ window.CLIMB_DATA = (function () {
           '반려된 해지, 그대로 연장, 운영 변경도 같은 번호의 다음 차수로 다시 기안합니다.',
           '재무도 검토 대기에서 대신 검토할 차례를 봅니다.',
           '가격 기준 관리는 영업지원도 메뉴에서 볼 수 있습니다(보기만).',
-          '표준 단가보다 높게 받은 계약은 체크리스트 2번이 아니요입니다.'],
-        fixed: ['검토 대기에서 볼 수 없는 열람 제한 계약의 이름을 가립니다.',
+          '표준 단가보다 높게 받은 계약은 체크리스트 2번이 아니요입니다.',
+          '체크리스트의 비고 칸은 적어야 할 때만(1~3번 아니요, 4번 예) 나타납니다.',
+          '계약 등록의 서비스, 제품, 기능을 PC에서도 한 줄에 하나씩 둡니다.'],
+        fixed: ['휴대폰에서 맨 위로 버튼이 드롭다운을 덮어 눌러도 열리지 않던 문제를 고쳤습니다(위로 올릴 때만 잠깐 보임).',
+          '제품 이름이 두 번 보이던 기능 이름을 고쳤습니다(예: 몬스터 A).',
+          '검토 대기에서 볼 수 없는 열람 제한 계약의 이름을 가립니다.',
           '시연 역할을 바꿔도 보던 결재 문서와 계약 상세가 그대로 열립니다.',
           '반려되면 동시에 차례였던 다른 검토도 멈춥니다.',
           '영업이 보는 개요의 건수와 누르면 나오는 목록이 같습니다.',
           '관리자 화면에서 새 계정 번호가 겹치거나 바뀐 것 없는 저장이 남던 문제를 고쳤습니다.'],
+      } },
+    // v0.11.0 (요구사항 정의서 v0.59, REQ-UI-34~36, REQ-DASH-07): 애플 디자인 요소를 골라 적용, 흑백 인쇄, 기기의 접근성 설정 따르기
+    { id: 'N-0024', kind: 'RELEASE', version: 'v0.11.0', title: '디자인과 흑백 인쇄', at: '2026-10-26 17:00', by: 'u_super',
+      items: {
+        added: ['인쇄는 늘 흑백입니다. 잉크를 아끼려고 검정과 회색만 쓰고 바탕은 칠하지 않습니다. 반려는 검정 테두리와 굵은 글자로 보입니다.',
+          '휴대폰에서는 화면 아래 탭 막대(개요, 계약 등록, 계약 현황, 보관함, 더보기)로 메뉴를 엽니다.',
+          '기기에서 동작 줄이기, 대비 높이기, 고대비를 켜 두면 화면이 그 설정을 따릅니다.'],
+        changed: ['PC 글자를 인쇄 기준으로 줄였습니다. 본문 15px(인쇄 11.25pt), 화면 제목 27px이고, 제목은 단계마다 조금씩 커져 위계가 보입니다.',
+          '휴대폰 글자는 아이폰 글자 단계(본문 17, 보조 15, 작은 글자 13)를 따르고, 누르는 칸은 44px입니다.',
+          '항목 사이, 상자 안쪽, 표 한 줄의 간격을 촘촘하게 줄였습니다.',
+          '상자, 입력 칸, 단추의 모서리를 더 둥글게 했습니다. 메뉴에서 펼쳐지는 목록은 테두리 없는 직각입니다.',
+          '상태 배지는 색 테두리 없이 연한 바탕만, 보조 단추(예: 제품 추가)는 초록 테두리 없이 연한 초록 바탕입니다.',
+          '라디오와 체크박스를 작아진 글자에 맞춰 줄였습니다.',
+          '개요의 만료 임박 표에서 해지 통지 기한 줄을 뺐습니다. 남은 일자로 충분히 알아볼 수 있습니다.',
+          '한글 이름을 "무하유 계약 관리 시스템"으로 바꿨습니다. 안내 글과 이메일도 "시스템"이라고 씁니다.',
+          '제목을 한 단계씩 키워 위계를 살렸습니다. 상자 제목 21px, 상자 안 작은 제목 17px입니다.',
+          '표 한 줄 안의 배지와 글자가 같은 높이에 놓이도록 맞췄습니다.',
+          '개요의 단계 표시를 상자 오른쪽 끝까지 넓혔습니다.',
+          '메뉴에서 펼쳐지는 목록은 테두리 없이(위쪽 선만) 작게, 입력 칸에서 펼쳐지는 목록은 칸처럼 둥글게 보입니다.',
+          '계약 등록과 기안 화면의 묶음 설명을 회색 상자로 보입니다.'],
+        fixed: ['사용 안 함, 끝난 줄의 흐린 글자와 회색 상자 위 핑크 글자를 더 진하게 해 읽기 쉽게 했습니다.',
+          '계약 상세와 요약서의 계약 금액을 오른쪽에 둡니다.',
+          '휴대폰에서 로고, 내 이름, 전체 보기 같은 작은 링크도 누르기 쉽게 했습니다.'],
       } },
   ];
 
@@ -994,10 +1021,10 @@ window.CLIMB_DATA = (function () {
   ];
 
   /* ---------- 이메일 미리 보기 예시 (v0.53 기획자 요청, 요구사항 정의서 REQ-ENV-14, 내 계정에서 알림마다 "미리 보기") ----------
-   * 위 예시 계약으로 채운 메일 한 통씩. 실제 메일도 같은 틀: 제목 "[계약 관리 플랫폼] ...", 인사, 한두 문장, 사실 표, 버튼 하나, 바닥글
+   * 위 예시 계약으로 채운 메일 한 통씩. 실제 메일도 같은 틀: 제목 "[계약 관리 시스템] ...", 인사, 한두 문장, 사실 표, 버튼 하나, 바닥글
    * 이메일에 넣지 않는 것 [가정, 보안]: 계약 금액, 첨부 파일, 고객 담당자 개인정보. 열람 제한 계약은 고객사 대신 계약번호만
    * to: 받는 사람 id(또는 '전체 사용자' 같은 글) / at: 보낸 때 / facts: [항목, 값]. 값이 '@사람 id'면 "조직 이름"으로 바꿔 보여 줌
-   * button: [글자, 연결 화면] — 메일 안의 버튼은 플랫폼 화면으로만 연결(로그인 필요) */
+   * button: [글자, 연결 화면] — 메일 안의 버튼은 시스템 화면으로만 연결(로그인 필요) */
   const MAIL_SAMPLES = {
     TURN: { to: 'u_legal', at: '2026-10-16 10:30', subject: '결재 차례: 한빛대학교 계약 ④ 법무 검토',
       intro: '검토할 계약이 있습니다. 결재 문서에서 승인, 보완 요청, 반려 중 하나를 골라 주세요.',
@@ -1145,7 +1172,7 @@ window.CLIMB_DATA = (function () {
    * 가상의 거래처와 가상의 사업자등록번호입니다.
    * 프로토타입은 계약의 상호(counterparty)로 거래처를 연결합니다. 실제 시스템은 거래처 번호(customer_id)로 연결합니다.
    * use: 사용 여부 / mergedInto: 다른 거래처로 합쳐졌으면 남긴 거래처 번호
-   * C-0001~0013: 플랫폼 도입 때 기존 계약관리대장에서 옮긴 거래처 / 그 뒤: 영업이 계약을 등록하며 새로 등록 */
+   * C-0001~0013: 시스템 도입 때 기존 계약관리대장에서 옮긴 거래처 / 그 뒤: 영업이 계약을 등록하며 새로 등록 */
   // 기관 또는 부서명 (C-24 v0.39, v0.46 기획자 결정): 사업자등록번호 하나에 거래처 하나. 그 안에서 따로 계약하는 기관이나 부서는
   //   계약마다 이름을 직접 적어 계약에만 남김(contract.unit). 기관 이름은 고유 번호가 없어 확인할 수 없으므로 거래처에 목록으로 두지 않음
   //   (v0.39의 거래처별 기관 목록 CUSTOMER_UNITS는 v0.46에서 없앰)
@@ -1179,7 +1206,7 @@ window.CLIMB_DATA = (function () {
   });
 
   /* ---------- 사업자 정보 DB: 거래처 검색 (기획자 요청 v0.32, 요구사항 정의서 REQ-REG-18) ----------
-   * 상호와 사업자등록번호만 플랫폼 안에 두는(내재화) DB입니다. 출처(v0.34 기획자 결정, C-22): 기획자가 모은 거래처 자료를 받아 넣음(추후 전달).
+   * 상호와 사업자등록번호만 시스템 안에 두는(내재화) DB입니다. 출처(v0.34 기획자 결정, C-22): 기획자가 모은 거래처 자료를 받아 넣음(추후 전달).
    *   공공데이터 API는 쓰지 않음(v0.33 권고안을 바꿈). 대표자명, 전화, 이메일은 넣지 않음
    * 계약 등록의 거래처 검색은 우리 거래처 목록(CUSTOMERS)과 이 DB를 함께 찾습니다.
    * 아래는 시연용 가상 사업체와 가상 번호입니다(번호는 사업자등록번호 검증 숫자 규칙에 맞춰 만듦). 실제 사업체가 아닙니다. */
@@ -1243,9 +1270,9 @@ window.CLIMB_DATA = (function () {
    * area: USER 사용자 권한 / RULE 결재선 규칙 / RESTRICT 열람 제한 / CUSTOMER 거래처 / CODE 코드 / PRODUCT 제품과 기능(v0.47) / AUDIT 기록 점검
    * 아래는 이미 반영된 예시 기록입니다(시연으로 바꾼 것은 common.js가 이 브라우저에 저장해 더함). 가격 기준 이력은 PRICE_ROWS에 있습니다. */
   const ADMIN_LOG = [
-    { at: '2026-09-01 09:00', by: 'u_super', area: 'RULE', target: '결재선 규칙', change: '처음 설정: ② 배수아, ③ 유닛 리더(비즈니스1유닛 최민준, 비즈니스2유닛 고은성, 비즈니스3유닛 차유나, 리더 본인 계약은 문태호), ④ 김지우, ⑤ 한서연, ⑥ 노은채, ⑧ 배수아, ⑨ 임하준, ⑩ 오현우, 결재 대기 독촉 5일, 체결 지연 독촉 14일', reason: '플랫폼 도입' },
-    { at: '2026-09-01 09:00', by: 'u_super', area: 'CUSTOMER', target: '거래처 13곳', change: '거래처 추가: 한결대학교 외 12곳', reason: '플랫폼 도입: 기존 계약관리대장에서 옮김' },
-    { at: '2026-09-01 09:00', by: 'u_super', area: 'CODE', target: '코드표 6개', change: '처음 등록: 조직, 서비스, 계약 유형, 계약 방식, 정산 방식, 사후관리 기록 종류', reason: '플랫폼 도입' },
+    { at: '2026-09-01 09:00', by: 'u_super', area: 'RULE', target: '결재선 규칙', change: '처음 설정: ② 배수아, ③ 유닛 리더(비즈니스1유닛 최민준, 비즈니스2유닛 고은성, 비즈니스3유닛 차유나, 리더 본인 계약은 문태호), ④ 김지우, ⑤ 한서연, ⑥ 노은채, ⑧ 배수아, ⑨ 임하준, ⑩ 오현우, 결재 대기 독촉 5일, 체결 지연 독촉 14일', reason: '시스템 도입' },
+    { at: '2026-09-01 09:00', by: 'u_super', area: 'CUSTOMER', target: '거래처 13곳', change: '거래처 추가: 한결대학교 외 12곳', reason: '시스템 도입: 기존 계약관리대장에서 옮김' },
+    { at: '2026-09-01 09:00', by: 'u_super', area: 'CODE', target: '코드표 6개', change: '처음 등록: 조직, 서비스, 계약 유형, 계약 방식, 정산 방식, 사후관리 기록 종류', reason: '시스템 도입' },
     { at: '2026-10-02 09:30', by: 'u_admin', area: 'USER', target: '기태민 (taemin.ki@muhayu.com)', change: '상태: 사용 중 → 사용 중지', reason: '9월 30일 퇴사(인사 담당 퇴사 통보 2026-10-01)' },
     { at: '2026-10-02 10:20', by: 'u_admin', area: 'RULE', target: '④ 법무 검토 대리 지정', change: '대리 지정: 김지우 → 송민재 (2026-10-05~2026-10-07)', reason: '김지우님 연차(2026-10-05~2026-10-07). 같은 법무 담당자 송민재님이 법무 검토를 대신함' },
     { at: '2026-10-06 14:10', by: 'u_super', area: 'USER', target: '송민재 (minjae.song@muhayu.com)', change: '권한: 법무 담당자 → 법무 담당자, 관리자', reason: '관리자 부재에 대비해 법무 담당자 송민재님을 관리자로 함께 지정(경영지원유닛 요청)' },
@@ -1264,8 +1291,8 @@ window.CLIMB_DATA = (function () {
   ];
   // 열람 제한을 건 기록 (계약을 등록할 때 영업이 건 것). 관리자가 바꾼 것은 ADMIN_LOG의 RESTRICT
   const RESTRICT_LOG = [
-    { at: '2026-09-01 09:00', by: 'u_super', id: '2511CL002', on: true, reason: '플랫폼 도입 때 기존 계약을 옮기며 설정(기존 계약관리대장의 비공개 표시)' },
-    { at: '2026-09-01 09:00', by: 'u_super', id: '2606CL001', on: true, reason: '플랫폼 도입 때 기존 계약을 옮기며 설정(기존 계약관리대장의 비공개 표시)' },
+    { at: '2026-09-01 09:00', by: 'u_super', id: '2511CL002', on: true, reason: '시스템 도입 때 기존 계약을 옮기며 설정(기존 계약관리대장의 비공개 표시)' },
+    { at: '2026-09-01 09:00', by: 'u_super', id: '2606CL001', on: true, reason: '시스템 도입 때 기존 계약을 옮기며 설정(기존 계약관리대장의 비공개 표시)' },
     { at: '2026-10-17 14:00', by: 'u_sales1', id: '2610CL007', on: true, reason: '계약을 등록하며 영업이 설정' },
   ];
 

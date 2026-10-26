@@ -11,7 +11,7 @@
  * 차례
  *   1. 기본 설정: 초기화, 포커스, .sr-only, 종이 틀(.sheet), 아이콘
  *   2. 시연 띠 (프로토타입 전용, 실제 시스템에서 삭제)
- *   3. 헤더와 시스템 이름 묶음([심볼] climb / 무하유 계약 관리 플랫폼 / 영문 이름)
+ *   3. 헤더와 시스템 이름 묶음([심볼] climb / 무하유 계약 관리 시스템 / 영문 이름)
  *   4. 메인 메뉴 (한 줄 + 옆으로 밀기)
  *   5. 본문 공통 (.page-head, .panel, 문서 머리, .meta-list)
  *   6. 배지  7. 버튼  8. 표(칸 아래 보조 줄, 결재 단계 점)
@@ -54,6 +54,8 @@ body {
 .keep { white-space: nowrap; }
 /* 정보 칸 아래 작은 줄(예: 해지 통지 기한)은 양쪽 정렬하지 않음 */
 .info-grid dd .cell-meta { text-align: left; }
+/* 정보 칸의 금액(예: 계약 금액)도 오른쪽 (REQ-UI-16 "금액은 표 안팎 모두 오른쪽", v0.59 QA) */
+.info-grid dd.amount, .info-grid dd.amount .cell-meta { text-align: right; }
 /* 입력 칸에 쓰는 글은 양쪽 정렬하지 않음 (쓰는 중에 낱말 사이가 벌어지지 않게) */
 input, textarea { text-align: start; }
 /* 휴대폰: 양쪽 정렬로 낱말 사이가 크게 벌어지지 않게 글자 단위로 줄을 넘김 (기획자 결정 v0.36)
@@ -137,7 +139,7 @@ svg { flex-shrink: 0; }
 /* ---------- 3. 헤더 (KRDS 헤더) ----------
  * 구성 (REQ-UI-13)
  *   1줄: [심볼] climb (소문자, SUITE)
- *   2줄: 무하유 계약 관리 플랫폼 (Noto Sans KR, 작게)        [조직 이름님 | 로그아웃]
+ *   2줄: 무하유 계약 관리 시스템 (Noto Sans KR, 작게)        [조직 이름님 | 로그아웃]
  * 오른쪽 사용자 줄은 왼쪽 둘째 줄(한글 이름 줄)과 글자 밑선(baseline)을 맞추고, 본문 오른쪽 끝에 딱 붙입니다. (v0.15)
  * 화면 알림(종 모양, 알림 숫자)은 두지 않음. 알림은 이메일로 보냄 (REQ-ENV-09) */
 .site-header { position: relative; z-index: 20; background: var(--surface-white); border-bottom: 1px solid var(--border-gray-light); }
@@ -151,9 +153,9 @@ svg { flex-shrink: 0; }
 .header-top .user-line { grid-column: 2; grid-row: 2; justify-self: end; }
 
 /* 시스템 이름 묶음 (REQ-NAME-01~06): 헤더, 푸터, 로그인 화면, 이메일 미리 보기가 함께 씀
- *   헤더: [심볼] climb / 무하유 계약 관리 플랫폼(작게)
+ *   헤더: [심볼] climb / 무하유 계약 관리 시스템(작게)
  *   푸터: 헤더와 같은 묶음 + 셋째 줄 영문 이름(SUITE 14px, 중간 굵기)
- *   로그인: 로고 글자 없이 무하유 계약 관리 플랫폼(.brand-ko) + 영문 이름
+ *   로그인: 로고 글자 없이 무하유 계약 관리 시스템(.brand-ko) + 영문 이름
  * 글꼴(v0.54 기획자 결정): 영어(climb, 영문 이름)는 SUITE, 한글은 Noto Sans KR. 로고 묶음에만 적용하고 본문 글은 그대로 */
 .brand-title { font-size: var(--fs-brand); font-weight: 700; line-height: 1.3; color: var(--text-bolder); }
 a.brand-title:hover { color: var(--text-primary); }
@@ -227,27 +229,66 @@ a.user-name:hover, a.user-name[aria-current] { color: var(--text-primary); text-
 .gnb-list.has-open .gnb-link.is-current:not([aria-expanded="true"])::after { display: none; }
 .gnb-item.is-open .gnb-link { color: var(--text-bolder); }
 .gnb-sub {
-  position: absolute; top: 100%; left: 0; z-index: 30; display: none; min-width: 16rem; padding: 0.6rem;
-  background: var(--surface-white); border: 1px solid var(--border-gray-light);
-  border-radius: 0 0 var(--radius-lg) var(--radius-lg); box-shadow: var(--shadow-1);
+  /* 크기(v0.59 기획자 요청: 글자가 작아진 만큼 상자도 줄임): 최소 폭 160 → 120px, 위아래 안쪽 6 → 4px */
+  position: absolute; top: 100%; left: 0; z-index: 30; display: none; min-width: 12rem; padding: 0.4rem 0.6rem;
+  background: var(--surface-white);
+  border-radius: 0; box-shadow: var(--shadow-1); /* 직각 네모 (v0.59 기획자 요청: 다른 상자는 둥글어도 메뉴 줄에서 펼쳐지는 메뉴는 평평하게) */
+  /* 테두리 없음 (v0.59 기획자 요청): 밝은 화면은 그림자와 뒤 흐림으로 구분. 창(모달)과 같은 --border-elevated라
+   * 어두운 화면에서만 선이 보임(종이와 색이 같아 그림자가 안 보이므로). 투명한 선이라 윈도우 고대비에서는 선이 살아남
+   * 위쪽만 회색 선을 남김(기획자 요청): 메뉴 줄 아래 회색 선이 펼친 메뉴에 가려 끊기지 않게 */
+  border: 1px solid var(--border-elevated);
+  border-top-color: var(--border-gray-light);
 }
 .gnb-item.is-open .gnb-sub { display: block; }
 /* 하위 메뉴 글자를 연 메뉴 글자와 같은 줄에(v0.55): 상자 안쪽 0.6rem + 줄 안쪽 1rem = 메뉴 글자 안쪽 1.6rem */
-.gnb-sub a { display: block; padding: 1rem; border-radius: var(--radius-md); font-size: var(--fs-body-medium); white-space: nowrap; }
+/* 한 줄 높이(v0.59): 글자 위아래 6px(예전 10px). 누르는 최소 크기는 지킴(PC 32px, 손가락으로 누르는 태블릿 44px) */
+.gnb-sub a { display: flex; align-items: center; min-height: var(--touch-min); padding: 0.6rem 1rem; border-radius: 0; font-size: var(--fs-body-medium); white-space: nowrap; }
 .gnb-sub a:hover { background: var(--action-hover); }
 /* 하위 메뉴를 열면 메뉴 줄 아래를 흐리게 덮음(v0.55 기획자 요청, PC와 태블릿, 스마트폰 모두). 머리글(.site-header z-index 20, 하위 메뉴 포함)보다 아래, 본문보다 위.
  * 위치(top)는 메뉴 줄 바로 아래로 common.js가 맞춤. 누르면 메뉴만 닫힘 */
 .gnb-dim { position: fixed; left: 0; right: 0; bottom: 0; z-index: 15; background: var(--overlay-menu); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
 @media print { .gnb-dim { display: none !important; } }
 
+/* 휴대폰 아래 탭 막대 (v0.59 기획자 선택, REQ-UI-34: 앞으로 만들 iOS 앱과 같은 메뉴. common.js renderTabBar)
+ * PC와 태블릿, 인쇄에서는 보이지 않음. 휴대폰에서는 위 메뉴 줄(.gnb) 대신 씀 */
+.tabbar, .tab-dim { display: none; }
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
+  .gnb { display: none; }
+  body { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); }
+  .tabbar {
+    display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--surface-white); border-top: 1px solid var(--border-gray-light);
+  }
+  .tabbar-list { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); height: var(--tabbar-h); }
+  .tab {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.2rem; width: 100%; height: 100%;
+    padding: 0; border: 0; background: none; color: var(--text-subtle); font-size: var(--fs-body-xsmall); white-space: nowrap; cursor: pointer;
+  }
+  .tab .icon { width: 2.4rem; height: 2.4rem; }
+  .tab.is-current, .tab[aria-expanded="true"] { color: var(--text-primary); font-weight: 700; }
+  /* 펼친 하위 메뉴: 탭 막대 바로 위, 직각 네모(기획자 요청: 메뉴에서 펼쳐지는 것은 평평하게) */
+  .tab-sheet {
+    position: fixed; left: 0; right: 0; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); z-index: 39;
+    max-height: 60vh; overflow-y: auto; padding: 0.4rem 1.6rem 0.8rem; background: var(--surface-white);
+    border-top: 1px solid var(--border-gray-light); box-shadow: var(--shadow-up);
+  }
+  .tab-sheet-title { padding: 1.2rem 0 0.4rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
+  .tab-sheet a { display: flex; align-items: center; min-height: var(--touch-min); border-bottom: 1px solid var(--border-gray-light); font-size: var(--fs-body-medium); color: var(--text-basic); }
+  .tab-sheet li:last-child a { border-bottom: 0; }
+  .tab-sheet a[aria-current] { color: var(--text-primary); font-weight: 700; }
+  .tab-dim { display: block; position: fixed; inset: 0; z-index: 38; background: var(--overlay-menu); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+  /* 화면 아래에 붙는 것들은 탭 막대 위로 */
+  .toast { bottom: calc(var(--tabbar-h) + 1.6rem + env(safe-area-inset-bottom, 0px)); }
+}
+
 /* ---------- 5. 본문 공통 ---------- */
 /* 메뉴 줄과 본문 첫 줄 사이 간격: 너무 넓지 않게 2.4rem (v0.15에서 4rem을 줄임) */
-.page { padding-top: 2.4rem; padding-bottom: 4.8rem; }
+.page { padding-top: var(--gap-page-top); padding-bottom: 3.2rem; }
 
 /* 인쇄할 때만 보이는 출력 정보 (출력일, 출력자). 화면에서는 숨김 (REQ-UI-11) */
 .print-meta { display: none; }
 /* 기준일은 인사말 마지막 줄의 글자 밑선(baseline)에 맞춤 */
-.page-head { display: flex; align-items: flex-end; align-items: last baseline; justify-content: space-between; flex-wrap: wrap; gap: 1.6rem 2.4rem; margin-bottom: 2rem; }
+.page-head { display: flex; align-items: flex-end; align-items: last baseline; justify-content: space-between; flex-wrap: wrap; gap: 1.2rem 2.4rem; margin-bottom: 1.2rem; }
 .page-title { font-size: var(--fs-heading-xlarge); font-weight: 700; line-height: 1.4; color: var(--text-bolder); }
 .page-desc { margin-top: 0.8rem; font-size: var(--fs-body-large); color: var(--text-subtle); }
 /* 큰 제목 없이 화면을 여는 첫 문장 (개요 화면의 인사말) */
@@ -261,12 +302,12 @@ a.user-name:hover, a.user-name[aria-current] { color: var(--text-primary); text-
 .doc-meta .badge { vertical-align: 0.1rem; }
 .page-title .icon { margin-right: 0.6rem; vertical-align: -0.2rem; }
 
-.panel { background: var(--surface-white); border: 1px solid var(--border-gray-light); border-radius: var(--radius-xl); padding: 2.4rem 2.8rem; }
-.panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1.2rem; margin-bottom: 1.6rem; }
+.panel { background: var(--surface-white); border: 1px solid var(--border-gray-light); border-radius: var(--radius-xl); padding: var(--pad-box-y) var(--pad-box-x); }
+.panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1.2rem; margin-bottom: 1.2rem; }
 /* 제목과 건수는 글자 밑선(baseline)에 맞추고, 배지는 세로 가운데 */
 .panel-title { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.8rem; font-size: var(--fs-heading-small); font-weight: 700; color: var(--text-bolder); }
 .panel-title .badge { align-self: center; }
-.panel-desc { margin: -0.8rem 0 1.6rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
+.panel-desc { margin: -0.6rem 0 1.2rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
 
 .link-more { display: inline-flex; align-items: center; gap: 0.2rem; font-size: var(--fs-body-small); color: var(--text-subtle); white-space: nowrap; }
 .link-more:hover { color: var(--text-basic); text-decoration: underline; text-underline-offset: 0.3rem; }
@@ -291,20 +332,25 @@ a.user-name:hover, a.user-name[aria-current] { color: var(--text-primary); text-
 /* Noto Sans KR은 글자가 줄 상자 가운데보다 약 0.07em 아래에 그려지므로, 아래 여백을 0.2rem 더 줘서
  * 배지 안 글자가 위아래 가운데에 보이게 함 (v0.15) */
 .badge {
-  display: inline-flex; align-items: center; gap: 0.4rem; height: 2.4rem; padding: 0 0.8rem 0.2rem;
+  display: inline-flex; align-items: center; gap: 0.4rem; height: 2.2rem; padding: 0 0.8rem 0.2rem; /* v0.59: 글자가 작아져 24 → 22 */
   border: 1px solid transparent; border-radius: var(--radius-sm);
   font-size: var(--fs-body-small); font-weight: 400; line-height: 1; white-space: nowrap;
 }
 /* KRDS 배지는 15px 보통 굵기(v0.28). 칸이 촘촘한 표와 보조 줄 안에서는 13px로 줄여 줄이 넘치지 않게 */
-.tbl .badge, .cell-meta .badge, .info-grid .badge { height: 2.2rem; font-size: var(--fs-body-xsmall); font-weight: 500; }
-/* 상태 배지 [가정]: 연한 바탕 + 브랜드 색 테두리 + Black 글자 (tokens.css 3. 계약 상태 배지) */
-.badge--progress { background: var(--status-progress-bg); border-color: var(--status-progress-line); color: var(--text-basic); }
+.tbl .badge, .cell-meta .badge, .info-grid .badge { height: 2rem; font-size: var(--fs-body-xsmall); font-weight: 500; }
+/* 세로 줄맞춤(v0.59 기획자 요청: 표 한 줄 안에서 조금씩 틀어져 보였음)
+ * 표 칸은 첫 줄 글자 밑선에 맞추는데(REQ-UI-12), 배지 상자는 글자보다 위아래로 커서 상자 가운데가 옆 글자 가운데보다 약 2px 아래에 놓였음.
+ * 배지를 1.8px 올려 상자 가운데와 옆 글자 가운데를 맞춤(재어 본 차이 0.7px 이하) */
+.tbl .badge, .cell-meta .badge, .info-grid .badge { vertical-align: 0.18rem; }
+/* 상태 배지 [가정]: 연한 바탕 + Black 글자 (tokens.css 3. 계약 상태 배지)
+ * v0.59 기획자 선택(REQ-UI-34): 애플식으로 색 테두리를 없앰. 아직 정해지지 않은 것(--line)만 얇은 회색 선 */
+.badge--progress { background: var(--status-progress-bg); color: var(--text-basic); }
 /* Pink는 진한 핑크 바탕 + 흰 글자 (REQ-UI-09) */
 .badge--danger { background: var(--status-danger-fill); border-color: var(--status-danger-fill); color: var(--status-danger-text); }
-.badge--attention { background: var(--status-attention-bg); border-color: var(--status-attention-line); color: var(--text-basic); }
-.badge--success { background: var(--status-success-bg); border-color: var(--status-success-line); color: var(--text-basic); }
-.badge--neutral { background: var(--status-neutral-bg); border-color: var(--status-neutral-line); color: var(--text-basic); }
-.badge--line { background: var(--surface-white); border-color: var(--border-gray); color: var(--text-subtle); }
+.badge--attention { background: var(--status-attention-bg); color: var(--text-basic); }
+.badge--success { background: var(--status-success-bg); color: var(--text-basic); }
+.badge--neutral { background: var(--status-neutral-bg); color: var(--text-basic); }
+.badge--line { background: transparent; border-color: var(--border-gray-light); color: var(--text-subtle); }
 /* 기획 확정 전 '제안' 기능 표시 */
 .badge--proposal { background: var(--surface-white); border: 1px dashed var(--border-gray); color: var(--text-subtle); font-weight: 500; }
 
@@ -320,7 +366,7 @@ a.user-name:hover, a.user-name[aria-current] { color: var(--text-primary); text-
 .btn--primary { background: var(--button-primary-fill); color: var(--button-primary-text); font-weight: 700; }
 .btn--primary:hover { background: var(--button-primary-fill-hover); }
 .btn--primary:active { background: var(--button-primary-fill-pressed); }
-.btn--secondary { background: var(--button-secondary-fill); border-color: var(--button-secondary-border); color: var(--button-secondary-text); font-weight: 700; }
+.btn--secondary { background: var(--button-secondary-fill); color: var(--button-secondary-text); font-weight: 700; } /* v0.59 기획자 선택: 테두리 없이 연한 초록 바탕(애플의 tinted 단추) */
 .btn--secondary:hover { background: var(--button-secondary-fill-hover); }
 .btn--tertiary { background: var(--surface-white); border-color: var(--border-gray); color: var(--text-basic); }
 /* 경고 버튼: 반려, 승인 취소처럼 신중해야 하는 일 (초록 대신 진한 핑크, REQ-UI-09) */
@@ -339,7 +385,8 @@ a.user-name:hover, a.user-name[aria-current] { color: var(--text-primary); text-
 }
 /* 세로 정렬: 한 줄(행) 안의 모든 칸이 첫 줄 글자 밑선(baseline)을 맞춤.
  * 칸마다 줄 수가 달라도 계약명, 상태 배지, 진행 상황, 버튼의 첫 줄이 한 높이에 놓임 */
-.tbl td { padding: 1.4rem 1.6rem; border-bottom: 1px solid var(--border-gray-light); color: var(--text-subtle); vertical-align: baseline; }
+.tbl td { padding: var(--pad-row) 1.6rem; border-bottom: 1px solid var(--border-gray-light); color: var(--text-subtle); vertical-align: baseline; }
+.tbl tbody th { vertical-align: baseline; } /* 줄 머리 칸(예: 제품과 기능 관리의 제품 줄)도 같은 밑선 (v0.59 QA: 세로 가운데라 6px 어긋났음) */
 .tbl .col-main { min-width: 22rem; }
 /* 대시보드처럼 폭이 좁은 영역에 쓰는 촘촘한 표 */
 .tbl--compact th, .tbl--compact td { padding-left: 1.2rem; padding-right: 1.2rem; }
@@ -348,7 +395,7 @@ a.user-name:hover, a.user-name[aria-current] { color: var(--text-primary); text-
  * (v0.50 기획자 요청) 내용이 짧은 칸은 가운데: 날짜와 일시(num-left, 예전에는 왼쪽), 사람, 상태 배지처럼 nowrap인 칸.
  *   단, 줄의 이름 칸(cell-strong)과 현재 진행(col-steps)은 왼쪽 */
 .tbl td, .tbl tbody th, .tbl tfoot th { text-align: left; }
-.tbl td.num-left, .tbl td.nowrap:not(.cell-strong):not(.col-steps) { text-align: center; }
+.tbl td.num-left, .tbl td.nowrap:not(.cell-strong):not(.col-steps):not(.num) { text-align: center; } /* 숫자 칸(.num)은 nowrap이어도 오른쪽 (v0.59 QA) */
 /* 현재 진행 칸(개요, 전체 진행 현황, 내 등록 목록): 단계 이름을 한 줄로, 글이라 왼쪽 (v0.55 기획자 결정, REQ-DASH-06) */
 .tbl td.col-progress { white-space: nowrap; }
 .tbl .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -396,7 +443,7 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
 
 /* 빈 목록 안내 */
 .empty {
-  padding: 3.2rem 2.4rem; border-radius: var(--radius-lg); background: var(--surface-gray-subtler);
+  padding: 2.4rem 2rem; border-radius: var(--radius-lg); background: var(--surface-gray-subtler);
   text-align: center; font-size: var(--fs-body-medium); color: var(--text-subtle);
 }
 
@@ -455,7 +502,7 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
   .sheet { margin: 0 auto; min-height: 100vh; box-shadow: none; } /* 가로로 눕힌 스마트폰에서도 가운데 (v0.43, 태블릿은 v0.50부터 PC 화면) */
 
   /* 헤더: 폭이 좁아 조직명을 감춤 (이름 | 로그아웃)
-   * 둘째 줄(무하유 계약 관리 플랫폼)도 감추고, 사용자 줄을 climb과 같은 줄 가운데에 맞춤
+   * 둘째 줄(무하유 계약 관리 시스템)도 감추고, 사용자 줄을 climb과 같은 줄 가운데에 맞춤
    * (기획자 요청 v0.36: 오른쪽 사용자 줄과 균형. 푸터와 로그인 화면의 이름 줄은 그대로) */
   .header-top .inner { min-height: 6.4rem; column-gap: 1.2rem; align-items: center; }
   /* 로고(.brand-title)는 줄이지 않음: PC와 같은 24px (v0.55 기획자 요청, 로고는 아이덴티티라 기기마다 같게) */
@@ -470,6 +517,11 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
 
   /* 누르기 쉬운 크기: 글자 크기와 줄 위치는 그대로 두고, 누를 수 있는 영역만 위아래로 넓힘 */
   .util-link { padding: 1.2rem 0; margin: -1.2rem 0; }
+  /* 누르는 영역 44px (v0.59 QA, 애플 휴먼 인터페이스 지침 44pt): 위아래 안쪽 여백을 늘리고 같은 만큼 바깥을 당겨 보이는 배치는 그대로 */
+  .header-top .brand-title { padding: 0.65rem 0; margin: -0.65rem 0; }
+  .user-name, .link-more { padding: 1.05rem 0; margin: -1.05rem 0; }
+  .notice-strip a { padding: 0.9rem 0; margin: -0.9rem 0; }
+  .wait-long { vertical-align: 0.1rem; } /* 휴대폰 표: 대기 일수 상자도 옆 글자 가운데에 (v0.59 QA 세로 줄맞춤) */
   .btn { min-height: var(--touch-min); }
 
   /* 메뉴: PC와 같은 순서. 한 줄로 두고 손가락으로 옆으로 밀어(스와이프) 봄. 이용 안내(?)는 오른쪽에 고정 (v0.42 기획자 요청)
@@ -493,7 +545,7 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
   }
 
   .page-desc { font-size: var(--fs-body-medium); }
-  .panel { padding: 2rem 1.6rem; }
+  .panel { padding: var(--pad-box-y) 1.6rem; }
 
   /* 표: 옆으로 밀어 보는 대신 칸 안에서 줄을 바꿈 */
   .tbl .col-main { min-width: 0; }
@@ -505,23 +557,38 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
 
 /* ---------- 14. 인쇄: A4 세로 문서 (REQ-UI-11) ----------
  * - 용지 A4 세로, 여백은 위, 왼쪽, 오른쪽 10mm (화면의 종이 좌우 여백과 같음), 아래 14mm(쪽 번호 자리)
- * - 쪽 아래에 한글 이름(무하유 계약 관리 플랫폼), 대외비 문구(REQ-UI-15), 쪽 번호를 찍습니다. (Chrome, Edge 지원)
+ * - 쪽 아래에 한글 이름(무하유 계약 관리 시스템), 대외비 문구(REQ-UI-15), 쪽 번호를 찍습니다. (Chrome, Edge 지원)
  * - 메뉴, 버튼, 시연 띠처럼 종이에서 쓸 수 없는 요소는 감추고, 출력일과 출력자를 보여 줍니다.
  * - @page 영역은 CSS 변수를 읽지 못해 색과 글꼴을 직접 적었습니다(tokens.css의 예외).
- *   #49595F = --black-72(--text-subtle), #021821 = --mh-black(--text-basic). tokens.css를 바꾸면 여기도 바꿈 */
+ *   인쇄는 흑백(tokens.css 6-1)이라 #4D4D4D = 인쇄 --text-subtle, #000000 = 인쇄 --text-basic. tokens.css를 바꾸면 여기도 바꿈 */
 @page {
   size: A4 portrait;
   margin: 10mm 10mm 14mm;
   /* 이름 climb은 로고에만 쓰므로 쪽 아래는 한글 이름만 (v0.54) */
-  @bottom-left { content: "무하유 계약 관리 플랫폼"; font: 8pt "Noto Sans KR", sans-serif; color: #49595F; }
+  @bottom-left { content: "무하유 계약 관리 시스템"; font: 8pt "Noto Sans KR", sans-serif; color: #4D4D4D; }
   /* 대외비 문구: 인쇄할 때는 푸터(보안 안내 문구)가 빠지므로 쪽마다 짧게 찍음 (REQ-UI-15, v0.17 확정) */
-  @bottom-center { content: "대외비: 무단 복제와 외부 제공 금지"; font: 700 8pt "Noto Sans KR", sans-serif; color: #021821; }
-  @bottom-right { content: counter(page) " / " counter(pages); font: 8pt "Noto Sans KR", sans-serif; color: #49595F; }
+  @bottom-center { content: "대외비: 무단 복제와 외부 제공 금지"; font: 700 8pt "Noto Sans KR", sans-serif; color: #000000; }
+  @bottom-right { content: counter(page) " / " counter(pages); font: 8pt "Noto Sans KR", sans-serif; color: #4D4D4D; }
 }
 
 @media print {
   html, body { background: var(--white); }
+  /* 작은 칠(체크한 칸, 결재 단계 점, 그래프 막대)이 빠지지 않게 칠을 그대로 찍음.
+   * 넓은 바탕은 흑백 인쇄 색(tokens.css 6-1)에서 흰색이라 잉크를 쓰지 않음 */
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* 흑백 인쇄 (v0.59 기획자 요청, REQ-UI-35): 색은 tokens.css 6-1. 여기서는 칠이 사라진 자리를 선과 굵기로 메움
+   * - 바탕 칠로만 구분하던 상자(알림, 통계 숫자 칸, 계약 금액 총액, 빈 그래프 안내)는 얇은 회색 선
+   * - 화면 안내 상자는 상자 없이 글자만(규칙은 15. 화면 공통 부품의 .page-intro 뒤에 둠: 같은 이름 규칙은 뒤의 것이 이김)
+   * - 상태 배지는 칠 없이 회색 테두리 + 글자. 반려와 오래 머묾은 검정 테두리 + 굵은 글자
+   * - 결재 단계 점 가운데 반려는 네모(끝난 단계의 검정 동그라미와 모양으로 구분)
+   * - 종이에 남는 버튼은 칠 없이 회색 테두리. 그림(머리글 심볼 등)도 흑백 */
+  .notice, .stat-tile, .chart-empty, .amount-total, .case-summary { border: 1px solid var(--border-gray-light); }
+  .badge { border-color: var(--border-gray); }
+  .badge--danger, .wait-long { border: 1px solid var(--text-bolder); background: none; color: var(--text-bolder); font-weight: 700; }
+  .step-dot.is-rejected { border-radius: 0.1rem; }
+  .btn--primary, .btn--secondary, .btn--danger { border-color: var(--border-gray); }
+  img { filter: grayscale(1); } /* 머리글 심볼(.brand-mark)은 자기 규칙이 이겨 tokens.css의 순수 검정 */
 
   /* 종이에서 쓸 수 없는 요소 */
   /* 푸터도 감춤: 시스템 이름과 쪽 번호는 모든 쪽 아래에 찍히는 @page 영역이 대신함 */
@@ -562,6 +629,10 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
   width: 100%; height: 0.3rem; background: var(--step-waiting);
 }
 .step-wrap > li:last-child::after { display: none; }
+/* 오른쪽 끝까지 넓힘(v0.59 기획자 요청: 글자가 작아져 오른쪽이 비어 보였음. 틀은 그대로)
+ * 마지막 단계는 글자 폭만큼만 차지하고 앞 단계들이 남은 폭을 똑같이 나눔 → 마지막 단계 글자가 상자 오른쪽 끝에 닿음 */
+.step-wrap > li:last-child { flex: 0 0 auto; }
+.step-wrap > li:last-child .step-body { padding-right: 0; }
 .step-body { position: relative; display: flex; flex-direction: column; gap: 0.2rem; padding: calc(var(--step-circle) + 1.2rem) 1.6rem 0 0; }
 .step-body::before {
   content: ""; position: absolute; top: 0; left: 0; z-index: 2; width: var(--step-circle); height: var(--step-circle);
@@ -575,7 +646,7 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
 .step-wrap .step { font-size: var(--fs-body-xsmall); font-style: normal; color: var(--text-subtle); }
 .step-wrap .step-tit { font-size: var(--fs-body-small); font-weight: 700; color: var(--text-bolder); white-space: nowrap; }
 .step-wrap > li:not(.is-on) .step-tit { color: var(--text-subtle); }
-.step-wrap .step-count { margin-top: 0.4rem; font-size: var(--fs-heading-large); font-weight: 700; line-height: 1.2; color: var(--text-bolder); }
+.step-wrap .step-count { margin-top: 0.4rem; font-size: var(--fs-heading-medium); /* v0.59 위계: 24 → 21, 상자 제목보다 크지 않게 */ font-weight: 700; line-height: 1.2; color: var(--text-bolder); }
 .step-wrap .step-count .unit { margin-left: 0.2rem; font-size: var(--fs-body-medium); font-weight: 500; color: var(--text-subtle); }
 a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; }
 /* 개요에서는 건수가 0인 단계도 이름을 진하게 보여 줌 */
@@ -595,14 +666,14 @@ a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: under
 .page-head--sub { margin: 0; } /* 제목이 본문 맨 위에서 시작. 경로(브레드크럼)는 어느 화면에도 두지 않음 (v0.15, v0.55 기획자 결정으로 상세 화면에서도 뺌) */
 
 /* KRDS 화면 안내 상자: 제목 아래 회색 상자에 화면 설명 */
-.page-intro { margin: 1.6rem 0 2.8rem; padding: 2rem 2.4rem; border-radius: var(--radius-xl); background: var(--surface-gray-subtler); font-size: var(--fs-body-medium); color: var(--text-basic); }
+.page-intro { margin: 1.2rem 0 var(--gap-box); padding: var(--pad-box-y) var(--pad-box-x); border-radius: var(--radius-xl); background: var(--surface-gray-subtler); font-size: var(--fs-body-medium); color: var(--text-basic); }
 .page-intro p + p { margin-top: 0.4rem; }
 /* 회색 안내 상자 없이 제목 바로 아래 상자가 오는 화면(내 계정, v0.55 기획자 요청): 제목과 첫 상자 사이 간격 */
-.page-head--sub + .admin-stack { margin-top: 2.4rem; }
+.page-head--sub + .admin-stack { margin-top: var(--gap-box); }
 .page-intro .sub { font-size: var(--fs-body-small); color: var(--text-subtle); }
 
 /* 알림 상자: 반려 사유 안내, 권한 안내, 처리 완료 안내 등 */
-.notice { margin-bottom: 2.4rem; padding: 2rem 2.4rem; border-radius: var(--radius-lg); background: var(--status-notice-bg); }
+.notice { margin-bottom: var(--gap-box); padding: var(--pad-box-y) var(--pad-box-x); border-radius: var(--radius-lg); background: var(--status-notice-bg); }
 .notice--success { background: var(--surface-primary-subtler); border: 1px solid var(--border-primary-light); }
 .notice-title { display: flex; align-items: center; gap: 0.8rem; font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
 .notice-title .icon { color: var(--status-notice-icon); }
@@ -618,7 +689,7 @@ a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: under
 /* 내용이 길어도 제목과 버튼은 늘 보이고 내용(.modal-body)만 스크롤 (KRDS 모달, v0.28) */
 .modal {
   display: flex; flex-direction: column;
-  width: 100%; max-width: 60rem; max-height: calc(100vh - 3.2rem); overflow: hidden; padding: 3.2rem;
+  width: 100%; max-width: 60rem; max-height: calc(100vh - 3.2rem); overflow: hidden; padding: 2.4rem;
   border: 1px solid var(--border-elevated); /* 어두운 화면에서는 창과 종이 색이 같아 테두리로 구분 */
   border-radius: var(--radius-xl); background: var(--surface-white); box-shadow: var(--shadow-1);
 }
@@ -626,11 +697,11 @@ a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: under
 .modal-body { min-height: 0; overflow-y: auto; margin-top: 1.6rem; font-size: var(--fs-body-medium); color: var(--text-basic); }
 .modal-title:focus { outline: none; box-shadow: none; }
 .modal-title, .modal-desc, .modal-actions { flex-shrink: 0; }
-.modal-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 0.8rem; margin-top: 2.8rem; }
+.modal-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 0.8rem; margin-top: 2rem; }
 /* 입력 창(관리자 화면 공통 C.formModal): 누르면 어떻게 되는지 한 줄 + 입력 칸 */
 .modal-desc { margin-top: 0.8rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
 .modal-form { margin-top: 2rem; }
-.modal-form .field { margin-bottom: 2rem; }
+.modal-form .field { margin-bottom: var(--gap-item); }
 .modal-form .field:last-child { margin-bottom: 0; }
 
 /* 휴대폰 화면 (방식 B, 인쇄에는 적용 안 됨): 배치는 같게, 칸이 좁은 곳만 여백을 줄이고 줄바꿈 허용 */
@@ -638,12 +709,14 @@ a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: under
   .step-body { padding-right: 0.8rem; }
   .step-wrap .step-tit { white-space: normal; }
   .page-intro { padding: 1.6rem; }
-  .modal { padding: 2.4rem 2rem; }
+  .modal { padding: 2rem 1.6rem; }
   .modal-actions .btn { flex: 1 1 0; }
 }
 
 @media print {
   .modal-backdrop { display: none !important; }
+  /* 흑백 인쇄(14. 인쇄, REQ-UI-35): 화면 안내 상자는 상자 없이 글자만. 잉크와 자리를 아낌 */
+  .page-intro { padding: 0; border-radius: 0; background: none; }
 }
 
 /* 워터마크 (REQ-SEC-07, REQ-ENV-11)
@@ -675,3 +748,28 @@ a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: under
 .to-top:focus-visible { box-shadow: var(--focus-ring); border-radius: var(--radius-lg); }
 #main:focus { outline: none; }
 @media print { .to-top { display: none !important; } }
+
+/* ---------- 16. 기기의 접근성 설정 따르기 (v0.59 기획자 요청, 요구사항 정의서 REQ-UI-36) ----------
+ * 기준: 한국형 웹 콘텐츠 접근성 지침(KWCAG) 2.2, WCAG 2.2, 애플 휴먼 인터페이스 지침(접근성)
+ * - 동작 줄이기(아이폰 "동작 줄이기", 윈도우 "애니메이션 효과" 끔): 움직임을 없앰.
+ *   펼침 화살표 회전, 토스트가 떠오르는 것, 체크 표시가 커지는 것. 맨 위로 이동도 바로 이동(common.js)
+ * - 대비 높이기: 색은 tokens.css 8
+ * - 윈도우 고대비(색 대비 테마): 사용자가 고른 색으로 바뀌면서 사라지는 표시를 되살림
+ *     키보드 이동 표시(그림자) → 윤곽선, 체크와 고른 날짜 등(칠) → 시스템 강조 색, 그래프 막대와 단계 점(칠) → 시스템 글자 색
+ *   사용자 설정이 화면 CSS보다 앞서야 하므로, 이 파일보다 뒤에 읽는 화면 CSS(form.css, stats.css 등)를 이기도록 !important */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; scroll-behavior: auto !important; }
+}
+@media (forced-colors: active) {
+  :focus-visible { outline: 0.2rem solid Highlight !important; outline-offset: 0.2rem; }
+  .choice input[type="radio"]::before { forced-color-adjust: none; background: CanvasText !important; }
+  .choice input[type="radio"]:checked { border-color: CanvasText !important; }
+  .choice input[type="checkbox"]:checked { forced-color-adjust: none; border-color: Highlight !important; background: Highlight !important; }
+  .choice input[type="checkbox"]::before { forced-color-adjust: none; background: HighlightText !important; }
+  .cal-day.is-selected, .page-btn.is-current, .seg button[aria-pressed="true"] { forced-color-adjust: none; background: Highlight !important; color: HighlightText !important; }
+  .gnb-link.is-current::after, .gnb-item.is-open .gnb-link::after { forced-color-adjust: none; background: Highlight !important; }
+  .colchart-bar, .hbar-fill, .meter-fill, .step-dot.is-done, .step-dot.is-rejected,
+  .step-wrap > li.is-on .step-body::after { forced-color-adjust: none; background: CanvasText !important; }
+  .meter-track { border: 1px solid CanvasText; }
+  .step-dot { border: 1px solid CanvasText; }
+}

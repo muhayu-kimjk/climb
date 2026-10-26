@@ -5,7 +5,7 @@
  * 쓰는 사람: 정보보호 담당자. 관리자가 자기 작업 기록을 스스로 점검하지 않도록 관리자는 볼 수 없음 (기획자 결정 v0.25)
  * 하는 일
  *   1. 이상 행위 알림: 확인 전인 알림에 확인 결과와 조치를 남김
- *   2. 매월 기록 점검: 이 플랫폼을 쓰기 시작한 달(D.SERVICE_START_MONTH)부터 지난달까지. [가정] 기한은 다음 달 말일
+ *   2. 매월 기록 점검: 이 시스템을 쓰기 시작한 달(D.SERVICE_START_MONTH)부터 지난달까지. [가정] 기한은 다음 달 말일
  *   3. 분기 권한 검토: 계정 수, 관리자 권한을 가진 사람, 사용 중지 계정, 권한을 바꾼 기록과 사유를 모아 보여 주고 결과를 남김
  *      [가정] 기한은 분기가 끝난 다음 달 말일
  *   4. 접속 기록 조회: 사람, 한 일, 기간으로 거르기. 한 쪽 20건
@@ -23,7 +23,7 @@
     '화면 맨 위 검은 띠에서 정보보호 담당자나 최고관리자로 바꾸면 볼 수 있습니다.')) return;
 
   const PAGE_SIZE = 20;
-  const START_MONTH = D.SERVICE_START_MONTH; // 이 플랫폼을 쓰기 시작한 달 (mock-data.js)
+  const START_MONTH = D.SERVICE_START_MONTH; // 이 시스템을 쓰기 시작한 달 (mock-data.js)
   function val(f, n) { return (f.elements[n].value || '').trim(); }
   function pad(n) { return String(n).padStart(2, '0'); }
   function lastDay(y, m) { return y + '-' + pad(m) + '-' + pad(new Date(y, m, 0).getDate()); } // m: 1~12
@@ -196,7 +196,7 @@
     const acc = D.ACCOUNTS;
     const count = function (s) { return acc.filter(function (a) { return a.status === s; }).length; };
     const admins = acc.filter(function (a) { return a.status !== 'SUSPENDED' && (a.roles.indexOf('ADMIN') > -1 || a.roles.indexOf('SUPER') > -1); });
-    // 지난 권한 검토 뒤(처음이면 이 플랫폼을 쓰기 시작한 때부터) 오늘까지 권한을 바꾼 기록
+    // 지난 권한 검토 뒤(처음이면 이 시스템을 쓰기 시작한 때부터) 오늘까지 권한을 바꾼 기록
     const last = D.ACCESS_REVIEWS.slice().sort(function (a, b) { return b.at.localeCompare(a.at); })[0];
     const since = last ? last.at : START_MONTH + '-01';
     const changes = C.adminLog(['USER']).filter(function (e) { return e.at > since; });

@@ -8,7 +8,7 @@
  * ===================================================================== */
 
 /* 문서 머리(.doc-kind, .doc-meta), 칸 아래 보조 줄(.cell-meta), 핑크 테두리 버튼(.btn-reject)은 common.css */
-.doc-stack { display: flex; flex-direction: column; gap: 2rem; margin-top: 2rem; }
+.doc-stack { display: flex; flex-direction: column; gap: var(--gap-box); margin-top: var(--gap-box); }
 
 /* ---------- 결재란 (REQ-DOC-02) ----------
  * 칸마다 단계, 담당, 결과, 일시. 종이 결재란처럼 칸을 선으로 나눔 */
@@ -25,7 +25,7 @@
 .approval-box .is-skipped { color: var(--text-disabled); background: var(--surface-gray-subtler); }
 .approval-box .is-skipped strong { color: var(--text-disabled); }
 /* 결재란 둘째 표(계약 체결과 운영 검토)의 제목 (REQ-SIGN-02) */
-.box-subtitle { margin: 2rem 0 0.8rem; font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
+.box-subtitle { margin: 2rem 0 0.8rem; font-size: var(--fs-heading-xsmall); /* 상자 안 소제목 17px (v0.59 위계) */ font-weight: 700; color: var(--text-bolder); }
 
 /* 확인 창 안의 확인 항목(⑥ 실물 대조, ⑧ 같음 확인, ⑨ 운영 적용)과 체결본 파일(⑦) (REQ-SIGN-03~05) */
 .act-checks, .act-file { margin-top: 1.6rem; }
@@ -38,7 +38,7 @@
 /* ---------- 기본 정보: 이름표와 값 두 쌍씩 ---------- */
 .info-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--border-gray-light); }
 .info-grid > div { display: grid; grid-template-columns: 14rem minmax(0, 1fr); align-items: baseline; border-bottom: 1px solid var(--border-gray-light); }
-.info-grid dt { padding: 1rem 1.2rem; background: var(--surface-gray-subtler); font-size: var(--fs-body-small); font-weight: 700; color: var(--text-subtle); align-self: stretch; }
+.info-grid dt { padding: 1rem 1.2rem; background: var(--surface-gray-subtler); font-size: var(--fs-body-small); font-weight: 700; color: var(--text-subtle); align-self: stretch; text-align: left; } /* 이름표는 양쪽 정렬하지 않음 (v0.59 QA: "서비스   수준   협약"처럼 낱말 사이가 벌어졌음) */
 .info-grid dd { padding: 1rem 1.2rem; font-size: var(--fs-body-small); color: var(--text-basic); }
 .info-grid dd .icon { vertical-align: -0.2rem; margin-right: 0.2rem; }
 
@@ -92,7 +92,7 @@ p.check-effect { margin-top: 1.2rem; }
 
 /* ---------- 처리 막대 (REQ-ENV-06): 화면 아래에 붙음 ---------- */
 .action-bar {
-  position: sticky; bottom: 0; z-index: 10; margin-top: 2.4rem; padding: 1.6rem 2rem;
+  position: sticky; bottom: 0; z-index: 10; margin-top: var(--gap-box); padding: 1.2rem 2rem;
   border: 1px solid var(--border-gray-light); border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   background: var(--surface-white); box-shadow: var(--shadow-up);
 }
@@ -108,7 +108,7 @@ p.check-effect { margin-top: 1.2rem; }
 @media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
   .info-grid { grid-template-columns: 1fr; }
   .info-grid > div { grid-template-columns: 10rem minmax(0, 1fr); }
-  .action-bar { margin-left: -1.6rem; margin-right: -1.6rem; padding: 1.2rem 1.6rem; border-radius: 0; }
+  .action-bar { margin-left: -1.6rem; margin-right: -1.6rem; padding: 1.2rem 1.6rem; border-radius: 0; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); } /* 아래 탭 막대 위에 붙음 (v0.59) */
   .act-btns { width: 100%; }
   .act-btns .btn { flex: 1 1 0; }
   .act-pick { width: 100%; flex-wrap: wrap; }
@@ -120,7 +120,7 @@ p.check-effect { margin-top: 1.2rem; }
 /* ---------- 계약 요약서 (SCR-47, v0.53 기획자 요청) ----------
  * 계약 상세의 "계약 요약서" 버튼, 요약서의 차수마다 결재 기록 제목, 맨 아래 안내 */
 .doc-tools { display: flex; flex-wrap: wrap; gap: 0.8rem; }
-.round-title { margin: 2.4rem 0 0.8rem; font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); text-align: left; }
+.round-title { margin: 2.4rem 0 0.8rem; font-size: var(--fs-heading-xsmall); /* 상자 안 소제목 17px (v0.59 위계) */ font-weight: 700; color: var(--text-bolder); text-align: left; }
 .round-title:first-child { margin-top: 0; }
 .round-sub { margin-left: 0.4rem; font-size: var(--fs-body-small); font-weight: 500; color: var(--text-subtle); }
 .doc-endnote { font-size: var(--fs-body-xsmall); color: var(--text-subtle); }

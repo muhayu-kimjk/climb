@@ -8,7 +8,7 @@
  * 관련 요구사항: REQ-ADM, REQ-SEC-05, REQ-UI-10~12, REQ-UI-16
  * ===================================================================== */
 
-.admin-stack { display: flex; flex-direction: column; gap: 2.4rem; }
+.admin-stack { display: flex; flex-direction: column; gap: var(--gap-box); }
 /* 묶음 머리: 제목 왼쪽, 추가 버튼 오른쪽 (세로 가운데) */
 .panel-head--act { align-items: center; flex-wrap: wrap; }
 .panel-head--act .btn { flex-shrink: 0; }
@@ -30,7 +30,9 @@
 
 /* 표 안의 굵은 주 정보와 흐린 줄(사용 안 함, 끝남) */
 .tbl .cell-strong { font-weight: 700; color: var(--text-basic); }
-.tbl tr.is-muted td { color: var(--text-disabled); }
+/* 사용 안 함, 끝난 줄: 예전에는 흐린 회색(3.2:1)이었으나 글자 대비 기준 4.5:1에 모자라(v0.59 QA, REQ-UI-36) 보조 글자 색으로.
+ * 이름도 진하지 않게 두고, "사용 안 함"과 "끝남" 배지로 구분 */
+.tbl tr.is-muted td { color: var(--text-subtle); }
 .tbl tr.is-muted .cell-strong { color: var(--text-subtle); }
 .tbl .col-action { width: 1%; white-space: nowrap; text-align: center; }
 /* 글이 긴 칸(거치는 조건, 근거)은 좁아지지 않게 */
@@ -44,7 +46,7 @@
 /* 품의 문서 같은 표 안의 링크(.doc-link)는 common.css */
 
 /* 사용자 권한 관리(SCR-51): 목록 아래 권한 변경 이력 */
-.users-history { margin-top: 3.2rem; }
+.users-history { margin-top: 2.4rem; }
 
 
 /* 입력 창 안의 정보 줄 (예: 지금 담당자)과 체크 묶음 */
@@ -96,7 +98,13 @@
 .viewer-line.is-off { color: var(--text-subtle); }
 .viewer-kind { font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
 .viewer-line .link-act { min-height: 0; }
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
+  .viewer-line .link-act { padding-top: 1.05rem; padding-bottom: 1.05rem; margin-top: -1.05rem; margin-bottom: -1.05rem; } /* 누르는 영역 44px (v0.59 QA) */
+}
 .tbl--restrict .viewer-add { display: block; min-height: 0; margin: 0.6rem 0 0; padding: 0; }
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
+  .tbl--restrict .viewer-add { padding: 1.05rem 0; margin: -0.45rem 0 -1.05rem; } /* 누르는 영역 44px, 보이는 자리는 그대로 (v0.59 QA) */
+}
 
 @media print {
   .panel-head--act .btn, .link-act { display: none !important; }
@@ -111,4 +119,4 @@
 .tbl--products tbody + tbody { border-top: 2px solid var(--border-gray-light); }
 
 /* 묶음 안의 작은 제목 (예: 결재선 규칙의 팀별 리더) */
-.panel .box-subtitle { margin: 2.4rem 0 0.8rem; font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
+.panel .box-subtitle { margin: 2.4rem 0 0.8rem; font-size: var(--fs-heading-xsmall); /* 상자 안 소제목 17px (v0.59 위계) */ font-weight: 700; color: var(--text-bolder); }
