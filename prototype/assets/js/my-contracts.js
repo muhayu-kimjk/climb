@@ -40,7 +40,7 @@
   }
   $('#f-status').innerHTML = options('전체 상태', Object.keys(D.STATUS).map(function (k) { return [k, D.STATUS[k].label]; }));
   $('#f-kind').innerHTML = options('전체 계약종류', Object.keys(D.KINDS).map(function (k) { return [k, D.KINDS[k]]; }));
-  $('#thead').innerHTML = '<tr><th scope="col" class="col-customer">고객사</th><th scope="col">계약종류</th><th scope="col">상태</th><th scope="col">현재 진행</th><th scope="col" class="num">대기</th>' +
+  $('#thead').innerHTML = '<tr><th scope="col" class="col-customer">고객사</th><th scope="col">계약종류</th><th scope="col">상태</th><th scope="col">현재 진행</th><th scope="col" class="col-wait">대기</th>' +
     (seeAll ? '<th scope="col">영업대표</th>' : '') + '<th scope="col">기안일</th><th scope="col">할 일</th></tr>';
 
   // 할 일 버튼 (내 계약일 때만)

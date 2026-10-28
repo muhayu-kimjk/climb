@@ -111,7 +111,9 @@ svg { flex-shrink: 0; }
 .inner { padding: 0 var(--page-margin); }
 
 .icon { width: 2rem; height: 2rem; }
-.icon--sm { width: 1.6rem; height: 1.6rem; } /* C.icon(이름, 'sm') */
+/* C.icon(이름, 'sm'): 글자 옆 작은 아이콘(이용 안내 ?, 로그아웃, 전체 보기 >, 자물쇠 등)은 옆 글자 크기를 따라감 (v0.59 기획자 요청:
+ * 글자가 13px로 작아졌는데 아이콘은 16px 그대로라 "이용 안내"의 ?가 커 보였음). 글자의 1.05배: 13px 글자 옆 약 14px, 17px 메뉴 옆 약 18px */
+.icon--sm { width: 1.05em; height: 1.05em; }
 
 /* ---------- 2. 프로토타입 시연 띠 (실제 시스템에서는 삭제) ---------- */
 .demo-bar {
@@ -208,7 +210,11 @@ a.user-name:hover, a.user-name[aria-current] { color: var(--text-primary); text-
 .gnb-more--right { right: 0; justify-content: flex-end; background: linear-gradient(to right, transparent, var(--surface-white) 60%); }
 .gnb-more--left { left: 0; justify-content: flex-start; background: linear-gradient(to left, transparent, var(--surface-white) 60%); }
 .gnb-scroll.is-more-right .gnb-more--right, .gnb-scroll.is-more-left .gnb-more--left { display: flex; }
-.gnb-aside { display: inline-flex; align-items: center; gap: 0.4rem; font-size: var(--fs-body-small); color: var(--text-subtle); white-space: nowrap; }
+/* 이용 안내: 중요한 항목이라 글자 15px, 아이콘 약 16px(아이콘은 글자의 1.05배)로 예전 크기 (v0.59 기획자 요청) */
+.gnb-aside { display: inline-flex; align-items: center; gap: 0.4rem; font-size: var(--fs-body-medium); color: var(--text-subtle); white-space: nowrap; }
+/* 세로 줄맞춤(v0.59 기획자 요청): Noto Sans KR 글자는 줄 상자 가운데보다 조금 아래에 그려져, 가운데 맞춤한 아이콘이 글자보다 0.25~0.75px 위에 보였음.
+ * 아이콘을 글자 크기의 4%(15px 글자에서 0.6px) 내려 글자 가운데에 맞춤. 메뉴 펼침 화살표(∨)도 같은 까닭으로 7% 내림(아래 .gnb-link .icon) */
+.gnb-aside .icon { position: relative; top: 0.04em; }
 .gnb-aside:hover { color: var(--text-basic); text-decoration: underline; text-underline-offset: 0.3rem; }
 .gnb-aside.is-current { color: var(--text-primary); font-weight: 700; } /* 이용 안내(SCR-90)를 보고 있을 때 */
 .gnb-item { position: static; flex-shrink: 0; } /* 하위 메뉴가 .gnb-scroll 기준으로 자리 잡게 (v0.50) */
@@ -218,7 +224,7 @@ a.user-name:hover, a.user-name[aria-current] { color: var(--text-primary); text-
   font-size: var(--fs-body-large); font-weight: 700; color: var(--text-subtle);
 }
 .gnb-link:hover { color: var(--text-basic); background: var(--action-hover); }
-.gnb-link .icon { transition: transform 0.2s ease; }
+.gnb-link .icon { position: relative; top: 0.07em; transition: transform 0.2s ease; } /* top: 글자 가운데에 맞춤(v0.59, 위 .gnb-aside .icon 설명) */
 .gnb-item.is-open .gnb-link .icon { transform: rotate(180deg); }
 .gnb-link.is-current { color: var(--text-bolder); }
 .gnb-link.is-current::after, .gnb-item.is-open .gnb-link::after {
@@ -399,7 +405,14 @@ a.user-name:hover, a.user-name[aria-current] { color: var(--text-primary); text-
 /* 현재 진행 칸(개요, 전체 진행 현황, 내 등록 목록): 단계 이름을 한 줄로, 글이라 왼쪽 (v0.55 기획자 결정, REQ-DASH-06) */
 .tbl td.col-progress { white-space: nowrap; }
 .tbl .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.tbl thead th, .tbl thead th.num { text-align: center; }
+.tbl thead th, .tbl thead th.num { text-align: center; } /* 내용이 없을 때의 기본값 */
+/* 머리글은 그 칸 내용과 같은 정렬 (v0.59 기획자 요청: 고객사는 내용이 왼쪽인데 머리글만 가운데라 어긋나 보였음).
+ * 칸마다 내용의 정렬을 common.js alignTableHeads가 읽어 data-align으로 붙임. v0.19의 "머리글은 모두 가운데"를 바꿈 */
+.tbl thead th[data-align="left"] { text-align: left; }
+.tbl thead th[data-align="center"] { text-align: center; }
+.tbl thead th[data-align="right"] { text-align: right; }
+/* 대기 일수(대기, 승인 후)는 숫자지만 짧은 칸이라 날짜, 상태처럼 가운데 (v0.59 기획자 요청) */
+.tbl td.col-wait, .tbl th.col-wait { text-align: center; }
 .tbl .center { text-align: center; }
 .tbl .nowrap { white-space: nowrap; }
 .tbl tr.is-alert td { background: var(--status-danger-row); }
@@ -520,7 +533,6 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
   /* 누르는 영역 44px (v0.59 QA, 애플 휴먼 인터페이스 지침 44pt): 위아래 안쪽 여백을 늘리고 같은 만큼 바깥을 당겨 보이는 배치는 그대로 */
   .header-top .brand-title { padding: 0.65rem 0; margin: -0.65rem 0; }
   .user-name, .link-more { padding: 1.05rem 0; margin: -1.05rem 0; }
-  .notice-strip a { padding: 0.9rem 0; margin: -0.9rem 0; }
   .wait-long { vertical-align: 0.1rem; } /* 휴대폰 표: 대기 일수 상자도 옆 글자 가운데에 (v0.59 QA 세로 줄맞춤) */
   .btn { min-height: var(--touch-min); }
 
@@ -578,12 +590,13 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
   /* 흑백 인쇄 (v0.59 기획자 요청, REQ-UI-35): 색은 tokens.css 6-1. 여기서는 칠이 사라진 자리를 선과 굵기로 메움
-   * - 바탕 칠로만 구분하던 상자(알림, 통계 숫자 칸, 계약 금액 총액, 빈 그래프 안내)는 얇은 회색 선
-   * - 화면 안내 상자는 상자 없이 글자만(규칙은 15. 화면 공통 부품의 .page-intro 뒤에 둠: 같은 이름 규칙은 뒤의 것이 이김)
+   * - 바탕 칠로만 구분하던 상자(알림, 통계 숫자 칸, 계약 금액 총액, 빈 그래프 안내, 화면 안내, 묶음 설명)는 얇은 회색 선
+   *   선은 상자 안쪽에 그림자로 그려 상자 크기와 안쪽 여백이 화면과 똑같음 → 줄바꿈도 화면과 같음(REQ-UI-10, v0.59 QA:
+   *   처음에는 화면 안내와 묶음 설명의 여백을 빼서 인쇄 줄바꿈이 화면과 달라졌음). 화면 안내 규칙은 15장 .page-intro 뒤에 둠
    * - 상태 배지는 칠 없이 회색 테두리 + 글자. 반려와 오래 머묾은 검정 테두리 + 굵은 글자
    * - 결재 단계 점 가운데 반려는 네모(끝난 단계의 검정 동그라미와 모양으로 구분)
    * - 종이에 남는 버튼은 칠 없이 회색 테두리. 그림(머리글 심볼 등)도 흑백 */
-  .notice, .stat-tile, .chart-empty, .amount-total, .case-summary { border: 1px solid var(--border-gray-light); }
+  .notice:not(.notice--success), .stat-tile, .chart-empty, .amount-total, .case-summary { box-shadow: inset 0 0 0 1px var(--border-gray-light); }
   .badge { border-color: var(--border-gray); }
   .badge--danger, .wait-long { border: 1px solid var(--text-bolder); background: none; color: var(--text-bolder); font-weight: 700; }
   .step-dot.is-rejected { border-radius: 0.1rem; }
@@ -715,8 +728,8 @@ a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: under
 
 @media print {
   .modal-backdrop { display: none !important; }
-  /* 흑백 인쇄(14. 인쇄, REQ-UI-35): 화면 안내 상자는 상자 없이 글자만. 잉크와 자리를 아낌 */
-  .page-intro { padding: 0; border-radius: 0; background: none; }
+  /* 흑백 인쇄(14. 인쇄, REQ-UI-35): 화면 안내 상자는 칠 없이 안쪽 회색 선. 안쪽 여백은 화면과 같게 둬 줄바꿈이 같음 */
+  .page-intro { box-shadow: inset 0 0 0 1px var(--border-gray-light); }
 }
 
 /* 워터마크 (REQ-SEC-07, REQ-ENV-11)

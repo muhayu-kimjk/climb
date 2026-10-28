@@ -805,11 +805,12 @@ window.CLIMB = (function () {
     return esc(p.step) + (p.days == null ? '' : ' ' + p.days + '일째');
   }
   // 목록 표의 두 칸: 현재 진행(글, 왼쪽) + 대기(숫자, 오른쪽). 개요의 진행 상세, 전체 진행 현황, 내 등록 목록이 함께 씀
-  //   머리글은 '<th scope="col">현재 진행</th><th scope="col" class="num">대기</th>'
+  //   머리글은 '<th scope="col">현재 진행</th><th scope="col" class="col-wait">대기</th>'
+  //   대기 일수는 숫자지만 가운데(v0.59 기획자 요청: 짧은 칸이라 날짜, 상태처럼 가운데). 숫자 글꼴(num)은 그대로
   function progressCells(c) {
     const p = progressInfo(c);
     const d = p.days == null ? '-' : p.lim && p.days >= p.lim ? '<span class="wait-long">' + p.days + '일</span>' : p.days + '일';
-    return '<td class="col-progress">' + esc(p.step) + '</td><td class="num">' + d + '</td>';
+    return '<td class="col-progress">' + esc(p.step) + '</td><td class="num col-wait">' + d + '</td>';
   }
   // 결재 기록의 "한 일" 이름: ⑥⑧⑨⑩의 승인은 단계에 맞는 말로 (예: 날인 완료)
   //   c를 주면 해지와 그대로 연장의 ⑨를 운영 종료 완료, 기간 연장 완료로
@@ -2234,6 +2235,63 @@ window.CLIMB = (function () {
       });
     }).observe(document.documentElement, { childList: true, subtree: true });
   }
+
+  /* ---------- 표 머리글 정렬 (v0.59 기획자 요청, REQ-UI-16) ----------
+   * 머리글은 그 칸 내용과 같은 정렬: 글(고객사, 현재 진행)은 왼쪽, 짧은 칸(서비스, 상태, 날짜, 사람, 대기 일수)은 가운데,
+   * 금액과 수량은 오른쪽. 내용의 정렬은 CSS(common.css 8. 표)가 정하고, 여기서는 칸마다 첫 내용의 정렬을 읽어
+   * 머리글에 같은 값(data-align)을 붙임. 표를 다시 그릴 때(거르기, 쪽 넘김)와 휴대폰, PC 사이를 오갈 때도 다시 맞춤.
+   * 내용이 없는 표(빈 목록)는 CSS 기본값(가운데) */
+  function cellGrid(rows) { // 줄마다 [칸, 열 번호]. 합친 칸(rowspan, colspan)을 계산해 열 번호를 맞춤
+    const taken = [];
+    return [].map.call(rows, function (tr, r) {
+      let c = 0;
+      return [].map.call(tr.cells, function (cell) {
+        while (taken[r] && taken[r][c]) c++;
+        for (let i = 0; i < Math.max(1, cell.rowSpan); i++) {
+          for (let j = 0; j < Math.max(1, cell.colSpan); j++) (taken[r + i] = taken[r + i] || [])[c + j] = true;
+        }
+        const at = { cell: cell, col: c };
+        c += Math.max(1, cell.colSpan);
+        return at;
+      });
+    });
+  }
+  function alignTableHeads() {
+    document.querySelectorAll('table.tbl').forEach(function (tb) {
+      if (!tb.tHead || !tb.tBodies.length) return;
+      const align = {};
+      [].forEach.call(tb.tBodies, function (body) {
+        cellGrid(body.rows).forEach(function (line) {
+          line.forEach(function (x) {
+            if (x.cell.colSpan !== 1 || align[x.col] != null || !x.cell.getClientRects().length || !x.cell.textContent.trim()) return;
+            const a = getComputedStyle(x.cell).textAlign;
+            align[x.col] = a === 'right' || a === 'end' ? 'right' : a === 'center' ? 'center' : 'left';
+          });
+        });
+      });
+      cellGrid(tb.tHead.rows).forEach(function (line) {
+        line.forEach(function (x) {
+          if (x.cell.colSpan !== 1) return; // 여러 칸을 묶는 머리글은 가운데 그대로
+          if (align[x.col]) x.cell.setAttribute('data-align', align[x.col]); else x.cell.removeAttribute('data-align');
+        });
+      });
+    });
+  }
+  let headTimer = 0;
+  function alignTableHeadsSoon() {
+    cancelAnimationFrame(headTimer);
+    headTimer = requestAnimationFrame(alignTableHeads);
+  }
+  if (window.MutationObserver) {
+    new MutationObserver(function (list) {
+      if (list.some(function (m) { return m.target.closest && m.target.closest('table, .tbl-wrap, main'); })) alignTableHeadsSoon();
+    }).observe(document.documentElement, { childList: true, subtree: true });
+  }
+  if (window.matchMedia) {
+    const mq = window.matchMedia(PHONE_MQ);
+    if (mq.addEventListener) mq.addEventListener('change', alignTableHeadsSoon);
+  }
+  document.addEventListener('DOMContentLoaded', alignTableHeadsSoon);
 
   /* ---------- 화면 시작 ----------
    * 각 HTML의 <body data-page="SCR-xx">를 읽어 공통 영역을 그립니다. */

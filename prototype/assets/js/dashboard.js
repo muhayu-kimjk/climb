@@ -132,15 +132,8 @@
     if (C.hasRole(me, ['PRIVACY']) && auditCount) msg += ' 점검할 일도 <strong class="em">' + auditCount + '건</strong> 있습니다.';
     document.getElementById('greeting').innerHTML = msg;
     document.getElementById('today').textContent = C.fmtToday() + ' 기준';
-    // 가장 최근 공지 한 줄 (v0.45, v0.55부터 개요의 세 번째 자리): 공지사항의 맨 위 글. 내린 글은 빼고 글 번호가 큰 것
-    const latest = D.NOTICES.filter(function (n) { return !n.hidden; })
-      .sort(function (a, b) { return Number(String(b.id).slice(2)) - Number(String(a.id).slice(2)); })[0];
-    if (latest) {
-      document.getElementById('notice-strip').innerHTML = '<p class="notice-strip"><span class="strip-label">' + (latest.kind === 'RELEASE' ? '릴리즈' : '공지') + '</span>' +
-        (latest.important ? C.badge('danger', '중요') : '') +
-        '<a href="notice.html?id=' + encodeURIComponent(latest.id) + '">' + (latest.version ? esc(latest.version) + ' ' : '') + esc(latest.title) + '</a>' +
-        '<span class="strip-date">' + C.fmtDate(latest.at) + '</span></p>';
-    }
+    // 최근 공지 한 줄은 없앰(v0.59 기획자 요청, REQ-UI-29). 공지와 릴리즈는 공지사항 게시판에서, 중요 공지는 이메일로(REQ-ENV-10).
+    //   기능이 바뀐 것을 알리는 방법은 요구사항 정의서 C-35에서 정함. 팝업은 쓰지 않음(REQ-ENV-15)
   }
 
   /* ---------- 2. 계약 진행 현황 (REQ-DASH-04, 06, 08, 14) ----------
@@ -187,7 +180,7 @@
     const table = rows.length
       ? '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
           '<caption class="sr-only">진행 상세: 고객사, 서비스, 상태, 현재 진행, 대기</caption>' +
-          '<thead><tr><th scope="col" class="col-customer">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col" class="col-status">상태</th><th scope="col">현재 진행</th><th scope="col" class="num">대기</th></tr></thead>' +
+          '<thead><tr><th scope="col" class="col-customer">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col" class="col-status">상태</th><th scope="col">현재 진행</th><th scope="col" class="col-wait">대기</th></tr></thead>' +
           '<tbody>' + rows.map(function (c) {
             // 휴대폰은 칸이 좁아 상태 칸을 감추고 고객사 아래에 상태 배지를 둠(현재 진행이 한 줄에 들어가게, v0.55)
             return '<tr' + (c.status === 'REJECTED' ? ' class="is-alert"' : '') + '>' +
@@ -224,7 +217,7 @@
     el.innerHTML = head +
       '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
         '<caption class="sr-only">내가 ' + doWord + ' 계약: 고객사, 서비스, 요청자, 대기 일수, 내 단계</caption>' +
-        '<thead><tr><th scope="col" class="col-customer">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col">요청자</th><th scope="col" class="num">대기</th><th scope="col">내 단계</th></tr></thead>' +
+        '<thead><tr><th scope="col" class="col-customer">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col">요청자</th><th scope="col" class="col-wait">대기</th><th scope="col">내 단계</th></tr></thead>' +
         '<tbody>' + rows.map(function (c) {
           const s = mine(c);
           const wait = C.waitDays(c, s);
@@ -234,7 +227,7 @@
               '<span class="cell-sub">' + esc(C.serviceLabel(c.services)) + '</span></td>' +
             '<td class="col-service">' + esc(C.serviceLabel(c.services)) + '</td>' +
             '<td class="center">' + esc(C.ownerLabel(c.requesterId)) + '</td>' +
-            '<td class="num"><span' + (wait >= R.approvalDelayDays ? ' class="wait-long"' : '') + '>' + wait + '일</span></td>' +
+            '<td class="num col-wait"><span' + (wait >= R.approvalDelayDays ? ' class="wait-long"' : '') + '>' + wait + '일</span></td>' +
             '<td class="nowrap col-steps">' + (C.isReviewStep(s.step) ? stepDots(c) : '') + esc(C.stepLabel(s.step, c)) + '</td>' +
           '</tr>';
         }).join('') + '</tbody>' +

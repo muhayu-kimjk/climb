@@ -135,5 +135,5 @@ p.check-effect { margin-top: 1.2rem; }
   .approval-box-wrap { overflow: visible; }
   .doc-stack { gap: 4mm; }
   .doc-stack .panel { break-inside: avoid; }
-  .info-grid dt, .info-grid dd { padding: 1.5mm 2mm; }
+  .info-grid dt, .info-grid dd { padding: 1.5mm 1.2rem; } /* 위아래만 줄임. 좌우는 화면과 같게 둬 줄바꿈이 화면과 같음 (REQ-UI-10, v0.59 QA) */
 }

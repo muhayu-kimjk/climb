@@ -31,17 +31,6 @@ a.board-title:hover { color: var(--text-primary); text-decoration: underline; te
 .post-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.8rem; margin-top: var(--gap-box); }
 @media print { .post-actions, .post-nav { display: none !important; } }
 
-/* ---------- 개요: 가장 최근 공지 한 줄 (숫자, 종 모양 없음. REQ-ENV-09)
- * v0.55부터 맨 위가 아니라 진행 현황, 만료 임박 다음 세 번째. 위아래 간격은 개요 상자 사이 간격(.dash-stack)이 맡음 ---------- */
-.notice-strip {
-  display: flex; align-items: center; gap: 0.8rem; padding: 1.2rem 1.6rem;
-  border: 1px solid var(--border-gray-light); border-radius: var(--radius-lg); background: var(--surface-white);
-}
-.notice-strip .strip-label { flex-shrink: 0; font-size: var(--fs-body-small); font-weight: 700; color: var(--text-subtle); }
-.notice-strip a { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; color: var(--text-bolder); text-align: left; }
-.notice-strip a:hover { color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; }
-.notice-strip .strip-date { flex-shrink: 0; font-size: var(--fs-body-small); color: var(--text-subtle); font-variant-numeric: tabular-nums; }
-@media print { .notice-strip { display: none !important; } }
 
 /* ---------- 내 계정 ---------- */
 .account-info { display: grid; grid-template-columns: max-content 1fr; gap: 1rem 2.4rem; font-size: var(--fs-body-medium); }

@@ -42,7 +42,7 @@
   $('#f-service').innerHTML = options('전체 서비스', Object.keys(D.SERVICES).map(function (k) { return [k, D.SERVICES[k]]; }));
 
   $('#thead').innerHTML = '<tr><th scope="col" class="col-customer">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col">단계</th>' +
-    (showWho ? '<th scope="col">담당자</th>' : '') + '<th scope="col">체결본 등록일</th><th scope="col" class="num">대기</th></tr>';
+    (showWho ? '<th scope="col">담당자</th>' : '') + '<th scope="col">체결본 등록일</th><th scope="col" class="col-wait">대기</th></tr>';
 
   let page = 1;
   function filtered() {
@@ -86,7 +86,7 @@
         (showWho ? '<td class="center">' + esc(C.ownerLabel(x.s.userId)) + '</td>' : '') +
         // 운영 변경은 체결본이 없으므로 기안일
         '<td class="num-left">' + (x.c.signedAt ? C.fmtDate(x.c.signedAt) : C.isChange(x.c) ? '기안 ' + C.fmtDate(x.c.requestedAt) : '-') + '</td>' +
-        '<td class="num"><span' + (x.wait >= LONG ? ' class="wait-long"' : '') + '>' + x.wait + '일</span></td>' +
+        '<td class="num col-wait"><span' + (x.wait >= LONG ? ' class="wait-long"' : '') + '>' + x.wait + '일</span></td>' +
       '</tr>';
     }).join('') : '<tr><td class="empty-row" colspan="' + cols + '">' + (all.length ? '조건에 맞는 건이 없습니다.' : '지금 차례인 운영 검토가 없습니다.') + '</td></tr>';
     $('#pagination').innerHTML = C.pagerHtml(page, pages, list.length, from, rows.length, PAGE_SIZE, '건');

@@ -39,7 +39,7 @@
   $('#f-step').innerHTML = options('전체', SIGN_STEPS.map(function (code) { return [code, D.STEPS[code].no + ' ' + D.STEPS[code].ing]; }));
 
   $('#thead').innerHTML = '<tr><th scope="col" class="col-customer">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col">지금 단계</th>' +
-    (seeAll ? '<th scope="col">영업대표</th>' : '') + '<th scope="col">승인일</th><th scope="col" class="num">승인 후</th></tr>';
+    (seeAll ? '<th scope="col">영업대표</th>' : '') + '<th scope="col">승인일</th><th scope="col" class="col-wait">승인 후</th></tr>';
 
   let page = 1;
   function filtered() {
@@ -85,7 +85,7 @@
         '<td class="nowrap">' + stepCell + '</td>' +
         (seeAll ? '<td class="center">' + esc(C.ownerLabel(x.c.requesterId)) + '</td>' : '') +
         '<td class="num-left">' + C.fmtDate(x.c.approvedAt) + '</td>' +
-        '<td class="num"><span' + (x.days >= LONG ? ' class="wait-long"' : '') + '>' + x.days + '일</span></td>' +
+        '<td class="num col-wait"><span' + (x.days >= LONG ? ' class="wait-long"' : '') + '>' + x.days + '일</span></td>' +
       '</tr>';
     }).join('') : '<tr><td class="empty-row" colspan="' + cols + '">' + (all.length ? '조건에 맞는 건이 없습니다.' : '체결을 기다리는 계약이 없습니다.') + '</td></tr>';
     $('#pagination').innerHTML = C.pagerHtml(page, pages, list.length, from, rows.length, PAGE_SIZE, '건');

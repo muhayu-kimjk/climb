@@ -161,7 +161,7 @@
   /* 목록이 든 큰 항목(제품, 연도별 금액, 결재선)은 통째로 넘기면 빈칸이 커지므로 줄 단위로만 묶음 */
   .field:not(:has(ul, ol)), .field-row, .check-q, .product-list > li, .route-list > li, .amount-total, .year-row { break-inside: avoid; }
   .section-title, .section-desc, .field-label { break-after: avoid; }
-  .section-desc { break-inside: avoid; padding: 0; border-radius: 0; background: none; } /* 흑백 인쇄(REQ-UI-35): 회색 상자 없이 글자만 */
+  .section-desc { break-inside: avoid; box-shadow: inset 0 0 0 1px var(--border-gray-light); } /* 흑백 인쇄(REQ-UI-35): 칠 없이 안쪽 회색 선, 여백은 화면과 같게(줄바꿈 같음) */
   .field { margin-bottom: 1.6rem; }
   .field-row { row-gap: 1.6rem; margin-bottom: 1.6rem; }
   .field-row:last-child { margin-bottom: 0; }
