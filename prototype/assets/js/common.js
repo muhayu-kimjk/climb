@@ -75,6 +75,33 @@ window.CLIMB = (function () {
     // 공지사항: 공지와 릴리즈를 한 게시판에 (v0.45 기획자 결정: 주 메뉴 맨 끝). 읽기는 모두, 쓰기는 관리자와 최고관리자
     { label: '공지사항', scr: 'SCR-91', href: 'notices.html' },
   ];
+  // 메뉴 검색(v0.60 기획자 요청)에서 메뉴 이름 말고도 찾을 수 있게 하는 말: 그 화면에서 하는 일
+  const MENU_KEYWORDS = {
+    'SCR-01': '홈 대시보드 첫 화면 처음',
+    'SCR-11': '기안 신규 계약서 작성 새로',
+    'SCR-12': '내 계약 임시 저장 반려 보완 재기안',
+    'SCR-20': '진행 결재 단계 현재',
+    'SCR-21': '결재 승인 반려 내 차례 대기 일수',
+    'SCR-22': '처리한 결재 승인 완료',
+    'SCR-31': '날인 인장 체결본 등록',
+    'SCR-34': '운영 적용 재무 확인',
+    'SCR-41': '계약 목록 계약 상세 보관 해지 변경',
+    'SCR-43': '만료 연장 갱신 해지 통지 기한',
+    'SCR-48': '체결 후 의무 SLA 청구 보안 기한',
+    'SCR-45': '계약서 양식 템플릿 판',
+    'SCR-46': '통계 보고서 금액 건수 그래프',
+    'SCR-51': '사용자 계정 권한 역할 조직',
+    'SCR-52': '결재선 담당자 대리 리더',
+    'SCR-53': '열람 제한 지정 열람자',
+    'SCR-54': '가격 단가 할인율 한도',
+    'SCR-58': '제품 기능 서비스',
+    'SCR-55': '거래처 고객사 사업자등록번호',
+    'SCR-56': '코드 조직 서비스',
+    'SCR-57': '접속 기록 로그 점검',
+    'SCR-91': '공지 릴리즈 업데이트 바뀐 것',
+    'SCR-90': '도움말 사용법 가이드 업무 흐름',
+    'SCR-93': '내 정보 이메일 알림 설정 화면 밝기 다크모드',
+  };
 
   /* ---------- 아이콘 (선 아이콘, 글자색을 따라감) ---------- */
   const ICON_PATHS = {
@@ -86,17 +113,14 @@ window.CLIMB = (function () {
     logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
     help: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
     check: '<circle cx="12" cy="12" r="10"/><path d="m8 12.5 2.8 2.8L16.5 9.5"/>',
-    arrowUp: '<path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>',
     external: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
     search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
     calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
-    // 휴대폰 아래 탭 막대 (v0.59): 개요, 계약 등록, 계약 현황, 보관함, 더보기
-    home: '<path d="m3 10.5 9-7 9 7"/><path d="M5 9.5V20h5v-6h4v6h5V9.5"/>',
-    filePlus: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M12 12v6"/><path d="M9 15h6"/>',
-    clipboard: '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>',
-    archive: '<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
-    more: '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
+    // 휴대폰 메뉴 단추(v0.60): 줄 세 개(열기), ×(닫기)
+    menu: '<path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/>',
+    panelClose: '<path d="M4 12h12"/><path d="m11 7 5 5-5 5"/><path d="M20 5v14"/>', // 메뉴판 닫기(오른쪽으로 접기)
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
   };
   function icon(name, size) {
     const cls = 'icon' + (size ? ' icon--' + size : '');
@@ -1417,6 +1441,7 @@ window.CLIMB = (function () {
       return m.children ? Object.assign({}, m, { children: m.children.filter(allowed) }) : m;
     }).filter(function (m) { return !m.children || m.children.length; });
 
+    const searchEntries = menuEntries(menu, pageId); // 메뉴 검색 대상(v0.60): 이 역할에 보이는 메뉴만
     const menuHtml = menu.map(function (m, i) {
       const isCurrent = m.scr === pageId || (m.children || []).some(function (c) { return c.scr === pageId; });
       const cur = isCurrent ? ' is-current' : '';
@@ -1454,6 +1479,8 @@ window.CLIMB = (function () {
           '<a class="user-name" href="account.html" title="내 계정"' + (pageId === 'SCR-93' ? ' aria-current="page"' : '') + '>' + esc(user.name) + '님<span class="sr-only"> (내 계정)</span></a>' +
           '<span class="util-divider" aria-hidden="true"></span>' +
           '<a class="util-link logout-link" href="login.html">' + icon('logout', 'sm') + '로그아웃</a>' +
+          // 휴대폰 메뉴 단추(v0.60 기획자 요청): 로그아웃 옆 줄 세 개. PC와 태블릿에서는 보이지 않음(위 메뉴 줄을 씀)
+          '<button type="button" class="menu-btn" aria-expanded="false" aria-controls="phone-menu" aria-label="메뉴 열기">' + icon('menu') + '</button>' +
         '</div>' +
         '<span class="brand-en is-ko">' + esc(D.BRAND.ko) + '</span>' + // 둘째 줄은 한글 이름 (v0.53 기획자 요청. is-ko: 한글은 Noto Sans KR, v0.54)
         // 인쇄할 때만 보이는 출력 정보 (REQ-UI-11). 실제 시스템은 출력하는 순간의 날짜와 시각을 씁니다.
@@ -1464,9 +1491,13 @@ window.CLIMB = (function () {
         '<div class="gnb-scroll"><ul class="gnb-list">' + menuHtml + '</ul>' +
           '<button type="button" class="gnb-more gnb-more--left" tabindex="-1" aria-hidden="true">' + icon('chevronLeft') + '</button>' +
           '<button type="button" class="gnb-more gnb-more--right" tabindex="-1" aria-hidden="true">' + icon('chevronRight') + '</button></div>' +
+        // 메뉴 검색(v0.60 기획자 요청): 누르면 메뉴 줄이 아래로 넓어지며 검색 칸(아래 .gnb-search)
+        '<button type="button" class="gnb-search-btn" aria-expanded="false" aria-controls="gnb-search" aria-label="메뉴 검색" title="메뉴 검색">' + icon('search') + '</button>' +
         // 이용 안내(SCR-90): 메뉴 줄 오른쪽 끝 (REQ-UI-14)
         '<a class="gnb-aside' + (pageId === 'SCR-90' ? ' is-current" aria-current="page' : '') + '" href="help.html">' + icon('help', 'sm') + '<span class="gnb-aside-label">이용 안내</span></a>' +
-      '</div></nav>';
+      '</div>' +
+      '<div class="gnb-search" id="gnb-search" hidden>' + menuSearchHtml('gs') + '</div>' +
+      '</nav>';
 
     // 메뉴 한 줄(v0.42 휴대폰, v0.50 기획자 요청으로 PC와 태블릿도): 다 들어가지 않으면 옆으로 밀어 봄.
     //   지금 화면의 메뉴가 보이게 미리 밀어 두고, 더 있는 쪽 끝을 흐리게 표시
@@ -1490,20 +1521,20 @@ window.CLIMB = (function () {
     if (gnbCur && gnbList.scrollWidth > gnbList.clientWidth) {
       gnbList.scrollLeft += gnbCur.getBoundingClientRect().left - gnbList.getBoundingClientRect().left - 16;
     }
-    // 하위 메뉴 자리(v0.50): 밀어 보는 줄에 잘리지 않게 .gnb-scroll 기준으로 둠. 연 메뉴 바로 아래(오른쪽 끝을 넘지 않게)
-    //   스마트폰도 같음(v0.55 기획자 요청: 폭 가득 펼치던 것을 글자 폭에 맞게 줄임)
+    // 하위 메뉴 자리(v0.50): 밀어 보는 줄에 잘리지 않게 .gnb-scroll 기준으로 둠(v0.55~v0.59는 연 메뉴 바로 아래 글자 폭만 한 작은 상자)
     function placeSub() {
       const item = gnbList.querySelector('.gnb-item.is-open'), sub = item && item.querySelector('.gnb-sub');
       placeDim(!!sub);
       if (!sub) return;
-      // 연 메뉴에서 내려온 것으로 보이게(v0.55 기획자 요청): 늘 연 메뉴의 왼쪽 끝에 맞춤(글자도 메뉴 글자와 같은 줄에 옴).
-      //   메뉴 줄 아래는 오른쪽 끝을 넘어도 됨. 화면 밖으로 나갈 때만(휴대폰) 연 메뉴의 오른쪽 끝에 맞춤
-      //   (예전에는 메뉴 줄 오른쪽 끝을 넘지 않게 밀어서 옆 메뉴 아래까지 걸쳐 보였음)
+      // (v0.60 기획자 요청) 메뉴 줄이 아래로 넓어지듯: 펼친 영역은 메뉴 줄(.gnb) 폭 그대로이고,
+      //   하위 메뉴 글자는 누른 메뉴 글자와 같은 세로줄에서 시작(메뉴 칸 안쪽 1.6rem - 하위 메뉴 칸 안쪽 1rem)
       const box = gnbScroll.getBoundingClientRect();
+      const bar = el.querySelector('.gnb').getBoundingClientRect();
       const link = item.querySelector('.gnb-link').getBoundingClientRect();
-      let x = link.left;
-      if (x + sub.offsetWidth > window.innerWidth - 8) x = link.right - sub.offsetWidth;
-      sub.style.left = (Math.max(8, x) - box.left) + 'px';
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+      sub.style.left = (bar.left - box.left) + 'px';
+      sub.style.width = bar.width + 'px';
+      sub.style.paddingLeft = Math.max(0, link.left - bar.left + 0.6 * rem) + 'px';
     }
     // 하위 메뉴를 열면 메뉴 줄 아래를 흐리게(v0.55 기획자 요청, 처음에는 스마트폰만이었다가 PC와 태블릿도): 메뉴를 누른 것은
     //   다른 화면으로 가려는 뜻이라 아래 화면은 흐리게 두고, 흐린 곳을 누르면 메뉴만 닫힘(아래 버튼이 잘못 눌리지 않게)
@@ -1549,80 +1580,251 @@ window.CLIMB = (function () {
       });
       gnbList.classList.remove('has-open');
       placeDim(false);
+      closeSearch(false);
       gnbEdge();
     }
-    renderTabBar(menu, pageId);
+
+    // 메뉴 검색 (v0.60 기획자 요청): 돋보기를 누르면 메뉴 줄이 아래로 넓어지며 검색 칸과 자주 찾는 메뉴.
+    //   메뉴 이름, 하는 일(MENU_KEYWORDS), 초성으로 찾고 누르면 그 화면으로. 게시물이나 계약을 찾는 검색은 아님
+    //   돋보기를 다시 누르거나, 흐린 곳, Esc로 닫힘. 하위 메뉴를 열면 닫힘
+    const searchBtn = el.querySelector('.gnb-search-btn'), searchPanel = el.querySelector('.gnb-search');
+    const gnbSearch = wireMenuSearch(searchPanel.querySelector('.msearch'), searchEntries, { quick: true });
+    function openSearch() {
+      closeMenus();
+      searchPanel.hidden = false;
+      searchBtn.setAttribute('aria-expanded', 'true');
+      placeDim(true);
+      gnbSearch.input.focus();
+    }
+    function closeSearch(returnFocus) {
+      if (!searchPanel || searchPanel.hidden) return;
+      searchPanel.hidden = true;
+      searchBtn.setAttribute('aria-expanded', 'false');
+      gnbSearch.reset();
+      placeDim(false);
+      if (returnFocus) searchBtn.focus();
+    }
+    searchBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (searchPanel.hidden) openSearch(); else closeSearch(true);
+    });
+    searchPanel.addEventListener('click', function (e) { e.stopPropagation(); });
+    searchPanel.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { e.stopPropagation(); closeSearch(true); }
+    });
+    document.addEventListener('click', function () { closeSearch(false); });
+
+    // 휴대폰 전체 메뉴 (v0.60 기획자 요청): ≡을 누르면 Claude 문서 사이트처럼 오른쪽에서 메뉴판이 나옴(drawerHtml).
+    //   1단계 메뉴에서 > 가 붙은 것을 누르면 2단계(하위 메뉴)로 들어가고, 맨 위 "‹ 메뉴 이름"으로 돌아옴
+    //   열려 있는 동안: 뒤 화면은 움직이지 않음(스크롤 잠금, 스크롤바 자리는 그대로라 흔들리지 않음), Tab은 메뉴판 안에서만 돎
+    //   닫기: →| 단추, 뒤 막(흐린 곳), Esc. 닫으면 ≡ 단추로 돌아옴. 사용자가 누를 때만 열리므로 팝업이 아님(REQ-ENV-15)
+    const menuBtn = el.querySelector('.menu-btn');
+    const drawer = document.createElement('div');
+    drawer.className = 'drawer';
+    drawer.id = 'phone-menu';
+    drawer.hidden = true;
+    drawer.innerHTML = drawerHtml(menu, pageId);
+    document.body.appendChild(drawer);
+    const panel = drawer.querySelector('.drawer-panel'), back = drawer.querySelector('.drawer-back'), title = drawer.querySelector('.drawer-title');
+    const level1 = drawer.querySelector('.drawer-list[data-level="1"]');
+    // 메뉴판 맨 위 검색 칸(v0.60): 글자를 넣으면 1단계 목록 대신 찾은 메뉴. 지우면 1단계로
+    const drawerSearchBox = drawer.querySelector('.msearch');
+    const drawerSearch = wireMenuSearch(drawerSearchBox, searchEntries, { quick: false, onQuery: function (q) { level1.hidden = !!q; } });
+    const reduceMotion = function () { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; };
+    function showLevel(groupId) {
+      drawer.querySelectorAll('.drawer-list[data-level="2"]').forEach(function (l) { l.hidden = l.id !== groupId; });
+      level1.hidden = !!groupId || !!drawerSearch.input.value.trim();
+      drawerSearchBox.hidden = !!groupId;
+      back.hidden = !groupId;
+      title.hidden = !!groupId;
+      if (groupId) back.querySelector('.drawer-back-label').textContent = drawer.querySelector('[data-open="' + groupId + '"]').getAttribute('data-label');
+      drawer.querySelector('.drawer-body').scrollTop = 0;
+    }
+    function openDrawer() {
+      drawerSearch.reset();
+      showLevel('');
+      drawer.hidden = false;
+      document.documentElement.classList.add('drawer-open');
+      menuBtn.setAttribute('aria-expanded', 'true');
+      requestAnimationFrame(function () { drawer.classList.add('is-open'); });
+      drawer.querySelector('.drawer-close').focus();
+    }
+    function closeDrawer(returnFocus) {
+      if (drawer.hidden) return;
+      drawer.classList.remove('is-open');
+      document.documentElement.classList.remove('drawer-open');
+      menuBtn.setAttribute('aria-expanded', 'false');
+      setTimeout(function () { drawer.hidden = true; }, reduceMotion() ? 0 : 250);
+      if (returnFocus) menuBtn.focus();
+    }
+    menuBtn.addEventListener('click', function () { closeMenus(); openDrawer(); });
+    drawer.querySelector('.drawer-close').addEventListener('click', function () { closeDrawer(true); });
+    drawer.querySelector('.drawer-scrim').addEventListener('click', function () { closeDrawer(true); });
+    drawer.querySelectorAll('[data-open]').forEach(function (b) {
+      b.addEventListener('click', function () { showLevel(b.getAttribute('data-open')); back.focus(); });
+    });
+    back.addEventListener('click', function () {
+      const from = drawer.querySelector('.drawer-list[data-level="2"]:not([hidden])');
+      showLevel('');
+      const btn = from && drawer.querySelector('[data-open="' + from.id + '"]');
+      (btn || drawer.querySelector('.drawer-close')).focus();
+    });
+    drawer.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { e.stopPropagation(); closeDrawer(true); return; }
+      if (e.key !== 'Tab') return;
+      // Tab이 메뉴판 밖으로 나가지 않게(확인 창과 같은 방식)
+      const items = [].filter.call(panel.querySelectorAll('a[href], button, input'), function (x) { return x.getClientRects().length; });
+      const first = items[0], last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+
+    // 메뉴 줄 고정 (v0.60 기획자 요청): 화면을 내리면 로고 줄은 위로 사라지고 메뉴 줄만 맨 위에 붙어 따라옴(휴대폰은 로고 줄이 붙음).
+    //   머리글 전체를 sticky로 두고 top을 로고 줄 높이만큼 위로 빼서(CSS .site-header) 메뉴 줄만 남김.
+    //   --sticky-h: 화면 위에 붙어 있는 높이. 키보드로 옮겨 간 칸이 고정된 메뉴 줄에 가려지지 않게 scroll-padding-top으로 씀(WCAG 2.4.11)
+    //   is-stuck: 붙어 있을 때만 메뉴 줄 아래 그림자
+    const headTop = el.querySelector('.header-top');
+    function syncSticky() {
+      const phone = isPhoneLayout();
+      el.style.setProperty('--header-top-h', (phone ? 0 : headTop.offsetHeight) + 'px');
+      document.documentElement.style.setProperty('--sticky-h', (phone ? el.offsetHeight : el.offsetHeight - headTop.offsetHeight) + 'px');
+      if (!phone) closeDrawer(false);
+      markStuck();
+    }
+    function markStuck() {
+      const top = el.getBoundingClientRect().top;
+      el.classList.toggle('is-stuck', isPhoneLayout() ? top <= 0 && window.scrollY > 0 : top <= 1 - headTop.offsetHeight);
+    }
+    syncSticky();
+    window.addEventListener('resize', syncSticky);
+    window.addEventListener('scroll', markStuck, { passive: true });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(syncSticky);
   }
 
-  /* ---------- 휴대폰 아래 탭 막대 (v0.59 기획자 선택, REQ-UI-34: 앞으로 만들 iOS 앱과 같은 메뉴) ----------
-   * 휴대폰에서는 위 메뉴 줄 대신 화면 아래에 탭 다섯 개: 개요, 계약 등록, 계약 현황, 보관함, 더보기
-   *   - 하위 메뉴가 있는 탭을 누르면 탭 막대 바로 위로 하위 메뉴 목록이 펼쳐짐(직각 네모, 뒤 화면은 흐리게). 흐린 곳, 같은 탭, Esc로 닫힘
-   *   - 더보기: 관리자 메뉴(역할에 맞는 것만), 공지사항, 이용 안내, 내 계정
-   *   - 역할에 따라 보이지 않는 메뉴의 탭은 뺌(예: 계약 등록은 영업만). 지금 화면이 든 탭은 진한 초록
-   *   - PC와 태블릿, 인쇄에서는 보이지 않음(CSS의 휴대폰 규칙에서만 보임) */
-  function renderTabBar(menu, pageId) {
-    const find = function (label) { return menu.filter(function (m) { return m.label === label; })[0]; };
-    const more = [];
-    const admin = find('관리자');
-    if (admin) more.push({ title: '관리자', items: admin.children });
-    const extra = [find('공지사항'), { label: '이용 안내', scr: 'SCR-90', href: 'help.html' }, { label: '내 계정', scr: 'SCR-93', href: 'account.html' }].filter(Boolean);
-    more.push({ title: '', items: extra });
-    const tabs = [
-      { m: find('개요'), icon: 'home' },
-      { m: find('계약 등록'), icon: 'filePlus' },
-      { m: find('계약 현황'), icon: 'clipboard' },
-      { m: find('보관함'), icon: 'archive' },
-      { m: { label: '더보기', groups: more }, icon: 'more' },
-    ].filter(function (t) { return t.m; });
-    const has = function (list) { return list.some(function (c) { return c.scr === pageId; }); };
-    const linkHtml = function (c) {
-      return '<li><a href="' + c.href + '"' + (c.scr === pageId ? ' aria-current="page"' : '') + '>' + esc(c.label) + '</a></li>';
+  /* ---------- 메뉴 검색 (v0.60 기획자 요청) ----------
+   * 메뉴로 바로 가는 간단한 검색. 게시물이나 계약을 찾는 검색은 아님(목록 화면의 검색 칸을 씀)
+   *   찾는 곳: 이 역할에 보이는 메뉴의 이름, 위 메뉴 이름(예: 계약 현황), 하는 일(MENU_KEYWORDS). 초성(예: ㄱㅌㄷㄱ)으로도 찾음
+   *   순서: 이름이 검색어로 시작 > 이름에 들어 있음 > 하는 일에 들어 있음. 최대 8개
+   *   검색어가 없으면(PC) 자주 찾는 메뉴. 찾은 것이 없으면 이용 안내로 안내
+   *   키보드: 아래 화살표로 결과로, 위아래로 옮김, Enter는 첫 결과로 이동. 찾은 개수는 화면낭독기가 읽음
+   *   (요구사항 정의서 8장) 앞으로 이 검색 칸을 AI 에이전트에 묻는 입력 창으로 넓히는 안이 있음. 지금은 AI 기능을 넣지 않음(REQ-ENV-12) */
+  const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
+  function normKey(s) { return String(s).toLowerCase().replace(/\s+/g, ''); }
+  function choseong(s) {
+    return normKey(s).split('').map(function (ch) {
+      const c = ch.charCodeAt(0) - 0xAC00;
+      return c >= 0 && c < 11172 ? CHO[Math.floor(c / 588)] : ch;
+    }).join('');
+  }
+  function menuEntries(menu, pageId) {
+    const out = [];
+    const add = function (label, path, href, scr) {
+      out.push({ label: label, path: path, href: href, scr: scr, current: scr === pageId,
+        name: normKey(label), cho: choseong(label), more: normKey(path + ' ' + (MENU_KEYWORDS[scr] || '')) });
     };
-    const nav = document.createElement('nav');
-    nav.className = 'tabbar';
-    nav.setAttribute('aria-label', '주 메뉴');
-    nav.innerHTML = '<ul class="tabbar-list">' + tabs.map(function (t, i) {
-      const m = t.m;
-      const groups = m.groups || (m.children ? [{ title: '', items: m.children }] : null);
-      const current = m.scr === pageId || (groups && groups.some(function (g) { return has(g.items); }));
-      const label = icon(t.icon) + '<span class="tab-label">' + esc(m.label) + '</span>';
-      if (!groups) {
-        return '<li><a class="tab' + (current ? ' is-current' : '') + '" href="' + m.href + '"' + (current ? ' aria-current="page"' : '') + '>' + label + '</a></li>';
-      }
-      return '<li><button type="button" class="tab' + (current ? ' is-current' : '') + '" aria-expanded="false" aria-controls="tab-sheet-' + i + '">' + label + '</button>' +
-        '<div class="tab-sheet" id="tab-sheet-' + i + '" hidden>' + groups.map(function (g) {
-          return (g.title ? '<p class="tab-sheet-title">' + esc(g.title) + '</p>' : '') + '<ul>' + g.items.map(linkHtml).join('') + '</ul>';
-        }).join('') + '</div></li>';
-    }).join('') + '</ul>';
-    document.body.appendChild(nav);
-    // 펼친 목록 뒤를 흐리게 덮는 막(누르면 닫힘). 위 메뉴 줄의 하위 메뉴와 같은 흐림(v0.55)
-    const dim = document.createElement('div');
-    dim.className = 'tab-dim';
-    dim.hidden = true;
-    document.body.appendChild(dim);
-    function closeSheets() {
-      nav.querySelectorAll('.tab-sheet').forEach(function (s) { s.hidden = true; });
-      nav.querySelectorAll('button.tab').forEach(function (b) { b.setAttribute('aria-expanded', 'false'); });
-      dim.hidden = true;
+    menu.forEach(function (m) {
+      if (m.children) m.children.forEach(function (c) { add(c.label, m.label, c.href, c.scr); });
+      else add(m.label, '', m.href, m.scr);
+    });
+    add('이용 안내', '', 'help.html', 'SCR-90');
+    add('내 계정', '', 'account.html', 'SCR-93');
+    return out;
+  }
+  const QUICK_MENUS = ['SCR-11', 'SCR-12', 'SCR-21', 'SCR-20', 'SCR-31', 'SCR-41', 'SCR-43', 'SCR-90'];
+  function findMenus(entries, q) {
+    const nq = normKey(q);
+    if (!nq) {
+      return QUICK_MENUS.map(function (scr) { return entries.filter(function (e) { return e.scr === scr; })[0]; }).filter(Boolean).slice(0, 5);
     }
-    nav.querySelectorAll('button.tab').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        const sheet = document.getElementById(btn.getAttribute('aria-controls'));
-        const willOpen = sheet.hidden;
-        closeSheets();
-        if (!willOpen) return;
-        sheet.hidden = false;
-        btn.setAttribute('aria-expanded', 'true');
-        dim.hidden = false;
-      });
+    const cho = /^[ㄱ-ㅎ]+$/.test(nq);
+    return entries.map(function (e) {
+      let score = -1;
+      if (cho) score = e.cho.indexOf(nq) === 0 ? 3 : e.cho.indexOf(nq) > 0 ? 2 : -1;
+      else score = e.name.indexOf(nq) === 0 ? 4 : e.name.indexOf(nq) > 0 ? 3 : e.more.indexOf(nq) >= 0 ? 1 : -1;
+      return { e: e, s: score };
+    }).filter(function (x) { return x.s >= 0; })
+      .sort(function (a, b) { return b.s - a.s; }).slice(0, 8).map(function (x) { return x.e; });
+  }
+  function menuSearchHtml(id) {
+    return '<div class="msearch" role="search">' +
+      '<label class="sr-only" for="' + id + '-q">메뉴 검색</label>' +
+      '<div class="msearch-box">' + icon('search') +
+        '<input class="msearch-input" id="' + id + '-q" type="search" autocomplete="off" spellcheck="false" placeholder="메뉴 이름이나 하는 일로 찾기" aria-describedby="' + id + '-help"></div>' +
+      '<p class="sr-only" id="' + id + '-help">초성으로도 찾습니다. 아래 화살표로 찾은 메뉴로 옮겨 갑니다.</p>' +
+      '<p class="msearch-head" id="' + id + '-head"></p>' +
+      '<ul class="msearch-list" aria-labelledby="' + id + '-head"></ul>' +
+      '<p class="sr-only" aria-live="polite"></p>' +
+    '</div>';
+  }
+  function wireMenuSearch(box, entries, opts) {
+    const input = box.querySelector('.msearch-input'), list = box.querySelector('.msearch-list');
+    const head = box.querySelector('.msearch-head'), live = box.querySelector('[aria-live]');
+    function render() {
+      const q = input.value.trim();
+      if (opts.onQuery) opts.onQuery(q);
+      if (!q && !opts.quick) { list.innerHTML = ''; head.hidden = true; live.textContent = ''; return; }
+      const found = findMenus(entries, q);
+      head.hidden = false;
+      head.textContent = q ? '찾은 메뉴 ' + found.length + '개' : '자주 찾는 메뉴';
+      list.innerHTML = found.length ? found.map(function (e) {
+        return '<li><a class="msearch-item" href="' + e.href + '"' + (e.current ? ' aria-current="page"' : '') + '>' +
+          '<span class="msearch-label">' + esc(e.label) + '</span>' + (e.path ? '<span class="msearch-path">' + esc(e.path) + '</span>' : '') + '</a></li>';
+      }).join('') : '<li class="msearch-empty">찾는 메뉴가 없습니다. <a href="help.html">이용 안내</a>에서 하는 일로 찾아보세요.</li>';
+      live.textContent = q ? (found.length ? '메뉴 ' + found.length + '개를 찾았습니다.' : '찾는 메뉴가 없습니다.') : '';
+    }
+    input.addEventListener('input', render);
+    input.addEventListener('keydown', function (e) {
+      const first = list.querySelector('a');
+      if (e.key === 'ArrowDown' && first) { e.preventDefault(); first.focus(); }
+      if (e.key === 'Enter' && input.value.trim() && list.querySelector('a.msearch-item')) { e.preventDefault(); location.href = list.querySelector('a.msearch-item').href; }
     });
-    dim.addEventListener('click', closeSheets);
-    document.addEventListener('keydown', function (e) {
-      if (e.key !== 'Escape') return;
-      const open = nav.querySelector('button.tab[aria-expanded="true"]');
-      closeSheets();
-      if (open) open.focus();
+    list.addEventListener('keydown', function (e) {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+      const links = [].slice.call(list.querySelectorAll('a'));
+      const i = links.indexOf(document.activeElement);
+      if (i < 0) return;
+      e.preventDefault();
+      if (e.key === 'ArrowDown' && links[i + 1]) links[i + 1].focus();
+      if (e.key === 'ArrowUp') (links[i - 1] || input).focus();
     });
+    render();
+    return { input: input, reset: function () { input.value = ''; render(); } };
+  }
+
+  /* ---------- 휴대폰 전체 메뉴판 (v0.60 기획자 요청) ----------
+   * Claude 문서 사이트처럼 오른쪽에서 나오는 메뉴판. 위계가 잘 보이게 2단계로 들어감
+   *   맨 위 줄: "전체 메뉴"(2단계에서는 "‹ 메뉴 이름" 뒤로 단추) + →| 닫기
+   *   1단계: 개요, 계약 등록 >, 계약 현황 >, 보관함 >, (관리자 >), 공지사항. 하위 메뉴가 있으면 > 를 붙여 누르면 2단계로
+   *   2단계: 그 메뉴의 하위 메뉴. 지금 화면은 진한 초록 굵은 글자(1단계에서는 지금 화면이 든 메뉴)
+   *   맨 아래 묶음(선으로 나눔): 이용 안내, 내 계정, 로그아웃
+   *   메뉴에서 펼쳐지는 것은 평평하게(직각, v0.59). 바탕은 애플 가이드라인의 사이드바처럼 유리(regular) */
+  function drawerHtml(menu, pageId) {
+    const lists = [];
+    const level1 = menu.map(function (m, i) {
+      if (!m.children) {
+        return '<li><a class="drawer-item" href="' + m.href + '"' + (m.scr === pageId ? ' aria-current="page"' : '') + '>' + esc(m.label) + '</a></li>';
+      }
+      const id = 'drawer-g' + i;
+      const isCurrent = m.children.some(function (c) { return c.scr === pageId; });
+      lists.push('<ul class="drawer-list" data-level="2" id="' + id + '" hidden>' + m.children.map(function (c) {
+        return '<li><a class="drawer-item" href="' + c.href + '"' + (c.scr === pageId ? ' aria-current="page"' : '') + '>' + esc(c.label) + '</a></li>';
+      }).join('') + '</ul>');
+      return '<li><button type="button" class="drawer-item' + (isCurrent ? ' is-current' : '') + '" data-open="' + id + '" data-label="' + esc(m.label) + '">' +
+        '<span>' + esc(m.label) + '</span>' + icon('chevronRight') + '</button></li>';
+    }).join('');
+    const foot = function (href, ic, label, scr) {
+      return '<li><a href="' + href + '"' + (scr && scr === pageId ? ' aria-current="page"' : '') + '>' + icon(ic) + '<span>' + label + '</span></a></li>';
+    };
+    return '<div class="drawer-scrim"></div>' +
+      '<div class="drawer-panel" role="dialog" aria-modal="true" aria-label="전체 메뉴">' +
+        '<div class="drawer-top">' +
+          '<p class="drawer-title">전체 메뉴</p>' +
+          '<button type="button" class="drawer-back" hidden>' + icon('chevronLeft') + '<span class="drawer-back-label"></span><span class="sr-only">, 전체 메뉴로 돌아가기</span></button>' +
+          '<button type="button" class="drawer-close" aria-label="메뉴 닫기">' + icon('panelClose') + '</button>' +
+        '</div>' +
+        '<nav class="drawer-body" aria-label="주 메뉴">' + menuSearchHtml('ds') + '<ul class="drawer-list" data-level="1">' + level1 + '</ul>' + lists.join('') + '</nav>' +
+        '<ul class="drawer-foot">' + foot('help.html', 'help', '이용 안내', 'SCR-90') + foot('account.html', 'user', '내 계정', 'SCR-93') + foot('login.html', 'logout', '로그아웃') + '</ul>' +
+      '</div>';
   }
 
   // 보안 안내 문구 (REQ-UI-15): 기획자 초안을 법령, 시스템 요구사항, 어문 규범에 맞게 다듬은 문장
@@ -1854,58 +2056,6 @@ window.CLIMB = (function () {
     draw();
     document.body.appendChild(el);
     window.addEventListener('beforeprint', draw);
-  }
-
-  /* ---------- 맨 위로 이동 (KRDS 플로팅 버튼, REQ-UI-20) ----------
-   * 맨 위에서 조금 내리면 오른쪽 아래에 나타나고, 누르면 맨 위로 올라가며 본문(#main) 처음으로 포커스를 옮깁니다.
-   * 넓은 화면에서는 A4 종이 틀 바깥 오른쪽에, 휴대폰에서는 화면 오른쪽 아래에 두되 위로 올릴 때만 잠깐 보입니다(v0.58). 인쇄에서는 감춥니다. */
-  function renderTopButton() {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'to-top';
-    btn.hidden = true;
-    // 화살표만 보이고, 화면낭독기와 마우스를 올렸을 때는 "맨 위로" (기획자 요청 v0.30)
-    btn.title = '맨 위로';
-    btn.innerHTML = icon('arrowUp') + '<span class="sr-only">맨 위로</span>';
-    document.body.appendChild(btn);
-    // 결재 문서처럼 아래에 붙는 처리 막대가 있으면 그 위로 올려 승인 버튼을 가리지 않게 함 (KRDS: 플로팅 버튼은 하단 막대를 가리지 않음)
-    // 휴대폰(v0.58 기획자 요청: 오른쪽 아래 버튼이 드롭다운 화살표를 덮어, 누르면 드롭다운 대신 맨 위로 올라갔음):
-    //   위로 올릴 때만 나타나고 2.5초 멈추면 사라짐. 아래로 내리거나 입력 칸, 드롭다운을 쓰는 중에는 감춤
-    //   PC와 태블릿은 A4 종이 밖에 있어 겹치지 않으므로 그대로(맨 위에서 조금만 내려도 나타남)
-    let lastY = window.scrollY, idle = null, typing = false;
-    const toggle = function () {
-      const y = window.scrollY;
-      clearTimeout(idle);
-      if (isPhoneLayout()) {
-        btn.hidden = y < 10 || typing || y >= lastY;
-        if (!btn.hidden) idle = setTimeout(function () { btn.hidden = true; }, 2500);
-      } else {
-        btn.hidden = y < 10; // 맨 위에서 조금만 내려도 나타남 (기획자 요청 v0.30, 예전에는 400px)
-      }
-      lastY = y;
-      const bar = document.querySelector('.action-bar:not([hidden])');
-      // 휴대폰 아래 탭 막대(v0.59)가 있으면 그 위로
-      const tab = document.querySelector('.tabbar');
-      const tabH = tab && tab.offsetHeight ? tab.offsetHeight : 0;
-      btn.style.bottom = bar || tabH ? (tabH + (bar ? bar.getBoundingClientRect().height : 0) + 16) + 'px' : '';
-    };
-    window.addEventListener('scroll', toggle, { passive: true });
-    document.addEventListener('focusin', function (e) {
-      if (!e.target.matches || !e.target.matches('input, select, textarea')) return;
-      typing = true;
-      if (isPhoneLayout()) btn.hidden = true;
-    });
-    document.addEventListener('focusout', function () { typing = false; });
-    toggle();
-    btn.addEventListener('click', function () {
-      const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
-      const main = document.getElementById('main');
-      if (main) {
-        if (!main.hasAttribute('tabindex')) main.setAttribute('tabindex', '-1');
-        main.focus({ preventScroll: true });
-      }
-    });
   }
 
   // 휴대폰 규칙을 쓰는 화면인지(CSS의 휴대폰 규칙과 같은 조건): 폭 600px 이하이거나, 터치 화면이면서 높이 600px 이하(가로로 눕힌 스마트폰)
@@ -2302,7 +2452,6 @@ window.CLIMB = (function () {
     renderHeader(user, pageId);
     renderFooter();
     renderWatermark(user);
-    renderTopButton();
     wireFields(document);
     enhanceDates(document);
     // 앞 화면에서 남긴 안내가 있으면 한 번 보여 줌

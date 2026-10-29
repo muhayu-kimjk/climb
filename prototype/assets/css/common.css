@@ -29,6 +29,8 @@
 /* scrollbar-gutter: 스크롤바 자리를 늘 비워 둠. 짧은 화면(스크롤바 없음)과 긴 화면(스크롤바 있음)을 오갈 때
  * A4 시트가 옆으로 몇 픽셀씩 움직여 흔들려 보이던 것을 막음 (v0.55 기획자 요청: 화면이 흔들리지 않고 단단하게) */
 html { font-size: 62.5%; -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; }
+/* 위에 붙은 메뉴 줄(v0.60)에 가려지지 않게: Tab으로 옮겨 간 칸, 본문 바로가기는 붙은 높이(--sticky-h, common.js)만큼 아래에 보임 (WCAG 2.4.11) */
+html { scroll-padding-top: calc(var(--sticky-h, 0px) + 0.8rem); }
 /* 다 그리고 글꼴이 올 때까지 새 화면을 감춤(theme.js가 붙이고 뗌, v0.55). 스크립트가 멈춰도 1.2초 뒤에는 보이게(안전장치) */
 html.is-loading body { visibility: hidden; animation: climb-show 0s linear 1.2s forwards; }
 @keyframes climb-show { to { visibility: visible; } }
@@ -144,7 +146,12 @@ svg { flex-shrink: 0; }
  *   2줄: 무하유 계약 관리 시스템 (Noto Sans KR, 작게)        [조직 이름님 | 로그아웃]
  * 오른쪽 사용자 줄은 왼쪽 둘째 줄(한글 이름 줄)과 글자 밑선(baseline)을 맞추고, 본문 오른쪽 끝에 딱 붙입니다. (v0.15)
  * 화면 알림(종 모양, 알림 숫자)은 두지 않음. 알림은 이메일로 보냄 (REQ-ENV-09) */
-.site-header { position: relative; z-index: 20; background: var(--surface-white); border-bottom: 1px solid var(--border-gray-light); }
+/* 메뉴 줄 고정 (v0.60 기획자 요청, REQ-UI-14): 화면을 내리면 로고 줄은 위로 사라지고 메뉴 줄만 맨 위에 붙어 따라옴(맨 위로 단추 대신).
+ * 머리글 전체를 sticky로 두고 위치를 로고 줄 높이(--header-top-h, common.js)만큼 위로 빼서 메뉴 줄만 남김. 휴대폰은 로고 줄째로 붙음(0)
+ * 메뉴 줄은 유리처럼 뒤 내용이 흐리게 비침(tokens.css --glass-bg). 붙어 있을 때만 아래 그림자(.is-stuck, common.js) */
+.site-header { position: sticky; top: calc(var(--header-top-h, 0px) * -1); z-index: 20; border-bottom: 1px solid var(--border-gray-light); }
+.site-header.is-stuck { box-shadow: var(--shadow-down); }
+.header-top { background: var(--surface-white); }
 .header-top .inner {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; align-content: center;
   column-gap: 1.6rem; row-gap: 0.2rem; min-height: 8rem; padding-top: 1.2rem; padding-bottom: 1.2rem;
@@ -190,7 +197,9 @@ a.user-name:hover, a.user-name[aria-current] { color: var(--text-primary); text-
 
 /* ---------- 4. 메인 메뉴 (KRDS 메인 메뉴) ----------
  * 왼쪽: 개요, 계약 등록, 계약 현황, 보관함 / 오른쪽 끝: 이용 안내 (REQ-UI-14) */
-.gnb { border-top: 1px solid var(--border-gray-light); }
+/* 메뉴 줄 유리 바탕(v0.60): 흐림은 뒤에 깐 ::before에 둠. .gnb 자체에 두면 그 안의 펼친 하위 메뉴가 뒤 본문을 흐리게 비추지 못함(브라우저 규칙) */
+.gnb { position: relative; z-index: 0; border-top: 1px solid var(--border-gray-light); }
+.gnb::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter); }
 .gnb .inner { display: flex; align-items: center; justify-content: space-between; gap: 1.6rem; }
 /* 메뉴 줄은 PC, 태블릿, 스마트폰 모두 한 줄 (v0.50 기획자 요청. v0.42~v0.49는 휴대폰만 한 줄, PC는 넘치면 두 줄)
  * 다 들어가지 않으면 옆으로 밀어 보고, 더 있는 쪽 끝에 흰색 그라데이션과 화살표(›, ‹)를 덮음(누르면 그쪽으로 밀림). 다 들어가면 화살표는 없음
@@ -207,8 +216,11 @@ a.user-name:hover, a.user-name[aria-current] { color: var(--text-primary); text-
   border: 0; color: var(--text-basic); cursor: pointer;
 }
 .gnb-more .icon { width: 2rem; height: 2rem; }
-.gnb-more--right { right: 0; justify-content: flex-end; background: linear-gradient(to right, transparent, var(--surface-white) 60%); }
-.gnb-more--left { left: 0; justify-content: flex-start; background: linear-gradient(to left, transparent, var(--surface-white) 60%); }
+/* 화살표 자리(v0.60 고침, 기획자 요청): 메뉴 줄 바탕이 유리가 되면서 바탕색 그라데이션만으로는 뒤 메뉴 글자가 비쳤음.
+ * 메뉴 줄과 같은 유리(바탕 + 흐림)를 깔고, 안쪽 60%는 서서히 짙어지게 가림(mask: 가림 정도만 정하는 값, 색 아님) → 끝으로 갈수록 글자가 흐려져 사라짐 */
+.gnb-more--right, .gnb-more--left { background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter); }
+.gnb-more--right { right: 0; justify-content: flex-end; -webkit-mask-image: linear-gradient(to right, transparent, black 60%); mask-image: linear-gradient(to right, transparent, black 60%); }
+.gnb-more--left { left: 0; justify-content: flex-start; -webkit-mask-image: linear-gradient(to left, transparent, black 60%); mask-image: linear-gradient(to left, transparent, black 60%); }
 .gnb-scroll.is-more-right .gnb-more--right, .gnb-scroll.is-more-left .gnb-more--left { display: flex; }
 /* 이용 안내: 중요한 항목이라 글자 15px, 아이콘 약 16px(아이콘은 글자의 1.05배)로 예전 크기 (v0.59 기획자 요청) */
 .gnb-aside { display: inline-flex; align-items: center; gap: 0.4rem; font-size: var(--fs-body-medium); color: var(--text-subtle); white-space: nowrap; }
@@ -234,58 +246,99 @@ a.user-name:hover, a.user-name[aria-current] { color: var(--text-primary); text-
 /* 하위 메뉴를 열면 밑줄을 지금 누른 메뉴로 옮김(v0.55 기획자 요청: 지금 화면의 밑줄과 헷갈리지 않게). 닫으면 돌아옴(.has-open은 common.js) */
 .gnb-list.has-open .gnb-link.is-current:not([aria-expanded="true"])::after { display: none; }
 .gnb-item.is-open .gnb-link { color: var(--text-bolder); }
+/* 하위 메뉴: 메뉴 줄이 아래로 넓어지듯 펼침 (v0.60 기획자 요청: 글자 폭만 한 작은 상자 대신 메뉴 줄 폭 그대로 아래로 확장, 애플 메뉴처럼)
+ *   폭은 메뉴 줄 폭, 바탕은 메뉴 줄과 같은 유리, 직각(메뉴에서 펼쳐지는 것은 평평하게, v0.59). 자리와 왼쪽 여백은 common.js placeSub:
+ *   하위 메뉴 글자가 누른 메뉴 글자와 같은 세로줄에서 시작. 열려 있는 동안 메뉴 줄 아래 선을 없애 한 덩어리로 보이고, 펼친 영역 아래에 선과 그림자
+ *   (v0.59의 작은 상자, 테두리 없이 위쪽 선만, 최소 폭 120px은 이것으로 바뀜) */
 .gnb-sub {
-  /* 크기(v0.59 기획자 요청: 글자가 작아진 만큼 상자도 줄임): 최소 폭 160 → 120px, 위아래 안쪽 6 → 4px */
-  position: absolute; top: 100%; left: 0; z-index: 30; display: none; min-width: 12rem; padding: 0.4rem 0.6rem;
-  background: var(--surface-white);
-  border-radius: 0; box-shadow: var(--shadow-1); /* 직각 네모 (v0.59 기획자 요청: 다른 상자는 둥글어도 메뉴 줄에서 펼쳐지는 메뉴는 평평하게) */
-  /* 테두리 없음 (v0.59 기획자 요청): 밝은 화면은 그림자와 뒤 흐림으로 구분. 창(모달)과 같은 --border-elevated라
-   * 어두운 화면에서만 선이 보임(종이와 색이 같아 그림자가 안 보이므로). 투명한 선이라 윈도우 고대비에서는 선이 살아남
-   * 위쪽만 회색 선을 남김(기획자 요청): 메뉴 줄 아래 회색 선이 펼친 메뉴에 가려 끊기지 않게 */
-  border: 1px solid var(--border-elevated);
-  border-top-color: var(--border-gray-light);
+  position: absolute; top: 100%; left: 0; z-index: 30; display: none; padding: 0.4rem 0 1.2rem; border-radius: 0;
+  background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
+  border-bottom: 1px solid var(--border-gray-light); box-shadow: var(--shadow-down);
 }
+.site-header:has(.gnb-item.is-open) { border-bottom-color: transparent; }
 .gnb-item.is-open .gnb-sub { display: block; }
 /* 하위 메뉴 글자를 연 메뉴 글자와 같은 줄에(v0.55): 상자 안쪽 0.6rem + 줄 안쪽 1rem = 메뉴 글자 안쪽 1.6rem */
 /* 한 줄 높이(v0.59): 글자 위아래 6px(예전 10px). 누르는 최소 크기는 지킴(PC 32px, 손가락으로 누르는 태블릿 44px) */
-.gnb-sub a { display: flex; align-items: center; min-height: var(--touch-min); padding: 0.6rem 1rem; border-radius: 0; font-size: var(--fs-body-medium); white-space: nowrap; }
+.gnb-sub a { display: flex; align-items: center; width: max-content; min-width: 16rem; min-height: var(--touch-min); padding: 0.6rem 1rem; border-radius: 0; font-size: var(--fs-body-medium); white-space: nowrap; }
 .gnb-sub a:hover { background: var(--action-hover); }
 /* 하위 메뉴를 열면 메뉴 줄 아래를 흐리게 덮음(v0.55 기획자 요청, PC와 태블릿, 스마트폰 모두). 머리글(.site-header z-index 20, 하위 메뉴 포함)보다 아래, 본문보다 위.
  * 위치(top)는 메뉴 줄 바로 아래로 common.js가 맞춤. 누르면 메뉴만 닫힘 */
-.gnb-dim { position: fixed; left: 0; right: 0; bottom: 0; z-index: 15; background: var(--overlay-menu); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+.gnb-dim { position: fixed; left: 0; right: 0; bottom: 0; z-index: 15; background: var(--overlay-menu); -webkit-backdrop-filter: var(--overlay-menu-filter); backdrop-filter: var(--overlay-menu-filter); } /* 애플 웹사이트 메뉴와 같은 막(v0.60, tokens.css) */
 @media print { .gnb-dim { display: none !important; } }
 
-/* 휴대폰 아래 탭 막대 (v0.59 기획자 선택, REQ-UI-34: 앞으로 만들 iOS 앱과 같은 메뉴. common.js renderTabBar)
- * PC와 태블릿, 인쇄에서는 보이지 않음. 휴대폰에서는 위 메뉴 줄(.gnb) 대신 씀 */
-.tabbar, .tab-dim { display: none; }
-@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
-  .gnb { display: none; }
-  body { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); }
-  .tabbar {
-    display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
-    padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--surface-white); border-top: 1px solid var(--border-gray-light);
-  }
-  .tabbar-list { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); height: var(--tabbar-h); }
-  .tab {
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.2rem; width: 100%; height: 100%;
-    padding: 0; border: 0; background: none; color: var(--text-subtle); font-size: var(--fs-body-xsmall); white-space: nowrap; cursor: pointer;
-  }
-  .tab .icon { width: 2.4rem; height: 2.4rem; }
-  .tab.is-current, .tab[aria-expanded="true"] { color: var(--text-primary); font-weight: 700; }
-  /* 펼친 하위 메뉴: 탭 막대 바로 위, 직각 네모(기획자 요청: 메뉴에서 펼쳐지는 것은 평평하게) */
-  .tab-sheet {
-    position: fixed; left: 0; right: 0; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); z-index: 39;
-    max-height: 60vh; overflow-y: auto; padding: 0.4rem 1.6rem 0.8rem; background: var(--surface-white);
-    border-top: 1px solid var(--border-gray-light); box-shadow: var(--shadow-up);
-  }
-  .tab-sheet-title { padding: 1.2rem 0 0.4rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
-  .tab-sheet a { display: flex; align-items: center; min-height: var(--touch-min); border-bottom: 1px solid var(--border-gray-light); font-size: var(--fs-body-medium); color: var(--text-basic); }
-  .tab-sheet li:last-child a { border-bottom: 0; }
-  .tab-sheet a[aria-current] { color: var(--text-primary); font-weight: 700; }
-  .tab-dim { display: block; position: fixed; inset: 0; z-index: 38; background: var(--overlay-menu); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
-  /* 화면 아래에 붙는 것들은 탭 막대 위로 */
-  .toast { bottom: calc(var(--tabbar-h) + 1.6rem + env(safe-area-inset-bottom, 0px)); }
+/* 휴대폰 전체 메뉴판 (v0.60 기획자 요청, common.js drawerHtml): 로그아웃 옆 ≡ 단추를 누르면 Claude 문서 사이트처럼 오른쪽에서 나옴.
+ * v0.59의 아래 탭 막대는 앞으로 만들 앱의 요소라 웹에서는 없앰(브라우저 아래 막대와 겹쳤음). PC와 태블릿은 위 메뉴 줄
+ *   위계가 잘 보이게 2단계: 1단계 메뉴(> 가 붙은 것은 하위 메뉴가 있음) → 2단계 하위 메뉴, 맨 위 "‹ 메뉴 이름"으로 돌아옴
+ *   폭은 화면의 82%(최대 320px), 뒤는 메뉴를 펼칠 때와 같은 막(연한 회색 40% + 흐림), 바탕은 흰색, 직각
+ *   열려 있는 동안 뒤 화면 스크롤을 잠금(html.drawer-open). 스크롤바 자리는 늘 비워 두므로 화면이 흔들리지 않음 */
+.menu-btn { display: none; }
+.drawer { position: fixed; inset: 0; z-index: 250; } /* 확인 창(300)보다 아래, 머리글과 처리 막대보다 위 */
+.drawer[hidden] { display: none; }
+.drawer-scrim { position: absolute; inset: 0; background: var(--overlay-menu); -webkit-backdrop-filter: var(--overlay-menu-filter); backdrop-filter: var(--overlay-menu-filter); }
+.drawer-panel {
+  position: absolute; top: 0; right: 0; bottom: 0; display: flex; flex-direction: column; width: min(32rem, 82%);
+  padding-bottom: env(safe-area-inset-bottom, 0px); border-left: 1px solid var(--border-gray-light);
+  background: var(--surface-white); /* 비치지 않는 바탕(기획자가 참고한 Claude 문서 사이트처럼. 유리로 두니 뒤 막 색이 비쳐 탁해 보였음) */
+  box-shadow: var(--shadow-1); transform: translateX(100%); transition: transform 0.25s ease;
 }
+.drawer.is-open .drawer-panel { transform: none; }
+html.drawer-open { overflow: hidden; }
+.drawer-top { display: flex; align-items: center; gap: 0.8rem; min-height: 6.4rem; padding: 0 0.6rem 0 1.6rem; border-bottom: 1px solid var(--border-gray-light); }
+.drawer-title { flex: 1; font-size: var(--fs-body-small); color: var(--text-subtle); }
+.drawer-title[hidden], .drawer-back[hidden] { display: none; }
+.drawer-back {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.4rem; min-height: var(--touch-min); margin-left: -0.6rem; padding: 0;
+  border: 0; background: none; font-size: var(--fs-heading-xsmall); font-weight: 700; color: var(--text-bolder); text-align: left; cursor: pointer;
+}
+.drawer-close { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: var(--touch-min); height: var(--touch-min); padding: 0; border: 0; background: none; color: var(--text-basic); cursor: pointer; }
+.drawer-back .icon, .drawer-close .icon { width: 2.4rem; height: 2.4rem; }
+.drawer-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.8rem 1.6rem; }
+.drawer-list[hidden] { display: none; }
+.drawer-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 1.2rem; width: 100%; min-height: 5.2rem; padding: 0;
+  border: 0; background: none; font-size: var(--fs-body-large); color: var(--text-basic); text-align: left; cursor: pointer;
+}
+.drawer-item .icon { flex-shrink: 0; width: 2rem; height: 2rem; color: var(--text-subtle); }
+.drawer-item.is-current, .drawer-item[aria-current] { color: var(--text-primary); font-weight: 700; }
+.drawer-foot { padding: 0.8rem 1.6rem 1.6rem; border-top: 1px solid var(--border-gray-light); }
+.drawer-foot a { display: flex; align-items: center; gap: 1.2rem; min-height: var(--touch-min); font-size: var(--fs-body-medium); color: var(--text-basic); }
+.drawer-foot .icon { width: 2.2rem; height: 2.2rem; color: var(--text-subtle); }
+.drawer-foot a[aria-current] { color: var(--text-primary); font-weight: 700; }
+@media print { .drawer, .menu-btn { display: none !important; } }
+.drawer .msearch { margin-bottom: 0.4rem; }
+.drawer .msearch-item { min-height: 5.2rem; font-size: var(--fs-body-large); }
+
+/* 메뉴 검색 (v0.60 기획자 요청, common.js menuSearchHtml): 메뉴로 바로 가는 간단한 검색
+ * PC와 태블릿: 메뉴 줄의 돋보기를 누르면 하위 메뉴처럼 메뉴 줄이 아래로 넓어지며 검색 칸(같은 유리 바탕, 직각). 휴대폰: 전체 메뉴판 맨 위 */
+.gnb-search-btn {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: var(--touch-min); height: var(--touch-min);
+  margin: 0 -0.8rem; padding: 0; border: 0; border-radius: var(--radius-md); background: none; color: var(--text-subtle); cursor: pointer; /* 좌우 여백을 당겨 최고관리자 메뉴도 한 줄에 다 들어가게 */
+}
+.gnb-search-btn:hover, .gnb-search-btn[aria-expanded="true"] { color: var(--text-bolder); background: var(--action-hover); }
+.gnb-search-btn .icon { width: 2rem; height: 2rem; }
+.gnb-search {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 30; padding: 1.6rem var(--page-margin) 2rem;
+  background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
+  border-bottom: 1px solid var(--border-gray-light); box-shadow: var(--shadow-down);
+}
+.gnb-search[hidden], .msearch[hidden], .msearch-head[hidden] { display: none; }
+.site-header:has(.gnb-search:not([hidden])) { border-bottom-color: transparent; }
+.msearch-box { position: relative; }
+.msearch-box .icon { position: absolute; left: 1.2rem; top: 50%; width: 1.8rem; height: 1.8rem; transform: translateY(-50%); color: var(--text-subtle); pointer-events: none; }
+.msearch-input {
+  width: 100%; height: var(--height-md); padding: 0 1.2rem 0 4rem; border: 1px solid var(--border-gray); border-radius: var(--radius-md);
+  background: var(--surface-white); font: inherit; font-size: var(--fs-body-medium); color: var(--text-basic);
+}
+.msearch-input::placeholder { color: var(--text-subtle); }
+.msearch-input:focus-visible { border-color: var(--border-focus); box-shadow: inset 0 0 0 1px var(--border-focus); } /* 칸 안쪽 파란 선(REQ-UI-21) */
+.msearch-head { margin: 1.2rem 0 0.2rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
+.msearch-item { display: flex; align-items: baseline; gap: 0.8rem; min-height: var(--touch-min); margin: 0 -1rem; padding: 0.6rem 1rem; font-size: var(--fs-body-medium); color: var(--text-basic); }
+.msearch-item:hover { background: var(--action-hover); }
+.msearch-item[aria-current] .msearch-label { color: var(--text-primary); font-weight: 700; }
+.msearch-path { font-size: var(--fs-body-small); color: var(--text-subtle); }
+.msearch-empty { padding: 0.8rem 0; font-size: var(--fs-body-small); color: var(--text-subtle); }
+.msearch-empty a { color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; }
+@media print { .gnb-search-btn, .gnb-search { display: none !important; } }
 
 /* ---------- 5. 본문 공통 ---------- */
 /* 메뉴 줄과 본문 첫 줄 사이 간격: 너무 넓지 않게 2.4rem (v0.15에서 4rem을 줄임) */
@@ -527,6 +580,16 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
   .header-top .user-line { grid-row: 1; }
   .user-line .user-org { display: none; }
   .user-line { gap: 0.8rem; }
+  /* 위 메뉴 줄 대신 ≡ 메뉴(v0.60). 로고 줄이 맨 위에 붙어 따라오므로 로고 줄이 유리 바탕 */
+  .gnb { display: none; }
+  .header-top { background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter); }
+  /* ≡ 단추: 누르는 칸 44px, 보이는 줄 세 개는 24px. 오른쪽 끝을 본문 끝에 맞추고 머리글 높이는 그대로(위아래 바깥 여백을 당김) */
+  .menu-btn {
+    display: inline-flex; align-items: center; justify-content: center; align-self: center;
+    width: var(--touch-min); height: var(--touch-min); margin: -1rem -1rem -1rem 0; padding: 0;
+    border: 0; background: none; color: var(--text-basic); cursor: pointer;
+  }
+  .menu-btn .icon { width: 2.4rem; height: 2.4rem; }
 
   /* 누르기 쉬운 크기: 글자 크기와 줄 위치는 그대로 두고, 누를 수 있는 영역만 위아래로 넓힘 */
   .util-link { padding: 1.2rem 0; margin: -1.2rem 0; }
@@ -535,26 +598,6 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
   .user-name, .link-more { padding: 1.05rem 0; margin: -1.05rem 0; }
   .wait-long { vertical-align: 0.1rem; } /* 휴대폰 표: 대기 일수 상자도 옆 글자 가운데에 (v0.59 QA 세로 줄맞춤) */
   .btn { min-height: var(--touch-min); }
-
-  /* 메뉴: PC와 같은 순서. 한 줄로 두고 손가락으로 옆으로 밀어(스와이프) 봄. 이용 안내(?)는 오른쪽에 고정 (v0.42 기획자 요청)
-   * 한 줄, 그라데이션과 화살표는 v0.50부터 PC와 태블릿에도 같이 씀(위 4장). 여기는 스마트폰에만 다른 것
-   * 기획자 요청(2026-10-22): 화살표와 ?(이용 안내) 사이를 30px에서 16px로 좁힘 */
-  .gnb .inner { gap: 0.4rem; }
-  .gnb-scroll { margin-left: -1rem; }
-  /* 하위 메뉴: 연 메뉴 바로 아래에 글자 폭만큼 작게(v0.55 기획자 요청, 예전에는 폭 가득). 자리는 common.js placeSub
-   * 글자는 휴대폰에 맞게 15px, 한 줄 높이는 누르기 쉬운 44px를 지킴(15px x 1.5 + 위아래 1.1rem)
-   * 글자는 연 메뉴 글자와 같은 줄에: 상자 안쪽 0.4rem + 줄 안쪽 0.6rem = 메뉴 글자 안쪽 1rem */
-  .gnb-sub { min-width: 0; padding: 0.4rem; }
-  .gnb-sub a { padding: 1.1rem 0.6rem; font-size: var(--fs-body-small); }
-  .gnb-link { height: var(--height-md); padding: 0 1rem; font-size: var(--fs-body-medium); }
-  .gnb-link .icon { display: none; } /* 펼침 화살표를 감춰 메뉴 칸을 줄임 */
-  .gnb-link.is-current::after, .gnb-item.is-open .gnb-link::after { left: 1rem; right: 1rem; }
-  /* ?(이용 안내): 보이는 칸은 32px로 좁혀 화살표 가까이 두고, 누르는 영역은 오른쪽 여백까지 넓혀 44px를 지킴 */
-  .gnb-aside { position: relative; flex-shrink: 0; min-width: 3.2rem; min-height: var(--touch-min); justify-content: flex-end; }
-  .gnb-aside::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; right: -1.2rem; }
-  .gnb-aside .gnb-aside-label {
-    position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap;
-  }
 
   .page-desc { font-size: var(--fs-body-medium); }
   .panel { padding: var(--pad-box-y) 1.6rem; }
@@ -585,6 +628,7 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
 
 @media print {
   html, body { background: var(--white); }
+  .site-header { position: static; box-shadow: none; } /* 메뉴 줄 고정(v0.60)은 화면에서만 */
   /* 작은 칠(체크한 칸, 결재 단계 점, 그래프 막대)이 빠지지 않게 칠을 그대로 찍음.
    * 넓은 바탕은 흑백 인쇄 색(tokens.css 6-1)에서 흰색이라 잉크를 쓰지 않음 */
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -747,20 +791,7 @@ a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: under
 /* 표와 정보 칸 안의 링크(품의 문서, CRM 영업활동 등): 시안에서는 누르면 안내만 */
 .doc-link { color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; overflow-wrap: anywhere; }
 
-/* KRDS 맨 위로 이동(플로팅 버튼, REQ-UI-20): 화면을 조금만 내려도 오른쪽 아래에 나타남. 누르는 영역 56px
- * 넓은 화면은 A4 종이 틀 바깥 오른쪽, 좁은 화면(휴대폰)은 화면 오른쪽 아래(오른쪽 16px, 아래 24px). 모달(300)보다 아래, 본문보다 위
- * (v0.30 기획자 요청) 글자 없이 화살표만, 둥근 원 대신 큰 버튼(btn--lg)과 같은 곡률의 네모 */
-.to-top {
-  position: fixed; right: max(1.6rem, calc((100vw - var(--page-width)) / 2 - 7.2rem)); bottom: 2.4rem; z-index: 200;
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 5.6rem; height: 5.6rem; border: 1px solid var(--border-gray); border-radius: var(--radius-lg);
-  background: var(--surface-white); box-shadow: var(--shadow-1); color: var(--text-basic); cursor: pointer;
-}
-.to-top .icon { width: 2.4rem; height: 2.4rem; }
-.to-top:hover { background: var(--surface-gray-subtler); color: var(--text-bolder); }
-.to-top:focus-visible { box-shadow: var(--focus-ring); border-radius: var(--radius-lg); }
-#main:focus { outline: none; }
-@media print { .to-top { display: none !important; } }
+#main:focus { outline: none; } /* 본문 바로가기로 온 본문 틀에는 테두리를 그리지 않음. 맨 위로 단추(REQ-UI-20)는 v0.60에 없앰: 메뉴 줄이 위에 붙어 따라옴 */
 
 /* ---------- 16. 기기의 접근성 설정 따르기 (v0.59 기획자 요청, 요구사항 정의서 REQ-UI-36) ----------
  * 기준: 한국형 웹 콘텐츠 접근성 지침(KWCAG) 2.2, WCAG 2.2, 애플 휴먼 인터페이스 지침(접근성)
