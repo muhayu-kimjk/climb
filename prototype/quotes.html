@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 브라우저 탭 제목: climb (REQ-NAME-02, v0.54 소문자) -->
+  <title>climb</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <!-- 로고 글자 climb만 SUITE 글꼴 (v0.53 기획자 요청, OFL 무료 글꼴) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sun-typeface/SUITE@2/fonts/static/woff2/SUITE.css">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <script src="assets/js/theme.js"></script><!-- 밝은 화면, 어두운 화면 (v0.53) -->
+  <link rel="stylesheet" href="assets/css/common.css">
+  <link rel="stylesheet" href="assets/css/form.css">
+  <link rel="stylesheet" href="assets/css/list.css">
+</head>
+<!-- =====================================================================
+  SCR-16 견적 목록 (docs/02_화면목록.md, 요구사항 정의서 3.9 REQ-QUO)
+  - (v0.61 기획자 결정) 시스템의 제품과 가격 기준으로 만든 견적서를 모아 봅니다. 견적은 계약과 이어지지 않고, 출력 기록을 남기는 것이 목적입니다.
+  - 영업은 내가 만든 견적, 영업 리더는 내 유닛의 견적, 영업 임원, 영업지원, 관리자, 최고관리자는 모든 견적을 봅니다(REQ-QUO-07).
+  - 한 줄이 한 판입니다. 같은 견적번호의 지난 판도 "새 판으로 바뀜"으로 남아 출력 기록을 볼 수 있습니다.
+  - 거르기와 쪽 나누기는 assets/js/quotes.js가 처리합니다.
+====================================================================== -->
+<body data-page="SCR-16">
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <div id="demo-bar"></div>
+
+  <div class="sheet">
+  <header id="site-header"></header>
+
+  <main id="main" class="page" tabindex="-1">
+    <div class="inner">
+      <div class="page-head page-head--sub">
+        <h1 class="page-title">견적 목록</h1>
+        <div class="page-actions" id="page-actions"></div>
+      </div>
+      <div class="page-intro">
+        <p id="intro">시스템의 제품과 가격 기준으로 만든 견적서입니다. 출력할 때마다 누가 언제 어떤 판을 냈는지 남습니다.</p>
+        <p class="sub">견적은 계약과 이어지지 않습니다. 계약은 계약 등록에서 따로 등록합니다.</p>
+      </div>
+
+      <div id="notice"></div>
+
+      <section id="list" aria-labelledby="list-title">
+        <h2 class="sr-only" id="list-title">견적 목록</h2>
+        <form class="filter-bar" id="filter" role="search" aria-label="견적 목록 거르기">
+          <div class="field">
+            <label class="field-label field-label--sm" for="f-q">검색</label>
+            <input class="input" id="f-q" type="search" placeholder="고객사, 견적번호, 영업기회번호" autocomplete="off">
+          </div>
+          <div class="field">
+            <label class="field-label field-label--sm" for="f-status">상태</label>
+            <select class="select" id="f-status"></select>
+          </div>
+          <button type="reset" class="btn btn--tertiary btn--md filter-reset">초기화</button>
+        </form>
+
+        <div class="list-head"><p class="list-count" id="list-count" aria-live="polite"></p></div>
+        <div class="tbl-scroll">
+          <table class="tbl tbl--compact tbl--fit">
+            <caption class="sr-only">견적 목록: 고객사와 견적번호, 합계, 상태, 견적일, 유효기간, 작성한 사람, 출력 횟수</caption>
+            <thead id="thead"></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <nav class="pagination" id="pagination" aria-label="견적 목록 쪽 이동"></nav>
+      </section>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+  </div><!-- /.sheet -->
+
+  <script src="assets/js/mock-data.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/quotes.js"></script>
+</body>
+</html>

@@ -175,7 +175,7 @@
 .combo-icon { position: absolute; left: 1.4rem; top: 50%; transform: translateY(-50%); display: inline-flex; color: var(--text-subtle); pointer-events: none; }
 .combo-input { padding-left: 4rem; }
 .combo-panel {
-  position: absolute; left: 0; right: 0; top: calc(100% + 0.4rem); z-index: 20;
+  position: absolute; left: 0; right: 0; top: calc(100% + 0.4rem); z-index: 12; /* 처리 막대(10)보다 위, 머리글(20)과 메뉴를 펼칠 때의 흐림(15)보다 아래(v0.61 검토: 머리글 판 위로 겹쳐 보였음) */
   border: 1px solid var(--border-gray); border-radius: var(--radius-md); background: var(--surface-white); box-shadow: var(--shadow-1);
   max-height: 32rem; overflow-y: auto;
 }

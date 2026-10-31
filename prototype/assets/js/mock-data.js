@@ -1010,6 +1010,30 @@ window.CLIMB_DATA = (function () {
           '투명도 줄이기나 대비 높이기를 켜 두면 메뉴 줄이 비치지 않는 흰 바탕으로 보입니다.',
           '유리 바탕과 메뉴를 펼칠 때 뒤 화면의 흐림을 애플 가이드라인과 애플 웹사이트 메뉴에 맞췄습니다.'],
       } },
+    // v0.12.1 (요구사항 정의서 v0.61, REQ-UI-10, 13, 14, 37): 머리글 계정과 검색 아이콘(휴대폰, PC), 펼친 메뉴는 단단하게, 유리는 덜 흐리게, 폭 상한
+    { id: 'N-0026', kind: 'RELEASE', version: 'v0.12.1', title: '계정과 검색 아이콘', at: '2026-10-31 17:00', by: 'u_super',
+      items: {
+        added: ['머리글 오른쪽 위에 계정과 메뉴 검색 아이콘을 둡니다. 계정 아이콘을 누르면 내 이름과 조직, 내 계정, 로그아웃이 나옵니다.',
+          '휴대폰은 계정, 메뉴 검색, 전체 메뉴(줄 세 개) 아이콘 셋입니다.',
+          'PC에서 화면을 내려 메뉴 줄만 위에 붙으면 계정과 메뉴 검색 아이콘이 메뉴 줄에도 나옵니다.'],
+        changed: ['메뉴를 펼치면 펼친 곳이 흰 바탕이 되고, 뒤 화면은 흐리게 하지 않고 살짝만 어둡게 합니다. 뒤 화면이 제자리에 그대로 보입니다.',
+          '위에 붙는 메뉴 줄의 유리 바탕을 덜 불투명하고 덜 흐리게 바꿨습니다. 메뉴 글자는 어느 화면에서나 읽기 쉬운 대비를 지킵니다.',
+          '메뉴 줄의 돋보기와 휴대폰 메뉴판의 검색 칸, 로그아웃은 머리글 아이콘으로 옮겼습니다. 메뉴 사이 간격을 조금 좁혔습니다.',
+          '어떤 화면도 가로 1920px를 넘지 않습니다. 화면은 지금처럼 A4 종이 모양이고, 인쇄는 늘 A4에 맞춥니다.',
+          '이용 안내를 문서 사이트처럼 바꿨습니다. 왼쪽 차례에서 쪽을 고르고, 이용 안내 안에서 낱말로 찾을 수 있습니다. 인쇄하면 지금처럼 매뉴얼 한 부로 나옵니다.'],
+        fixed: ['Esc를 누르면 초점이 어디에 있든 열려 있는 메뉴가 닫힙니다.',
+          '키보드로 메뉴를 쓸 때 펼친 메뉴 밖으로 나가면 메뉴가 닫혀, 가려진 칸으로 초점이 가지 않습니다.',
+          '휴대폰 메뉴판을 닫자마자 다시 열어도 사라지지 않습니다.',
+          '거래처 찾기 목록이 메뉴 위로 겹쳐 보이지 않습니다.'],
+      } },
+    // v0.13.0 (요구사항 정의서 v0.61 3.9 REQ-QUO): 견적서
+    { id: 'N-0027', kind: 'RELEASE', version: 'v0.13.0', title: '견적서 만들기', at: '2026-10-31 18:00', by: 'u_super',
+      items: {
+        added: ['메뉴 줄 개요 옆에 견적이 생겼습니다. 제품과 가격 기준 그대로 견적서를 만들고 출력합니다. 엑셀로 따로 만들지 않아도 됩니다.',
+          '견적서를 출력할 때마다 누가 언제 어떤 판을 냈는지 기록이 남습니다. 출력한 판은 고칠 수 없고, 바꾸려면 새 판을 만듭니다.',
+          '할인율 한도를 넘는 줄은 견적을 만들 때 알려 줍니다. 그 가격으로 계약하면 계약 등록 때 영업 리더의 승인이 필요합니다.'],
+        changed: ['견적은 계약과 이어지지 않습니다. 계약은 지금처럼 계약 등록에서 등록합니다.'],
+      } },
   ];
 
   /* ---------- 이메일 알림 (내 계정 SCR-93, v0.45 기획자 요청. 보내는 때는 요구사항 정의서 REQ-ENV-10) ----------
@@ -1191,6 +1215,43 @@ window.CLIMB_DATA = (function () {
   // 기관 또는 부서명 (C-24 v0.39, v0.46 기획자 결정): 사업자등록번호 하나에 거래처 하나. 그 안에서 따로 계약하는 기관이나 부서는
   //   계약마다 이름을 직접 적어 계약에만 남김(contract.unit). 기관 이름은 고유 번호가 없어 확인할 수 없으므로 거래처에 목록으로 두지 않음
   //   (v0.39의 거래처별 기관 목록 CUSTOMER_UNITS는 v0.46에서 없앰)
+  /* ---------- 견적서 (v0.61 기획자 결정, 요구사항 정의서 3.9 REQ-QUO) ----------
+   * 영업이 고객에게 내는 견적서를 시스템의 제품과 가격 기준 그대로 만들고 출력합니다. 그동안 각자 엑셀로 만들던 것을 바꾸고,
+   *   출력할 때마다 누가 언제 어떤 판을 냈는지 기록을 남기는 것이 목적입니다. 견적은 계약과 이어지지 않습니다(계약 등록과 따로).
+   *   견적 단계 할인 승인은 하지 않습니다(v0.21 결정 그대로). 할인율 한도를 넘는 줄은 화면에서만 알려 줌(계약할 때 ③ 영업 검토)
+   * QUOTE_RULES: 유효기간 기본 일수, 부가세율. 실제 시스템에서는 관리자 설정 [가정]
+   * QUOTE_SUPPLIER: 견적서의 공급자 칸. 사업자등록번호, 대표자, 주소는 실제 시스템의 회사 설정 값을 씀(시안에는 넣지 않음)
+   * QUOTES: 견적 한 판이 한 줄. no(견적번호 QT + 연월 + 일련번호), ver(판), 고객사(거래처 번호, 상호, 사업자등록번호), unit(기관 또는 부서명),
+   *   opp(판다 영업기회번호, 선택), date(견적일), validUntil(유효기간), lines(기능, 수량, 단가: 표준 단가와 할인율 한도는 그때의 가격 기준),
+   *   note(조건과 비고), owner(작성한 영업), savedAt, issues(출력 기록: 일시, 출력한 사람, 합계). 출력한 판은 고칠 수 없고 고치려면 새 판
+   *   고객 담당자 이름과 연락처는 적지 않음(REQ-SEC: 개인정보는 CRM에) */
+  const QUOTE_RULES = { validDays: 30, vat: 0.1 };
+  const QUOTE_SUPPLIER = { name: '주식회사 무하유', note: '사업자등록번호, 대표자, 주소, 대표 연락처는 실제 시스템의 회사 설정 값' };
+  const QUOTES = [
+    { no: 'QT2610-001', ver: 1, customer: 'C-0001', name: '한결대학교', bizNo: '119-82-04515', unit: '교무처', opp: '2610CK012',
+      date: '2026-10-05', validUntil: '2026-11-04', owner: 'u_sales1', savedAt: '2026-10-05 14:02',
+      lines: [{ feature: 'CK_CAMPUS_PLAG', qty: 1, unitPrice: 12000000, listPrice: 12000000, cap: 0.20, unit: '기관, 1년' },
+        { feature: 'CK_CAMPUS_GPTK', qty: 1, unitPrice: 2160000, listPrice: 2400000, cap: 0.15, unit: '기관, 1년' }],
+      note: '이용 기간: 계약일부터 1년\n결제: 세금계산서 발행 후 30일 이내',
+      issues: [{ at: '2026-10-05 14:20', by: 'u_sales1', total: 15576000 }] },
+    { no: 'QT2610-001', ver: 2, customer: 'C-0001', name: '한결대학교', bizNo: '119-82-04515', unit: '교무처', opp: '2610CK012',
+      date: '2026-10-12', validUntil: '2026-11-11', owner: 'u_sales1', savedAt: '2026-10-12 10:31',
+      lines: [{ feature: 'CK_CAMPUS_PLAG', qty: 1, unitPrice: 12000000, listPrice: 12000000, cap: 0.20, unit: '기관, 1년' },
+        { feature: 'CK_CAMPUS_GPTK', qty: 1, unitPrice: 2160000, listPrice: 2400000, cap: 0.15, unit: '기관, 1년' },
+        { feature: 'CK_CAMPUS_CITE', qty: 1, unitPrice: 1200000, listPrice: 1200000, cap: 0, unit: '기관, 1년' }],
+      note: '이용 기간: 계약일부터 1년\n결제: 세금계산서 발행 후 30일 이내\n1판에서 출처 표기법 검사를 더함',
+      issues: [{ at: '2026-10-12 10:40', by: 'u_sales1', total: 16896000 }, { at: '2026-10-15 16:05', by: 'u_sales1', total: 16896000 }] },
+    { no: 'QT2610-002', ver: 1, customer: 'C-0002', name: '푸른솔아카데미', bizNo: '220-87-31409', unit: '', opp: '',
+      date: '2026-10-08', validUntil: '2026-10-18', owner: 'u_sales2', savedAt: '2026-10-08 09:12',
+      lines: [{ feature: 'HR_PRISM_DEFECT', qty: 1, unitPrice: 7200000, listPrice: 9600000, cap: 0.20, unit: '기관, 1년' }],
+      note: '연간 이용권. 유효기간 10일(행사 가격)',
+      issues: [{ at: '2026-10-08 09:20', by: 'u_sales2', total: 7920000 }] },
+    { no: 'QT2610-003', ver: 1, customer: 'C-0003', name: '별빛어학원', bizNo: '305-91-18271', unit: '', opp: '2610HR004',
+      date: '2026-10-19', validUntil: '2026-11-18', owner: 'u_sales2', savedAt: '2026-10-19 08:55',
+      lines: [{ feature: 'HR_PRISM_PLAG', qty: 1, unitPrice: 3600000, listPrice: 3600000, cap: 0.15, unit: '기관, 1년' }],
+      note: '', issues: [] },
+  ];
+
   const CUSTOMERS = [
     // [번호, 상호, 사업자등록번호, 등록한 사람, 등록일]
     ['C-0001', '한결대학교', '119-82-04515', 'u_super', '2026-09-01'],
@@ -1332,7 +1393,7 @@ window.CLIMB_DATA = (function () {
 
   return { TODAY, BRAND, ROLES, ROLE_AREAS, ROLE_SHORT, ROLE_AREA, ROLE_BASE, STEP_LEADS, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, METHODS, SETTLEMENTS, PRICE_BOOK, STEPS, REVIEW_GROUPS, POST_GROUPS, PROCESS_ROLES, STEP_ASSIGNEE, APPROVAL_STATE, APPROVAL_ACTIONS, SEAL_CHECKS, OPS_CHECKS, OPS_CHECKS_END, OPS_CHECKS_EXTEND, AFTERCARE_TYPES, FILE_KINDS, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS,
     CHANGE_TYPES, CHANGE_RULES, OPS_CHECKS_PERIOD, TEAM_LEADERS,
-    PRODUCTS, FEATURES, TEMPLATES, PRICE_ROWS, currentPrices, CUSTOMERS, BIZ_REGISTRY, BIZ_REGISTRY_INFO, NTS_STATUS, CODE_GROUPS, CODES, DELEGATIONS, ASSIGNEE_CHANGES, ADMIN_LOG, RESTRICT_LOG,
+    PRODUCTS, FEATURES, TEMPLATES, PRICE_ROWS, currentPrices, CUSTOMERS, QUOTE_RULES, QUOTE_SUPPLIER, QUOTES, BIZ_REGISTRY, BIZ_REGISTRY_INFO, NTS_STATUS, CODE_GROUPS, CODES, DELEGATIONS, ASSIGNEE_CHANGES, ADMIN_LOG, RESTRICT_LOG,
     LOG_REVIEWS, ACCESS_REVIEWS, SEC_ALERT_KINDS, SEC_ALERTS, NOTICE_KINDS, RELEASE_PARTS, NOTICES, EMAIL_TYPES,
     OBLIGATION_KINDS, OBLIGATION_WHEN, OBLIGATION_PRESETS, OBLIGATIONS, SERVICE_START_MONTH };
 })();

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 브라우저 탭 제목: climb (REQ-NAME-02, v0.54 소문자) -->
+  <title>climb</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <!-- 로고 글자 climb만 SUITE 글꼴 (v0.53 기획자 요청, OFL 무료 글꼴) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sun-typeface/SUITE@2/fonts/static/woff2/SUITE.css">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <script src="assets/js/theme.js"></script><!-- 밝은 화면, 어두운 화면 (v0.53) -->
+  <link rel="stylesheet" href="assets/css/common.css">
+  <link rel="stylesheet" href="assets/css/form.css">
+  <link rel="stylesheet" href="assets/css/list.css">
+  <link rel="stylesheet" href="assets/css/quote.css">
+</head>
+<!-- =====================================================================
+  SCR-15 새 견적, 견적 고치기 / SCR-17 견적서 보기 (docs/02_화면목록.md, 요구사항 정의서 3.9 REQ-QUO)
+  - (v0.61 기획자 결정) 영업이 고객에게 내는 견적서를 시스템의 제품과 가격 기준 그대로 만들고 출력합니다.
+    그동안 각자 엑셀로 만들던 것을 바꾸고, 출력할 때마다 기록(누가, 언제, 어떤 판, 합계)을 남기는 것이 목적입니다.
+  - 견적은 계약과 이어지지 않습니다. 견적 단계 할인 승인도 없습니다(할인율 한도를 넘는 줄은 화면에서 알려 줌, 계약할 때 ③ 영업 검토).
+  - 주소: quote.html(새 견적) / quote.html?no=견적번호&ver=판. 출력 전의 내 견적은 고치고(SCR-15), 그 밖에는 보기(SCR-17, 메뉴는 견적 목록)
+  - 출력은 "견적서 출력" 단추로만: 고객에게 낼 견적서만 A4 세로로 나오고(줄이 많으면 다음 장으로) 출력 기록이 남습니다(REQ-QUO-05).
+    쪽 아래의 사내 문구(시스템 이름, 대외비)도 빼고 쪽 번호만 남깁니다(@page quote, quote.css).
+    브라우저 인쇄(Ctrl+P)로 찍으면 다른 화면처럼 워터마크가 있는 사내 인쇄라 고객에게 낼 수 없습니다.
+  - 화면 동작은 assets/js/quote.js, 견적서 모양은 assets/css/quote.css
+====================================================================== -->
+<body data-page="SCR-15">
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <div id="demo-bar"></div>
+
+  <div class="sheet">
+  <header id="site-header"></header>
+
+  <main id="main" class="page" tabindex="-1">
+    <div class="inner">
+      <div class="page-head page-head--sub">
+        <h1 class="page-title" id="page-title">새 견적</h1>
+        <div class="page-actions" id="page-actions"></div>
+      </div>
+      <div class="page-intro" id="page-intro"></div>
+      <div id="notice"></div>
+
+      <!-- 고치기(SCR-15): 받는 곳, 견적 내용, 조건과 비고 -->
+      <form id="quote-form" class="form-stack" novalidate hidden>
+        <div class="error-summary" id="error-summary" tabindex="-1" role="alert" hidden></div>
+        <section class="panel" aria-labelledby="sec-to">
+          <h2 class="section-title" id="sec-to"><span class="num">1</span>받는 곳</h2>
+          <p class="section-desc">견적서를 받는 고객사입니다. 고객 담당자의 이름과 연락처는 적지 않습니다(CRM에 둠).</p>
+          <div class="field" data-field="name">
+            <label class="field-label" for="q-name">고객사<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+            <div class="q-combo">
+              <input class="input" id="q-name" type="text" role="combobox" aria-expanded="false" autocomplete="off" aria-describedby="q-name-help" aria-controls="q-name-list" aria-autocomplete="list" maxlength="60">
+              <ul class="q-combo-list" id="q-name-list" role="listbox" aria-label="찾은 거래처" hidden></ul>
+            </div>
+            <p class="sr-only" id="q-name-live" aria-live="polite"></p>
+            <p class="field-help" id="q-name-help">상호나 사업자등록번호 일부로 우리 거래처와 사업자 정보를 찾아 고릅니다. 없으면 상호를 그대로 적습니다.</p>
+            <p class="field-error" hidden></p>
+          </div>
+          <div class="field-row">
+            <div class="field" data-field="bizNo">
+              <label class="field-label" for="q-bizno">사업자등록번호 <span class="opt">(선택)</span></label>
+              <input class="input" id="q-bizno" type="text" inputmode="numeric" autocomplete="off" maxlength="12">
+              <p class="field-error" hidden></p>
+            </div>
+            <div class="field" data-field="unit">
+              <label class="field-label" for="q-unit">기관 또는 부서명 <span class="opt">(선택)</span></label>
+              <input class="input" id="q-unit" type="text" maxlength="40">
+            </div>
+          </div>
+          <div class="field" data-field="opp">
+            <label class="field-label" for="q-opp">영업기회번호 <span class="opt">(선택)</span></label>
+            <input class="input q-opp" id="q-opp" type="text" autocomplete="off" maxlength="9" aria-describedby="q-opp-help">
+            <p class="field-help" id="q-opp-help">판다(CRM)의 영업기회번호입니다. 예: 2610CK012. 넣으면 견적 목록에서 찾을 수 있습니다.</p>
+            <p class="field-error" hidden></p>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-body">
+          <h2 class="section-title" id="sec-body"><span class="num">2</span>견적 내용</h2>
+          <p class="section-desc">제품과 가격 기준에 있는 기능만 고를 수 있고, 단가는 오늘의 표준 단가로 채워집니다. 할인하면 단가를 고칩니다.</p>
+          <div class="field-row">
+            <div class="field" data-field="date">
+              <label class="field-label" for="q-date">견적일<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+              <input class="input" id="q-date" type="date">
+              <p class="field-error" hidden></p>
+            </div>
+            <div class="field" data-field="validUntil">
+              <label class="field-label" for="q-valid">유효기간<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+              <input class="input" id="q-valid" type="date" data-describedby="q-valid-help" data-after="q-date" data-after-msg="유효기간은 견적일보다 앞설 수 없습니다.">
+              <p class="field-help" id="q-valid-help"></p>
+              <p class="field-error" hidden></p>
+            </div>
+          </div>
+          <div class="field" data-field="lines">
+            <p class="field-label" id="q-lines-label">제품<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></p>
+            <div class="tbl-scroll" tabindex="0" role="region" aria-labelledby="q-lines-label">
+              <table class="tbl tbl--compact q-lines">
+                <caption class="sr-only">견적 제품: 서비스, 제품, 기능, 수량, 표준 단가, 견적 단가, 할인율, 금액</caption>
+                <thead><tr><th scope="col">서비스와 제품, 기능</th><th scope="col" class="num">수량</th><th scope="col" class="num">단가</th><th scope="col" class="num">금액</th><th scope="col"><span class="sr-only">지우기</span></th></tr></thead>
+                <tbody id="q-lines"></tbody>
+              </table>
+            </div>
+            <button type="button" class="btn-text btn--add" id="q-add">줄 더하기</button>
+            <p class="field-warn" id="q-cap-warn" role="status" hidden></p>
+            <p class="field-error" id="q-lines-err" hidden></p>
+          </div>
+          <dl class="q-sum" id="q-sum"></dl>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-note">
+          <h2 class="section-title" id="sec-note"><span class="num">3</span>조건과 비고 <span class="opt">(선택)</span></h2>
+          <p class="section-desc">이용 기간, 결제 조건 등 견적서 맨 아래에 그대로 나올 글입니다.</p>
+          <div class="field" data-field="note">
+            <label class="sr-only" for="q-note">조건과 비고</label>
+            <textarea class="textarea" id="q-note" rows="4" maxlength="500"></textarea>
+          </div>
+        </section>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn--tertiary btn--md" id="q-save">저장</button>
+          <button type="button" class="btn btn--primary btn--md" id="q-print">저장하고 견적서 출력</button><!-- Enter로는 출력하지 않게 type="button"(v0.61 검토) -->
+        </div>
+      </form>
+
+      <!-- 보기(SCR-17): 견적서, 출력 기록, 다른 판 -->
+      <div id="quote-view" hidden>
+        <div class="q-paper"><div id="quote-doc"></div></div>
+        <section class="panel q-history" aria-labelledby="sec-issues">
+          <div class="panel-head"><h2 class="panel-title" id="sec-issues">출력 기록</h2></div>
+          <div id="q-issues"></div>
+        </section>
+        <section class="panel q-history" aria-labelledby="sec-vers">
+          <div class="panel-head"><h2 class="panel-title" id="sec-vers">이 견적의 판</h2></div>
+          <div id="q-versions"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+  </div><!-- /.sheet -->
+
+  <script src="assets/js/mock-data.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/quote.js"></script>
+</body>
+</html>

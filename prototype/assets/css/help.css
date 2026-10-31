@@ -1,24 +1,129 @@
 /* =====================================================================
  * SCR-90 이용 안내 전용 스타일 (help.css)
- *   - 차례(목차), 단계 표, 역할 표에서 "내 역할" 줄 강조, 자주 묻는 것(펼치기)
- *   - 인쇄하면 자주 묻는 것을 모두 펼쳐 매뉴얼 한 부로 나옴 (help.js가 인쇄 직전에 펼침)
- * 관련 요구사항: REQ-FLOW-13, REQ-UI-14
+ *   - (v0.61 기획자 요청, REQ-UI-38) Claude 문서 사이트(platform.claude.com/docs) 형식을 빌림:
+ *       왼쪽 차례(묶음별 쪽 목록, 이용 안내에서 찾기) / 가운데 한 쪽(위치 표시, 제목, 안내 상자, 소제목, 내용, 이전과 다음) / 오른쪽 "이 쪽에서"
+ *   - A4 종이 틀은 그대로(REQ-UI-10): 넓은 화면(1360px 이상)에서는 차례와 "이 쪽에서"를 종이 틀 바깥 회색 바탕에 두고 메뉴 줄 아래에 붙어 따라오게 함.
+ *       그래서 종이 안의 내용 폭과 줄바꿈은 인쇄와 같음. 그보다 좁으면 차례는 내용 위의 접힌 줄, "이 쪽에서"는 감춤
+ *   - 단계 표, 역할 표에서 "내 역할" 줄 강조, 자주 묻는 것(펼치기)
+ *   - 인쇄하면 모든 쪽이 차례대로 나오고 자주 묻는 것을 모두 펼쳐 매뉴얼 한 부로 나옴 (help.js가 인쇄 직전에 펼침)
+ * 관련 요구사항: REQ-FLOW-13, REQ-UI-14, REQ-UI-38
  * ===================================================================== */
 
-.help-stack { display: flex; flex-direction: column; gap: var(--gap-box); }
-.help-toc ol { display: flex; flex-wrap: wrap; gap: 0.4rem 2rem; counter-reset: toc; font-size: var(--fs-body-small); }
-.help-toc li { counter-increment: toc; }
-.help-toc li::before { content: counter(toc) ". "; color: var(--text-primary); font-weight: 700; }
-.help-toc a { color: var(--text-basic); text-decoration: underline; text-underline-offset: 0.3rem; }
+.doc { position: relative; }
 
-.help-stack .tbl td { vertical-align: top; }
-.help-stack .tbl a { color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; }
-.help-stack .tbl tr.is-me td { background: var(--surface-primary-subtler); }
-.help-stack p + p, .help-stack .tbl-scroll + p { margin-top: 1rem; }
-.help-text { font-size: var(--fs-body-small); color: var(--text-basic); }
-.help-list { padding-left: 2rem; list-style: disc; font-size: var(--fs-body-small); color: var(--text-basic); }
-.help-list li + li { margin-top: 0.6rem; }
+/* ---------- 왼쪽 차례 ----------
+ * 좁은 화면: 내용 위의 접힌 줄(지금 쪽 이름이 보임). 누르면 아래로 펼침 */
+.doc-nav { margin-bottom: var(--gap-box); }
+.doc-nav-toggle {
+  display: flex; align-items: center; gap: 0.8rem; width: 100%; min-height: var(--touch-min); padding: 0.8rem 1.2rem;
+  border: 1px solid var(--border-gray-light); border-radius: var(--radius-lg); background: var(--surface-white);
+  font: inherit; color: var(--text-basic); text-align: left; cursor: pointer;
+}
+.doc-nav-toggle-label { font-size: var(--fs-body-small); color: var(--text-subtle); white-space: nowrap; }
+.doc-nav-now { flex: 1; min-width: 0; font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
+.doc-nav-toggle .icon { flex-shrink: 0; color: var(--text-subtle); transition: transform 0.15s ease; }
+.doc-nav.is-open .doc-nav-toggle .icon { transform: rotate(180deg); }
+.doc-nav-body { display: none; margin-top: 0.8rem; padding: 1.2rem; border: 1px solid var(--border-gray-light); border-radius: var(--radius-lg); background: var(--surface-white); }
+.doc-nav.is-open .doc-nav-body { display: block; }
+.doc-nav-group { margin: 1.6rem 0 0.4rem; padding: 0 1rem; font-size: var(--fs-body-small); font-weight: 700; color: var(--text-bolder); }
+.doc-nav-list a {
+  display: flex; align-items: center; min-height: var(--touch-min); padding: 0.4rem 1rem; border-radius: var(--radius-md);
+  font-size: var(--fs-body-small); color: var(--text-basic);
+}
+.doc-nav-list a:hover { background: var(--action-hover); }
+.doc-nav-list a[aria-current] { background: var(--action-hover); color: var(--text-primary); font-weight: 700; } /* 지금 쪽(Claude 문서처럼 옅은 바탕) */
+
+/* 이용 안내에서 찾기 (메뉴 검색과 같은 모양) */
+.doc-search-box { position: relative; }
+.doc-search-box .icon { position: absolute; left: 1rem; top: 50%; width: 1.6rem; height: 1.6rem; transform: translateY(-50%); color: var(--text-subtle); pointer-events: none; }
+.doc-search-input {
+  width: 100%; height: var(--height-md); padding: 0 1rem 0 3.4rem; border: 1px solid var(--border-gray); border-radius: var(--radius-md);
+  background: var(--surface-white); font: inherit; font-size: var(--fs-body-small); color: var(--text-basic);
+}
+.doc-search-input::placeholder { color: var(--text-subtle); }
+.doc-search-input:focus-visible { border-color: var(--border-focus); box-shadow: inset 0 0 0 1px var(--border-focus); }
+.doc-search-list { margin-top: 0.6rem; }
+.doc-search-item { display: flex; flex-direction: column; gap: 0.1rem; min-height: var(--touch-min); padding: 0.6rem 1rem; border-radius: var(--radius-md); color: var(--text-basic); }
+.doc-search-item:hover { background: var(--action-hover); }
+.doc-search-label { font-size: var(--fs-body-small); }
+.doc-search-path { font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
+.doc-search-empty { padding: 0.6rem 1rem; font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
+
+/* ---------- 가운데 한 쪽 ---------- */
+.doc-crumb { display: flex; gap: 0.6rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
+.doc-page .page-title { margin-top: 0.4rem; }
+.doc-page .page-title:focus { outline: none; } /* 쪽을 바꾸면 제목으로 초점이 옴(화면낭독기). 눈에 보이는 테두리는 그리지 않음 */
+.doc-h2 { margin: 3.2rem 0 1.2rem; font-size: var(--fs-heading-small); font-weight: 700; line-height: 1.4; color: var(--text-bolder); }
+.doc-page .page-intro + .doc-h2 { margin-top: 2.4rem; }
+.doc-text { font-size: var(--fs-body-medium); color: var(--text-basic); }
+.doc-text a, .doc .tbl a { color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; }
+.doc-text + .doc-text, .doc .tbl-scroll + .doc-text { margin-top: 1rem; }
+/* 안내 상자(Claude 문서의 callout): 테두리만 있는 흰 상자 */
+.doc-callout { padding: var(--pad-box-y) var(--pad-box-x); border: 1px solid var(--border-gray-light); border-radius: var(--radius-lg); font-size: var(--fs-body-medium); color: var(--text-basic); }
+
+/* 소개 쪽: 쪽 안내 카드(두 줄씩) */
+.doc-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.2rem; }
+.doc-card { display: flex; flex-direction: column; gap: 0.2rem; padding: 1.6rem; border: 1px solid var(--border-gray-light); border-radius: var(--radius-lg); color: var(--text-basic); }
+.doc-card:hover { background: var(--action-hover); }
+.doc-card-group { font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
+.doc-card-title { font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
+.doc-card-text { font-size: var(--fs-body-small); color: var(--text-subtle); }
+/* 새 소식: 최근 릴리즈 */
+.doc-news { margin-top: 0.8rem; border-top: 1px solid var(--border-gray-light); }
+.doc-news a { display: flex; align-items: baseline; gap: 1.2rem; min-height: var(--touch-min); padding: 0.8rem 0.4rem; border-bottom: 1px solid var(--border-gray-light); color: var(--text-basic); }
+.doc-news a:hover { background: var(--action-hover); }
+.doc-news-ver { font-size: var(--fs-body-small); font-weight: 700; color: var(--text-primary); white-space: nowrap; }
+.doc-news-title { flex: 1; font-size: var(--fs-body-medium); }
+.doc-news-date { font-size: var(--fs-body-small); color: var(--text-subtle); white-space: nowrap; }
+.doc-news-more a { justify-content: flex-end; border-bottom: 0; font-size: var(--fs-body-small); color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; }
+
+/* 이전과 다음 쪽 */
+.doc-pager { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.2rem; margin-top: 4rem; }
+.doc-pager-link { display: flex; flex-direction: column; gap: 0.2rem; padding: 1.2rem 1.6rem; border: 1px solid var(--border-gray-light); border-radius: var(--radius-lg); color: var(--text-basic); }
+.doc-pager-link:hover { background: var(--action-hover); }
+.doc-pager-link.is-next { text-align: right; }
+.doc-pager-dir { font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
+.doc-pager-title { font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
+
+/* 오른쪽 "이 쪽에서": 좁은 화면에서는 감춤 */
+.doc-toc { display: none; }
+.doc-toc-title { margin-bottom: 0.6rem; font-size: var(--fs-body-small); font-weight: 700; color: var(--text-bolder); }
+.doc-toc a { display: block; padding: 0.4rem 0; font-size: var(--fs-body-small); color: var(--text-subtle); }
+.doc-toc a:hover { color: var(--text-basic); text-decoration: underline; text-underline-offset: 0.3rem; }
+
+/* ---------- 넓은 화면: 차례와 "이 쪽에서"를 종이 틀 바깥에(별도의 바, 기획자 요청) ----------
+ * 종이 틀(794px) 왼쪽과 오른쪽 회색 바탕에 두고, 화면을 내리면 붙은 메뉴 줄 아래에 붙어 따라옴(--sticky-h, common.js).
+ * 1360px: 종이 틀 794px + 양쪽 (차례 220px + 사이 32px) + 스크롤바 */
+@media screen and (min-width: 1360px) {
+  .doc-nav { position: absolute; top: 0; bottom: 0; right: calc(100% + var(--page-margin) + 3.2rem); width: 22rem; margin: 0; }
+  .doc-nav-toggle { display: none; }
+  .doc-nav-body {
+    display: block; position: sticky; top: calc(var(--sticky-h, 0px) + 2.4rem); max-height: calc(100vh - var(--sticky-h, 0px) - 4.8rem);
+    overflow-y: auto; overscroll-behavior: contain; margin: 0; padding: 0; border: 0; border-radius: 0; background: none;
+  }
+  .doc-toc:not([hidden]) { display: block; position: absolute; top: 0; bottom: 0; left: calc(100% + var(--page-margin) + 3.2rem); width: 20rem; }
+  .doc-toc-inner { position: sticky; top: calc(var(--sticky-h, 0px) + 2.4rem); }
+}
+
+/* 휴대폰: 카드와 이전, 다음은 한 줄에 하나 */
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
+  .doc-cards, .doc-pager { grid-template-columns: minmax(0, 1fr); }
+  .doc-nav-list a { font-size: var(--fs-body-medium); }
+  .doc-news a { flex-wrap: wrap; gap: 0.2rem 1.2rem; }
+  .doc-news-title { flex-basis: 100%; order: 3; }
+}
+
+/* ---------- 표와 목록 ---------- */
+.doc .tbl td { vertical-align: top; }
+.doc .tbl tr.is-me td { background: var(--surface-primary-subtler); }
+.help-list { padding-left: 2rem; list-style: disc; font-size: var(--fs-body-medium); color: var(--text-basic); }
+.help-list li + li { margin-top: 0.8rem; }
 .help-list strong { color: var(--text-bolder); }
+.help-list--num { list-style: decimal; } /* 순서가 있는 목록(견적서 만들기 순서) */
+/* 5단계 표: 하는 일 칸에 자리를 더 줌 */
+.doc .col-who { width: 18%; }
+/* 역할별 할 일 표의 분야 칸(여러 줄을 묶음): 다른 칸처럼 위쪽에 맞추고 왼쪽 정렬 (역할 2단계, v0.29) */
+.doc .tbl tbody th[scope="row"] { vertical-align: top; text-align: left; padding: var(--pad-row) 1.6rem; /* 옆 칸과 같은 안쪽 여백 (v0.59 QA: 예전 14px라 6px 어긋났음) */ border-bottom: 1px solid var(--border-gray-light); color: var(--text-bolder); white-space: nowrap; }
 
 /* 자주 묻는 것: KRDS 아코디언처럼 눌러서 펼침 */
 .faq { border-top: 1px solid var(--border-gray-light); }
@@ -33,15 +138,12 @@
 .faq summary:focus-visible { box-shadow: var(--focus-ring); }
 .faq-body { padding: 0 0.4rem 1.6rem; font-size: var(--fs-body-small); color: var(--text-basic); }
 
+/* ---------- 인쇄: 모든 쪽을 차례대로(매뉴얼 한 부). 차례, 찾기, 이전과 다음, 위치 표시는 뺌 ---------- */
 @media print {
-  .help-toc { display: none; }
+  .doc-nav, .doc-toc, .doc-pager, .doc-crumb { display: none !important; }
+  .doc-page[hidden] { display: block !important; }
+  .doc-page + .doc-page { margin-top: 10mm; }
+  .doc-cards, #intro--map { display: none; } /* 소개 쪽의 쪽 안내 카드는 화면에서 고르는 용도 */
   .faq summary .icon { display: none; }
   .faq { break-inside: avoid; }
-  .help-stack { gap: 6mm; }
 }
-
-/* 5단계 표: 하는 일 칸에 자리를 더 줌 */
-.help-stack .col-who { width: 18%; }
-
-/* 역할별 할 일 표의 분야 칸(여러 줄을 묶음): 다른 칸처럼 위쪽에 맞추고 왼쪽 정렬 (역할 2단계, v0.29) */
-.help-stack .tbl tbody th[scope="row"] { vertical-align: top; text-align: left; padding: var(--pad-row) 1.6rem; /* 옆 칸과 같은 안쪽 여백 (v0.59 QA: 예전 14px라 6px 어긋났음) */ border-bottom: 1px solid var(--border-gray-light); color: var(--text-bolder); white-space: nowrap; }

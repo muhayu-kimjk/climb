@@ -29,6 +29,12 @@ window.CLIMB = (function () {
    * scr  : 화면 ID. href가 없으면 아직 시안을 만들지 않은 화면입니다. */
   const MENU = [
     { label: '개요', scr: 'SCR-01', href: 'index.html' },
+    // 견적(v0.61 기획자 요청: 개요 옆): 시스템의 제품과 가격 기준으로 견적서를 만들고 출력. 출력 기록이 남음. 계약과 이어지지 않음(REQ-QUO)
+    //   볼 수 있는 사람은 가격 기준을 보는 사람과 같음(영업과 영업 리더, 영업 임원, 영업지원, 관리자. REQ-SCOPE-02). 새 견적은 영업 담당자만
+    { label: '견적', roles: ['SALES', 'HEAD', 'EXEC', 'SALES_ADMIN', 'ADMIN'], children: [
+      { label: '새 견적', scr: 'SCR-15', href: 'quote.html', roles: ['SALES'] },
+      { label: '견적 목록', scr: 'SCR-16', href: 'quotes.html' },
+    ] },
     // 계약 등록: 내용 작성과 기안 (REQ-FLOW-14)
     { label: '계약 등록', roles: ['SALES'], children: [
       { label: '새 계약 등록', scr: 'SCR-11', href: 'new-contract.html' },
@@ -79,6 +85,8 @@ window.CLIMB = (function () {
   const MENU_KEYWORDS = {
     'SCR-01': '홈 대시보드 첫 화면 처음',
     'SCR-11': '기안 신규 계약서 작성 새로',
+    'SCR-15': '견적서 만들기 견적 작성 출력 단가 가격 엑셀',
+    'SCR-16': '견적 이력 출력 기록 견적서 판',
     'SCR-12': '내 계약 임시 저장 반려 보완 재기안',
     'SCR-20': '진행 결재 단계 현재',
     'SCR-21': '결재 승인 반려 내 차례 대기 일수',
@@ -116,12 +124,20 @@ window.CLIMB = (function () {
     external: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
     search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
+    print: '<path d="M6 9V3h12v6"/><rect x="6" y="14" width="12" height="7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>', // 견적서 출력(v0.61)
     calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
-    // 휴대폰 메뉴 단추(v0.60): 줄 세 개(열기), ×(닫기)
+    // 휴대폰 전체 메뉴 단추(v0.60): 줄 세 개. 메뉴판 닫기는 panelClose(→|)
     menu: '<path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/>',
     panelClose: '<path d="M4 12h12"/><path d="m11 7 5 5-5 5"/><path d="M20 5v14"/>', // 메뉴판 닫기(오른쪽으로 접기)
     user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
   };
+  // 계정 아이콘 (v0.61 기획자 요청): 로그인하면 메뉴판의 "내 계정"과 같은 사람 아이콘(user, 선만. 처음 시안의 초록으로 칠한 동그라미는 기획자 요청으로 뺌)
+  //   로그인 안 하면 동그라미 안의 사람(선만, 회색). 모양과 색이 함께 달라 색만으로 구분하지 않음. 색은 CSS(.acc-btn)
+  function accountIcon(signedIn) {
+    return signedIn ? icon('user')
+      : '<svg class="icon icon-account" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+        '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="9.5" r="3.2"/><path d="M6.1 18.3c1.4-2.2 3.4-3.3 5.9-3.3s4.5 1.1 5.9 3.3"/></svg>';
+  }
   function icon(name, size) {
     const cls = 'icon' + (size ? ' icon--' + size : '');
     return '<svg class="' + cls + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON_PATHS[name] + '</svg>';
@@ -884,7 +900,7 @@ window.CLIMB = (function () {
   }
   // 시연으로 만든 계약(해지 기안, 연장 검토), 사후관리 기록, 지운 임시 저장 (프로토타입 전용, REQ-ARC-04~07)
   const DEMO_KEYS = { contracts: 'climb.demoContracts', notes: 'climb.demoNotes', deleted: 'climb.demoDeleted', admin: 'climb.demoAdmin', mail: 'climb.demoMail', theme: 'climb.demoTheme' /* 화면 설정(v0.53, theme.js) */,
-    obligations: 'climb.demoObligations' /* 체결 후 의무(v0.53) */ };
+    obligations: 'climb.demoObligations' /* 체결 후 의무(v0.53) */, quotes: 'climb.demoQuotes' /* 견적서(v0.61) */ };
   // 받을 이메일 설정(내 계정, v0.45): { 사용자 id: { 알림 코드: 켬/끔 } }. 실제 시스템은 서버의 사용자 설정
   function mailPrefs(userId) {
     let all = {};
@@ -927,6 +943,64 @@ window.CLIMB = (function () {
     buildReview(c);
     applyBundleEffects();
   }
+  /* ---------- 견적서 (v0.61 기획자 결정, REQ-QUO, 화면 SCR-15~17) ----------
+   * 견적은 계약과 이어지지 않고, 출력한 기록을 남기는 것이 목적. 한 판이 한 기록(no + ver). 출력한 판은 고칠 수 없고 새 판으로
+   * 보는 사람: 작성한 영업, 같은 유닛의 영업 리더, 영업 임원, 영업지원, 관리자, 최고관리자(가격 기준을 볼 수 있는 사람, REQ-SCOPE-02)
+   * 프로토타입: 새로 만들거나 출력한 기록은 이 브라우저에만 저장(시연 기록). 실제 시스템은 서버에 저장하고 출력 기록은 고치거나 지울 수 없음 */
+  function quoteKey(q) { return q.no + '#' + q.ver; }
+  function allQuotes() {
+    const saved = loadDemo('quotes');
+    const keys = saved.map(quoteKey);
+    return D.QUOTES.filter(function (q) { return keys.indexOf(quoteKey(q)) < 0; }).concat(saved);
+  }
+  function findQuote(no, ver) {
+    const list = allQuotes().filter(function (q) { return q.no === no; });
+    if (!list.length) return null;
+    return ver ? list.filter(function (q) { return q.ver === Number(ver); })[0] || null : list.sort(function (a, b) { return b.ver - a.ver; })[0];
+  }
+  // 저장: 이미 출력한 판은 내용을 바꾸지 않고 출력 기록만 덧붙임(덧붙이기만, 지우거나 줄이지 않음. v0.61 검토: 예전 화면에서 저장하면
+  //   출력 기록이 지워지고 판이 풀렸음). 실제로 저장한 기록을 돌려줌. 실제 시스템은 서버가 같은 규칙으로 막음(견적 판은 넣기만, 출력 기록은 덧붙이기만)
+  function saveQuote(q) {
+    const list = loadDemo('quotes');
+    const old = list.filter(function (x) { return quoteKey(x) === quoteKey(q); })[0] || D.QUOTES.filter(function (x) { return quoteKey(x) === quoteKey(q); })[0];
+    let rec = q;
+    if (old && (old.issues || []).length) {
+      const add = (q.issues || []).slice(old.issues.length);
+      rec = Object.assign(JSON.parse(JSON.stringify(old)), { issues: old.issues.concat(add) });
+    }
+    const rest = list.filter(function (x) { return quoteKey(x) !== quoteKey(rec); });
+    rest.push(rec);
+    try { localStorage.setItem(DEMO_KEYS.quotes, JSON.stringify(rest)); } catch (e) { /* 저장소를 못 쓰면 이 화면에서만 반영 */ }
+    return rec;
+  }
+  // 새 견적번호: QT + 견적일의 연월(YYMM) + 그 달 일련번호 3자리 (예: QT2610-004)
+  function newQuoteNo(date) {
+    const ym = String(date || D.TODAY).slice(2, 4) + String(date || D.TODAY).slice(5, 7);
+    let n = 0;
+    allQuotes().forEach(function (q) { const m = new RegExp('^QT' + ym + '-(\\d{3})$').exec(q.no); if (m) n = Math.max(n, Number(m[1])); });
+    return 'QT' + ym + '-' + String(n + 1).padStart(3, '0');
+  }
+  // 합계: 공급가액, 부가세(원 단위 버림), 합계
+  function quoteTotals(q) {
+    const supply = (q.lines || []).reduce(function (s, l) { return s + (Number(l.unitPrice) || 0) * (Number(l.qty) || 0); }, 0);
+    const vat = Math.floor(supply * D.QUOTE_RULES.vat);
+    return { supply: supply, vat: vat, total: supply + vat };
+  }
+  // 상태: 작성 중(출력 전) / 출력함 / 기간 지남(유효기간이 오늘보다 앞) / 새 판으로 바뀜(더 높은 판이 있음)
+  function quoteStatus(q) {
+    const newer = allQuotes().some(function (x) { return x.no === q.no && x.ver > q.ver; });
+    if (newer) return { code: 'SUPERSEDED', label: '새 판으로 바뀜', tone: 'neutral' };
+    if (!(q.issues || []).length) return { code: 'DRAFT', label: '작성 중', tone: 'line' };
+    if (q.validUntil < D.TODAY) return { code: 'EXPIRED', label: '기간 지남', tone: 'neutral' };
+    return { code: 'ISSUED', label: '출력함', tone: 'success' };
+  }
+  function canSeeQuote(user, q) {
+    if (user.role === 'SUPER' || hasRole(user, ['ADMIN', 'SALES_ADMIN'])) return true;
+    if (user.role === 'EXEC') return true;
+    if (user.role === 'HEAD') return teamOf(q.owner) === user.dept;
+    return q.owner === user.id;
+  }
+  function canEditQuote(user, q) { return q.owner === user.id && !(q.issues || []).length; }
   // 새 임시 저장 키 (D-0002 꼴). 지운 임시 저장의 키는 다시 쓰지 않음
   function newDraftKey() {
     const used = D.CONTRACTS.map(function (x) { return x.draftKey; }).concat(loadDemo('deleted'));
@@ -1430,7 +1504,7 @@ window.CLIMB = (function () {
   }
 
   // 메뉴에 없는 화면은 어느 메뉴 아래인지 (현재 메뉴 표시, KRDS 메인 메뉴: 지금 위치를 분명히) v0.28
-  const MENU_PARENT = { 'SCR-23': 'SCR-20', 'SCR-42': 'SCR-41', 'SCR-47': 'SCR-41','SCR-13': 'SCR-41', 'SCR-14': 'SCR-41', 'SCR-44': 'SCR-43', 'SCR-92': 'SCR-91' };
+  const MENU_PARENT = { 'SCR-17': 'SCR-16', 'SCR-23': 'SCR-20', 'SCR-42': 'SCR-41', 'SCR-47': 'SCR-41','SCR-13': 'SCR-41', 'SCR-14': 'SCR-41', 'SCR-44': 'SCR-43', 'SCR-92': 'SCR-91' };
   function renderHeader(user, pageId) {
     const el = document.getElementById('site-header');
     if (!el) return;
@@ -1461,26 +1535,30 @@ window.CLIMB = (function () {
     }).join('');
 
     /* 헤더 구성 (REQ-UI-13)
-     *   1줄: [심볼] climb
-     *   2줄: 무하유 계약 관리 시스템     [비즈니스1유닛 이도윤님 | (아이콘)로그아웃]
+     *   1줄: [심볼] climb                              [계정] [메뉴 검색]   (휴대폰은 [계정] [메뉴 검색] [≡])
+     *   2줄: 무하유 계약 관리 시스템
      *   (v0.53 기획자 요청: 머리글 둘째 줄은 한글 이름. 영문 이름은 푸터와 로그인에만)
-     * 오른쪽 한 줄은 왼쪽 둘째 줄과 글자 밑선(baseline)을 맞추고, 오른쪽 끝은 본문 오른쪽 끝에 맞춥니다. (v0.15)
+     * 오른쪽은 아이콘(v0.61 기획자 요청, 휴대폰 먼저, 같은 날 PC와 태블릿도). 아이콘 묶음은 로고 두 줄의 세로 가운데, 오른쪽 끝은 본문 오른쪽 끝.
+     *   예전 오른쪽 한 줄 "조직 이름님 | 로그아웃"(v0.15~v0.60)은 계정 판 안으로 옮김(조직, 이름님, 내 계정, 로그아웃)
+     *   ≡(전체 메뉴)은 휴대폰만. PC와 태블릿은 메뉴 줄이 있어 두지 않음(기획자: 휴대폰은 세로 화면을 아끼려는 것)
      * 화면 알림(종 모양, 알림 숫자)은 두지 않습니다. 알림은 이메일로 보냅니다. (REQ-ENV-09) */
-    el.className = 'site-header';
+    // 로그인 안 한 모양 미리 보기(프로토타입 전용, v0.61): 주소 뒤 ?demo=guest. 실제 시스템은 로그인 세션이 없을 때
+    //   계정 아이콘은 선만, 누르면 로그인 화면. 메뉴 줄, 검색, 전체 메뉴는 보이지 않음(볼 권한이 없음)
+    const guest = /[?&]demo=guest(&|$)/.test(location.search);
+    el.className = 'site-header' + (guest ? ' is-guest' : '');
+    // 머리글 아이콘 묶음. where: 'top'(로고 줄 오른쪽) 또는 'bar'(PC에서 메뉴 줄이 위에 붙었을 때 메뉴 줄 오른쪽, v0.61 기획자 선택)
+    //   두 묶음의 단추는 같은 판을 엶(aria-controls가 같음). 로그인 안 한 모양은 로고 줄의 계정 아이콘(누르면 로그인 화면)만
+    function hdrIcons(where) {
+      if (guest) return where === 'top' ? '<a class="hdr-icon acc-btn is-guest" href="login.html" aria-label="로그인" title="로그인">' + accountIcon(false) + '</a>' : '';
+      return '<button type="button" class="hdr-icon acc-btn" aria-expanded="false" aria-controls="acc-sheet" aria-label="계정: ' + esc(user.name) + '님" title="계정">' + accountIcon(true) + '</button>' +
+        '<button type="button" class="hdr-icon search-btn" aria-expanded="false" aria-controls="menu-search" aria-label="메뉴 검색" title="메뉴 검색">' + icon('search') + '</button>' +
+        (where === 'top' ? '<button type="button" class="hdr-icon menu-btn" aria-expanded="false" aria-controls="phone-menu" aria-label="전체 메뉴 열기">' + icon('menu') + '</button>' : '');
+    }
     el.innerHTML =
       '<div class="header-top"><div class="inner">' +
         // 헤더 첫 줄: [심볼] climb (둘째 줄 한글 이름은 아래 .brand-en.is-ko)
         '<a class="brand-title" href="index.html" title="개요로 이동">' + brandTitleHtml({ mark: true }) + '</a>' +
-        '<div class="user-line">' +
-          // 이름 앞에 조직명: 비즈니스1유닛 이도윤님 | 로그아웃 (v0.29 기획자 결정. 예전에는 역할 배지)
-          //   역할은 본인이 알고 관리자만 알면 되므로 헤더에 두지 않고 사용자 권한 관리에서 봄
-          // 이름을 누르면 내 계정(SCR-93): 계정 정보와 받을 이메일 설정 (v0.45 기획자 요청)
-          '<span class="user-org">' + esc(user.dept || '') + '</span>' +
-          '<a class="user-name" href="account.html" title="내 계정"' + (pageId === 'SCR-93' ? ' aria-current="page"' : '') + '>' + esc(user.name) + '님<span class="sr-only"> (내 계정)</span></a>' +
-          '<span class="util-divider" aria-hidden="true"></span>' +
-          '<a class="util-link logout-link" href="login.html">' + icon('logout', 'sm') + '로그아웃</a>' +
-          // 휴대폰 메뉴 단추(v0.60 기획자 요청): 로그아웃 옆 줄 세 개. PC와 태블릿에서는 보이지 않음(위 메뉴 줄을 씀)
-          '<button type="button" class="menu-btn" aria-expanded="false" aria-controls="phone-menu" aria-label="메뉴 열기">' + icon('menu') + '</button>' +
+        '<div class="user-line">' + hdrIcons('top') +
         '</div>' +
         '<span class="brand-en is-ko">' + esc(D.BRAND.ko) + '</span>' + // 둘째 줄은 한글 이름 (v0.53 기획자 요청. is-ko: 한글은 Noto Sans KR, v0.54)
         // 인쇄할 때만 보이는 출력 정보 (REQ-UI-11). 실제 시스템은 출력하는 순간의 날짜와 시각을 씁니다.
@@ -1491,13 +1569,21 @@ window.CLIMB = (function () {
         '<div class="gnb-scroll"><ul class="gnb-list">' + menuHtml + '</ul>' +
           '<button type="button" class="gnb-more gnb-more--left" tabindex="-1" aria-hidden="true">' + icon('chevronLeft') + '</button>' +
           '<button type="button" class="gnb-more gnb-more--right" tabindex="-1" aria-hidden="true">' + icon('chevronRight') + '</button></div>' +
-        // 메뉴 검색(v0.60 기획자 요청): 누르면 메뉴 줄이 아래로 넓어지며 검색 칸(아래 .gnb-search)
-        '<button type="button" class="gnb-search-btn" aria-expanded="false" aria-controls="gnb-search" aria-label="메뉴 검색" title="메뉴 검색">' + icon('search') + '</button>' +
+        // 메뉴 줄이 위에 붙었을 때(PC) 보이는 계정, 메뉴 검색 아이콘(v0.61 기획자 선택). 자리는 늘 잡아 두고 붙을 때만 보여 메뉴와 이용 안내가 움직이지 않음
+        //   v0.60의 메뉴 줄 돋보기와 그 아래 검색 칸(.gnb-search)은 머리글 판(#menu-search)으로 합침
+        (guest ? '' : '<div class="gnb-tools">' + hdrIcons('bar') + '</div>') +
         // 이용 안내(SCR-90): 메뉴 줄 오른쪽 끝 (REQ-UI-14)
         '<a class="gnb-aside' + (pageId === 'SCR-90' ? ' is-current" aria-current="page' : '') + '" href="help.html">' + icon('help', 'sm') + '<span class="gnb-aside-label">이용 안내</span></a>' +
       '</div>' +
-      '<div class="gnb-search" id="gnb-search" hidden>' + menuSearchHtml('gs') + '</div>' +
-      '</nav>';
+      '</nav>' +
+      // 머리글 아래로 펼쳐지는 판(v0.61, 휴대폰과 PC 모두): 계정, 메뉴 검색
+      (guest ? '' :
+        '<div class="hdr-sheet acc-sheet" id="acc-sheet" hidden>' +
+          '<p class="acc-name">' + esc(user.name) + '님</p><p class="acc-org">' + esc(user.dept || '') + '</p>' +
+          '<ul><li><a href="account.html"' + (pageId === 'SCR-93' ? ' aria-current="page"' : '') + '>' + icon('user') + '<span>내 계정</span></a></li>' +
+          '<li><a href="login.html">' + icon('logout') + '<span>로그아웃</span></a></li></ul>' +
+        '</div>' +
+        '<div class="hdr-sheet" id="menu-search" hidden>' + menuSearchHtml('ms') + '</div>');
 
     // 메뉴 한 줄(v0.42 휴대폰, v0.50 기획자 요청으로 PC와 태블릿도): 다 들어가지 않으면 옆으로 밀어 봄.
     //   지금 화면의 메뉴가 보이게 미리 밀어 두고, 더 있는 쪽 끝을 흐리게 표시
@@ -1524,31 +1610,39 @@ window.CLIMB = (function () {
     // 하위 메뉴 자리(v0.50): 밀어 보는 줄에 잘리지 않게 .gnb-scroll 기준으로 둠(v0.55~v0.59는 연 메뉴 바로 아래 글자 폭만 한 작은 상자)
     function placeSub() {
       const item = gnbList.querySelector('.gnb-item.is-open'), sub = item && item.querySelector('.gnb-sub');
-      placeDim(!!sub);
+      syncDim();
       if (!sub) return;
       // (v0.60 기획자 요청) 메뉴 줄이 아래로 넓어지듯: 펼친 영역은 메뉴 줄(.gnb) 폭 그대로이고,
-      //   하위 메뉴 글자는 누른 메뉴 글자와 같은 세로줄에서 시작(메뉴 칸 안쪽 1.6rem - 하위 메뉴 칸 안쪽 1rem)
+      //   하위 메뉴 글자는 누른 메뉴 글자와 같은 세로줄에서 시작(메뉴 칸 안쪽 여백 --gnb-pad - 하위 메뉴 칸 안쪽 1rem)
       const box = gnbScroll.getBoundingClientRect();
       const bar = el.querySelector('.gnb').getBoundingClientRect();
       const link = item.querySelector('.gnb-link').getBoundingClientRect();
       const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
       sub.style.left = (bar.left - box.left) + 'px';
       sub.style.width = bar.width + 'px';
-      sub.style.paddingLeft = Math.max(0, link.left - bar.left + 0.6 * rem) + 'px';
+      const pad = parseFloat(getComputedStyle(item.querySelector('.gnb-link')).paddingLeft);
+      sub.style.paddingLeft = Math.max(0, link.left - bar.left + pad - rem) + 'px';
     }
-    // 하위 메뉴를 열면 메뉴 줄 아래를 흐리게(v0.55 기획자 요청, 처음에는 스마트폰만이었다가 PC와 태블릿도): 메뉴를 누른 것은
-    //   다른 화면으로 가려는 뜻이라 아래 화면은 흐리게 두고, 흐린 곳을 누르면 메뉴만 닫힘(아래 버튼이 잘못 눌리지 않게)
+    // 하위 메뉴를 열면 메뉴 줄 아래를 막으로 덮음(v0.55 기획자 요청, 처음에는 스마트폰만이었다가 PC와 태블릿도): 메뉴를 누른 것은
+    //   다른 화면으로 가려는 뜻이라 아래 화면은 덮어 두고, 막을 누르면 메뉴만 닫힘(아래 버튼이 잘못 눌리지 않게)
+    //   막은 v0.60까지 흐림이었고, v0.61부터 흐림 없이 살짝 어둡게(기획자 요청: 아래 화면이 제자리에 그대로 보여 단단하게, tokens.css --overlay-menu)
     const dim = document.createElement('div');
     dim.className = 'gnb-dim';
     dim.hidden = true;
     document.body.appendChild(dim);
-    function placeDim(open) {
+    let openSheet = null; // 머리글 아래로 펼친 판 가운데 열린 것(v0.61): 계정 판 또는 메뉴 검색 판
+    // 막은 펼친 것이 하나라도 있으면 보임: 하위 메뉴, 머리글 판(v0.61 검토로 한곳에서 정함).
+    //   예전에는 열고 닫는 곳마다 따로 켜고 꺼서, 화면 크기가 바뀌거나 다른 것을 닫을 때 판은 열린 채 막만 사라졌음
+    function syncDim() {
+      const open = !!gnbList.querySelector('.gnb-item.is-open') || !!openSheet;
       dim.hidden = !open;
-      if (!dim.hidden) dim.style.top = Math.max(0, el.getBoundingClientRect().bottom) + 'px';
+      if (open) dim.style.top = Math.max(0, el.getBoundingClientRect().bottom) + 'px';
     }
+    // 막을 누르면 펼친 것만 닫음. 막에 직접 걸어 둠(아이폰 사파리는 문서에만 걸어 둔 누름을 막에서 보내지 않을 수 있음, v0.61 검토)
+    dim.addEventListener('click', function () { closeMenus(); closeSheets(false); });
     gnbList.addEventListener('scroll', function () { gnbEdge(); placeSub(); }, { passive: true });
-    window.addEventListener('resize', function () { gnbEdge(); placeSub(); });
-    window.addEventListener('scroll', function () { if (!dim.hidden) placeDim(true); }, { passive: true });
+    window.addEventListener('resize', function () { gnbEdge(); placeSub(); fitSheet(); });
+    window.addEventListener('scroll', function () { if (!dim.hidden) { syncDim(); fitSheet(); } }, { passive: true });
     gnbEdge();
 
     // 하위 메뉴 열기·닫기
@@ -1557,6 +1651,7 @@ window.CLIMB = (function () {
         const item = btn.parentElement;
         const willOpen = !item.classList.contains('is-open');
         closeMenus();
+        closeSheets(false);
         item.classList.toggle('is-open', willOpen);
         btn.setAttribute('aria-expanded', String(willOpen));
         // 밑줄을 지금 누른 메뉴로 옮김(v0.55 기획자 요청, CSS .gnb-list.has-open). 닫으면 지금 화면의 메뉴로 돌아옴
@@ -1565,135 +1660,230 @@ window.CLIMB = (function () {
         gnbEdge();
       });
     });
-    document.addEventListener('click', function (e) { if (!e.target.closest('.gnb-item')) closeMenus(); });
-    // Esc: 열린 하위 메뉴를 닫고 그 메뉴 버튼으로 포커스를 돌려줌 (KRDS 메인 메뉴)
-    document.addEventListener('keydown', function (e) {
-      if (e.key !== 'Escape') return;
-      const open = el.querySelector('.gnb-item.is-open');
-      closeMenus();
-      if (open) open.querySelector('button').focus();
-    });
     function closeMenus() {
       el.querySelectorAll('.gnb-item.is-open').forEach(function (item) {
         item.classList.remove('is-open');
         item.querySelector('button').setAttribute('aria-expanded', 'false');
       });
       gnbList.classList.remove('has-open');
-      placeDim(false);
-      closeSearch(false);
+      syncDim();
       gnbEdge();
     }
 
-    // 메뉴 검색 (v0.60 기획자 요청): 돋보기를 누르면 메뉴 줄이 아래로 넓어지며 검색 칸과 자주 찾는 메뉴.
-    //   메뉴 이름, 하는 일(MENU_KEYWORDS), 초성으로 찾고 누르면 그 화면으로. 게시물이나 계약을 찾는 검색은 아님
-    //   돋보기를 다시 누르거나, 흐린 곳, Esc로 닫힘. 하위 메뉴를 열면 닫힘
-    const searchBtn = el.querySelector('.gnb-search-btn'), searchPanel = el.querySelector('.gnb-search');
-    const gnbSearch = wireMenuSearch(searchPanel.querySelector('.msearch'), searchEntries, { quick: true });
-    function openSearch() {
-      closeMenus();
-      searchPanel.hidden = false;
-      searchBtn.setAttribute('aria-expanded', 'true');
-      placeDim(true);
-      gnbSearch.input.focus();
-    }
-    function closeSearch(returnFocus) {
-      if (!searchPanel || searchPanel.hidden) return;
-      searchPanel.hidden = true;
-      searchBtn.setAttribute('aria-expanded', 'false');
-      gnbSearch.reset();
-      placeDim(false);
-      if (returnFocus) searchBtn.focus();
-    }
-    searchBtn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      if (searchPanel.hidden) openSearch(); else closeSearch(true);
+    // 펼친 곳이나 그 단추 밖으로 초점이 나가면 닫음(v0.61 검토: Tab으로 나가 흰 바탕 밑에 가려진 칸으로 초점이 가지 않게, WCAG 2.4.11).
+    //   relatedTarget이 없으면(빈 곳을 누름) 그대로 둠. 마우스를 누를 때 생기는 초점 이동은 빼고 닫기는 누름(click)에서 함께 함
+    //   (누르는 순간 닫혔다가 손을 떼면 다른 것이 열려 막이 깜빡였음, v0.61 두 번째 검토)
+    let byPointer = false;
+    document.addEventListener('pointerdown', function () { byPointer = true; setTimeout(function () { byPointer = false; }); }, true);
+    const leftFor = function (e, nodes) { const t = e.relatedTarget; return !byPointer && !!t && !nodes.some(function (n) { return n.contains(t); }); };
+    gnbList.querySelectorAll('.gnb-item').forEach(function (item) {
+      item.addEventListener('focusout', function (e) { if (item.classList.contains('is-open') && leftFor(e, [item])) closeMenus(); });
     });
-    searchPanel.addEventListener('click', function (e) { e.stopPropagation(); });
-    searchPanel.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') { e.stopPropagation(); closeSearch(true); }
+
+    // 머리글 판 (v0.61 기획자 요청. 휴대폰 먼저, 같은 날 PC와 태블릿도): 계정 아이콘과 돋보기를 누르면 머리글 바로 아래로 판이 펼쳐짐
+    //   직각, 흰 바탕, 뒤는 어두운 막. PC는 하위 메뉴처럼 메뉴 줄이 아래로 넓어지듯(같은 자리). 한 번에 하나만
+    //   계정 판: 이름님, 조직, 내 계정, 로그아웃 / 메뉴 검색 판: 검색 칸과 자주 찾는 메뉴(v0.60 PC 메뉴 줄 돋보기의 검색 칸을 합침)
+    //   같은 아이콘을 다시 누르거나, 아래 막, Esc로 닫힘(Esc는 그 아이콘으로 돌아옴). Tab으로 판 밖으로 나가도 닫힘
+    //   판 높이는 화면 아래를 넘지 않고 넘치면 판 안에서 밀어 봄. 키보드 순서는 보이는 순서대로(판 첫 칸에서 Shift+Tab은 그 아이콘, 끝 칸에서 Tab은 다음 아이콘)
+    //   PC에서 메뉴 줄이 위에 붙으면 같은 아이콘이 메뉴 줄에도 있어 판 하나를 단추 둘이 엶(s.btns). 초점은 지금 보이는 단추로 돌려줌
+    const shown = function (n) { return !!n && n.getClientRects().length > 0 && getComputedStyle(n).visibility !== 'hidden'; };
+    // 머리글과 판 안의 초점 이동은 화면을 움직이지 않음: 위에 붙은 머리글 안 단추에 초점을 주면 브라우저가 scroll-padding-top만큼 화면을 올려
+    //   머리글이 떨어졌음(v0.61 확인). 머리글과 판은 늘 화면에 보이므로 스크롤이 필요 없음
+    const focusHere = function (n) { if (n) n.focus({ preventScroll: true }); };
+    // 로고 줄과 메뉴 줄에 있는 같은 아이콘의 짝(계정끼리, 검색끼리)
+    function twin(b) {
+      if (!b || !b.classList || !b.classList.contains('hdr-icon')) return null;
+      const kind = b.classList.contains('acc-btn') ? '.acc-btn' : b.classList.contains('search-btn') ? '.search-btn' : null;
+      return kind ? el.querySelector((b.closest('.gnb-tools') ? '.user-line ' : '.gnb-tools ') + kind) : null;
+    }
+    function openerOf(s) { return shown(s.opener) ? s.opener : s.btns.filter(shown)[0] || s.opener; }
+    function nextIcon(b) {
+      let x = b.nextElementSibling;
+      while (x && !(x.classList.contains('hdr-icon') && shown(x))) x = x.nextElementSibling;
+      return x;
+    }
+    function setSheet(s, open, returnFocus) {
+      s.sheet.hidden = !open;
+      s.btns.forEach(function (b) { b.setAttribute('aria-expanded', String(open)); });
+      if (open) {
+        openSheet = s;
+        fitSheet();
+        focusHere(s.search ? s.search.input : s.sheet.querySelector('a'));
+      } else {
+        if (s.search) s.search.reset();
+        if (openSheet === s) openSheet = null;
+        if (returnFocus) focusHere(openerOf(s));
+      }
+      syncDim();
+    }
+    function closeSheets(returnFocus) { if (openSheet) setSheet(openSheet, false, returnFocus); }
+    function fitSheet() {
+      if (openSheet) openSheet.sheet.style.maxHeight = Math.max(160, window.innerHeight - el.getBoundingClientRect().bottom) + 'px';
+    }
+    el.querySelectorAll('.hdr-sheet').forEach(function (sheet) {
+      const s = { sheet: sheet, btns: [].slice.call(el.querySelectorAll('[aria-controls="' + sheet.id + '"]')) };
+      s.opener = s.btns[0];
+      if (sheet.querySelector('.msearch')) s.search = wireMenuSearch(sheet.querySelector('.msearch'), searchEntries);
+      // 판이나 그 아이콘 밖으로 초점이 나가면 닫음. relatedTarget이 없으면(빈 곳을 누름, 아이폰의 단추 누름) 그대로 둠
+      const leave = function (e) { if (openSheet === s && leftFor(e, [sheet].concat(s.btns))) setSheet(s, false, false); };
+      s.btns.forEach(function (b) {
+        b.addEventListener('click', function () {
+          const wasOpen = openSheet === s;
+          closeMenus();
+          closeSheets(false);
+          s.opener = b;
+          if (!wasOpen) setSheet(s, true);
+        });
+        b.addEventListener('focusout', leave);
+      });
+      sheet.addEventListener('focusout', leave);
+      sheet.addEventListener('keydown', function (e) {
+        if (e.key !== 'Tab') return;
+        const items = [].filter.call(sheet.querySelectorAll('a[href], button, input'), function (x) { return x.getClientRects().length; });
+        const next = nextIcon(openerOf(s));
+        if (e.shiftKey && document.activeElement === items[0]) { e.preventDefault(); setSheet(s, false, true); }
+        else if (!e.shiftKey && document.activeElement === items[items.length - 1] && next) { e.preventDefault(); setSheet(s, false, false); focusHere(next); }
+      });
     });
-    document.addEventListener('click', function () { closeSearch(false); });
+
+    // 바깥을 누르면 닫음: 하위 메뉴, 머리글 판. 머리글 단추가 누름을 가로채지 않아(v0.61) 다른 부품(거래처 찾기 목록 등)도 함께 닫힘
+    document.addEventListener('click', function (e) {
+      const t = e.target;
+      if (!t.closest('.gnb-item')) closeMenus();
+      if (!t.closest('.hdr-sheet, .hdr-icon')) closeSheets(false);
+    });
 
     // 휴대폰 전체 메뉴 (v0.60 기획자 요청): ≡을 누르면 Claude 문서 사이트처럼 오른쪽에서 메뉴판이 나옴(drawerHtml).
     //   1단계 메뉴에서 > 가 붙은 것을 누르면 2단계(하위 메뉴)로 들어가고, 맨 위 "‹ 메뉴 이름"으로 돌아옴
-    //   열려 있는 동안: 뒤 화면은 움직이지 않음(스크롤 잠금, 스크롤바 자리는 그대로라 흔들리지 않음), Tab은 메뉴판 안에서만 돎
+    //   열려 있는 동안: 뒤 화면은 움직이지 않음(스크롤 잠금, 스크롤바 자리는 그대로라 흔들리지 않음), 초점은 메뉴판 안에서만 돎
     //   닫기: →| 단추, 뒤 막(흐린 곳), Esc. 닫으면 ≡ 단추로 돌아옴. 사용자가 누를 때만 열리므로 팝업이 아님(REQ-ENV-15)
+    //   로그인 안 한 모양(?demo=guest)에는 ≡이 없어 메뉴판도 만들지 않음
     const menuBtn = el.querySelector('.menu-btn');
-    const drawer = document.createElement('div');
-    drawer.className = 'drawer';
-    drawer.id = 'phone-menu';
-    drawer.hidden = true;
-    drawer.innerHTML = drawerHtml(menu, pageId);
-    document.body.appendChild(drawer);
-    const panel = drawer.querySelector('.drawer-panel'), back = drawer.querySelector('.drawer-back'), title = drawer.querySelector('.drawer-title');
-    const level1 = drawer.querySelector('.drawer-list[data-level="1"]');
-    // 메뉴판 맨 위 검색 칸(v0.60): 글자를 넣으면 1단계 목록 대신 찾은 메뉴. 지우면 1단계로
-    const drawerSearchBox = drawer.querySelector('.msearch');
-    const drawerSearch = wireMenuSearch(drawerSearchBox, searchEntries, { quick: false, onQuery: function (q) { level1.hidden = !!q; } });
-    const reduceMotion = function () { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; };
-    function showLevel(groupId) {
-      drawer.querySelectorAll('.drawer-list[data-level="2"]').forEach(function (l) { l.hidden = l.id !== groupId; });
-      level1.hidden = !!groupId || !!drawerSearch.input.value.trim();
-      drawerSearchBox.hidden = !!groupId;
-      back.hidden = !groupId;
-      title.hidden = !!groupId;
-      if (groupId) back.querySelector('.drawer-back-label').textContent = drawer.querySelector('[data-open="' + groupId + '"]').getAttribute('data-label');
-      drawer.querySelector('.drawer-body').scrollTop = 0;
+    let closeDrawer = function () {};
+    let drawerOpen = function () { return false; };
+    let drawerHas = function () { return false; };
+    if (menuBtn) {
+      const drawer = document.createElement('div');
+      drawer.className = 'drawer';
+      drawer.id = 'phone-menu';
+      drawer.hidden = true;
+      drawer.innerHTML = drawerHtml(menu, pageId);
+      document.body.appendChild(drawer);
+      const panel = drawer.querySelector('.drawer-panel'), back = drawer.querySelector('.drawer-back'), title = drawer.querySelector('.drawer-title');
+      const level1 = drawer.querySelector('.drawer-list[data-level="1"]');
+      const reduceMotion = function () { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; };
+      let hideTimer = 0;
+      drawerOpen = function () { return drawer.classList.contains('is-open'); };
+      drawerHas = function (node) { return drawer.contains(node); };
+      function showLevel(groupId) {
+        drawer.querySelectorAll('.drawer-list[data-level="2"]').forEach(function (l) { l.hidden = l.id !== groupId; });
+        level1.hidden = !!groupId;
+        back.hidden = !groupId;
+        title.hidden = !!groupId;
+        if (groupId) back.querySelector('.drawer-back-label').textContent = drawer.querySelector('[data-open="' + groupId + '"]').getAttribute('data-label');
+        drawer.querySelector('.drawer-body').scrollTop = 0;
+      }
+      function openDrawer() {
+        clearTimeout(hideTimer); // 닫은 직후 다시 열 때 앞서 걸어 둔 감추기가 메뉴판을 감추지 않게(v0.61 검토)
+        showLevel('');
+        drawer.hidden = false;
+        document.documentElement.classList.add('drawer-open');
+        menuBtn.setAttribute('aria-expanded', 'true');
+        void panel.offsetWidth; // 보이게 한 뒤 한 번 그려 두어야 오른쪽에서 밀려 나옴. is-open은 바로 붙여 Esc 등이 열린 상태를 바로 앎(v0.61 검토)
+        drawer.classList.add('is-open');
+        drawer.querySelector('.drawer-close').focus();
+      }
+      closeDrawer = function (returnFocus) {
+        if (drawer.hidden) return;
+        drawer.classList.remove('is-open');
+        document.documentElement.classList.remove('drawer-open');
+        menuBtn.setAttribute('aria-expanded', 'false');
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(function () { if (!drawer.classList.contains('is-open')) drawer.hidden = true; }, reduceMotion() ? 0 : 250);
+        if (returnFocus) focusHere(menuBtn);
+      };
+      menuBtn.addEventListener('click', function () { closeMenus(); closeSheets(false); openDrawer(); });
+      drawer.querySelector('.drawer-close').addEventListener('click', function () { closeDrawer(true); });
+      drawer.querySelector('.drawer-scrim').addEventListener('click', function () { closeDrawer(true); });
+      drawer.querySelectorAll('[data-open]').forEach(function (b) {
+        b.addEventListener('click', function () { showLevel(b.getAttribute('data-open')); back.focus(); });
+      });
+      back.addEventListener('click', function () {
+        const from = drawer.querySelector('.drawer-list[data-level="2"]:not([hidden])');
+        showLevel('');
+        const btn = from && drawer.querySelector('[data-open="' + from.id + '"]');
+        (btn || drawer.querySelector('.drawer-close')).focus();
+      });
+      // Tab이 메뉴판 밖으로 나가지 않게(확인 창과 같은 방식). 메뉴판의 빈 곳을 눌러 초점이 메뉴판 자체(.drawer-panel)에 있을 때도 맨 앞이나 맨 뒤로
+      drawer.addEventListener('keydown', function (e) {
+        if (e.key !== 'Tab') return;
+        const items = [].filter.call(panel.querySelectorAll('a[href], button'), function (x) { return x.getClientRects().length; });
+        const first = items[0], last = items[items.length - 1], at = items.indexOf(document.activeElement);
+        if (at < 0) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+        else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      });
+      // 열려 있는 동안 초점이 메뉴판 밖으로 나가면 닫기 단추로 돌려놓음(aria-modal)
+      document.addEventListener('focusin', function (e) {
+        if (drawerOpen() && !drawer.contains(e.target)) drawer.querySelector('.drawer-close').focus();
+      });
     }
-    function openDrawer() {
-      drawerSearch.reset();
-      showLevel('');
-      drawer.hidden = false;
-      document.documentElement.classList.add('drawer-open');
-      menuBtn.setAttribute('aria-expanded', 'true');
-      requestAnimationFrame(function () { drawer.classList.add('is-open'); });
-      drawer.querySelector('.drawer-close').focus();
-    }
-    function closeDrawer(returnFocus) {
-      if (drawer.hidden) return;
-      drawer.classList.remove('is-open');
-      document.documentElement.classList.remove('drawer-open');
-      menuBtn.setAttribute('aria-expanded', 'false');
-      setTimeout(function () { drawer.hidden = true; }, reduceMotion() ? 0 : 250);
-      if (returnFocus) menuBtn.focus();
-    }
-    menuBtn.addEventListener('click', function () { closeMenus(); openDrawer(); });
-    drawer.querySelector('.drawer-close').addEventListener('click', function () { closeDrawer(true); });
-    drawer.querySelector('.drawer-scrim').addEventListener('click', function () { closeDrawer(true); });
-    drawer.querySelectorAll('[data-open]').forEach(function (b) {
-      b.addEventListener('click', function () { showLevel(b.getAttribute('data-open')); back.focus(); });
-    });
-    back.addEventListener('click', function () {
-      const from = drawer.querySelector('.drawer-list[data-level="2"]:not([hidden])');
-      showLevel('');
-      const btn = from && drawer.querySelector('[data-open="' + from.id + '"]');
-      (btn || drawer.querySelector('.drawer-close')).focus();
-    });
-    drawer.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') { e.stopPropagation(); closeDrawer(true); return; }
-      if (e.key !== 'Tab') return;
-      // Tab이 메뉴판 밖으로 나가지 않게(확인 창과 같은 방식)
-      const items = [].filter.call(panel.querySelectorAll('a[href], button, input'), function (x) { return x.getClientRects().length; });
-      const first = items[0], last = items[items.length - 1];
-      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+
+    // Esc: 초점이 어디에 있든 열려 있는 것을 하나 닫음(v0.61 검토: 판 밖에서 누르면 막만 사라졌음)
+    //   순서: 메뉴판 → 머리글 판(계정, 메뉴 검색) → 하위 메뉴(KRDS 메인 메뉴)
+    //   초점이 펼친 곳이나 그것을 연 단추에 있었으면(또는 초점이 없으면) 그 단추로 돌려줌. 다른 칸에 있었으면 그 자리에 둠
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      const a = document.activeElement, lost = !a || a === document.body;
+      if (drawerOpen()) { closeDrawer(true); return; }
+      if (openSheet) { closeSheets(lost || openSheet.sheet.contains(a) || openSheet.btns.indexOf(a) >= 0); return; }
+      const open = el.querySelector('.gnb-item.is-open');
+      closeMenus();
+      if (open && (lost || open.contains(a))) focusHere(open.querySelector('button'));
     });
 
     // 메뉴 줄 고정 (v0.60 기획자 요청): 화면을 내리면 로고 줄은 위로 사라지고 메뉴 줄만 맨 위에 붙어 따라옴(휴대폰은 로고 줄이 붙음).
     //   머리글 전체를 sticky로 두고 top을 로고 줄 높이만큼 위로 빼서(CSS .site-header) 메뉴 줄만 남김.
     //   --sticky-h: 화면 위에 붙어 있는 높이. 키보드로 옮겨 간 칸이 고정된 메뉴 줄에 가려지지 않게 scroll-padding-top으로 씀(WCAG 2.4.11)
-    //   is-stuck: 붙어 있을 때만 메뉴 줄 아래 그림자
+    //   is-stuck: 붙어 있을 때만 메뉴 줄 아래 그림자. PC는 로고 줄 아이콘 대신 메뉴 줄 아이콘(.gnb-tools)을 보임(v0.61).
+    //   로그인 안 한 모양(?demo=guest)의 PC 머리글은 붙지 않음(메뉴 줄이 없음)
+    //   휴대폰과 PC 배치가 바뀌면 그쪽에서 보이지 않는 펼침은 닫음(PC는 메뉴판, 휴대폰은 하위 메뉴. 머리글 판은 두 쪽 모두에 있어 그대로).
+    //   초점이 보이지 않게 된 곳에 있었으면 같은 일을 하는 보이는 자리로 옮기고 화면은 움직이지 않음(v0.61 검토, movedFocus, preventScroll)
     const headTop = el.querySelector('.header-top');
     function syncSticky() {
       const phone = isPhoneLayout();
+      const fixedTop = !(guest && !phone);
       el.style.setProperty('--header-top-h', (phone ? 0 : headTop.offsetHeight) + 'px');
-      document.documentElement.style.setProperty('--sticky-h', (phone ? el.offsetHeight : el.offsetHeight - headTop.offsetHeight) + 'px');
-      if (!phone) closeDrawer(false);
+      document.documentElement.style.setProperty('--sticky-h', (!fixedTop ? 0 : phone ? el.offsetHeight : el.offsetHeight - headTop.offsetHeight) + 'px');
+      const to = movedFocus(phone);
+      if (phone) closeMenus(); else closeDrawer(false);
       markStuck();
+      fitSheet();
+      syncDim();
+      focusHere(to);
+    }
+    //   휴대폰으로: 메뉴 줄의 계정, 돋보기 → 로고 줄의 같은 아이콘, 그 밖의 메뉴 줄(하위 메뉴, 이용 안내 포함) → ≡
+    //   PC로: ≡이나 메뉴판 → 지금 화면의 메뉴. 메뉴 줄이 붙어 있으면 로고 줄 아이콘 → 메뉴 줄의 같은 아이콘
+    //   그 배치에서도 보이는 곳에 있던 초점은 그대로(휴대폰에서 키보드가 올라와 크기가 바뀔 때 등)
+    function movedFocus(phone) {
+      const a = document.activeElement;
+      if (!a || a === document.body) return null;
+      if (phone) {
+        if (!el.querySelector('.gnb').contains(a)) return null;
+        return twin(a) || menuBtn || el.querySelector('.acc-btn');
+      }
+      if ((menuBtn && a === menuBtn) || drawerHas(a)) return el.querySelector('.gnb-link.is-current') || el.querySelector('.gnb-link');
+      return null;
     }
     function markStuck() {
       const top = el.getBoundingClientRect().top;
-      el.classList.toggle('is-stuck', isPhoneLayout() ? top <= 0 && window.scrollY > 0 : top <= 1 - headTop.offsetHeight);
+      const now = isPhoneLayout() ? top <= 0 && window.scrollY > 0 : !guest && top <= 1 - headTop.offsetHeight;
+      if (now === el.classList.contains('is-stuck')) return;
+      el.classList.toggle('is-stuck', now);
+      gnbEdge(); // 붙으면 메뉴 줄에 아이콘이 들어와 메뉴가 넘칠 수 있음(최고관리자): 화살표를 다시 정함
+      // 붙거나 떨어지면서 초점이 있던 아이콘이 감춰지면 보이는 짝으로(PC)
+      const a = document.activeElement, t = twin(a);
+      if (t && !shown(a) && shown(t)) focusHere(t);
     }
     syncSticky();
     window.addEventListener('resize', syncSticky);
@@ -1705,7 +1895,8 @@ window.CLIMB = (function () {
    * 메뉴로 바로 가는 간단한 검색. 게시물이나 계약을 찾는 검색은 아님(목록 화면의 검색 칸을 씀)
    *   찾는 곳: 이 역할에 보이는 메뉴의 이름, 위 메뉴 이름(예: 계약 현황), 하는 일(MENU_KEYWORDS). 초성(예: ㄱㅌㄷㄱ)으로도 찾음
    *   순서: 이름이 검색어로 시작 > 이름에 들어 있음 > 하는 일에 들어 있음. 최대 8개
-   *   검색어가 없으면(PC) 자주 찾는 메뉴. 찾은 것이 없으면 이용 안내로 안내
+   *   자리: PC와 태블릿은 메뉴 줄 돋보기(아래로 넓어지는 검색 칸), 휴대폰은 머리글 돋보기(머리글 아래 검색 판, v0.61)
+   *   검색어가 없으면 자주 찾는 메뉴. 찾은 것이 없으면 이용 안내로 안내
    *   키보드: 아래 화살표로 결과로, 위아래로 옮김, Enter는 첫 결과로 이동. 찾은 개수는 화면낭독기가 읽음
    *   (요구사항 정의서 8장) 앞으로 이 검색 칸을 AI 에이전트에 묻는 입력 창으로 넓히는 안이 있음. 지금은 AI 기능을 넣지 않음(REQ-ENV-12) */
   const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
@@ -1730,7 +1921,7 @@ window.CLIMB = (function () {
     add('내 계정', '', 'account.html', 'SCR-93');
     return out;
   }
-  const QUICK_MENUS = ['SCR-11', 'SCR-12', 'SCR-21', 'SCR-20', 'SCR-31', 'SCR-41', 'SCR-43', 'SCR-90'];
+  const QUICK_MENUS = ['SCR-15', 'SCR-11', 'SCR-12', 'SCR-21', 'SCR-20', 'SCR-31', 'SCR-41', 'SCR-43', 'SCR-90'];
   function findMenus(entries, q) {
     const nq = normKey(q);
     if (!nq) {
@@ -1756,15 +1947,12 @@ window.CLIMB = (function () {
       '<p class="sr-only" aria-live="polite"></p>' +
     '</div>';
   }
-  function wireMenuSearch(box, entries, opts) {
+  function wireMenuSearch(box, entries) {
     const input = box.querySelector('.msearch-input'), list = box.querySelector('.msearch-list');
     const head = box.querySelector('.msearch-head'), live = box.querySelector('[aria-live]');
     function render() {
       const q = input.value.trim();
-      if (opts.onQuery) opts.onQuery(q);
-      if (!q && !opts.quick) { list.innerHTML = ''; head.hidden = true; live.textContent = ''; return; }
       const found = findMenus(entries, q);
-      head.hidden = false;
       head.textContent = q ? '찾은 메뉴 ' + found.length + '개' : '자주 찾는 메뉴';
       list.innerHTML = found.length ? found.map(function (e) {
         return '<li><a class="msearch-item" href="' + e.href + '"' + (e.current ? ' aria-current="page"' : '') + '>' +
@@ -1796,8 +1984,8 @@ window.CLIMB = (function () {
    *   맨 위 줄: "전체 메뉴"(2단계에서는 "‹ 메뉴 이름" 뒤로 단추) + →| 닫기
    *   1단계: 개요, 계약 등록 >, 계약 현황 >, 보관함 >, (관리자 >), 공지사항. 하위 메뉴가 있으면 > 를 붙여 누르면 2단계로
    *   2단계: 그 메뉴의 하위 메뉴. 지금 화면은 진한 초록 굵은 글자(1단계에서는 지금 화면이 든 메뉴)
-   *   맨 아래 묶음(선으로 나눔): 이용 안내, 내 계정, 로그아웃
-   *   메뉴에서 펼쳐지는 것은 평평하게(직각, v0.59). 바탕은 애플 가이드라인의 사이드바처럼 유리(regular) */
+   *   맨 아래 묶음(선으로 나눔): 이용 안내, 내 계정. 로그아웃은 머리글 계정 판(v0.61)
+   *   메뉴에서 펼쳐지는 것은 평평하게(직각, v0.59). 바탕은 흰색(기획자가 참고한 Claude 문서 사이트처럼) */
   function drawerHtml(menu, pageId) {
     const lists = [];
     const level1 = menu.map(function (m, i) {
@@ -1816,14 +2004,15 @@ window.CLIMB = (function () {
       return '<li><a href="' + href + '"' + (scr && scr === pageId ? ' aria-current="page"' : '') + '>' + icon(ic) + '<span>' + label + '</span></a></li>';
     };
     return '<div class="drawer-scrim"></div>' +
-      '<div class="drawer-panel" role="dialog" aria-modal="true" aria-label="전체 메뉴">' +
+      '<div class="drawer-panel" tabindex="-1" role="dialog" aria-modal="true" aria-label="전체 메뉴">' +
         '<div class="drawer-top">' +
           '<p class="drawer-title">전체 메뉴</p>' +
           '<button type="button" class="drawer-back" hidden>' + icon('chevronLeft') + '<span class="drawer-back-label"></span><span class="sr-only">, 전체 메뉴로 돌아가기</span></button>' +
           '<button type="button" class="drawer-close" aria-label="메뉴 닫기">' + icon('panelClose') + '</button>' +
         '</div>' +
-        '<nav class="drawer-body" aria-label="주 메뉴">' + menuSearchHtml('ds') + '<ul class="drawer-list" data-level="1">' + level1 + '</ul>' + lists.join('') + '</nav>' +
-        '<ul class="drawer-foot">' + foot('help.html', 'help', '이용 안내', 'SCR-90') + foot('account.html', 'user', '내 계정', 'SCR-93') + foot('login.html', 'logout', '로그아웃') + '</ul>' +
+        '<nav class="drawer-body" aria-label="주 메뉴"><ul class="drawer-list" data-level="1">' + level1 + '</ul>' + lists.join('') + '</nav>' +
+        // 맨 아래 묶음: 이용 안내, 내 계정. 로그아웃은 머리글 계정 아이콘 안으로 옮김(v0.61 기획자 요청)
+        '<ul class="drawer-foot">' + foot('help.html', 'help', '이용 안내', 'SCR-90') + foot('account.html', 'user', '내 계정', 'SCR-93') + '</ul>' +
       '</div>';
   }
 
@@ -2497,7 +2686,9 @@ window.CLIMB = (function () {
     canRecordObligation: canRecordObligation, canEndObligation: canEndObligation, canSeeObligation: canSeeObligation, obligationsOf: obligationsOf,
     addObligation: addObligation, recordObligation: recordObligation, endObligation: endObligation,
     // 시연 기록 (프로토타입 전용)
-    saveDemoContract: saveDemoContract, newDraftKey: newDraftKey, addNote: addNote, deleteDraft: deleteDraft, flash: flash,
+    saveDemoContract: saveDemoContract,
+    currentUser: currentUser, // 견적 화면이 머리글을 그리기 전에 고치기인지 보기인지 정할 때(v0.61)
+    allQuotes: allQuotes, findQuote: findQuote, saveQuote: saveQuote, newQuoteNo: newQuoteNo, quoteTotals: quoteTotals, quoteStatus: quoteStatus, canSeeQuote: canSeeQuote, canEditQuote: canEditQuote, newDraftKey: newDraftKey, addNote: addNote, deleteDraft: deleteDraft, flash: flash,
     // 관리자 설정 (SCR-51~58)
     adminSave: adminSave, adminLog: adminLog, assigneeOf: assigneeOf, delegationState: delegationState, activeDelegation: activeDelegation,
     isMyStep: isMyStep, canTake: canTake, isLead: isLead, areaQueue: areaQueue, codeList: codeList,

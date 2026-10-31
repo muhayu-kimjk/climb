@@ -126,9 +126,10 @@
   /* 선택 칸의 아래 화살표(Black). SVG 안의 색은 변수를 못 써서 어두운 화면 값을 따로 둠 */
   --icon-chevron-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23021821' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   --overlay-backdrop: rgba(2, 24, 33, 0.56); /* 창(모달) 뒤를 덮는 막: Black 56% */
-  /* 메뉴를 펼칠 때 아래 화면을 덮는 막(v0.55). v0.60: 애플 웹사이트 메뉴와 같게 연한 회색 40% + 흐림 20px (예전 Black 8% + 흐림 4px) */
-  --overlay-menu: rgba(239, 239, 241, 0.4);  /* Gray 14%(#EFEFF1)의 40% */
-  --overlay-menu-filter: blur(20px);
+  /* 메뉴를 펼칠 때 아래 화면을 덮는 막(v0.55: Black 8% + 흐림 4px, v0.60: 애플 웹사이트처럼 연한 회색 40% + 흐림 20px)
+   * v0.61 기획자 요청: 흐림이 강해 아래 화면이 지워진 듯 보여 펼친 메뉴가 떠 있고 자리가 달라 보였음 →
+   *   흐림 없이 살짝 어둡게만. 아래 화면이 그 자리에 그대로 보여 펼친 메뉴가 단단하게 붙어 보임 */
+  --overlay-menu: rgba(2, 24, 33, 0.16);     /* Black 16% */
 
   /* 그래프 (v0.53 통계와 보고서, SCR-46)
    * 막대 하나의 색은 한 가지(많고 적음만 봄). 흰 바탕 5.5:1이라 Green(2.4:1)보다 잘 보임. 값은 늘 글자로도 씀 */
@@ -172,12 +173,14 @@
   --shadow-down: 0 0.4rem 1.6rem rgba(2, 24, 33, 0.08); /* 화면 위에 붙은 메뉴 줄 아래 (v0.60) */
   /* 위에 붙은 메뉴 줄의 유리 바탕 (v0.60 기획자 요청: 애플 리퀴드 글래스처럼 뒤 내용이 흐리게 비침, REQ-UI-14)
    * 애플 가이드라인(휴먼 인터페이스 지침 Materials): 메뉴 줄 같은 길 찾기 요소는 Liquid Glass의 regular(뒤 내용을 흐리게 하고 밝기를 맞춰
-   * 글자를 읽기 쉽게). 아주 투명한 clear는 사진, 영상 위에만. 가이드라인에 숫자는 없어, 애플 웹사이트의 위에 붙는 메뉴 줄 값을 따름
-   * (2026-10-28 apple.com/kr 확인): 바탕 80%, 채도 180%, 흐림 20px. 처음에는 85%였음
-   * 우리 화면에서 메뉴 줄 뒤로 지나가는 것은 흰 종이와 표라 메뉴 글자 대비는 기준(4.5:1)을 넉넉히 넘음.
+   * 글자를 읽기 쉽게). 아주 투명한 clear는 사진, 영상 위에만. 가이드라인에 숫자는 없음
+   * v0.60: 애플 웹사이트의 위에 붙는 메뉴 줄 값(바탕 80%, 채도 180%, 흐림 20px. 처음에는 85%)
+   * v0.61 기획자 요청: 불투명하고 흐림이 너무 강해 리퀴드 글래스답지 않음 → 바탕 70%, 흐림 10px(뒤 내용의 모양이 비침).
+   *   메뉴 글자 대비를 재어 정함: 시안 7개 화면을 밝은, 어두운 화면으로 15px씩 내리며 메뉴 글자 밑을 지나는 가장 어두운(어두운 화면은 가장 밝은) 곳과
+   *   메뉴 글자(보조 글자 색)의 대비를 잼. 70%와 10px이 두 화면 모두 기준 4.5:1을 넘는 가장 투명한 값(65%와 8px은 어두운 화면 4.2:1로 미달)
    * 투명도 줄이기, 대비 높이기를 켠 사람에게는 비치지 않는 바탕(아래 8, 9. 애플: 투명도 줄이기는 더 불투명하게) */
-  --glass-bg: rgba(255, 255, 255, 0.8);
-  --glass-filter: saturate(180%) blur(20px);
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-filter: saturate(180%) blur(10px);
 
   /* ---------------------------------------------------------------
    * 4. 글자 (KRDS PC 기준 크기)
@@ -290,10 +293,10 @@
     --border-elevated: #2B3D45;         /* 창과 종이 색이 같아 테두리로 구분 */
     --icon-chevron-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23E6E8E9' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     --overlay-backdrop: rgba(2, 24, 33, 0.8);
-    --overlay-menu: rgba(2, 24, 33, 0.4);   /* 애플 웹사이트 어두운 메뉴의 뒤 막도 검정 40% */
+    --overlay-menu: rgba(2, 24, 33, 0.4);   /* 바탕이 이미 어두워 Black 40%(흐림 없음, v0.61) */
     --shadow-up: 0 -0.4rem 1.6rem rgba(2, 24, 33, 0.6);
     --shadow-down: 0 0.4rem 1.6rem rgba(2, 24, 33, 0.6);
-    --glass-bg: rgba(12, 33, 42, 0.8);   /* 어두운 종이(#0C212A) 80% (애플 웹사이트 어두운 메뉴 줄도 80%) */
+    --glass-bg: rgba(12, 33, 42, 0.7);   /* 어두운 종이(#0C212A) 70%(v0.61, 밝은 화면과 같게. 위 3장 유리 설명) */
     --demo-bg: #25363C;                 /* 시연 띠가 종이 바깥(Black)과 같아지지 않게 Beige 14% */
     /* 그래프: 막대는 Green(어두운 바탕 6.9:1), 빈 칸은 Green 30% */
     --chart-bar: var(--mh-green);
@@ -460,6 +463,6 @@
  *    아이폰과 맥의 "투명도 줄이기"를 켠 사람에게는 위에 붙은 메뉴 줄을 비치지 않는 바탕으로(애플 휴먼 인터페이스 지침)
  * --------------------------------------------------------------- */
 @media screen and (prefers-reduced-transparency: reduce) {
-  :root, :root[data-theme="dark"] { --glass-bg: var(--surface-white); --glass-filter: none; --overlay-menu-filter: none; }
+  :root, :root[data-theme="dark"] { --glass-bg: var(--surface-white); --glass-filter: none; }
 }
 
