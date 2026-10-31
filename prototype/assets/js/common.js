@@ -525,8 +525,9 @@ window.CLIMB = (function () {
     const d10 = addDays(d09, 1);
     const post = [
       { step: 'S06', action: 'APPROVE', at: d06 + ' 10:00', comment: '확인: ' + D.SEAL_CHECKS.join(', '), actorId: stepUser('S06', c, d06) },
-      { step: 'S07', action: 'REGISTER', at: d07 + ' 14:00', comment: '', actorId: c.requesterId, fileName: c.counterparty + '_체결본.pdf' },
-      { step: 'S08', action: 'APPROVE', at: d08 + ' 11:00', comment: '', actorId: stepUser('S08', c, d08) },
+      // ⑦ ⑧ 확인(v0.61, 표준 대응표 G-06): 계약서 밖 약속 없음, 체결본을 항목별로 맞춰 봄
+      { step: 'S07', action: 'REGISTER', at: d07 + ' 14:00', comment: '확인: ' + D.SIDE_DEAL_CHECK.S07, actorId: c.requesterId, fileName: c.counterparty + '_체결본.pdf' },
+      { step: 'S08', action: 'APPROVE', at: d08 + ' 11:00', comment: '확인: ' + D.SIGNED_CHECKS.concat([D.SIDE_DEAL_CHECK.S08]).join(', '), actorId: stepUser('S08', c, d08) },
       { step: 'S09', action: 'APPROVE', at: d09 + ' 15:00', comment: '확인: ' + opsChecksFor(c).join(', '), actorId: stepUser('S09', c, d09) },
       { step: 'S10', action: 'APPROVE', at: d10 + ' 16:00', comment: '', actorId: stepUser('S10', c, d10) },
     ].filter(function (h) { return !isShort(c) || h.step === 'S09' || h.step === 'S10'; }); // 짧은 결재는 ⑨, ⑩만
@@ -1081,11 +1082,31 @@ window.CLIMB = (function () {
   }
   // 맡은 분야의 사람(담당자와 리더, 임원). 지정 열람자처럼 사람이 아니라 분야로 맡김
   function isObligationOwner(user, o) { return hasRole(user, [obligationOwner(o)]); }
-  // 체결본이 등록된 묶음부터 의무를 더함
+  // 체결본이 등록된 묶음부터 의무를 더함. ⑧에서 반려된 판이나 앞 차수의 판만 있으면 아직 아님(v0.61 검토)
   function canHaveObligations(b) {
     return !!b && (['ACTIVE', 'EXPIRED', 'TERMINATED'].indexOf(b.status) > -1 ||
-      b.items.some(function (c) { return (c.history || []).some(function (h) { return h.action === 'REGISTER'; }); }));
+      b.items.some(function (c) { return signedVersions(c).some(function (v) { return v.current && v.fate !== 'REJECT'; }); }));
   }
+  /* 체결본의 판 (REQ-FLOW-22, v0.61 검토): ⑦에서 올린 때마다 한 판. 다시 등록 요청이나 ⑧ 반려로 바뀐 판도, 앞 차수의 판도 지우지 않음
+   * 검토 상세(첨부 파일), 계약 상세(체결본), 계약 요약서(체결본)가 이 목록 하나를 같이 씀
+   *   no: 판 번호(차수를 이어서 셈) / round: 올린 차수 / why: 체결본 등록, 다시 등록(앞 차수면 ", n차")
+   *   fate: 그 판을 두고 ⑧에서 한 일(APPROVE 확인 완료, RETURN 다시 등록 요청, REJECT 반려, 없으면 확인 전)
+   *   current: 지금 차수에서 올린 마지막 판 / checked: current이고 ⑧ 확인 완료("확인한 체결본") */
+  function signedVersions(c) {
+    const hist = c.history || [], round = c.round || 1;
+    const regs = hist.filter(function (h) { return h.action === 'REGISTER'; });
+    return regs.map(function (h, i) {
+      const r = h.round || 1, next = regs[i + 1];
+      const first = regs.filter(function (x) { return (x.round || 1) === r; })[0] === h;
+      const s08 = hist.filter(function (x) { return (x.round || 1) === r && x.step === 'S08' && x.at >= h.at && (!next || x.at < next.at); }).pop();
+      const current = !next && r === round;
+      return { no: i + 1, at: h.at, by: h.actorId || c.requesterId, round: r, name: h.fileName || c.counterparty + '_체결본.pdf',
+        why: (first ? '체결본 등록' : '다시 등록') + (r < round ? ', ' + r + '차' : ''), fate: s08 ? s08.action : null,
+        current: current, checked: current && !!s08 && s08.action === 'APPROVE' };
+    });
+  }
+  // 바뀐 판의 까닭(글자로): 다시 등록 요청, ⑧ 반려
+  function signedFateText(v) { return v.fate === 'RETURN' ? '다시 등록 요청으로 바뀜' : v.fate === 'REJECT' ? '⑧에서 반려' : ''; }
   // 더하기 [가정]: 영업대표(본인 계약), 법무, 관리자, 최고관리자, 그 종류를 맡는 분야(kind를 주면 그 분야만)
   function canAddObligation(user, root, kind) {
     if (root.requesterId === user.id || hasRole(user, ['LEGAL']) || user.role === 'ADMIN' || user.role === 'SUPER') return true;
@@ -2682,7 +2703,7 @@ window.CLIMB = (function () {
     templateVersionAt: templateVersionAt, templateOf: templateOf, templateLabel: templateLabel,
     // 체결 후 의무 (v0.53)
     obligationOwner: obligationOwner, obligationOwnerLabel: obligationOwnerLabel, obligationDues: obligationDues, obligationState: obligationState,
-    obligationWhenText: obligationWhenText, obligationEnd: obligationEnd, canHaveObligations: canHaveObligations, canAddObligation: canAddObligation,
+    obligationWhenText: obligationWhenText, obligationEnd: obligationEnd, canHaveObligations: canHaveObligations, signedVersions: signedVersions, signedFateText: signedFateText, canAddObligation: canAddObligation,
     canRecordObligation: canRecordObligation, canEndObligation: canEndObligation, canSeeObligation: canSeeObligation, obligationsOf: obligationsOf,
     addObligation: addObligation, recordObligation: recordObligation, endObligation: endObligation,
     // 시연 기록 (프로토타입 전용)

@@ -22,7 +22,7 @@
 </head>
 <!-- =====================================================================
   SCR-46 통계와 보고서 (docs/02_화면목록.md, 요구사항 정의서 REQ-DASH-17~21, v0.53 기획자 요청)
-  - 보관함 메뉴. 체결한 계약의 금액과 건수, 결재에 걸린 날, 체크리스트 예외 비율
+  - 보관함 메뉴. 체결한 계약의 금액과 건수, 결재에 걸린 날, 체크리스트 예외 비율, 체결본 확인 반려 항목(v0.61, REQ-SIGN-04)
   - 금액과 건수는 체결본을 등록한 날(⑦) 기준. 열람 제한 계약 중 볼 수 없는 건은 넣지 않음
   - 기간, 서비스, 영업 유닛으로 좁혀 보고, 그래프마다 "표로 보기"가 있음
   - 보고서 인쇄: 이 화면을 A4로 인쇄(고른 조건이 맨 위에 찍힘)
@@ -129,6 +129,13 @@
           <div class="panel-head"><h2 class="panel-title" id="sec-check">체크리스트 예외</h2></div>
           <p class="panel-desc">체결한 계약 가운데 계약 등록 체크리스트에서 "아니요"(기준과 다름)로 답한 계약의 비율입니다.</p>
           <div class="meter-list" id="check-meters"></div>
+        </section>
+
+        <!-- 6. 체결본 확인 반려 항목 (v0.61, 통제와 표준 대응표 G-06): ⑧에서 반려할 때 고른 어긋난 항목 -->
+        <section class="panel" aria-labelledby="sec-signed">
+          <div class="panel-head"><h2 class="panel-title" id="sec-signed">체결본 확인 반려 항목</h2></div>
+          <p class="panel-desc">⑧ 체결본 확인에서 반려한 계약이 승인된 내용과 어디가 달랐는지 셉니다(기간 안의 반려, 한 번에 여러 항목을 고를 수 있음).</p>
+          <div class="meter-list" id="signed-meters"></div>
         </section>
       </div>
     </div>

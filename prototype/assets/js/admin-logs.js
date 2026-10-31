@@ -48,6 +48,8 @@
       if (!c.id) return;
       push(c.requestedAt, c.requesterId, 'SUBMIT', c.id + ' ' + c.counterparty);
       (c.history || []).forEach(function (h) {
+        // 앞 차수의 기안(다시 기안할 때 결재 기록에 남긴 줄)은 결재가 아니라 기안으로 (v0.61 검토)
+        if (h.action === 'SUBMIT') { push(h.at, h.actorId || c.requesterId, 'SUBMIT', c.id + ' ' + c.counterparty + ' (' + (h.round || 1) + '차)'); return; }
         const st = D.STEPS[h.step];
         push(h.at, h.actorId, 'APPROVE', c.id + ' ' + st.no + ' ' + C.actionLabel(h, c));
       });

@@ -109,17 +109,17 @@
   }).join('');
 
   /* ---------- 4. 체결본 ---------- */
+  //   판 목록은 검토 상세, 계약 상세와 같음(common.js signedVersions, v0.61 검토)
   const signed = [];
   b.items.forEach(function (c) {
-    (c.history || []).filter(function (h) { return h.action === 'REGISTER'; }).forEach(function (h) {
-      signed.push({ c: c, name: h.fileName || c.counterparty + '_체결본.pdf', at: h.at, by: h.actorId });
-    });
+    C.signedVersions(c).forEach(function (v) { signed.push({ c: c, v: v, name: v.name, at: v.at, by: v.by }); });
   });
   $('#signed').innerHTML = '<caption class="sr-only">체결본: 파일, 차수, 올린 사람, 일시</caption>' +
     '<thead><tr><th scope="col">파일</th><th scope="col">차수</th><th scope="col">올린 사람</th><th scope="col">일시</th></tr></thead><tbody>' +
     (signed.length ? signed.map(function (x) {
-      const last = signed.filter(function (y) { return y.c === x.c; }).pop() === x;
-      return '<tr><td>' + esc(x.name) + (last ? '' : '<span class="cell-meta">다시 등록 요청으로 바뀐 앞 판(지우지 않음)</span>') + '</td><td class="nowrap">' + esc(x.c.id) + '</td>' +
+      // 바뀐 판은 까닭을 적고 지우지 않음. 확인을 마친 판은 "확인한 체결본"
+      const note = x.v.checked ? '확인한 체결본' : x.v.fate === 'RETURN' ? '다시 등록 요청으로 바뀐 앞 판(지우지 않음)' : x.v.fate === 'REJECT' ? '⑧에서 반려된 판(지우지 않음)' : '';
+      return '<tr><td>' + esc(x.name) + (note ? '<span class="cell-meta">' + note + '</span>' : '') + '</td><td class="nowrap">' + esc(x.c.id) + ' ' + x.v.round + '차</td>' +
         '<td class="center">' + esc(C.ownerLabel(x.by)) + '</td><td class="center">' + C.fmtDateTime(x.at) + '</td></tr>';
     }).join('') : '<tr><td class="empty-row" colspan="4">아직 등록된 체결본이 없습니다.</td></tr>') + '</tbody>';
 

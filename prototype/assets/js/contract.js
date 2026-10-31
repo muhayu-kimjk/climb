@@ -118,15 +118,16 @@
 
   /* ---------- 3. 체결본 (REQ-FLOW-22, REQ-SEC-08) ---------- */
   const canOriginal = root.requesterId === me.id || ['LEGAL', 'ADMIN', 'SUPER'].indexOf(me.role) > -1;
+  //   판 목록은 검토 상세와 같음(common.js signedVersions, v0.61 검토): 차수, "확인한 체결본", 바뀐 까닭(다시 등록 요청, ⑧ 반려)
   const signed = [];
   b.items.forEach(function (c) {
-    (c.history || []).filter(function (h) { return h.action === 'REGISTER'; }).forEach(function (h) {
-      signed.push({ c: c, name: h.fileName || c.counterparty + '_체결본.pdf', at: h.at });
-    });
+    C.signedVersions(c).forEach(function (v) { signed.push({ c: c, v: v }); });
   });
   $('#signed').innerHTML = signed.length ? signed.map(function (x) {
-    return '<li><span class="file-info">' + C.badge('line', D.FILE_KINDS.SIGNED) + ' <span class="file-name">' + esc(x.name) + '</span>' +
-      '<span class="file-size">' + esc(x.c.id) + ', ' + C.fmtDateTime(x.at) + ' 등록</span></span>' +
+    const fate = C.signedFateText(x.v);
+    return '<li' + (x.v.current ? '' : ' class="is-old"') + '><span class="file-info">' + C.badge('line', D.FILE_KINDS.SIGNED) +
+      (x.v.checked ? ' ' + C.badge('success', '확인한 체결본') : '') + ' <span class="file-name">' + esc(x.v.name) + '</span>' +
+      '<span class="file-size">' + esc(x.c.id) + ' ' + x.v.round + '차, ' + C.fmtDateTime(x.v.at) + ' 등록' + (fate ? ', ' + fate : '') + '</span></span>' +
       '<span class="file-acts"><button type="button" class="btn-text" data-file="preview">미리보기</button>' +
       '<button type="button" class="btn-text file-dl" data-file="pdf">PDF 내려받기</button>' +
       (canOriginal ? '<button type="button" class="btn-text file-dl" data-file="original">원본 내려받기</button>' : '') + '</span></li>';

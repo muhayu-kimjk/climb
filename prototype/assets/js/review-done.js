@@ -30,6 +30,7 @@
   D.CONTRACTS.forEach(function (c) {
     if (!C.canView(c, me)) return;
     (c.history || []).forEach(function (h) {
+      if (h.action === 'SUBMIT') return; // 앞 차수의 기안 줄은 결재가 아님(v0.61 검토)
       if (seeAll || h.actorId === me.id) all.push({ c: c, h: h });
     });
   });

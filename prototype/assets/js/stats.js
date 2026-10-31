@@ -7,6 +7,7 @@
  *   3. 달마다 체결 금액(세로 막대), 서비스와 영업 유닛마다 체결 금액(가로 막대)
  *   4. 결재 단계마다 걸린 날: 차례가 온 때부터 처리한 때까지의 평균. 오래 머묾 기준(ALERT_RULES)을 세로선으로
  *   5. 체크리스트 예외 비율: 체결한 계약 가운데 1~3번 "아니요", 4번 "예"인 계약
+ *   6. 체결본 확인 반려 항목(v0.61, 통제와 표준 대응표 G-06): ⑧ 반려 때 고른 어긋난 항목(결재 기록의 mismatch 코드)을 반려 건수 대비로 (REQ-SIGN-04, REQ-DASH-19)
  * 세는 법
  *   - 체결일: 체결본 등록(⑦)의 마지막 기록. 조건 그대로 연장(날인과 체결본 없음)은 ⑩ 재무 확인일
  *   - 금액이 있는 계약만(신규, 변경, 연장). 해지와 운영 변경, 작성 중은 넣지 않음
@@ -234,6 +235,24 @@
         '<span class="meter-val">' + withCk.length + '건 중 ' + n + '건(' + pct + '%)</span></p>' +
         '<span class="meter-track" role="img" aria-label="' + esc(q[2] + ': ' + withCk.length + '건 중 ' + n + '건, ' + pct + '%') + '"><span class="meter-fill" style="width:' + pct + '%"></span></span></div>';
     }).join('') : '<p class="chart-empty">이 조건에서 체결한 계약이 없습니다.</p>';
+
+    // 6. 체결본 확인 반려 항목(v0.61, 표준 대응표 G-06): ⑧ 반려 때 고른 어긋난 항목(결재 기록의 mismatch 코드). 코드가 없는 예전 기록은 "고르지 않음"
+    const mis = {};
+    let rejects = 0;
+    base.forEach(function (c) {
+      (c.history || []).forEach(function (h) {
+        if (h.step !== 'S08' || h.action !== 'REJECT' || months.indexOf(String(h.at).slice(0, 7)) < 0) return;
+        rejects++;
+        (h.mismatch && h.mismatch.length ? h.mismatch : ['NONE']).forEach(function (k) { mis[k] = (mis[k] || 0) + 1; });
+      });
+    });
+    const misRows = D.SIGNED_MISMATCH.concat([{ code: 'NONE', label: '고르지 않음(예전 기록)' }]).filter(function (x) { return mis[x.code]; });
+    $('#signed-meters').innerHTML = rejects ? misRows.map(function (x) {
+      const n = mis[x.code], pct = Math.round(n / rejects * 100);
+      return '<div class="meter"><p class="meter-head"><span class="meter-label">' + esc(x.label) + '</span>' +
+        '<span class="meter-val">반려 ' + rejects + '건 중 ' + n + '건(' + pct + '%)</span></p>' +
+        '<span class="meter-track" role="img" aria-label="' + esc(x.label + ': 반려 ' + rejects + '건 중 ' + n + '건, ' + pct + '%') + '"><span class="meter-fill" style="width:' + pct + '%"></span></span></div>';
+    }).join('') : '<p class="chart-empty">이 조건에서 체결본 확인을 반려한 계약이 없습니다.</p>';
   }
 
   /* ---------- 마우스를 올리면 보이는 설명 ---------- */

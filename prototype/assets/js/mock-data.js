@@ -385,6 +385,22 @@ window.CLIMB_DATA = (function () {
   };
   // ⑥ 총무가 날인 전에 계약서 실물과 맞춰 보는 항목 (REQ-FLOW-23, panda p.31)
   const SEAL_CHECKS = ['고객사명', '체결 제품', '계약 금액', '계약 기간'];
+  /* ⑦ ⑧ 체결 확인 (v0.61, 통제와 표준 대응표 G-06: 내부회계 "체결된 계약이 승인 조건과 같음", ISO 37001 8.3, 8.4 이면 약정)
+   * SIDE_DEAL_CHECK: ⑦ 체결본을 올리는 영업과 ⑧ 확인자가 각각 표시. 계약서 밖에서 고객과 따로 약속한 조건이 없다는 확인
+   * SIGNED_CHECKS: ⑧ 체결본을 승인된 내용과 맞춰 보는 항목(⑥처럼 항목별. 예전에는 "승인된 내용과 같음", "서명과 날인" 두 줄)
+   * SIGNED_MISMATCH: ⑧ 반려 때 어긋난 항목(하나 이상). 결재 기록에 코드로 남아 항목별로 셀 수 있음 [가정]
+   *   서명이나 날인이 빠진 것은 계약 내용이 같으므로 반려가 아니라 "다시 등록 요청"(REQ-SIGN-04 기획자 결정)이라 넣지 않음(v0.61 검토)
+   *   항목 이름 안에는 쉼표를 쓰지 않음: 결재 기록에 쉼표로 이어 적으므로 항목 경계가 보이게(v0.61 검토) */
+  const SIDE_DEAL_CHECK = {
+    S07: '승인된 내용 밖에 고객과 따로 약속한 조건(부속 합의나 메일과 메신저 약속 등)이 없습니다',
+    S08: '체결본 밖의 다른 약정(부속 합의 등)이 없음을 확인했습니다',
+  };
+  const SIGNED_CHECKS = ['고객사와 사업자등록번호', '제품 줄의 수량과 금액과 합계', '계약 기간과 자동갱신과 해지 통지 일수', '정산 방식', '양쪽 서명과 날인'];
+  const SIGNED_MISMATCH = [
+    { code: 'PARTY', label: '고객사와 사업자등록번호' }, { code: 'AMOUNT', label: '제품과 수량과 금액' },
+    { code: 'PERIOD', label: '계약 기간과 자동갱신과 통지 일수' }, { code: 'SETTLE', label: '정산 방식' },
+    { code: 'SIDE', label: '계약서 밖 약정 발견' }, { code: 'OTHER', label: '그 밖의 것' },
+  ];
   // ⑨ 고객지원이 운영에 적용하는 일. 서비스마다 다릅니다 (REQ-FLOW-25, panda p.35) [가정] 서비스 3단계 목록이 오면 다시 정함
   const OPS_CHECKS = {
     CK: ['라이선스 열기', '계약번호 설정', '계약 기간 설정', '계약 금액 설정'],
@@ -565,7 +581,7 @@ window.CLIMB_DATA = (function () {
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
       extraHistory: [
         ev('S08', 'RETURN', '2026-10-09 10:20', '스캔본 3쪽(서명 쪽)이 빠졌습니다. 전체 쪽을 다시 올려 주세요.'),
-        Object.assign(ev('S07', 'REGISTER', '2026-10-16 17:40', '서명 쪽을 포함해 다시 스캔', 'u_sales1'), { fileName: '새솔고등학교_체결본_전체.pdf' }),
+        Object.assign(ev('S07', 'REGISTER', '2026-10-16 17:40', '확인: ' + SIDE_DEAL_CHECK.S07 + '. 서명 쪽을 포함해 다시 스캔', 'u_sales1'), { fileName: '새솔고등학교_체결본_전체.pdf' }),
       ],
     },
     {
@@ -585,6 +601,17 @@ window.CLIMB_DATA = (function () {
       // 표준계약서를 그대로 쓴 예시(④ 법무 검토 생략). 통계와 보고서의 체크리스트 예외 비율이 고르게 보이게 (v0.53)
       checklist: { standard: 'YES', price: 'YES', cap: 'YES' },
       startDate: '2026-11-01', endDate: '2027-10-31',
+      // ⑧ 반려 예시(v0.61 검토, 표준 대응표 G-06): 1차는 체결본의 수량이 승인한 내용과 달라 ⑧에서 반려, 바뀐 수량으로 2차 기안.
+      //   통계와 보고서의 "체결본 확인 반려 항목"과 앞 차수 체결본 판 보존(REQ-FLOW-22)을 시안에서 보이게
+      round: 2,
+      extraHistory: [
+        { step: 'S01', action: 'SUBMIT', at: '2026-09-01 10:00', actorId: 'u_sales1', comment: '', round: 1 },
+        ev('S02', 'APPROVE', '2026-09-01 16:00', '', null, 1),
+        ev('S06', 'APPROVE', '2026-09-03 10:00', '확인: ' + SEAL_CHECKS.join(', '), null, 1),
+        Object.assign(ev('S07', 'REGISTER', '2026-09-08 14:00', '확인: ' + SIDE_DEAL_CHECK.S07, 'u_sales1', 1), { fileName: '마루중학교_체결본_1차.pdf' }),
+        Object.assign(ev('S08', 'REJECT', '2026-09-09 11:00', '어긋난 항목: ' + SIGNED_MISMATCH.filter(function (x) { return x.code === 'AMOUNT'; })[0].label +
+          '. 고객이 서명하면서 이용 기관 수를 늘려 체결본의 수량과 금액이 승인한 내용과 다릅니다. 바뀐 수량으로 다시 기안해 주세요.', null, 1), { mismatch: ['AMOUNT'] }),
+      ],
     },
     {
       // ⑩ 재무 확인 차례. 체크리스트 4번이 "예"라 재무가 특수 조건을 확인해야 하는 예시
@@ -1034,6 +1061,17 @@ window.CLIMB_DATA = (function () {
           '할인율 한도를 넘는 줄은 견적을 만들 때 알려 줍니다. 그 가격으로 계약하면 계약 등록 때 영업 리더의 승인이 필요합니다.'],
         changed: ['견적은 계약과 이어지지 않습니다. 계약은 지금처럼 계약 등록에서 등록합니다.'],
       } },
+    // v0.13.1 (요구사항 정의서 v0.61, 통제와 표준 대응표 G-06, G-30): 체결 확인 보강, 거래 윤리 안내
+    { id: 'N-0028', kind: 'RELEASE', version: 'v0.13.1', title: '체결 확인 보강과 거래 윤리 안내', at: '2026-10-31 19:00', by: 'u_super',
+      items: {
+        added: ['체결본을 올릴 때(⑦) 승인된 내용 밖에 고객과 따로 약속한 조건이 없다는 것을 확인합니다.',
+          '체결본 확인(⑧)에서 반려할 때 어긋난 항목을 고르고, 통계와 보고서에서 항목별로 볼 수 있습니다.',
+          '이용 안내에 거래 윤리와 신고 쪽을 더했습니다(초안).'],
+        changed: ['체결본 확인(⑧)의 확인 항목을 날인 검토처럼 항목별로 나눴습니다: 고객사, 제품과 금액, 기간, 정산 방식, 서명과 날인, 계약서 밖 약정.',
+          '서명이나 날인만 빠진 체결본은 반려하지 않고 다시 등록을 요청합니다.',
+          '체결본 확인(⑧)에서 반려해 다시 기안해도 앞 차수에 올린 체결본이 첨부 파일에 이전 판으로 남습니다.',
+          '계약 상세와 계약 요약서의 체결본 목록에도 차수와 "확인한 체결본", 바뀐 까닭(다시 등록 요청, ⑧ 반려)을 적습니다.'],
+      } },
   ];
 
   /* ---------- 이메일 알림 (내 계정 SCR-93, v0.45 기획자 요청. 보내는 때는 요구사항 정의서 REQ-ENV-10) ----------
@@ -1391,7 +1429,7 @@ window.CLIMB_DATA = (function () {
       doneBy: 'u_privacy', doneAt: '2026-10-09 14:00', action: '본인에게 확인: 회사가 새로 지급한 노트북. 이상 없음' },
   ];
 
-  return { TODAY, BRAND, ROLES, ROLE_AREAS, ROLE_SHORT, ROLE_AREA, ROLE_BASE, STEP_LEADS, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, METHODS, SETTLEMENTS, PRICE_BOOK, STEPS, REVIEW_GROUPS, POST_GROUPS, PROCESS_ROLES, STEP_ASSIGNEE, APPROVAL_STATE, APPROVAL_ACTIONS, SEAL_CHECKS, OPS_CHECKS, OPS_CHECKS_END, OPS_CHECKS_EXTEND, AFTERCARE_TYPES, FILE_KINDS, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS,
+  return { TODAY, BRAND, ROLES, ROLE_AREAS, ROLE_SHORT, ROLE_AREA, ROLE_BASE, STEP_LEADS, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, METHODS, SETTLEMENTS, PRICE_BOOK, STEPS, REVIEW_GROUPS, POST_GROUPS, PROCESS_ROLES, STEP_ASSIGNEE, APPROVAL_STATE, APPROVAL_ACTIONS, SEAL_CHECKS, SIDE_DEAL_CHECK, SIGNED_CHECKS, SIGNED_MISMATCH, OPS_CHECKS, OPS_CHECKS_END, OPS_CHECKS_EXTEND, AFTERCARE_TYPES, FILE_KINDS, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS,
     CHANGE_TYPES, CHANGE_RULES, OPS_CHECKS_PERIOD, TEAM_LEADERS,
     PRODUCTS, FEATURES, TEMPLATES, PRICE_ROWS, currentPrices, CUSTOMERS, QUOTE_RULES, QUOTE_SUPPLIER, QUOTES, BIZ_REGISTRY, BIZ_REGISTRY_INFO, NTS_STATUS, CODE_GROUPS, CODES, DELEGATIONS, ASSIGNEE_CHANGES, ADMIN_LOG, RESTRICT_LOG,
     LOG_REVIEWS, ACCESS_REVIEWS, SEC_ALERT_KINDS, SEC_ALERTS, NOTICE_KINDS, RELEASE_PARTS, NOTICES, EMAIL_TYPES,

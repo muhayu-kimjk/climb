@@ -122,15 +122,12 @@
     if (PASSED && out.length) out[out.length - 1].approved = true;
     return out;
   }
-  // 체결본의 판: ⑦에서 올린 때마다. ⑧ 확인(승인)을 받은 마지막 판은 "확인한 체결본"
+  // 체결본의 판: common.js signedVersions(계약 상세, 계약 요약서와 같은 목록). 바뀐 판은 까닭에 "다시 등록 요청으로 바뀜", "⑧에서 반려"
   function signedVersions() {
-    const hist = (c.history || []).filter(function (h) { return (h.round || 1) === (c.round || 1); });
-    const out = hist.filter(function (h) { return h.action === 'REGISTER'; }).map(function (h, i) {
-      return { no: i + 1, at: h.at, by: h.actorId || c.requesterId, why: i ? '다시 등록' : '체결본 등록', name: h.fileName || c.counterparty + '_체결본.pdf' };
+    return C.signedVersions(c).map(function (v) {
+      const fate = C.signedFateText(v);
+      return Object.assign({}, v, { why: v.why + (fate ? ', ' + fate : '') });
     });
-    const lastReg = out.length ? out[out.length - 1].at : null;
-    if (lastReg && hist.some(function (h) { return h.step === 'S08' && h.action === 'APPROVE' && h.at >= lastReg; })) out[out.length - 1].checked = true;
-    return out;
   }
   function files() {
     // 해지 기안과 연장 검토는 계약서 초안 없이 기안할 때 올린 서류(해지 관련 서류)만
@@ -183,7 +180,7 @@
       : '계약 내용과 체크리스트, 첨부 파일을 확인한 뒤 화면 아래에서 승인, 보완 요청, 반려 중에 골라 주세요. 승인 의견은 적지 않아도 되고, 보완 요청과 반려는 사유를 꼭 적습니다. 보완을 요청하면 기안자가 고친 뒤 이 단계부터 이어서 결재합니다.',
     S06: '계약서 실물의 고객사명, 체결 제품, 계약 금액, 계약 기간이 이 문서와 같은지 확인한 뒤 날인하고, 화면 아래에서 날인 완료로 처리해 주세요. 인장 사용 기록은 기존 구글 폼에 남깁니다.',
     S07: '상대방 서명을 받은 뒤 화면 아래에서 체결본(PDF나 스캔 이미지, 50MB 이하)을 올려 주세요. 올린 체결본은 고치거나 지울 수 없습니다.',
-    S08: '첨부 파일의 체결본이 승인된 내용과 같은지 확인해 주세요. 같으면 확인 완료, 오탈자나 스캔 문제면 다시 등록 요청, 계약 내용이 다르면 반려합니다.',
+    S08: '첨부 파일의 체결본이 승인된 내용과 같은지 확인해 주세요. 같으면 확인 완료, 오탈자나 스캔 문제, 서명이나 날인 빠짐이면 다시 등록 요청, 계약 내용이 다르면 반려합니다.',
     S09: change ? (hrChange ? '수불부에 HR 추가 충전 ' + c.changeQty + '건을 반영한 뒤 화면 아래에서 운영 변경 완료로 처리해 주세요.'
         : c.changeType === 'PERIOD' ? '라이선스나 도메인 기간을 새 종료일(' + C.fmtDate(c.endDate) + ')로 바꾼 뒤 화면 아래에서 운영 변경 완료로 처리해 주세요.'
         : 'CK 추가 충전 ' + c.changeQty + '건을 반영한 뒤 화면 아래에서 운영 변경 완료로 처리해 주세요.')
@@ -437,8 +434,10 @@
         acts + '</li>';
     }
     $('#files').innerHTML = files().map(function (g) {
-      const vs = g.versions, now = vs[vs.length - 1], old = vs.slice(0, -1).reverse();
-      return line(g, now, true) + (old.length ? '<li class="file-older"><details><summary>' + esc(D.FILE_KINDS[g.kind]) + ' 이전 판 ' + old.length + '개</summary>' +
+      // 체결본은 지금 차수에서 올린 판만 지금 판. 앞 차수의 판만 있으면(⑧ 반려 뒤 다시 기안, ⑦ 전) 모두 이전 판으로 접음 (v0.61 검토)
+      const vs = g.versions, cur = g.kind !== 'SIGNED' || vs[vs.length - 1].current;
+      const now = cur ? vs[vs.length - 1] : null, old = (cur ? vs.slice(0, -1) : vs.slice()).reverse();
+      return (now ? line(g, now, true) : '') + (old.length ? '<li class="file-older"><details><summary>' + esc(D.FILE_KINDS[g.kind]) + ' 이전 판 ' + old.length + '개</summary>' +
         '<ul class="doc-files">' + old.map(function (v) { return line(g, v, false); }).join('') + '</ul></details></li>' : '');
     }).join('');
     $('#memo').textContent = detail.memo || '없음';
@@ -533,7 +532,9 @@
     if (action === 'CANCEL') return { title: '승인을 취소할까요?', label: '취소 사유 (필수)', btn: '승인 취소', required: true, tone: 'danger',
       desc: '취소하면 이 단계는 다시 내 차례가 되고, 승인과 취소 기록은 모두 남습니다.' };
     if (action === 'REJECT') return { title: '반려할까요?', label: '반려 사유 (필수)', btn: '반려', required: true, tone: 'danger',
-      desc: code === 'S08' ? '계약 내용이 승인본과 다를 때 씁니다. 반려하면 기안자에게 돌아가고, 기안자가 보완해 다음 차수로 다시 기안해 결재를 처음부터 받습니다.'
+      // ⑧ 반려는 어긋난 항목을 하나 이상 고름(코드로 남아 항목별로 셈, v0.61 표준 대응표 G-06)
+      reasons: code === 'S08' ? D.SIGNED_MISMATCH : null,
+      desc: code === 'S08' ? '계약 내용이 승인본과 다를 때 씁니다. 서명이나 날인만 빠졌으면 반려하지 않고 다시 등록 요청을 씁니다. 반려하면 기안자에게 돌아가고, 기안자가 보완해 다음 차수로 다시 기안해 결재를 처음부터 받습니다.'
         : code === 'S06' ? '계약서 실물이 이 문서와 다를 때 씁니다. 반려하면 기안자에게 돌아가고, 기안자가 보완해 다음 차수로 다시 기안합니다.'
         : '반려하면 기안자에게 돌아가고, 기안자가 보완해 다음 차수로 다시 기안합니다.' };
     if (action === 'SUPPLEMENT') return { title: '보완을 요청할까요?', label: '보완할 내용 (필수)', btn: '보완 요청', required: true, tone: 'secondary',
@@ -541,9 +542,11 @@
     if (action === 'RESUBMIT') return { title: '보완을 마쳤나요?', label: '고친 내용 (필수)', btn: '보완 완료', required: true, tone: 'primary', restart: true,
       desc: '보완 완료를 누르면 ' + D.STEPS[c.supplement.step].no + '부터 이어서 결재합니다. 실제 시스템에서는 계약 등록 화면에서 고친 뒤 누릅니다.' };
     if (action === 'RETURN') return { title: '체결본을 다시 올려 달라고 할까요?', label: '요청 사유 (필수)', btn: '다시 등록 요청', required: true, tone: 'secondary',
-      desc: '오탈자나 스캔 문제처럼 계약 내용은 같을 때 씁니다. 영업이 체결본을 다시 올리면 다시 확인합니다.' };
+      desc: '오탈자나 스캔 문제, 서명이나 날인 빠짐처럼 계약 내용은 같을 때 씁니다. 영업이 체결본을 다시 올리면 다시 확인합니다.' };
     if (action === 'REGISTER') return { title: '체결본을 등록할까요?', label: '메모 (선택)', btn: '체결본 등록', required: false, tone: 'primary', file: true,
-      desc: '등록하면 영업지원이 승인된 내용과 같은지 확인합니다. 등록한 체결본은 고치거나 지울 수 없습니다.' };
+      desc: '등록하면 영업지원이 승인된 내용과 같은지 확인합니다. 등록한 체결본은 고치거나 지울 수 없습니다.',
+      // 계약서 밖 약속 없음 확인(v0.61, 표준 대응표 G-06). 결재 기록에 "확인: ..."으로 남음
+      legend: '기안한 영업의 확인 (필수)', checks: [D.SIDE_DEAL_CHECK.S07] };
     if (code === 'S04' && legalNote) return { title: '승인할까요?', label: '바꾼 조항과 판단 (필수)', btn: '승인', required: true, tone: 'primary',
       desc: '승인하면 다음 단계로 넘어갑니다. 표준계약서를 바꾼 계약이라 바꾼 조항과 받아들인 판단을 꼭 적습니다(조항 대비표 참고).' };
     if (C.isReviewStep(code)) return { title: '승인할까요?', label: '의견 (선택)', btn: '승인', required: false, tone: 'primary',
@@ -557,7 +560,8 @@
         legend: '계약서 실물과 같은지 확인한 항목 (모두 확인)', checks: D.SEAL_CHECKS },
       S08: { title: '체결본 확인을 완료할까요?', label: '메모 (선택)', btn: '확인 완료', required: false, tone: 'primary',
         desc: '완료하면 운영 검토로 넘어가 고객지원이 운영에 적용할 차례가 됩니다.',
-        legend: '확인한 내용 (모두 확인)', checks: ['체결본이 승인된 계약 내용과 같음', '양쪽 서명과 날인이 모두 있음'] },
+        // 체결본을 승인된 내용과 항목별로 맞춰 봄(⑥처럼, v0.61 표준 대응표 G-06. 예전에는 일반 항목 두 줄)과 계약서 밖 약정 없음
+        legend: '체결본에서 확인한 항목 (모두 확인)', checks: D.SIGNED_CHECKS.concat([D.SIDE_DEAL_CHECK.S08]) },
       S09: { title: change ? '운영 변경을 완료할까요?' : isTerm ? '운영 종료를 완료할까요?' : c.renewMode === 'AUTO' ? '기간 연장을 완료할까요?' : '운영 적용을 완료할까요?',
         label: '메모 (선택)', btn: S09_BTN, required: false, tone: 'primary',
         desc: change ? '완료하면 운영 변경이 끝나고 ' + (c.changeType === 'PERIOD' ? '계약 묶음의 계약 기간이 새 종료일로 바뀝니다.' : '충전 내역이 계약 묶음에 남습니다.')
@@ -590,17 +594,27 @@
         t.checks.map(function (x) { return '<label class="choice"><input type="checkbox" value="' + esc(x) + '">' + esc(x) + '</label>'; }).join('') +
         '<p class="field-error" id="act-checks-error" hidden></p></fieldset>';
     }
+    if (t.reasons) {
+      extra += '<fieldset class="field act-checks" id="act-reasons"><legend class="field-label">어긋난 항목 (하나 이상)</legend>' +
+        t.reasons.map(function (x) { return '<label class="choice"><input type="checkbox" value="' + esc(x.code) + '">' + esc(x.label) + '</label>'; }).join('') +
+        '<p class="field-error" id="act-reasons-error" hidden></p></fieldset>';
+    }
     if (t.restart) {
       extra += '<div class="field"><label class="choice"><input type="checkbox" id="act-restart">금액이나 체크리스트 답을 바꿨습니다 (계약 검토를 ② 체크리스트 검토부터 다시 받습니다)</label></div>';
     }
     if (t.file) {
       extra += '<div class="field act-file" id="act-file"><label class="field-label" for="act-file-input">체결본 파일 (필수)</label>' +
-        '<input type="file" id="act-file-input" accept=".pdf,.jpg,.jpeg,.png">' +
+        '<input type="file" id="act-file-input" accept=".pdf,.jpg,.jpeg,.png" aria-describedby="act-file-error">' +
         '<p class="field-help">PDF, JPG, PNG, 50MB 이하. 프로토타입은 파일 이름만 남기고 실제로 올리지 않습니다. ' +
         '<button type="button" class="btn-text" id="act-demo-file">예시 파일 고르기 (시연)</button></p>' +
         '<p class="act-file-name" id="act-file-name" aria-live="polite"></p><p class="field-error" id="act-file-error" hidden></p></div>';
     }
     $('#act-extra').innerHTML = extra;
+    // 확인 묶음과 파일 칸의 오류 문장을 화면낭독기가 함께 읽게 이음(KRDS 오류 패턴, v0.61 검토)
+    [['act-checks', 'act-checks-error'], ['act-reasons', 'act-reasons-error'], ['act-file', 'act-file-error']].forEach(function (x) {
+      const el = document.getElementById(x[0]);
+      if (el) el.setAttribute('aria-describedby', x[1]);
+    });
     $('#act-confirm').textContent = t.btn;
     $('#act-confirm').className = 'btn btn--' + t.tone + ' btn--md';
     lastFocus = document.activeElement;
@@ -643,6 +657,12 @@
       showError('#act-checks-error', '#act-checks', missing ? '확인 항목을 모두 확인해 주세요.' : '');
       if (missing) ok = false;
     }
+    let mismatch = null;
+    if (t.reasons) {
+      mismatch = Array.prototype.slice.call(modal.querySelectorAll('#act-reasons input:checked')).map(function (b) { return b.value; });
+      showError('#act-reasons-error', '#act-reasons', mismatch.length ? '' : '어긋난 항목을 하나 이상 고르세요.');
+      if (!mismatch.length) ok = false;
+    }
     if (t.file && !fileName) { showError('#act-file-error', '#act-file', '체결본 파일을 고르세요.'); ok = false; }
     if (t.required && !memo) {
       // 받침에 따라 "을"과 "를" (예: 반려 사유를, 보완할 내용을)
@@ -656,9 +676,11 @@
     }
     if (!ok) { const bad = modal.querySelector('.is-invalid input, .is-invalid textarea'); if (bad) bad.focus(); return; }
     const s = pending.step;
-    const comment = [t.checks ? '확인: ' + t.checks.join(', ') : '', memo].filter(Boolean).join('. ');
+    const mismatchText = mismatch ? '어긋난 항목: ' + mismatch.map(function (k) { return D.SIGNED_MISMATCH.filter(function (x) { return x.code === k; })[0].label; }).join(', ') : '';
+    const comment = [t.checks ? '확인: ' + t.checks.join(', ') : '', mismatchText, memo].filter(Boolean).join('. ');
     const restart = t.restart && $('#act-restart') && $('#act-restart').checked;
-    C.recordAction(c, s, pending.action, comment, me, t.file ? { fileName: fileName } : restart ? { restart: true } : null);
+    const extra = t.file ? { fileName: fileName } : restart ? { restart: true } : mismatch ? { mismatch: mismatch } : null; // mismatch: ⑧ 반려의 어긋난 항목 코드
+    C.recordAction(c, s, pending.action, comment, me, extra);
     // 다음 차례 안내
     const now = C.pendingSteps(c).map(function (x) { return C.stepLabel(x.step, c) + ' (' + C.ownerLabel(x.userId) + ')'; }).join(', ');
     let next = '';
