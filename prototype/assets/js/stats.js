@@ -7,6 +7,8 @@
  *   3. 달마다 체결 금액(세로 막대), 서비스와 영업 유닛마다 체결 금액(가로 막대)
  *   4. 결재 단계마다 걸린 날: 차례가 온 때부터 처리한 때까지의 평균. 오래 머묾 기준(ALERT_RULES)을 세로선으로
  *   5. 체크리스트 예외 비율: 체결한 계약 가운데 1~3번 "아니요", 4번 "예"인 계약
+ *      (v0.62, 표준 대응표 G-01, G-19) 견적서 가운데 할인율 한도를 넘는 줄이 있는 것(견적을 볼 수 있는 역할만),
+ *      계약 방식과 거래처마다 2, 3번 "아니요" 건수(표로 보기, 거래처는 예외가 있는 곳만 많은 순 10곳)
  *   6. 체결본 확인 반려 항목(v0.61, 통제와 표준 대응표 G-06): ⑧ 반려 때 고른 어긋난 항목(결재 기록의 mismatch 코드)을 반려 건수 대비로 (REQ-SIGN-04, REQ-DASH-19)
  * 세는 법
  *   - 체결일: 체결본 등록(⑦)의 마지막 기록. 조건 그대로 연장(날인과 체결본 없음)은 ⑩ 재무 확인일
@@ -33,6 +35,9 @@
     ['cap', 'NO', '3. 할인율 한도를 넘음', '③ 영업 검토'],
     ['accounting', 'YES', '4. 회계에 영향을 주는 특수 조건', '⑩ 재무 확인'],
   ];
+  // 견적 칸은 견적 목록(SCR-16)을 볼 수 있는 역할에만 (v0.62, quotes.js와 같은 역할)
+  const seeQuotes = me.role === 'SUPER' || C.hasRole(me, ['SALES', 'HEAD', 'EXEC', 'SALES_ADMIN', 'ADMIN']);
+  const PRICE_OF = function (fid) { return D.PRICE_BOOK.filter(function (p) { return p.feature === fid; })[0] || null; };
 
   /* ---------- 세는 법 ---------- */
   // 체결일은 C.signDate(차수와 다시 등록 요청을 따져 buildReview가 정한 체결본 등록 시각)
@@ -235,6 +240,45 @@
         '<span class="meter-val">' + withCk.length + '건 중 ' + n + '건(' + pct + '%)</span></p>' +
         '<span class="meter-track" role="img" aria-label="' + esc(q[2] + ': ' + withCk.length + '건 중 ' + n + '건, ' + pct + '%') + '"><span class="meter-fill" style="width:' + pct + '%"></span></span></div>';
     }).join('') : '<p class="chart-empty">이 조건에서 체결한 계약이 없습니다.</p>';
+    // 견적서: 기간 안에 처음 출력한 견적 가운데 할인율 한도를 넘는 줄이 있는 것 (v0.62, 표준 대응표 G-01 남은 것).
+    //   견적을 볼 수 있는 역할만, 볼 수 있는 견적만 셈(C.canSeeQuote). 견적 단계는 승인이 없고 알림만 있으므로(REQ-QUO) 참고 수치
+    if (seeQuotes) {
+      const qs = C.allQuotes().filter(function (q) {
+        const first = (q.issues || [])[0];
+        if (!first || !C.canSeeQuote(me, q) || months.indexOf(String(first.at).slice(0, 7)) < 0) return false;
+        if (unit && C.teamOf(q.owner) !== unit) return false;
+        return !service || (q.lines || []).some(function (l) { const p = PRICE_OF(l.feature); return p && p.service === service; });
+      });
+      const nOver = qs.filter(C.quoteOverCap).length, qpct = qs.length ? Math.round(nOver / qs.length * 100) : 0;
+      const label = '견적서: 할인율 한도를 넘는 줄이 있음';
+      const scope = me.role === 'SALES' ? '내가 만든 견적' : me.role === 'HEAD' ? '내 유닛의 견적' : '모든 견적'; // C.canSeeQuote와 같은 범위
+      $('#check-meters').insertAdjacentHTML('beforeend', '<div class="meter"><p class="meter-head"><span class="meter-label">' + label + '<span class="meter-sub">견적 단계(승인 없이 알림만), ' + scope + '</span></span>' +
+        '<span class="meter-val">' + (qs.length ? '출력한 견적 ' + qs.length + '건 중 ' + nOver + '건(' + qpct + '%)' : '출력한 견적 없음') + '</span></p>' +
+        '<span class="meter-track" role="img" aria-label="' + esc(label + ': ' + (qs.length ? '출력한 견적 ' + qs.length + '건 중 ' + nOver + '건, ' + qpct + '%' : '출력한 견적 없음')) + '"><span class="meter-fill" style="width:' + qpct + '%"></span></span></div>');
+    }
+    // 계약 방식과 거래처마다 2, 3번 예외 (v0.62, 표준 대응표 G-19: 간접 거래처에 할인이 몰리는지 봄). 거래처는 예외가 있는 곳만, 많은 순
+    const exc = function (list, k) { return list.filter(function (c) { return c.checklist[k] === 'NO'; }).length; };
+    const byKey = function (keyOf, labelOf) {
+      const g = {};
+      withCk.forEach(function (c) { const k = keyOf(c); (g[k] = g[k] || []).push(c); });
+      return Object.keys(g).map(function (k) { return { label: labelOf(g[k][0]), list: g[k], price: exc(g[k], 'price'), cap: exc(g[k], 'cap') }; });
+    };
+    const methodName = function (c) { return D.METHODS[C.methodOf(c)]; };
+    const byMethod = byKey(methodName, methodName)
+      .sort(function (a, b) { return Object.values(D.METHODS).indexOf(a.label) - Object.values(D.METHODS).indexOf(b.label); });
+    // 거래처는 거래처와 계약 방식을 함께 묶음(한 거래처와 직접, 간접 계약이 모두 있으면 줄을 나눔. 검토에서 고침)
+    const byCustomer = byKey(function (c) { return c.counterparty + '\u0000' + C.methodOf(c); }, function (c) { return c.counterparty; })
+      .filter(function (g) { return g.price || g.cap; })
+      .sort(function (a, b) { return b.cap - a.cap || b.price - a.price || b.list.length - a.list.length; });
+    const CUST_MAX = 10;
+    const excRow = function (kind, g, extra) {
+      return '<tr><td class="center">' + kind + '</td><td>' + esc(g.label) + (extra || '') + '</td><td class="num">' + g.list.length + '건</td><td class="num">' + g.price + '건</td><td class="num">' + g.cap + '건</td></tr>';
+    };
+    $('#check-split-rows').innerHTML = byMethod.map(function (g) { return excRow('계약 방식', g); }).join('') +
+      byCustomer.slice(0, CUST_MAX).map(function (g) { return excRow('거래처', g, '<span class="cell-meta">' + esc(D.METHODS[C.methodOf(g.list[0])]) + '</span>'); }).join('') ||
+      '<tr><td colspan="5" class="empty-row">이 조건에서 체결한 계약이 없습니다.</td></tr>';
+    $('#check-split-more').textContent = byCustomer.length > CUST_MAX ? '예외가 있는 거래처 ' + byCustomer.length + '줄 가운데 많은 순으로 ' + CUST_MAX + '줄만 보입니다.' : '';
+    $('#check-split-more').hidden = byCustomer.length <= CUST_MAX;
 
     // 6. 체결본 확인 반려 항목(v0.61, 표준 대응표 G-06): ⑧ 반려 때 고른 어긋난 항목(결재 기록의 mismatch 코드). 코드가 없는 예전 기록은 "고르지 않음"
     const mis = {};
@@ -270,5 +314,10 @@
 
   $('#filter').addEventListener('change', render);
   $('#btn-print').addEventListener('click', function () { window.print(); });
+  // 인쇄할 때 그래프가 없는 표(계약 방식과 거래처마다)는 펼쳐 찍고, 다 찍으면 원래대로 (v0.62 검토에서 고침: 접혀 있으면 빠졌음)
+  let splitWasOpen = false;
+  window.addEventListener('beforeprint', function () { const d = $('#check-split'); splitWasOpen = d.open; d.open = true; });
+  window.addEventListener('afterprint', function () { $('#check-split').open = splitWasOpen; });
+  $('#check-quote-desc').hidden = !seeQuotes;
   render();
 })();

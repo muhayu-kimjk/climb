@@ -987,6 +987,9 @@ window.CLIMB = (function () {
     const vat = Math.floor(supply * D.QUOTE_RULES.vat);
     return { supply: supply, vat: vat, total: supply + vat };
   }
+  // 할인율 한도를 넘는 줄: 견적 줄에 저장한 그때의 표준 단가와 한도로 봄 (견적 화면, 견적 목록, 통계가 같이 씀. v0.62 표준 대응표 G-01 남은 것)
+  function quoteLineOverCap(l) { return !!l.listPrice && l.cap != null && 1 - (Number(l.unitPrice) || 0) / l.listPrice > l.cap + 1e-9; }
+  function quoteOverCap(q) { return (q.lines || []).some(quoteLineOverCap); }
   // 상태: 작성 중(출력 전) / 출력함 / 기간 지남(유효기간이 오늘보다 앞) / 새 판으로 바뀜(더 높은 판이 있음)
   function quoteStatus(q) {
     const newer = allQuotes().some(function (x) { return x.no === q.no && x.ver > q.ver; });
@@ -2709,7 +2712,7 @@ window.CLIMB = (function () {
     // 시연 기록 (프로토타입 전용)
     saveDemoContract: saveDemoContract,
     currentUser: currentUser, // 견적 화면이 머리글을 그리기 전에 고치기인지 보기인지 정할 때(v0.61)
-    allQuotes: allQuotes, findQuote: findQuote, saveQuote: saveQuote, newQuoteNo: newQuoteNo, quoteTotals: quoteTotals, quoteStatus: quoteStatus, canSeeQuote: canSeeQuote, canEditQuote: canEditQuote, newDraftKey: newDraftKey, addNote: addNote, deleteDraft: deleteDraft, flash: flash,
+    allQuotes: allQuotes, findQuote: findQuote, saveQuote: saveQuote, newQuoteNo: newQuoteNo, quoteTotals: quoteTotals, quoteStatus: quoteStatus, quoteLineOverCap: quoteLineOverCap, quoteOverCap: quoteOverCap, canSeeQuote: canSeeQuote, canEditQuote: canEditQuote, newDraftKey: newDraftKey, addNote: addNote, deleteDraft: deleteDraft, flash: flash,
     // 관리자 설정 (SCR-51~58)
     adminSave: adminSave, adminLog: adminLog, assigneeOf: assigneeOf, delegationState: delegationState, activeDelegation: activeDelegation,
     isMyStep: isMyStep, canTake: canTake, isLead: isLead, areaQueue: areaQueue, codeList: codeList,

@@ -23,6 +23,10 @@
 .product-foot .price-info { flex: 1 1 auto; min-width: 0; }
 .product-foot [data-act="remove"] { margin-left: auto; } /* 줄이 넘어가도 이 제품 삭제는 오른쪽 끝 */
 .product-list .field-error { margin-top: 0.8rem; }
+/* 간접 계약의 사용 업체 (v0.62, 표준 대응표 G-19): 칸 아래에 "아직 정해지지 않음", 고르면 칸 대신 까닭 */
+.org-pending { margin-top: 0.4rem; }
+.org-why { display: grid; gap: 0.4rem; margin-top: 0.4rem; }
+.org-why .field-label { margin-bottom: 0; }
 /* 제품 추가: 제품 상자와 같은 너비로 한 줄 전체, 보조 버튼 색과 + 아이콘으로 눈에 띄게 (v0.57 기획자 요청) */
 .btn--add { width: 100%; margin-top: 1.2rem; }
 

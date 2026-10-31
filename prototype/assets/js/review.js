@@ -90,8 +90,17 @@
       const p = PRICE[r.feature];
       const std = p.listPrice * r.qty;
       // 할인율은 부호 그대로: 표준보다 높게 받으면 음수 (v0.58 QA: 예전에는 "표준 단가"로 보였음)
-      return { product: p, qty: r.qty, amount: r.amount, std: std, discount: (std - r.amount) / std };
+      return { product: p, qty: r.qty, amount: r.amount, std: std, discount: (std - r.amount) / std, org: orgText(r) };
     });
+  }
+  // 줄의 사용 업체 (v0.62, 표준 대응표 G-19): 적은 기관, 또는 "정해지지 않음(까닭)". 간접인데 둘 다 없으면 그렇게 적음
+  function orgText(r) {
+    if (r.org) return '사용 업체: ' + r.org;
+    if (r.orgPending) {
+      const why = D.END_USER_PENDING.filter(function (x) { return x.code === r.orgPending; })[0];
+      return '사용 업체 정해지지 않음(' + (r.orgPending === 'OTHER' && r.orgNote ? r.orgNote : why ? why.label : r.orgPending) + ')';
+    }
+    return detail.method === 'INDIRECT' ? '사용 업체 적지 않음' : '';
   }
   /* 첨부 파일과 판(버전) 관리 (데이터 정의서 attachment, v0.53 기획자 요청 REQ-REV-13). 예시 이름은 고객사 이름으로 만듦
    *   - 계약서 초안과 조항 대비표: 차수마다 새 판(1차 기안 = 판 1, 반려 뒤 2차 기안 = 다음 판, 보완 완료로 다시 올려도 다음 판)
@@ -366,11 +375,12 @@
     // (한도를 지켰는지는 체크리스트 3번에서 봄). 금액에는 원을 붙임 (REQ-UI-17)
     $('#amount').innerHTML =
       '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
-        '<caption class="sr-only">제품별 금액: 제품과 기능(단위), 수량, 표준 금액, 계약 금액, 할인율</caption>' +
+        '<caption class="sr-only">제품별 금액: 제품과 기능(단위, 사용 업체), 수량, 표준 금액, 계약 금액, 할인율</caption>' +
         '<thead><tr><th scope="col">제품과 기능</th><th scope="col" class="num">수량</th><th scope="col" class="num">표준 금액</th><th scope="col" class="num">계약 금액</th><th scope="col" class="num">할인율</th></tr></thead>' +
         '<tbody>' + rows.map(function (r) {
           // "프리즘 결함검사" 아래에 단위(예: 기관, 1년). v0.49에 플랜을 없애 플랜 이름 대신 단위
-          return '<tr><td>' + esc(C.featureLabel(r.product)) + '<span class="product-unit">' + esc(r.product.unit) + '</span></td><td class="num">' + num(r.qty) + '</td><td class="num">' + won(r.std) + '</td>' +
+          return '<tr><td>' + esc(C.featureLabel(r.product)) + '<span class="product-unit">' + esc(r.product.unit) + '</span>' +
+            (r.org ? '<span class="product-unit product-org">' + esc(r.org) + '</span>' : '') + '</td><td class="num">' + num(r.qty) + '</td><td class="num">' + won(r.std) + '</td>' +
             '<td class="num">' + won(r.amount) + '</td><td class="num">' + (Math.abs(r.discount) < 1e-9 ? '표준 단가' : r.discount < 0 ? pct(-r.discount) + ' 높음' : pct(r.discount) + ' 할인') + '</td></tr>';
         }).join('') + '</tbody>' +
         '<tfoot><tr><th scope="row">총액 (부가세 별도)</th><td></td><td class="num total">' + won(stdTotal) + '</td>' +

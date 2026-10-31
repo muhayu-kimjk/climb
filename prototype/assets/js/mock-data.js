@@ -131,6 +131,13 @@ window.CLIMB_DATA = (function () {
   /* ---------- 계약 등록(SCR-11) 선택지 (요구사항 정의서 3.4) ---------- */
   const METHODS = { DIRECT: '직접', PROCURE: '조달', INDIRECT: '간접' };      // C-10 확정. v0.34: 리셀러 → 간접, 계약 유형을 합침
   const SETTLEMENTS = { LUMP: '일시', SPLIT: '분할', POST: '후불' };          // C-10 확정
+  // 간접 계약에서 사용 업체를 아직 모를 때 고르는 까닭 (v0.62, 표준 대응표 G-19, 데이터 정의서 CODE-END-USER-PENDING) [가정]
+  //   총판 재고나 최소 구매 약정은 체결 때 쓸 기관이 정해지지 않음. OTHER는 까닭을 직접 적음
+  const END_USER_PENDING = [
+    { code: 'STOCK', label: '총판 재고 공급' },
+    { code: 'MIN_PURCHASE', label: '최소 구매 약정' },
+    { code: 'OTHER', label: '그 밖의 까닭' },
+  ];
 
   /* ---------- 서비스 [가정] ----------
    * 계약명은 따로 두지 않고, 계약은 고객사와 서비스로 구분합니다. (v0.12 확정)
@@ -512,7 +519,8 @@ window.CLIMB_DATA = (function () {
         { kind: 'USER', userId: 'u_exec', deptAtGrant: '비즈니스유닛', by: 'u_admin', at: '2026-10-18 10:05', reason: '할인 폭이 커서 영업 임원이 결재 전에 내용을 확인' },
       ],
       checklist: { standard: 'NO', standardNote: '리셀러 표준계약서 없음', price: 'NO', priceNote: '총판 공급가', cap: 'NO', capNote: '총판 마진 보장으로 21.9% 할인' },
-      products: [{ feature: 'CK_CAMPUS_PLAG', qty: 16, amount: 150000000 }],
+      // 간접 계약의 사용 업체 미정 예시 (v0.62, G-19): 총판 재고라 체결 때 쓸 기관을 모름
+      products: [{ feature: 'CK_CAMPUS_PLAG', qty: 16, amount: 150000000, orgPending: 'STOCK' }],
       memo: '총판 계약이라 열람 제한을 걸었습니다.',
       history: [],
     },
@@ -672,6 +680,9 @@ window.CLIMB_DATA = (function () {
       status: 'ACTIVE', approvedAt: '2026-02-16 15:00', autoHistory: true, startDate: '2026-03-01', endDate: '2028-02-29',
       // 할인율 한도를 넘어 ③ 영업 검토를 거친 예시 (v0.53)
       checklist: { standard: 'NO', price: 'NO', priceNote: '총판 공급가로 계약', cap: 'NO', capNote: '총판 공급가 30% 할인(한도 20%), 2년 최소 구매 약정 조건' },
+      // 제품 줄과 사용 업체 (v0.62, G-19): 한 줄은 쓸 기관이 정해졌고, 한 줄은 최소 구매 약정이라 미정
+      products: [{ feature: 'CK_CAMPUS_PLAG', qty: 10, amount: 84000000, org: '누리솔대학교' },
+        { feature: 'CK_CAMPUS_USER', qty: 30, amount: 36000000, orgPending: 'MIN_PURCHASE' }],
     },
     {
       id: '2604CL001', counterparty: '이음병원', sla: 'YES', services: ['HR'], type: 'SaaS 이용계약', kind: 'NEW',
@@ -1072,6 +1083,17 @@ window.CLIMB_DATA = (function () {
           '체결본 확인(⑧)에서 반려해 다시 기안해도 앞 차수에 올린 체결본이 첨부 파일에 이전 판으로 남습니다.',
           '계약 상세와 계약 요약서의 체결본 목록에도 차수와 "확인한 체결본", 바뀐 까닭(다시 등록 요청, ⑧ 반려)을 적습니다.'],
       } },
+    // v0.13.2 (요구사항 정의서 v0.62, 통제와 표준 대응표 G-19, G-01 남은 것): 간접 계약의 사용 업체, 한도 넘은 견적 보기
+    { id: 'N-0029', kind: 'RELEASE', version: 'v0.13.2', title: '간접 계약 사용 업체', at: '2026-10-31 21:00', by: 'u_super',
+      items: {
+        added: ['간접 계약은 제품마다 실제로 쓰는 기관(사용 업체)을 적습니다. 총판 재고처럼 아직 모르면 "아직 정해지지 않음"과 까닭을 고릅니다.',
+          '견적 목록에서 할인율 한도를 넘는 줄이 있는 견적만 골라 볼 수 있습니다.',
+          '통계와 보고서의 체크리스트 예외에 견적서의 한도 넘음 비율과, 계약 방식과 거래처마다 가격 예외 표를 더했습니다.'],
+        improved: ['결재 문서의 제품과 금액 표에 제품마다 사용 업체를 보입니다.',
+          '이용 안내의 거래 윤리에 간접 계약의 사용 업체와 경쟁사와의 관계를 더했습니다(초안).'],
+        fixed: ['체결본 확인(⑧)에서 반려된 계약을 보완 후 재기안할 때, 다시 채울 값이 없으면 계약 기록에 있는 값(계약 방식, 기간 등)으로 채워 엽니다.',
+          '검토 대기에서 볼 수 없는 열람 제한 계약은 서비스 칸도 가리고, 서비스로 걸러도 나오지 않습니다.'],
+      } },
   ];
 
   /* ---------- 이메일 알림 (내 계정 SCR-93, v0.45 기획자 요청. 보내는 때는 요구사항 정의서 REQ-ENV-10) ----------
@@ -1429,7 +1451,7 @@ window.CLIMB_DATA = (function () {
       doneBy: 'u_privacy', doneAt: '2026-10-09 14:00', action: '본인에게 확인: 회사가 새로 지급한 노트북. 이상 없음' },
   ];
 
-  return { TODAY, BRAND, ROLES, ROLE_AREAS, ROLE_SHORT, ROLE_AREA, ROLE_BASE, STEP_LEADS, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, METHODS, SETTLEMENTS, PRICE_BOOK, STEPS, REVIEW_GROUPS, POST_GROUPS, PROCESS_ROLES, STEP_ASSIGNEE, APPROVAL_STATE, APPROVAL_ACTIONS, SEAL_CHECKS, SIDE_DEAL_CHECK, SIGNED_CHECKS, SIGNED_MISMATCH, OPS_CHECKS, OPS_CHECKS_END, OPS_CHECKS_EXTEND, AFTERCARE_TYPES, FILE_KINDS, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS,
+  return { TODAY, BRAND, ROLES, ROLE_AREAS, ROLE_SHORT, ROLE_AREA, ROLE_BASE, STEP_LEADS, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, METHODS, SETTLEMENTS, END_USER_PENDING, PRICE_BOOK, STEPS, REVIEW_GROUPS, POST_GROUPS, PROCESS_ROLES, STEP_ASSIGNEE, APPROVAL_STATE, APPROVAL_ACTIONS, SEAL_CHECKS, SIDE_DEAL_CHECK, SIGNED_CHECKS, SIGNED_MISMATCH, OPS_CHECKS, OPS_CHECKS_END, OPS_CHECKS_EXTEND, AFTERCARE_TYPES, FILE_KINDS, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS,
     CHANGE_TYPES, CHANGE_RULES, OPS_CHECKS_PERIOD, TEAM_LEADERS,
     PRODUCTS, FEATURES, TEMPLATES, PRICE_ROWS, currentPrices, CUSTOMERS, QUOTE_RULES, QUOTE_SUPPLIER, QUOTES, BIZ_REGISTRY, BIZ_REGISTRY_INFO, NTS_STATUS, CODE_GROUPS, CODES, DELEGATIONS, ASSIGNEE_CHANGES, ADMIN_LOG, RESTRICT_LOG,
     LOG_REVIEWS, ACCESS_REVIEWS, SEC_ALERT_KINDS, SEC_ALERTS, NOTICE_KINDS, RELEASE_PARTS, NOTICES, EMAIL_TYPES,

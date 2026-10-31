@@ -127,8 +127,20 @@
 
         <section class="panel" aria-labelledby="sec-check">
           <div class="panel-head"><h2 class="panel-title" id="sec-check">체크리스트 예외</h2></div>
-          <p class="panel-desc">체결한 계약 가운데 계약 등록 체크리스트에서 "아니요"(기준과 다름)로 답한 계약의 비율입니다.</p>
+          <p class="panel-desc">체결한 계약 가운데 계약 등록 체크리스트에서 "아니요"(기준과 다름)로 답한 계약의 비율입니다.<span id="check-quote-desc" hidden> 맨 아래는 계약이 아니라 견적서로, 출력한 견적 가운데 할인율 한도를 넘는 줄이 있는 견적의 비율입니다.</span></p>
           <div class="meter-list" id="check-meters"></div>
+          <!-- 계약 방식과 거래처마다 2, 3번 예외 (v0.62, 표준 대응표 G-19). 그래프가 없는 표라 인쇄할 때도 펼쳐 찍음(chart-table--print) -->
+          <details class="chart-table chart-table--print" id="check-split">
+            <summary>계약 방식과 거래처마다 보기</summary>
+            <div class="tbl-scroll" tabindex="0" role="region" aria-label="계약 방식과 거래처마다 가격 예외 표">
+              <table class="tbl tbl--compact">
+                <caption class="sr-only">계약 방식과 거래처마다 가격 예외: 나눈 기준, 이름, 체결 건수, 2번 표준단가표와 다름, 3번 할인율 한도를 넘음</caption>
+                <thead><tr><th scope="col">나눈 기준</th><th scope="col">이름</th><th scope="col" class="num">체결</th><th scope="col" class="num">2번 아니요</th><th scope="col" class="num">3번 아니요</th></tr></thead>
+                <tbody id="check-split-rows"></tbody>
+              </table>
+            </div>
+            <p class="panel-desc" id="check-split-more" hidden></p>
+          </details>
         </section>
 
         <!-- 6. 체결본 확인 반려 항목 (v0.61, 통제와 표준 대응표 G-06): ⑧에서 반려할 때 고른 어긋난 항목 -->

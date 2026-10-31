@@ -8,6 +8,7 @@
  *   1. 영업만 쓸 수 있게 막기
  *   2. 이어서 작성(임시 저장 건), 보완 후 재기안(반려 건)일 때 값 미리 채우기
  *   3. 제품별 금액 줄 추가, 삭제와 총액, 연도별 금액 계산 (v0.56: 줄마다 서비스 → 제품 → 기능)
+ *      (v0.62, REQ-REG-24, 표준 대응표 G-19) 간접이면 줄마다 사용 업체 필수, 모르면 "아직 정해지지 않음"과 까닭
  *   4. 체크리스트 2, 3번 자동 계산과 결재선 표시
  *   5. 필수 항목 검사(오류 요약 + 항목별 오류), 기안 확인 창
  *   7. 임시 저장과 기안: 계약 기록으로 저장하고 결재 문서로 감 (v0.58 QA: 예전에는 안내만 하고 저장하지 않았음)
@@ -293,15 +294,60 @@
         '<div class="field"><label class="field-label field-label--sm" for="p-amt-' + n + '">계약 금액</label>' +
           '<div class="input-unit"><input class="input" id="p-amt-' + n + '" data-k="amount" inputmode="numeric" value="' + fmtNum(data.amount != null ? data.amount : null) + '"><span class="unit">원</span></div></div>' +
       '</div>' +
-      '<div class="field"><label class="field-label field-label--sm" for="p-org-' + n + '">사용 업체 <span class="opt">(선택, 계약 상대방과 다를 때만)</span></label>' +
-        '<input class="input" id="p-org-' + n + '" data-k="org" value="' + esc(data.org || '') + '"></div>' +
+      // 사용 업체: 직접, 조달은 선택. 간접은 필수이고, 아직 모르면 "정해지지 않음"과 까닭을 고름 (v0.62, 표준 대응표 G-19). syncOrg()가 바꿈
+      '<div class="field org-field"><label class="field-label field-label--sm" for="p-org-' + n + '">사용 업체<span class="req" aria-hidden="true" hidden>*</span>' +
+          '<span class="sr-only org-sr" hidden>(필수)</span> <span class="opt">(선택, 계약 상대방과 다를 때만)</span></label>' +
+        '<input class="input" id="p-org-' + n + '" data-k="org" aria-describedby="p-org-err-' + n + '" value="' + esc(data.org || '') + '">' +
+        '<div class="org-pending" hidden>' +
+          // 칸이 숨어도 무엇을 정하지 않았는지 화면낭독기가 알게 "사용 업체"를 붙여 읽힘
+          '<label class="choice"><input type="checkbox" data-k="orgPending" aria-describedby="p-org-err-' + n + '"' + (data.orgPending ? ' checked' : '') + '><span class="sr-only">사용 업체 </span>아직 정해지지 않음</label>' +
+          '<div class="org-why" hidden>' +
+            '<label class="field-label field-label--sm" for="p-why-' + n + '">정해지지 않은 까닭</label>' +
+            '<select class="select" id="p-why-' + n + '" data-k="orgWhy" aria-describedby="p-org-err-' + n + '">' + optionsHtml(D.END_USER_PENDING.map(function (x) { return [x.code, x.label]; }), typeof data.orgPending === 'string' ? data.orgPending : '', '고르세요') + '</select>' +
+            '<input class="input org-note" id="p-note-' + n + '" data-k="orgNote" maxlength="60" aria-label="그 밖의 까닭" aria-describedby="p-org-err-' + n + '" placeholder="까닭을 적으세요" value="' + esc(data.orgNote || '') + '" hidden>' +
+          '</div></div>' +
+        // 사용 업체 오류는 이 칸 아래에 따로 (제품 줄의 다른 오류와 함께 보이게, 검토에서 고침)
+        '<p class="field-error" id="p-org-err-' + n + '" hidden></p></div>' +
       '<div class="product-foot"><span class="price-info"></span><span class="price-badge"></span>' +
         '<button type="button" class="btn-text" data-act="remove">이 제품 삭제</button></div>' +
       '<p class="field-error" hidden></p>';
     $('#product-list').appendChild(li);
     syncPick(li, data.feature);
+    syncOrg(li);
     refresh();
     return li;
+  }
+  // 간접이면 사용 업체 필수, "아직 정해지지 않음"을 고르면 칸 대신 까닭, 까닭이 "그 밖의 까닭"이면 직접 적음 (v0.62, G-19)
+  function syncOrg(li) {
+    const indirect = val('method') === 'INDIRECT';
+    C.setFieldError(li.querySelector('.org-field'), ''); // 방식이나 미정을 바꾸면 앞의 사용 업체 오류는 맞지 않으므로 지움
+    const pending = indirect && li.querySelector('[data-k="orgPending"]').checked;
+    li.querySelector('.org-field .req').hidden = !indirect;
+    li.querySelector('.org-sr').hidden = !indirect;
+    li.querySelector('.org-field .opt').hidden = indirect;
+    li.querySelector('.org-pending').hidden = !indirect;
+    li.querySelector('.org-why').hidden = !pending;
+    li.querySelector('[data-k="org"]').hidden = pending;
+    li.querySelector('[data-k="orgNote"]').hidden = !(pending && li.querySelector('[data-k="orgWhy"]').value === 'OTHER');
+  }
+  function syncOrgAll() {
+    $$('#product-list > li').forEach(syncOrg);
+    const indirect = val('method') === 'INDIRECT';
+    $('#method-help').hidden = !indirect;
+    // 간접일 때만 계약 방식 단추에 안내를 이어 화면낭독기가 읽게 함
+    $$('[name="method"]', form).forEach(function (r) {
+      if (indirect) r.setAttribute('aria-describedby', 'method-help'); else r.removeAttribute('aria-describedby');
+    });
+  }
+  // 줄의 사용 업체 값. "정해지지 않음"은 간접일 때만 셈: 까닭 코드, 까닭을 아직 안 골랐으면 true
+  function orgOf(li) {
+    const pending = val('method') === 'INDIRECT' && li.querySelector('[data-k="orgPending"]').checked;
+    const why = li.querySelector('[data-k="orgWhy"]').value;
+    return {
+      org: pending ? '' : li.querySelector('[data-k="org"]').value.trim(),
+      orgPending: pending ? (why || true) : null,
+      orgNote: pending && why === 'OTHER' ? li.querySelector('[data-k="orgNote"]').value.trim() : '',
+    };
   }
   $('#btn-add-product').insertAdjacentHTML('afterbegin', C.icon('plus')); // + 아이콘 (v0.57)
   $('#btn-add-product').addEventListener('click', function () { addProduct().querySelector('select').focus(); });
@@ -311,6 +357,7 @@
   // 서비스나 제품을 바꾸면 다음 칸을 다시 채움, 기능을 바꾸면 수량 단위를 맞춤 (폼 전체의 change보다 먼저 돌아 계산에 새 기능이 쓰임)
   $('#product-list').addEventListener('change', function (e) {
     if (e.target.matches('[data-k="service"], [data-k="product"], [data-k="feature"]')) syncPick(e.target.closest('li'));
+    if (e.target.matches('[data-k="orgPending"], [data-k="orgWhy"]')) syncOrg(e.target.closest('li'));
   });
   // 금액 칸은 입력하는 동안 숫자만 남기고, 칸을 벗어나면 쉼표를 붙임
   form.addEventListener('focusout', function (e) {
@@ -545,6 +592,7 @@
     if (e.target.name === 'kind') onKindChange();
     if (e.target.id === 'f-origin') onOriginChange();
     if (e.target.name === 'autoRenew') $('#notice-days-field').hidden = val('autoRenew') !== 'YES';
+    if (e.target.name === 'method') syncOrgAll();
     refresh();
   });
 
@@ -639,7 +687,7 @@
     return focusEl || box.querySelector('input:not([type=hidden]), select, textarea');
   }
   function clearError(el) {
-    const box = el && el.closest && el.closest('[data-field], .product-item');
+    const box = el && el.closest && (el.closest('.org-field.is-invalid') || el.closest('[data-field], .product-item'));
     if (!box || !box.classList.contains('is-invalid')) return;
     C.setFieldError(box, '');
   }
@@ -702,6 +750,19 @@
         : ['service', 'product', 'feature'].map(function (k) { return r.li.querySelector('[data-k="' + k + '"]'); }).filter(function (s) { return !s.value; })[0];
       errors.push({ msg: msg, target: !r.product ? empty : (!r.qty ? r.li.querySelector('[data-k="qty"]') : r.li.querySelector('[data-k="amount"]')) });
     });
+    // 간접 계약은 줄마다 사용 업체, 모르면 까닭 (v0.62, 표준 대응표 G-19)
+    if (val('method') === 'INDIRECT') {
+      rows.forEach(function (r, i) {
+        const o = orgOf(r.li);
+        let msg = '', target = null;
+        if (!o.org && !o.orgPending) { msg = (i + 1) + '번째 줄의 사용 업체를 적으세요. 아직 모르면 "아직 정해지지 않음"과 까닭을 고릅니다.'; target = r.li.querySelector('[data-k="org"]'); }
+        else if (o.orgPending === true) { msg = (i + 1) + '번째 줄의 사용 업체가 정해지지 않은 까닭을 고르세요.'; target = r.li.querySelector('[data-k="orgWhy"]'); }
+        else if (o.orgPending === 'OTHER' && !o.orgNote) { msg = (i + 1) + '번째 줄의 그 밖의 까닭을 적으세요.'; target = r.li.querySelector('[data-k="orgNote"]'); }
+        if (!msg) return;
+        C.setFieldError(r.li.querySelector('.org-field'), msg);
+        errors.push({ msg: msg, target: target });
+      });
+    }
     // 금전 거래가 있는 계약만 등록 (REQ-SCOPE-05, v0.58 QA: 금액을 모두 0으로 넣어도 기안되었음)
     if (rows.length && rows.every(function (r) { return r.product && r.qty && r.amount != null; })) {
       need(totalAmount() > 0, 'products', '계약 금액 총액이 0원입니다. 금전 거래가 있는 계약만 등록합니다.', rows[0].li.querySelector('[data-k="amount"]'));
@@ -753,8 +814,10 @@
     const services = [];
     rows.forEach(function (r) { const sv = r.product && r.product.service; if (sv && services.indexOf(sv) < 0) services.push(sv); });
     const products = rows.map(function (r) {
-      const org = r.li.querySelector('[data-k="org"]').value.trim();
-      return Object.assign({ feature: r.feature, qty: r.qty, amount: r.amount }, org ? { org: org } : {});
+      const o = orgOf(r.li);
+      // 까닭을 아직 안 고른 미정(true)은 임시 저장에서만 남음(기안은 validate가 막음). 이어서 작성하면 체크한 채로 열림
+      return Object.assign({ feature: r.feature, qty: r.qty, amount: r.amount }, o.org ? { org: o.org } : {},
+        o.orgPending ? { orgPending: o.orgPending } : {}, o.orgPending === 'OTHER' && o.orgNote ? { orgNote: o.orgNote } : {});
     });
     const checklist = {
       // 비고는 보이는 것만(적어야 할 때만) 저장
@@ -887,14 +950,18 @@
       $$('[name="kind"]', form).forEach(function (r) { r.disabled = true; });
     }
     pickCustomerByName(source.counterparty, f.bizNo, source.unit || f.unit);
-    $('#f-opportunity').value = f.opportunity || '';
+    // 다시 채울 값(form)이 없는 계약(예시 계약 등)은 계약 기록의 값으로 채움 (v0.62: ⑧ 반려 뒤 보완 후 재기안이 빈 칸으로 열렸음).
+    //   form이 있으면(임시 저장, 화면에서 기안한 것) 그 값만 씀: 비워 둔 칸을 다른 값으로 채우지 않음
+    const fb = source.form ? {} : source;
+    $('#f-opportunity').value = f.opportunity || fb.opportunity || '';
     updateOppLink();
-    setRadio('method', f.method === 'RESELLER' ? 'INDIRECT' : f.method);
-    $('#f-start').value = f.startDate || '';
-    $('#f-end').value = f.endDate || '';
-    setRadio('autoRenew', f.autoRenew);
-    $('#notice-days-field').hidden = f.autoRenew !== 'YES';
-    $('#f-notice-days').value = f.noticeDays || '';
+    setRadio('method', f.method ? (f.method === 'RESELLER' ? 'INDIRECT' : f.method) : source.form ? '' : C.methodOf(source));
+    $('#f-start').value = f.startDate || fb.startDate || '';
+    $('#f-end').value = f.endDate || fb.endDate || '';
+    const autoRenew = f.autoRenew || fb.autoRenew;
+    setRadio('autoRenew', autoRenew);
+    $('#notice-days-field').hidden = autoRenew !== 'YES';
+    $('#f-notice-days').value = f.noticeDays || fb.noticeDays || '';
     setRadio('personalData', source.personalData ? 'YES' : 'NO');
     if (source.sla || f.sla) setRadio('sla', source.sla || f.sla); // 서비스 수준 협약 (v0.40)
     $('#f-restricted').checked = !!source.restricted;
@@ -906,8 +973,8 @@
     const tp = source.template || f.template; // 기준 표준계약서 (v0.53)
     if (tp) $('#f-template').value = tp.id;
     setRadio('ledger', f.ledger); $('#f-tax').value = f.taxInvoice || ''; $('#f-purchase').value = f.purchase || '';
-    $('#f-memo').value = f.memo || '';
-    (f.products || []).forEach(function (p) { addProduct(p); });
+    $('#f-memo').value = f.memo || fb.memo || '';
+    (f.products || fb.products || []).forEach(function (p) { addProduct(p); });
     // 첨부: 저장해 둔 파일 이름. 예시 반려 건처럼 없으면 계약서 초안(과 조항 대비표)을 예로 채움
     const saved = source.files || [];
     [['draft', 'DRAFT_DOC'], ['diff', 'CLAUSE_DIFF'], ['annex', 'ANNEX'], ['quote', 'QUOTE']].forEach(function (k) {
@@ -925,6 +992,7 @@
     if (origins.some(function (c) { return c.id === pre.get('origin'); })) $('#f-origin').value = pre.get('origin');
   }
   if (!$$('#product-list > li').length) addProduct();
+  syncOrgAll();
   onKindChange();
   refresh();
   // 연도별 금액은 기간으로 칸이 생긴 뒤에 채움

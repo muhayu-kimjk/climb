@@ -44,7 +44,7 @@
   const featureOf = function (id) { return D.FEATURES.filter(function (f) { return f.id === id; })[0] || null; };
   const productOf = function (id) { return D.PRODUCTS.filter(function (p) { return p.id === id; })[0] || null; };
   const sold = function (fid) { const f = featureOf(fid); return !!f && f.use && !!PRICE[fid]; }; // 지금 파는 기능(가격 기준이 있고 사용 중)
-  function overCap(l) { return !!l.listPrice && l.cap != null && 1 - (Number(l.unitPrice) || 0) / l.listPrice > l.cap + 1e-9; }
+  const overCap = C.quoteLineOverCap; // 할인율 한도를 넘는 줄(견적 목록, 통계와 같은 규칙, v0.62에 common.js로 옮김)
 
   /* ---------- 출력할 수 있는 견적인지(받는 곳, 제품 줄, 날짜). 고치기 화면의 검사와 보기 화면의 출력 단추가 함께 씀 ---------- */
   function problems(q) {

@@ -54,7 +54,8 @@
       // 볼 수 없는 계약은 고객사 이름이나 계약번호로 찾을 수 없게 함
       if (q && (!C.canView(x.c, me) || (x.c.counterparty.toLowerCase().indexOf(q) < 0 && String(x.c.id).toLowerCase().indexOf(q) < 0))) return false;
       if (step && x.s.step !== step) return false;
-      if (service && (x.c.services || []).indexOf(service) < 0) return false;
+      // 서비스로 거를 때도 볼 수 없는 계약은 빼서, 거른 결과로 서비스가 드러나지 않게 함 (v0.62, 통제 목록 06 확인에서 찾음)
+      if (service && (!C.canView(x.c, me) || (x.c.services || []).indexOf(service) < 0)) return false;
       if (wait === 'LONG' && x.wait < LONG) return false;
       return true;
     });
@@ -80,7 +81,7 @@
           ? '<td><a class="cell-title" href="review.html?id=' + encodeURIComponent(x.c.id) + '">' + esc(x.c.counterparty) + '</a>' +
             '<span class="cell-sub">' + service + '</span><span class="cell-meta">' + esc(x.c.id) + (x.c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span></td>'
           : '<td><span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span></td>') +
-        '<td class="col-service">' + service + '</td>' +
+        '<td class="col-service">' + (C.canView(x.c, me) ? service : '-') + '</td>' + // 가린 줄은 서비스도 가림 (v0.62)
         '<td class="nowrap">' + esc(C.stepLabel(x.s.step, x.c)) + (together ? '<span class="cell-meta">동시: ' + esc(together) + '</span>' : '') +
           // 대리 지정으로 내 차례가 된 건 (REQ-REV-08)
           (!showWho && x.s.userId !== me.id ? '<span class="cell-meta">' + esc(C.ownerLabel(x.s.userId)) + ' 대신 (대리 지정)</span>' : '') + '</td>' +

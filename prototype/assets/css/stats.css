@@ -101,6 +101,9 @@
 /* ---------- 인쇄: A4 보고서 ---------- */
 @media print {
   .stats-cond { display: block; margin-bottom: 1.6rem; font-size: var(--fs-body-small); color: var(--text-basic); }
-  .filter-bar--stats, .chart-table, .chart-tip { display: none !important; }
+  .filter-bar--stats, .chart-table:not(.chart-table--print), .chart-tip { display: none !important; }
+  /* 그래프가 없는 표(계약 방식과 거래처마다, v0.62)는 인쇄 때 stats.js가 펼치고 "보기" 글자만 숨김 */
+  .chart-table--print summary { display: none; }
+  .chart-table--print::details-content { content-visibility: visible; } /* 브라우저 인쇄 미리 보기처럼 beforeprint가 없는 경우에도 펼쳐 찍음 */
   .panel { break-inside: avoid; }
 }
