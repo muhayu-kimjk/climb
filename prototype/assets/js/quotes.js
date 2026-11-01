@@ -35,7 +35,7 @@
   const STATUS = [['', '전체'], ['DRAFT', '작성 중'], ['ISSUED', '출력함'], ['EXPIRED', '기간 지남'], ['SUPERSEDED', '새 판으로 바뀜']];
   $('#f-status').innerHTML = STATUS.map(function (s) { return '<option value="' + s[0] + '">' + s[1] + '</option>'; }).join('');
   $('#thead').innerHTML = '<tr><th scope="col">고객사</th><th scope="col" class="num">합계</th><th scope="col">상태</th>' +
-    '<th scope="col">견적일</th><th scope="col">유효기간</th>' + (seeOthers ? '<th scope="col">작성</th>' : '') + '<th scope="col">출력</th></tr>';
+    '<th scope="col">견적일</th><th scope="col">유효기간</th>' + (seeOthers ? '<th scope="col" class="col-phone-mid">작성</th>' : '') + '<th scope="col">출력</th></tr>';
 
   let page = 1;
   function filtered() {
@@ -55,7 +55,7 @@
     const from = (page - 1) * PAGE_SIZE, rows = list.slice(from, from + PAGE_SIZE);
     const count = function (code) { return list.filter(function (x) { return C.quoteStatus(x).code === code; }).length; };
     $('#list-count').innerHTML = C.meta([[(list.length !== all.length ? '검색 결과' : '전체'), '<strong>' + list.length + '건</strong>'],
-      ['작성 중', count('DRAFT') + '건'], ['출력함', count('ISSUED') + '건'], ['기간 지남', count('EXPIRED') + '건'],
+      ['작성 중', count('DRAFT') + '건'], ['출력함', count('ISSUED') + '건'], ['기간 지남', count('EXPIRED') + '건'], ['새 판으로 바뀜', count('SUPERSEDED') + '건'],
       ['한도 넘음', list.filter(C.quoteOverCap).length + '건']]);
     const cols = seeOthers ? 7 : 6;
     $('#rows').innerHTML = rows.length ? rows.map(function (x) {
@@ -63,7 +63,7 @@
       const href = 'quote.html?no=' + encodeURIComponent(x.no) + '&ver=' + x.ver;
       return '<tr>' +
         '<td><a class="cell-title" href="' + href + '">' + esc(x.name) + (x.unit ? ' ' + esc(x.unit) : '') + '</a>' +
-          '<span class="cell-meta"><span class="nowrap">' + esc(x.no) + '</span> ' + x.ver + '판' + (x.opp ? ' <span class="nowrap">' + esc(x.opp) + '</span>' : '') + '</span></td>' +
+          '<span class="cell-meta"><span class="nowrap">' + esc(x.no) + '</span> ' + x.ver + '판' + (x.opp ? ', 영업기회번호 <span class="nowrap">' + esc(x.opp) + '</span>' : '') + '</span></td>' +
         '<td class="num">' + C.fmtWon(t.total) + (C.quoteOverCap(x) ? '<span class="cell-meta">한도 넘음</span>' : '') + '</td>' +
         '<td class="nowrap">' + C.badge(st.tone, st.label) + '</td>' +
         '<td class="num-left">' + C.fmtDate(x.date) + '</td>' +

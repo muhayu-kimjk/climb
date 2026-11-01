@@ -51,10 +51,10 @@
   function render() {
     const prefs = C.mailPrefs(me.id);
     $('#mail-list').innerHTML = D.EMAIL_TYPES.map(function (t) {
-      const own = mine(t);
+      const own = mine(t); // 내 역할에 오지 않는 알림은 체크하지 않은 채 잠금 (첫 사용 점검: 체크돼 있으면 받는 알림으로 읽혔음)
       const state = !own ? C.badge('line', '내 역할에는 오지 않음') : t.must ? C.badge('neutral', '꼭 받음') : prefs[t.code] ? C.badge('success', '받음') : C.badge('line', '받지 않음');
       return '<li class="' + (own ? '' : 'is-not-mine') + '">' +
-        '<label class="choice"><input type="checkbox" name="' + t.code + '"' + (prefs[t.code] ? ' checked' : '') +
+        '<label class="choice"><input type="checkbox" name="' + t.code + '"' + (own && prefs[t.code] ? ' checked' : '') +
           (t.must || !own ? ' disabled' : '') + ' aria-describedby="mail-when-' + t.code + '"><span class="mail-name">' + esc(t.name) + '</span></label>' +
         '<span class="mail-state" id="mail-state-' + t.code + '">' + state + '</span>' +
         '<p class="mail-when" id="mail-when-' + t.code + '">' + esc(whenText(t)) + '</p>' +
@@ -85,7 +85,7 @@
           return '<tr><th scope="row">' + esc(f[0]) + '</th><td>' + esc(person(f[1])) + '</td></tr>';
         }).join('') + '</tbody></table>' +
         '<p class="mail-cta"><a class="btn btn--primary btn--md" href="' + esc(s.button[1]) + '">' + esc(s.button[0]) + '</a></p>' +
-        '<p class="mail-note">' + (t.must ? '업무 처리와 내부 통제에 필요한 알림이라 끌 수 없습니다.' : '이 알림은 시스템의 내 계정, 받을 이메일에서 끌 수 있습니다.') +
+        '<p class="mail-note">' + (t.must ? '업무 처리와 내부 통제에 필요한 알림이라 끌 수 없습니다.' : '이 알림은 시스템에 들어가 내 계정의 받을 이메일에서 끌 수 있습니다.') +
           ' 이 메일은 보내기 전용이라 답장을 받지 않습니다. 계약 금액과 첨부 파일은 메일에 넣지 않으니 시스템에서 확인해 주세요.</p>' +
       '</div>';
   }

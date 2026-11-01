@@ -5,7 +5,7 @@
  *               REQ-AUTH-10(설정, 해제 이력: 누가, 언제, 사유), REQ-AUTH-20(지정 열람자, v0.52 기획자 결정)
  * 하는 일
  *   1. 열람 제한 계약 목록: 고객사(계약번호, 서비스), 지정 열람자(빼기, 맨 아래 열람자 더하기), 상태, 영업대표, 건 때, 관리(풀기)
- *   2. 열람 제한 걸기: 계약번호가 있는 계약 중 제한이 없는 것을 골라 사유와 함께 검
+ *   2. 열람 제한 걸기: 계약번호가 있는 원계약 중 제한이 없는 것을 골라 사유와 함께 검(그 뒤의 변경, 연장, 해지, 운영 변경까지 묶음 전체. 풀 때도 묶음 전체. v0.63 점검)
  *   3. 지정 열람자(v0.52): 기본으로 보는 사람(요청자, 결재선과 단계 담당자, 관리자) 밖에 더 볼 조직이나 사람
  *      - 조직이 기본(인사이동이 저절로 반영), 사람은 예외. 사람은 조직이 바뀌면 지정이 저절로 풀리고 관리자에게 이메일
  *      - 지정하고 빼는 것은 관리자만, 사유 필수. 지정되면 그 사람(조직이면 그 조직 사람 모두)에게 이메일
@@ -95,13 +95,14 @@
     $('#history').innerHTML = C.adminHistoryHtml(events(), '열람 제한 변경 이력');
   }
 
+  // 열람 제한은 묶음 전체에 걸고 풂(REQ-AUTH-09 v0.58): 걸 때는 원계약만 고르고, 풀 때는 원계약 번호로 보냄 (v0.63 점검에서 고침)
   function openAdd() {
-    const opts = D.CONTRACTS.filter(function (c) { return c.id && !c.restricted; })
+    const opts = D.CONTRACTS.filter(function (c) { return c.id && !c.parentId && !c.restricted; })
       .sort(function (a, b) { return b.id.localeCompare(a.id); })
       .map(function (c) { return [c.id, label(c) + ' (' + C.kindLabel(c) + ', ' + D.STATUS[c.status].label + ')']; });
     C.formModal({
       title: '열람 제한을 걸까요?',
-      desc: '걸면 요청자, 그 계약의 담당자, 관리자, 지정한 열람자만 볼 수 있고, 다른 사람에게는 목록에 "열람 제한 계약"으로만 보입니다.',
+      desc: '원계약을 고르면 그 뒤의 변경, 연장, 해지, 운영 변경 기안까지 묶음 전체에 걸립니다. 걸면 영업대표(요청자), 결재선과 단계 담당자, 관리자, 지정한 열람자만 볼 수 있고, 다른 사람에게는 목록에 "열람 제한 계약"으로만 보입니다.',
       body: C.fieldHtml({ name: 'cid', label: '계약', type: 'select', required: true, options: [['', '고르세요']].concat(opts) }) +
         C.fieldHtml({ name: 'reason', label: '거는 사유', type: 'textarea', required: true, placeholder: '예: 고객사가 계약 사실을 비공개로 해 달라고 요청' }),
       btn: '열람 제한 걸기',
@@ -117,10 +118,10 @@
     });
   }
   function openOff(id) {
-    const c = find(id);
+    const c = find(C.rootOf(find(id))) || find(id); // 후속 기안 줄에서 눌러도 원계약(묶음)으로 풂
     C.formModal({
       title: '열람 제한을 풀까요?',
-      desc: '풀면 로그인한 모든 사용자가 이 계약을 볼 수 있습니다.',
+      desc: '풀면 원계약과 그 뒤의 기안까지 묶음 전체를 로그인한 모든 사용자가 볼 수 있습니다.',
       body: '<p class="modal-info">' + esc(label(c)) + '</p>' +
         C.fieldHtml({ name: 'reason', label: '푸는 사유', type: 'textarea', required: true, placeholder: '예: 보도자료로 계약 사실이 공개됨' }),
       btn: '열람 제한 풀기', tone: 'danger',
@@ -185,7 +186,7 @@
     if (!v) return;
     C.formModal({
       title: '열람자에서 뺄까요?',
-      desc: '빼면 ' + (v.kind === 'DEPT' ? '그 조직 사람들은' : '그 사람은') + ' 기본으로 볼 수 있는 경우(요청자, 결재선과 단계 담당자, 관리자)가 아니면 이 계약 묶음을 볼 수 없습니다.',
+      desc: '빼면 ' + (v.kind === 'DEPT' ? '그 조직 사람들은' : '그 사람은') + ' 기본으로 볼 수 있는 경우(영업대표, 결재선과 단계 담당자, 관리자)가 아니면 이 계약 묶음을 볼 수 없습니다.',
       body: '<p class="modal-info">' + esc(label(root)) + ': ' + esc(C.viewerLabel(v)) + '(' + KIND[v.kind] + ')</p>' +
         C.fieldHtml({ name: 'reason', label: '빼는 사유', type: 'textarea', required: true, placeholder: '예: 매출 인식 검토가 끝남' }),
       btn: '열람자에서 빼기', tone: 'danger',

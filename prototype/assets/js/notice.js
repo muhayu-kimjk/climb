@@ -29,6 +29,9 @@
     }
     $('#post').hidden = false;
     $('#post-kind').textContent = D.NOTICE_KINDS[n.kind];
+    // 내리기 확인 문구: 릴리즈만 이용 안내의 최근 릴리즈에도 나오므로 종류마다 (v0.63 검토)
+    $('#hide-desc').textContent = (n.kind === 'RELEASE' ? '내리면 공지사항 목록과 이용 안내의 최근 릴리즈에서 보이지 않습니다.' : '내리면 공지사항 목록에서 보이지 않습니다.') +
+      ' 글은 지우지 않고 변경 이력에 남습니다.';
     $('#post-title').innerHTML = (n.important ? C.badge('danger', '중요') + ' ' : '') + (n.version ? '<span class="board-ver">' + esc(n.version) + '</span>' : '') + esc(n.title);
     $('#post-meta').innerHTML = C.meta([['올린 일시', C.fmtDateTime(n.at)], ['쓴 사람', esc(C.ownerLabel(n.by))]].concat(n.important ? ['전체 사용자에게 이메일로 알림'] : []));
     if (n.kind === 'RELEASE') {

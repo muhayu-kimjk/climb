@@ -134,7 +134,7 @@
     const used = contractCount(function (r) { return r.product === id; });
     C.formModal({
       title: '제품을 고칠까요? (' + p.name + ')',
-      desc: '이름을 바꾸면 이 제품을 쓰는 모든 곳에 새 이름이 보입니다. 사용 안 함으로 돌리면 이 제품의 기능을 계약 등록에서 고를 수 없고, 이미 기안한 계약에는 그대로 보입니다.',
+      desc: '이름을 바꾸면 계약 등록과 견적에서 고를 때부터 새 이름이 보이고, 이미 기안한 계약은 기안할 때의 이름을 그대로 둡니다. 사용 안 함으로 돌리면 이 제품의 기능을 계약 등록에서 고를 수 없고, 이미 기안한 계약에는 그대로 보입니다.',
       body: '<p class="modal-info">' + esc(C.serviceLabel([p.service])) + ', 기능 ' + featuresOf(id).length + '개, 가격이 있는 기능 ' + D.PRICE_BOOK.filter(function (r) { return r.product === id; }).length + '개, 계약 ' + used + '건</p>' +
         C.fieldHtml({ name: 'name', label: '제품 이름', required: true, value: p.name, attrs: ' maxlength="40"' }) +
         // 서비스는 계약을 구분하는 값이라 가격 기준이 있는 제품은 바꾸지 않음
@@ -214,7 +214,7 @@
     const now = priceOf(id);
     C.formModal({
       title: '기능을 고칠까요? (' + p.name + ' ' + ft.name + ')',
-      desc: '이름을 바꾸면 이 기능을 쓰는 모든 곳에 새 이름이 보입니다. 사용 안 함으로 돌리면 이 기능을 계약 등록에서 고를 수 없고, 이미 기안한 계약에는 그대로 보입니다.',
+      desc: '이름을 바꾸면 계약 등록과 견적에서 고를 때부터 새 이름이 보이고, 이미 기안한 계약은 기안할 때의 이름을 그대로 둡니다. 사용 안 함으로 돌리면 이 기능을 계약 등록에서 고를 수 없고, 이미 기안한 계약에는 그대로 보입니다.',
       body: '<p class="modal-info">제품 ' + esc(p.name) + ', 가격 ' + (now ? won(now.listPrice) + ' (' + esc(now.unit) + ')' : '없음') + ', 계약 ' + used + '건</p>' +
         C.fieldHtml({ name: 'name', label: '기능 이름', required: true, value: ft.name, attrs: ' maxlength="40"' }) +
         C.fieldHtml({ name: 'use', label: '상태', type: 'select', value: String(ft.use), options: [['true', '사용 중'], ['false', '사용 안 함']] }) +

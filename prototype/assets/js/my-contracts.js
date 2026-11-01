@@ -39,9 +39,12 @@
     return '<option value="">' + esc(first) + '</option>' + pairs.map(function (p) { return '<option value="' + p[0] + '">' + esc(p[1]) + '</option>'; }).join('');
   }
   $('#f-status').innerHTML = options('전체 상태', Object.keys(D.STATUS).map(function (k) { return [k, D.STATUS[k].label]; }));
+  // 개요의 "계약 등록"에서 오면 작성 중으로 거름 (?status=, v0.63 점검)
+  const presetStatus = new URLSearchParams(location.search).get('status');
+  if (D.STATUS[presetStatus]) $('#f-status').value = presetStatus;
   $('#f-kind').innerHTML = options('전체 계약종류', Object.keys(D.KINDS).map(function (k) { return [k, D.KINDS[k]]; }));
-  $('#thead').innerHTML = '<tr><th scope="col" class="col-customer">고객사</th><th scope="col">계약종류</th><th scope="col">상태</th><th scope="col">현재 진행</th><th scope="col" class="col-wait">대기</th>' +
-    (seeAll ? '<th scope="col">영업대표</th>' : '') + '<th scope="col">기안일</th><th scope="col">할 일</th></tr>';
+  $('#thead').innerHTML = '<tr><th scope="col" class="col-customer col-phone-wide">고객사</th><th scope="col" class="col-phone-wide">계약종류</th><th scope="col">상태</th><th scope="col">현재 진행</th><th scope="col" class="col-wait">대기</th>' +
+    (seeAll ? '<th scope="col" class="col-phone-mid">영업대표</th>' : '') + '<th scope="col">기안일</th><th scope="col">할 일</th></tr>';
 
   // 할 일 버튼 (내 계약일 때만)
   function todo(c) {
@@ -98,7 +101,7 @@
         '<td class="nowrap">' + C.statusBadge(c) + '</td>' +
         C.progressCells(c) + // 현재 진행(단계) + 대기(날수) 두 칸 (v0.55)
         (seeAll ? '<td class="center">' + esc(C.ownerLabel(c.requesterId)) + '</td>' : '') +
-        '<td class="num-left">' + C.fmtDate(dateOf(c)) + '</td>' +
+        '<td class="num-left nowrap">' + C.fmtDate(dateOf(c)) + '</td>' + // 날짜가 "2026-10-" 뒤에서 끊기지 않게 한 줄로 (첫 사용 점검)
         '<td>' + todo(c) + '</td>' +
       '</tr>';
     }).join('') : '<tr><td class="empty-row" colspan="' + cols + '">' + (all.length ? '조건에 맞는 계약이 없습니다.' : '등록한 계약이 없습니다.') + '</td></tr>';

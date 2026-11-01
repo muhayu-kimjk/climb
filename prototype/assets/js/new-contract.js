@@ -100,6 +100,7 @@
     const manual = key === NEW_CUSTOMER;
     $('#f-counterparty').readOnly = !manual;
     $('#f-bizno').readOnly = !manual;
+    $('#bizno-help').hidden = !manual; // '-' 없이 숫자만 넣는 안내는 직접 입력할 때만 (잠긴 칸 아래에 입력 안내가 보이지 않게)
     $('#f-counterparty').value = name || '';
     $('#f-bizno').value = C.fmtBizNo(bizNo); // 000-00-00000 (v0.34)
     bizWarn();
@@ -588,7 +589,7 @@
     refresh();
   });
   form.addEventListener('change', function (e) {
-    clearError(e.target);
+    if (e.target.type !== 'file') clearError(e.target); // 파일 칸은 addFiles가 오류를 직접 정함(맞지 않는 파일 경고가 바로 지워지던 것, v0.63 검토)
     if (e.target.name === 'kind') onKindChange();
     if (e.target.id === 'f-origin') onOriginChange();
     if (e.target.name === 'autoRenew') $('#notice-days-field').hidden = val('autoRenew') !== 'YES';
@@ -625,24 +626,52 @@
     if (source && source.status === 'REJECTED') return source.id; // 다시 기안: 같은 번호의 다음 차수
     return C.nextChildId(origin, kind); // 예: 2601CL001-A02 (common.js)
   }
+  // 새로 기안할 수 없는 원계약: 같은 종류의 반려된 기안이 있으면 새 번호 대신 그 기안을 보완해 같은 번호로 다시 올림(REQ-FLOW-17),
+  //   연장은 진행 중인 연장, 해지, 기간 변경이 있으면 그 뒤에. 계약 상세의 버튼 규칙과 같게 (v0.63 점검에서 고침: 주소로 오면 막지 않았음)
+  function originBlock() {
+    const kind = val('kind'), origin = $('#f-origin').value;
+    if (!origin || !kind || kind === 'NEW' || (source && source.status === 'REJECTED')) return null;
+    const b = C.bundleOf(origin);
+    if (!b) return null;
+    const rej = b.rejected.filter(function (o) { return o.kind === kind; })[0];
+    if (rej) {
+      // 보완 후 재기안 링크는 그 기안을 올린 사람(시연은 최고관리자)에게만. 다른 사람은 기안자에게 요청 (v0.63 검토)
+      const own = rej.requesterId === me.id || me.role === 'SUPER';
+      //   긴 계약번호는 문장 앞에 둠(양쪽 정렬이라 문장 가운데의 긴 번호 때문에 낱말 사이가 크게 벌어졌음, v0.63 점검)
+      return { msg: rej.id + ': 반려된 ' + D.KINDS[kind] + ' 기안이 있습니다. 새로 기안하지 않고 그 기안을 보완해 같은 번호로 다시 올립니다.' +
+        (own ? '' : ' 기안자(' + C.ownerLabel(rej.requesterId) + ')에게 보완을 요청하세요.'), href: own ? C.resubmitHref(rej) : '', short: '반려된 기안을 보완 후 재기안하세요. 새로 기안할 수 없습니다.' };
+    }
+    if (kind === 'RENEW') {
+      const busy = b.open.filter(function (o) { return o.kind === 'RENEW' || o.kind === 'TERMINATE' || (o.kind === 'CHANGE' && o.changeType === 'PERIOD'); })[0];
+      if (busy) return { msg: busy.id + ': 진행 중인 ' + C.kindLabel(busy) + ' 기안이 있어 새 연장을 올릴 수 없습니다. 그 기안이 끝난 뒤에 올립니다.', short: '진행 중인 기안이 끝난 뒤에 올리세요.' };
+    }
+    return null;
+  }
   function onOriginChange() {
     const help = $('#origin-help');
     const no = bundleNumber();
-    help.textContent = no
-      ? '기안하면 ' + no + '(' + D.KINDS[val('kind')] + ' ' + no.slice(-2).replace(/^0/, '') + '차)로 원계약과 함께 묶입니다.'
-      : '보관함에 있는 계약 중에서 고릅니다. 원계약 번호에 차수가 붙어 함께 묶입니다.';
+    const block = originBlock();
+    help.innerHTML = block ? esc(block.msg) + (block.href ? ' <a class="doc-link" href="' + block.href + '">보완 후 재기안</a>' : '')
+      : esc(no
+        ? '기안하면 ' + no + '(' + D.KINDS[val('kind')] + ' ' + no.slice(-2).replace(/^0/, '') + '차)로 원계약과 함께 묶입니다.'
+        : '보관함에 있는 계약 중에서 고릅니다. 원계약 번호에 차수가 붙어 함께 묶입니다.');
     // 원계약을 고르면 거래처를 미리 채움 (비어 있을 때만). 계약명은 두지 않음 (v0.12)
     const o = D.CONTRACTS.find(function (c) { return c.id === $('#f-origin').value; });
     if (o) {
       if (!$('#f-customer').value) pickCustomerByName(o.counterparty, '', o.unit);
     }
     // 열람 제한 이어받기 (D-13 v0.39 기획자 결정): 원계약이 열람 제한이면 변경, 연장 기안도 제한. 여기서는 풀 수 없고 관리자만(열람 제한 관리)
-    const inherit = !!(o && o.restricted && val('kind') !== 'NEW');
+    const fromOrigin = !!(o && o.restricted && val('kind') !== 'NEW');
+    // 보완 후 재기안: 이미 기안한 계약에 걸린 열람 제한은 영업이 풀 수 없음(풀기는 관리자만, REQ-AUTH-07. v0.63 통제 목록 CTL-94 점검)
+    const kept = !!(source && source.status === 'REJECTED' && source.restricted);
+    const inherit = fromOrigin || kept;
     const rc = $('#f-restricted');
     if (inherit) { rc.checked = true; rc.dataset.auto = '1'; }
     else if (rc.dataset.auto) { rc.checked = false; delete rc.dataset.auto; } // 이어받아 체크했던 것만 되돌림
     rc.disabled = inherit;
-    $('#restricted-help').textContent = inherit
+    $('#restricted-help').textContent = kept && !fromOrigin
+      ? '이 계약에 이미 걸린 열람 제한입니다. 풀기와 열람자 지정은 관리자만 할 수 있습니다(열람 제한 관리).'
+      : inherit
       ? '원계약에 열람 제한이 있어 이 기안도 열람 제한과 지정 열람자를 이어받습니다. 풀기와 열람자 지정은 관리자만 할 수 있습니다(열람 제한 관리).' // v0.52
       : RESTRICT_HELP;
   }
@@ -656,12 +685,19 @@
         '<button type="button" class="btn-text" data-file="' + key + '" data-i="' + i + '" aria-label="' + esc(f.name) + ' 삭제">삭제</button></li>';
     }).join('');
   }
+  // 받는 파일: 안내와 같게 PDF, Word, 한글, 한 파일 50MB 이하 (REQ-REG-15, REQ-UI-21 첨부 형식, v0.63 점검에서 고침: 아무 파일이나 받았음)
+  //   끌어다 놓기도 같은 검사. 맞지 않는 파일은 빼고 그 칸 아래에 알림
+  const FILE_OK = /\.(pdf|doc|docx|hwp|hwpx)$/i, FILE_MAX = 50 * 1048576;
   function addFiles(key, list) {
-    Array.prototype.forEach.call(list, function (f) { files[key].push({ name: f.name, size: f.size }); });
+    const bad = [];
+    Array.prototype.forEach.call(list, function (f) {
+      if (!FILE_OK.test(f.name) || f.size > FILE_MAX) { bad.push(f.name); return; }
+      files[key].push({ name: f.name, size: f.size });
+    });
     if (key === 'quote' || key === 'diff') files[key] = files[key].slice(-1);
     renderFiles(key);
-    if (key === 'draft') clearError($('#f-draft'));
-    if (key === 'diff') clearError($('#f-diff'));
+    const box = $('#f-' + key).closest('.field');
+    C.setFieldError(box, bad.length ? '올릴 수 없는 파일을 뺐습니다(' + bad.join(', ') + '). PDF, Word, 한글 파일만, 한 파일 50MB 이하로 올립니다.' : '');
   }
   [['draft', '#f-draft'], ['diff', '#f-diff'], ['annex', '#f-annex'], ['quote', '#f-quote']].forEach(function (pair) {
     $(pair[1]).addEventListener('change', function (e) { addFiles(pair[0], e.target.files); e.target.value = ''; });
@@ -707,6 +743,8 @@
     const kind = val('kind');
     need(!!kind, 'kind', '계약종류를 고르세요.');
     if (kind && kind !== 'NEW') need(!!$('#f-origin').value, 'origin', '원계약을 고르세요.');
+    const block = originBlock();
+    if (block) need(false, 'origin', block.short); // 긴 설명과 링크는 칸 아래 도움말에 이미 있음(같은 문장을 두 번 보이지 않게, v0.63 검토)
     need(!!val('customer'), 'customer', '거래처를 검색해 고르세요. 검색 결과가 없으면 직접 입력합니다.', qInput);
     if (val('customer') === NEW_CUSTOMER) {
       need(!!val('counterparty'), 'counterparty', '거래처 상호를 입력하세요.');
@@ -822,8 +860,9 @@
     const checklist = {
       // 비고는 보이는 것만(적어야 할 때만) 저장
       standard: val('standard'), standardNote: noteIf(val('standard') === 'NO', 'standardNote'),
-      price: current.pc.q2, priceNote: noteIf(current.pc.q2 === 'NO', 'priceNote'),
-      cap: current.pc.q3, capNote: noteIf(current.pc.q3 === 'NO', 'capNote'),
+      // "계산 대기"(WAIT)는 화면에만 있는 값이라 저장하지 않음(03 CODE-CHECK-ANSWER, v0.63 점검). 다시 열면 다시 계산
+      price: current.pc.q2 === 'WAIT' ? null : current.pc.q2, priceNote: noteIf(current.pc.q2 === 'NO', 'priceNote'),
+      cap: current.pc.q3 === 'WAIT' ? null : current.pc.q3, capNote: noteIf(current.pc.q3 === 'NO', 'capNote'),
       accounting: val('accounting'), accountingNote: noteIf(val('accounting') === 'YES', 'accountingNote'),
     };
     const kind = val('kind') || 'NEW';
@@ -833,7 +872,11 @@
       files[k[0]].forEach(function (x) { fileList.push({ kind: k[1], name: x.name, size: x.size }); });
     });
     const formVals = {
-      bizNo: val('bizNo'), method: val('method'), settlement: val('settlement'), opportunity: val('opportunity'),
+      // customerNew: 거래처를 검색하지 못해 직접 입력함(결재 문서에 "새 거래처" 표시, v0.63 표준 대응표 G-25 ①).
+      //   보완 후 재기안은 1차에서 등록한 거래처를 고르게 되므로, 같은 거래처(사업자등록번호)일 때만 1차의 표시를 이어 감
+      bizNo: val('bizNo'), method: val('method'), personalData: val('personalData'), // 처리위탁 답(YES, NO, 비어 있음)을 그대로
+      customerNew: val('customer') === NEW_CUSTOMER || !!(source && source.status === 'REJECTED' && C.isNewCustomer(source) &&
+        String(val('bizNo')).replace(/-/g, '') === String((source.form || {}).bizNo || (D.CUSTOMERS.filter(function (cu) { return cu.name === source.counterparty; })[0] || {}).bizNo || '').replace(/-/g, '')), settlement: val('settlement'), opportunity: val('opportunity'),
       startDate: val('startDate'), endDate: val('endDate'), autoRenew: val('autoRenew'), noticeDays: parseNum(val('noticeDays')),
       products: products, checklist: checklist, yearly: $('#yearly-field').hidden ? [] : yearlyAmounts(),
       ledger: val('ledger'), taxInvoice: val('taxInvoice'), purchase: val('purchase'), memo: val('memo'), template: tp,
@@ -853,7 +896,7 @@
   if (source && source.status === 'REJECTED') $('#btn-save').hidden = true;
   $('#btn-save').addEventListener('click', function () {
     const key = source && source.status === 'DRAFT' ? source.draftKey : C.newDraftKey();
-    C.saveDemoContract(Object.assign(formRecord(), { id: null, draftKey: key, status: 'DRAFT', savedAt: D.TODAY, history: [] }));
+    C.saveDemoContract(Object.assign(formRecord(), { id: null, draftKey: key, status: 'DRAFT', savedAt: C.nowStamp().slice(0, 16), history: [] })); // 임시 저장일시(03 saved_at, 일시)
     C.flash('임시 저장했습니다. 나만 볼 수 있고, 내 등록 목록에서 이어서 작성할 수 있습니다.');
     location.replace('new-contract.html?id=' + encodeURIComponent(key));
   });
@@ -962,7 +1005,8 @@
     setRadio('autoRenew', autoRenew);
     $('#notice-days-field').hidden = autoRenew !== 'YES';
     $('#f-notice-days').value = f.noticeDays || fb.noticeDays || '';
-    setRadio('personalData', source.personalData ? 'YES' : 'NO');
+    // 처리위탁 여부: 고른 답 그대로(form.personalData). 답하지 않은 임시 저장은 비워 둠 (v0.63 점검에서 고침: "없음"으로 열렸음)
+    setRadio('personalData', f.personalData != null ? f.personalData : source.personalData ? 'YES' : source.status === 'DRAFT' ? '' : 'NO');
     if (source.sla || f.sla) setRadio('sla', source.sla || f.sla); // 서비스 수준 협약 (v0.40)
     $('#f-restricted').checked = !!source.restricted;
     setRadio('settlement', f.settlement);

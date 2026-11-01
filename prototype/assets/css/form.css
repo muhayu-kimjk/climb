@@ -63,6 +63,9 @@
 @supports (appearance: base-select) {
   .select, .select::picker(select) { appearance: base-select; }
   .select { align-items: center; } /* 이 방식의 선택 칸은 inline-flex라 글자가 위에 붙음 → 세로 가운데 */
+  /* 고른 값은 칸 안에서 한 줄로, 넘치면 자름(v0.63 점검: 휴대폰에서 긴 원계약 이름이 두 줄로 꺾여 아래 테두리에 걸렸음). 펼친 목록의 항목은 줄을 바꿈 */
+  .select { white-space: nowrap; overflow: hidden; }
+  .select option { white-space: normal; }
   .select::picker-icon { display: none; } /* 화살표는 위 배경 그림 하나만 */
   .select::picker(select) {
     margin: 0.4rem 0; padding: 0.4rem; border: 1px solid var(--border-gray-light); border-radius: var(--radius-md);

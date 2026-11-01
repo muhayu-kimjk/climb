@@ -15,15 +15,17 @@
 .approval-box-wrap { overflow-x: auto; }
 .approval-box { width: 100%; min-width: 56rem; table-layout: fixed; border-collapse: collapse; font-size: var(--fs-body-small); text-align: center; }
 .approval-box th, .approval-box td { padding: 0.8rem 0.6rem; border: 1px solid var(--border-gray-light); vertical-align: middle; }
-.approval-box thead th { background: var(--surface-secondary-subtler); font-weight: 700; color: var(--text-bolder); }
+.approval-box thead th { background: var(--surface-secondary-subtler); font-weight: 700; color: var(--text-bolder); word-break: keep-all; } /* 휴대폰에서도 단계 이름은 띄어쓰기에서만 줄을 바꿈 ("체크리스/트" 방지) */
 .approval-box .box-rowhead { width: 6.4rem; background: var(--surface-gray-subtler); font-weight: 700; color: var(--text-subtle); }
 .approval-box td strong { color: var(--text-basic); }
 /* 담당 칸의 조직과 이름 (v0.50): 조직은 작은 글자 한 줄, 이름은 굵게 다음 줄 */
 .approval-box .box-unit { display: block; margin-top: 0.2rem; font-size: var(--fs-body-xsmall); white-space: nowrap; }
 .approval-box .box-name { display: block; }
 .approval-box .box-when { font-size: var(--fs-body-xsmall); color: var(--text-subtle); font-variant-numeric: tabular-nums; }
-.approval-box .is-skipped { color: var(--text-disabled); background: var(--surface-gray-subtler); }
-.approval-box .is-skipped strong { color: var(--text-disabled); }
+/* 생략한 단계: 회색 바탕과 흐린 글자로 구분하되 글자 대비는 4.5:1 이상 (REQ-REV-03 "흐리게", KRDS 대비.
+ *   v0.63 점검에서 고침: 사용할 수 없음 색(--text-disabled)이라 2.96:1이었음. 생략 까닭은 읽어야 하는 정보) */
+.approval-box .is-skipped { color: var(--text-subtle); background: var(--surface-gray-subtler); }
+.approval-box .is-skipped strong { color: var(--text-subtle); font-weight: 500; }
 /* 결재란 둘째 표(계약 체결과 운영 검토)의 제목 (REQ-SIGN-02) */
 .box-subtitle { margin: 2rem 0 0.8rem; font-size: var(--fs-heading-xsmall); /* 상자 안 소제목 17px (v0.59 위계) */ font-weight: 700; color: var(--text-bolder); }
 
@@ -55,7 +57,7 @@
 .doc-checks > li:first-child { padding-top: 0; }
 .doc-checks--extra { margin-top: 1.2rem; border-top: 1px solid var(--border-gray-light); }
 .doc-checks--extra > li:first-child { padding-top: 1.2rem; }
-.check-q-text { font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
+.check-q-text { font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); text-align: left; } /* 배지가 다음 줄로 넘어갈 때 낱말 사이가 벌어지지 않게 */
 .check-q-text .badge { margin-left: 0.4rem; vertical-align: 0.1rem; }
 .check-note { margin-top: 0.4rem; font-size: var(--fs-body-small); color: var(--text-basic); }
 .check-effect { display: block; margin-top: 0.4rem; font-size: var(--fs-body-xsmall); color: var(--text-subtle); }

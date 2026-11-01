@@ -39,7 +39,7 @@
       </div>
       <div class="page-intro">
         <p>지금까지의 모든 계약입니다. 원계약과 그 변경, 연장, 해지를 한 줄로 묶어 보여 줍니다.</p>
-        <p class="sub">계약 기간은 지금 유효한 계약(가장 나중에 끝난 연장, 없으면 원계약) 기준입니다. 고객사를 누르면 계약 상세가 열립니다.</p>
+        <p class="sub">계약 기간은 지금 유효한 계약(계약 완료된 마지막 연장, 없으면 원계약) 기준입니다. 고객사를 누르면 계약 상세가 열립니다.</p>
       </div>
 
       <section id="list" aria-labelledby="list-title">
@@ -70,12 +70,12 @@
             <caption class="sr-only">전체 계약: 고객사, 서비스, 상태, 계약 기간, 변경과 연장, 영업대표</caption>
             <thead>
               <tr>
-                <th scope="col" class="col-customer">고객사</th>
+                <th scope="col" class="col-customer col-phone-wide">고객사</th>
                 <th scope="col" class="col-service">서비스</th>
                 <th scope="col">상태</th>
                 <th scope="col">계약 기간</th>
                 <th scope="col">변경과 연장</th>
-                <th scope="col">영업대표</th>
+                <th scope="col" class="col-phone-mid">영업대표</th>
               </tr>
             </thead>
             <tbody id="rows"></tbody>

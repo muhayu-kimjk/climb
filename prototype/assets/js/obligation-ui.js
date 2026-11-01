@@ -17,13 +17,13 @@
 
   function kindBadge(o) { const k = D.OBLIGATION_KINDS[o.kind] || {}; return C.badge(k.tone || 'line', k.label || o.kind); }
   function stateBadge(o) { const s = C.obligationState(o); return C.badge(s.tone, s.label); }
-  // 기한 칸: 다음 기한(아직 하지 않은 가장 이른 것)과 상태, 되풀이는 "4/5번 함"
+  // 기한 칸: 다음 기한(아직 하지 않은 가장 이른 것)과 상태, 되풀이는 "5번 중 4번 함"(날짜 4/5로 읽히지 않게 풀어 씀)
   function dueHtml(o) {
     const s = C.obligationState(o);
     const top = s.next ? '<span class="keep">' + C.fmtDate(s.next) + '</span>' : s.code === 'EVENT' ? '상시' : '-';
     const sub = s.code === 'EVENT' ? '기록 ' + s.done + '건'
-      : s.total > 1 ? s.done + '/' + s.total + '번 함' : '';
-    // 배지와 "4/11번 함"은 줄을 나눠 좁은 칸(휴대폰)에서도 칸이 넓어지지 않게
+      : s.total > 1 ? s.total + '번 중 ' + s.done + '번 함' : '';
+    // 배지와 "11번 중 4번 함"은 줄을 나눠 좁은 칸(휴대폰)에서도 칸이 넓어지지 않게
     return top + '<span class="cell-meta">' + C.badge(s.tone, s.label) + '</span>' + (sub ? '<span class="cell-meta">' + esc(sub) + '</span>' : '');
   }
   // 의무 칸: 이름, 종류, 근거 조항, 언제, 청구 금액

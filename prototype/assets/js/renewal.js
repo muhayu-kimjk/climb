@@ -58,13 +58,13 @@
   const newId = again ? again.id : C.nextChildId(b.id, 'RENEW');
   const newStart = addDays(b.end, 1); // 새 계약 시작일 기본값: 지금 종료일 다음 날
   const noticeDay = C.noticeDate(b);
-  function info(label, value) { return '<div><dt>' + esc(label) + '</dt><dd>' + value + '</dd></div>'; }
+  function info(label, value, cls) { return '<div><dt>' + esc(label) + '</dt><dd' + (cls ? ' class="' + cls + '"' : '') + '>' + value + '</dd></div>'; } // cls amount: 금액은 오른쪽(REQ-UI-16)
   $('#origin').innerHTML = [
     info('고객사', esc(root.counterparty)),
     info('계약번호', '<a href="' + back + '">' + esc(b.id) + '</a>' + (cur !== root ? ' (지금 유효: ' + esc(cur.id) + ')' : '')),
-    info('계약 기간', C.fmtPeriod(b.start, b.end) + ' (만료까지 ' + C.daysUntil(b.end) + '일)'),
-    info('계약 금액', Number(cur.amount || 0).toLocaleString('ko-KR') + '원'),
-    info('해지 통지 기한', noticeDay ? C.fmtDate(noticeDay) + ' (만료 ' + b.noticeDays + '일 전)' + (C.daysUntil(noticeDay) < 0 ? ' <span class="wait-long">지남</span>' : '') : '-'),
+    info('계약 기간', C.fmtPeriod(b.start, b.end) + '<span class="cell-meta">만료까지 ' + C.daysUntil(b.end) + '일</span>'),
+    info('계약 금액', Number(cur.amount || 0).toLocaleString('ko-KR') + '원<span class="cell-meta">' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도</span>', 'amount'),
+    info('해지 통지 기한', noticeDay ? '<span class="keep">' + C.fmtDate(noticeDay) + (C.daysUntil(noticeDay) < 0 ? ' <span class="wait-long">지남</span>' : '') + '</span><span class="cell-meta">만료 ' + b.noticeDays + '일 전까지 상대방에게 알려야 연장되지 않음</span>' : '-'),
     info('영업대표', esc(C.ownerLabel(root.requesterId))),
   ].join('');
   $('#keep-help').textContent = (again ? '같은 번호 ' + newId + '의 ' + ((again.round || 1) + 1) + '차로 기안하고' : '기안하면 ' + newId + '(연장, 조건 그대로)로 묶이고') +

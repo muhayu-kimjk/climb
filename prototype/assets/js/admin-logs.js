@@ -6,8 +6,10 @@
  * 하는 일
  *   1. 이상 행위 알림: 확인 전인 알림에 확인 결과와 조치를 남김
  *   2. 매월 기록 점검: 이 시스템을 쓰기 시작한 달(D.SERVICE_START_MONTH)부터 지난달까지. [가정] 기한은 다음 달 말일
- *   3. 분기 권한 검토: 계정 수, 관리자 권한을 가진 사람, 사용 중지 계정, 권한을 바꾼 기록과 사유를 모아 보여 주고 결과를 남김
+ *   3. 분기 권한 검토: 계정 수, 관리자 권한을 가진 사람, 사용 중지 계정, 권한을 바꾼 기록과 사유,
+ *      그 분기에 걸친 대리 지정(v0.63, 표준 대응표 G-23 ②)을 모아 보여 주고 결과를 남김
  *      [가정] 기한은 분기가 끝난 다음 달 말일
+ *      점검과 검토 결과에는 그때 창에서 본 자료(seen)를 함께 남김(v0.63, G-23 ③. 계산값이라 나중에 다시 만들 수 없음)
  *   4. 접속 기록 조회: 사람, 한 일, 기간으로 거르기. 한 쪽 20건
  * 프로토타입: 접속 기록은 예시 데이터(계정의 로그인 일시, 결재 기록, 관리자 변경 이력, 이상 행위 알림)로 만든 일부입니다.
  *   실제 시스템은 서버가 모든 기록을 고치거나 지울 수 없게 영구 보관하고, 이 화면을 연 것도 기록합니다.
@@ -34,7 +36,8 @@
   const OPENED = C.nowStamp();
 
   /* ---------- 접속 기록 만들기 (시연용) ---------- */
-  const ACTS = { LOGIN: '로그인', LOGOUT: '로그아웃', VIEW: '열람', SUBMIT: '기안', APPROVE: '결재', DOWNLOAD: '내려받기', NOTE: '사후관리 기록', ADMIN: '설정 변경', AUDIT: '점검 기록' };
+  //   인쇄(PRINT)도 한 일 (03 CODE-LOG-ACTION. v0.63 점검에서 고침: 빠져 있어 거를 수 없었음). 시연에서는 견적서 출력 기록으로 만듦
+  const ACTS = { LOGIN: '로그인', LOGOUT: '로그아웃', VIEW: '열람', SUBMIT: '기안', APPROVE: '결재', DOWNLOAD: '내려받기', PRINT: '인쇄', NOTE: '사후관리 기록', ADMIN: '설정 변경', AUDIT: '점검 기록' };
   const AREA = { USER: '사용자 권한', RULE: '결재선 규칙', RESTRICT: '열람 제한', PRICE: '가격 기준', PRODUCT: '제품과 기능', TEMPLATE: '표준계약서', CUSTOMER: '거래처', CODE: '코드', NOTICE: '공지사항' };
   function buildLogs() {
     const out = [];
@@ -59,6 +62,8 @@
       push(e.at, e.by, e.area === 'AUDIT' ? 'AUDIT' : 'ADMIN', (AREA[e.area] ? AREA[e.area] + ': ' : '') + e.target);
     });
     push(OPENED, me.id, 'VIEW', '접속 기록 점검 화면');
+    // 견적서 출력은 접속 기록의 인쇄에도 남음 (03 8-8 quote_issue)
+    C.allQuotes().forEach(function (q) { (q.issues || []).forEach(function (i) { push(i.at, i.by, 'PRINT', '견적서 ' + q.no + ' ' + q.ver + '판'); }); });
     // 가격 기준: 변경 이력(가격 기준 관리에서 바꾼 것)에 이미 있는 줄은 빼고 예시 가격 줄만 (v0.58 QA: 두 번 남았음)
     const priceLogged = D.ADMIN_LOG.filter(function (e) { return e.area === 'PRICE'; }).map(function (e) { return e.at + '|' + e.by; });
     D.PRICE_ROWS.forEach(function (r) {
@@ -82,11 +87,11 @@
     $('#alert-rows').innerHTML = list.map(function (a) {
       const done = a.status === 'DONE';
       return '<tr' + (done ? '' : ' class="is-alert"') + '><td class="num-left">' + C.fmtDateTime(a.at) + '</td>' +
-        '<td class="center"><span class="cell-strong">' + esc(C.ownerLabel(a.userId)) + '</span></td>' +
+        '<td class="center cell-phone-nowrap"><span class="cell-strong">' + esc(C.ownerLabel(a.userId)) + '</span></td>' +
         '<td><span class="cell-strong">' + esc(D.SEC_ALERT_KINDS[a.kind]) + '</span><span class="cell-meta">' + esc(a.detail) + '</span>' +
           (done ? '<span class="cell-meta">결과: ' + esc(a.action) + ' (' + esc(C.ownerLabel(a.doneBy)) + ', ' + C.fmtDateTime(a.doneAt) + ')</span>' : '') + '</td>' +
         '<td class="nowrap">' + (done ? C.badge('success', '확인함') : C.badge('danger', '확인 전')) + '</td>' +
-        '<td class="col-action">' + (done ? '-' : '<button type="button" class="link-act" data-alert="' + esc(a.id) + '">확인</button>') + '</td></tr>';
+        '<td class="col-action">' + (done ? '-' : '<button type="button" class="link-act" data-alert="' + esc(a.id) + '">결과 남기기</button>') + '</td></tr>';
     }).join('');
   }
   function openAlert(id) {
@@ -124,10 +129,13 @@
   function reviewRow(label, due, rec, ended, btnAttr, notYet, word) {
     const late = !rec && ended && D.TODAY > due;
     return '<tr' + (late ? ' class="is-alert"' : '') + '><td class="nowrap cell-strong">' + esc(label) + '</td>' +
-      '<td class="num-left">' + C.fmtDate(due) + (late ? '<span class="cell-meta">기한 지남</span>' : '') + '</td>' +
-      '<td class="center">' + (rec ? esc(C.ownerLabel(rec.by)) + '<span class="cell-meta">' + C.fmtDateTime(rec.at) + '</span>' : ended ? word + ' 전' : '-') + '</td>' +
+      '<td class="num-left nowrap">' + C.fmtDate(due) + (late ? '<span class="cell-meta">기한 지남</span>' : '') + '</td>' +
+      '<td class="center">' + (rec ? esc(C.ownerLabel(rec.by)) + '<span class="cell-meta">' + C.fmtDateTime(rec.at) + '</span>' : '-') + '</td>' +
       '<td class="nowrap">' + (rec ? resultBadge(rec) : ended ? C.badge('line', word + ' 전') : C.badge('line', '예정')) + '</td>' +
-      '<td>' + (rec ? esc(rec.note) + (rec.action ? '<span class="cell-meta">조치: ' + esc(rec.action) + '</span>' : '') : ended ? '-' : esc(notYet)) + '</td>' +
+      '<td>' + (rec ? esc(rec.note) + (rec.action ? '<span class="cell-meta">조치: ' + esc(rec.action) + '</span>' : '') +
+        // 점검(검토) 때 창에서 본 자료를 함께 남김(v0.63, 표준 대응표 G-23 ③). 예시 기록처럼 없으면 보이지 않음
+        (rec.seen ? '<details class="seen-data"><summary>' + word + ' 때 본 자료</summary><p class="cell-meta">' + esc(rec.seen) + '</p></details>' : '')
+        : ended ? '-' : esc(notYet)) + '</td>' +
       '<td class="col-action">' + (!rec && ended ? '<button type="button" class="link-act" ' + btnAttr + '>결과 남기기</button>' : '-') + '</td></tr>';
   }
   function renderMonths() {
@@ -168,7 +176,7 @@
       open: function (f) { f.elements.note.placeholder = '예: 접속 기록과 내려받기 기록 확인. 업무 시간 밖 접속은 모두 결재 처리로 확인함'; },
       check: checkResult,
       done: function (f) {
-        const r = { month: ym, result: f.querySelector('[name="result"]:checked').value, note: val(f, 'note'), action: val(f, 'act') };
+        const r = { month: ym, result: f.querySelector('[name="result"]:checked').value, note: val(f, 'note'), action: val(f, 'act'), seen: monthStats(ym) };
         C.adminSave('AUDIT', monthLabel(ym) + ' 기록 점검', '결과: ' + (r.result === 'OK' ? '이상 없음' : '조치함'), r.note + (r.action ? ' / 조치: ' + r.action : ''), { k: 'LOG_REVIEW', r: r });
         refresh();
         C.toast(monthLabel(ym) + ' 기록 점검 결과를 남겼습니다.');
@@ -193,8 +201,17 @@
       return reviewRow(x.label, x.due, rec, x.ended, 'data-quarter="' + x.key + '"', '분기가 끝난 뒤 검토', '검토');
     }).join('');
   }
+  // 이 분기에 실제로 걸쳐 있던 대리 지정 (v0.63, 통제와 표준 대응표 G-23 ②): 누가 누구 대신 결재할 수 있었는지 분기마다 봄.
+  //   일찍 끝낸 지정은 끝낸 날까지, 시작하기 전에 끝낸(취소한) 지정은 뺌
+  function quarterDelegations(q) {
+    return D.DELEGATIONS.filter(function (d) {
+      const end = d.endedAt && d.endedAt.slice(0, 10) < d.to ? d.endedAt.slice(0, 10) : d.to;
+      return end >= d.from && d.from <= q.end && end >= q.start;
+    });
+  }
   // 권한 검토 자료: 계정 현황, 관리자 권한, 권한을 바꾼 기록과 사유 (REQ-SEC-05, 기획자 결정 v0.25: 분기 검토에서 사유 확인)
-  function accessSummary(q) {
+  //   줄마다 글자로 돌려줌: 창에 보이고, 저장할 때 "검토 때 본 자료"로 함께 남김 (v0.63, G-23 ③: 계산값이라 나중에 다시 만들 수 없으므로)
+  function accessLines(q) {
     const acc = D.ACCOUNTS;
     const count = function (s) { return acc.filter(function (a) { return a.status === s; }).length; };
     const admins = acc.filter(function (a) { return a.status !== 'SUSPENDED' && (a.roles.indexOf('ADMIN') > -1 || a.roles.indexOf('SUPER') > -1); });
@@ -205,14 +222,24 @@
     const stopped = acc.filter(function (a) { return a.status === 'SUSPENDED'; });
     const noReason = changes.filter(function (e) { return !e.reason; }).length;
     const idle = acc.filter(function (a) { return a.status === 'ACTIVE' && a.lastLoginAt && C.daysBetween(new Date(a.lastLoginAt.slice(0, 10)), new Date(D.TODAY)) > 90; });
-    return '<ul class="summary-list">' +
-      '<li>계정 ' + acc.length + '개: 사용 중 ' + count('ACTIVE') + ', 첫 접속 전 ' + count('INVITED') + ', 사용 중지 ' + count('SUSPENDED') + '</li>' +
-      '<li>관리자 권한(관리자, 최고관리자) ' + admins.length + '명: ' + esc(admins.map(function (a) { return (a.dept ? a.dept + ' ' : '') + a.name; }).join(', ')) + '</li>' +
-      '<li>' + (last ? '지난 검토(' + C.fmtDate(last.at) + ') 뒤' : C.fmtDate(since) + '부터') + ' 권한을 바꾼 기록 ' + changes.length + '건: ' +
-        (noReason ? '사유 없는 기록 ' + noReason + '건' : '모두 사유가 있음') + ' (사용자 권한 관리의 권한 변경 이력)</li>' +
-      '<li>사용 중지 계정 ' + stopped.length + '개' + (stopped.length ? ': ' + esc(stopped.map(function (a) { return (a.dept ? a.dept + ' ' : '') + a.name; }).join(', ')) : '') + '</li>' +
-      '<li>90일 넘게 로그인하지 않은 사용 중 계정 ' + idle.length + '개' + (idle.length ? ': ' + esc(idle.map(function (a) { return (a.dept ? a.dept + ' ' : '') + a.name; }).join(', ')) : '') + '</li>' +
-      '</ul>';
+    const dels = quarterDelegations(q);
+    const who = function (a) { return (a.dept ? a.dept + ' ' : '') + a.name; };
+    return [
+      '계정 ' + acc.length + '개: 사용 중 ' + count('ACTIVE') + '개, 첫 접속 전 ' + count('INVITED') + '개, 사용 중지 ' + count('SUSPENDED') + '개',
+      '관리자 권한(관리자, 최고관리자) ' + admins.length + '명: ' + admins.map(who).join(', '),
+      (last ? '지난 검토(' + C.fmtDate(last.at) + ') 뒤' : C.fmtDate(since) + '부터') + ' 권한을 바꾼 기록 ' + changes.length + '건: ' +
+        (noReason ? '사유 없는 기록 ' + noReason + '건' : '모두 사유가 있음') + ' (사용자 권한 관리의 권한 변경 이력)',
+      '사용 중지 계정 ' + stopped.length + '개' + (stopped.length ? ': ' + stopped.map(who).join(', ') : ''),
+      '90일 넘게 로그인하지 않은 사용 중 계정 ' + idle.length + '개' + (idle.length ? ': ' + idle.map(who).join(', ') : ''),
+      '이 분기에 걸친 대리 지정 ' + dels.length + '건' + (dels.length ? ': ' + dels.map(function (d) {
+        // 사람 이름에는 "님"을 붙이지 않음(머리글 이름과 개요 인사말만, 01 2장 이름 표기 v0.51)
+        //   "원래 담당자 대신 대신할 사람(기간)": 항목 안에 쉼표를 쓰지 않아 항목 경계가 보이게 (v0.63 검토)
+        return C.ownerLabel(d.absentId) + ' 대신 ' + C.ownerLabel(d.delegateId) + '(' + C.fmtPeriod(d.from, d.to) + (d.endedAt ? ' 일찍 끝냄' : '') + ')';
+      }).join(', ') : '') + ' (결재선 규칙의 대리 지정)',
+    ];
+  }
+  function accessSummary(q) {
+    return '<ul class="summary-list">' + accessLines(q).map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>';
   }
   function openQuarter(key) {
     const q = quarters().filter(function (x) { return x.key === key; })[0];
@@ -224,7 +251,7 @@
       open: function (f) { f.elements.note.placeholder = '예: 모든 계정의 권한이 하는 일에 맞음. 권한을 바꾼 기록 모두 사유 있음'; },
       check: checkResult,
       done: function (f) {
-        const r = { quarter: key, result: f.querySelector('[name="result"]:checked').value, note: val(f, 'note'), action: val(f, 'act') };
+        const r = { quarter: key, result: f.querySelector('[name="result"]:checked').value, note: val(f, 'note'), action: val(f, 'act'), seen: accessLines(q).join(' / ') };
         C.adminSave('AUDIT', q.label + ' 권한 검토', '결과: ' + (r.result === 'OK' ? '이상 없음' : '조치함'), r.note + (r.action ? ' / 조치: ' + r.action : ''), { k: 'ACCESS_REVIEW', r: r });
         refresh();
         C.toast(q.label + ' 권한 검토 결과를 남겼습니다.');
@@ -252,7 +279,7 @@
     const from = (page - 1) * PAGE_SIZE, rows = list.slice(from, from + PAGE_SIZE);
     $('#list-count').innerHTML = C.meta([[(list.length !== logs.length ? '검색 결과' : '전체'), '<strong>' + list.length + '건</strong>'], '고치거나 지울 수 없음, 영구 보관']);
     $('#log-rows').innerHTML = rows.length ? rows.map(function (l) {
-      return '<tr><td class="num-left">' + C.fmtDateTime(l.at) + '</td><td class="center">' + esc(C.ownerLabel(l.userId)) + '</td>' +
+      return '<tr><td class="num-left">' + C.fmtDateTime(l.at) + '</td><td class="center cell-phone-nowrap">' + esc(C.ownerLabel(l.userId)) + '</td>' +
         '<td class="nowrap">' + esc(ACTS[l.act]) + '</td><td>' + esc(l.target) + '</td><td class="nowrap">' + esc(l.place) + '</td></tr>';
     }).join('') : '<tr><td class="empty-row" colspan="5">조건에 맞는 기록이 없습니다.</td></tr>';
     $('#pagination').innerHTML = C.pagerHtml(page, pages, list.length, from, rows.length, PAGE_SIZE, '건');

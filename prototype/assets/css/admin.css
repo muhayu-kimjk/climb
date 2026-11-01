@@ -37,6 +37,8 @@
 .tbl .col-action { width: 1%; white-space: nowrap; text-align: center; }
 /* 글이 긴 칸(거치는 조건, 근거)은 좁아지지 않게 */
 .tbl .col-wide { min-width: 18rem; }
+/* 이름 칸(예: 가격 기준의 제품과 기능): 휴대폰 표에서 글자 두세 개 폭으로 좁아지지 않게. 표는 옆으로 밀어 봄 (첫 사용 점검) */
+.tbl .col-name { min-width: 14rem; }
 
 /* 변경 이력 표: 글이 긴 칸(바뀐 내용, 사유)은 줄바꿈 */
 .tbl--history { min-width: 64rem; }
@@ -54,6 +56,10 @@
 .modal-info + .field, .modal-info + .field-row { margin-top: 2rem; }
 .summary-list { padding-left: 2rem; list-style: disc; }
 .summary-list li + li { margin-top: 0.4rem; }
+/* 접속 기록 점검: 점검(검토) 때 본 자료를 접어 둠 (v0.63, 표준 대응표 G-23 ③) */
+.seen-data { margin-top: 0.4rem; }
+.seen-data summary { width: fit-content; cursor: pointer; font-size: var(--fs-body-small); color: var(--text-primary); }
+.seen-data summary:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
 .check-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.6rem; }
 /* 표 아래 보조 버튼 (결재선 규칙의 유닛 추가) */
 .sub-actions { display: flex; justify-content: flex-end; margin-top: 1.2rem; }
@@ -115,7 +121,7 @@
 /* 제품과 기능 관리(SCR-58, v0.47): 제품마다 묶음. 제품 줄은 옅은 회색 바탕, 그 아래 기능 줄은 들여 씀 */
 .tbl--products .prod-row th, .tbl--products .prod-row td { background: var(--surface-gray-subtler); }
 .tbl--products .prod-row th { text-align: left; font-weight: 400; }
-.tbl--products .feat-name { padding-left: 2.8rem; text-align: left; }
+.tbl--products .feat-name { min-width: 14rem; padding-left: 2.8rem; text-align: left; } /* 휴대폰에서 기능 이름이 글자 두세 개 폭으로 좁아지지 않게. 표는 옆으로 밀어 봄 (첫 사용 점검) */
 .tbl--products tbody + tbody { border-top: 2px solid var(--border-gray-light); }
 
 /* 묶음 안의 작은 제목 (예: 결재선 규칙의 팀별 리더) */

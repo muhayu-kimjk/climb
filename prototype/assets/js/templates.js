@@ -56,7 +56,7 @@
     $('#history').innerHTML = rows.map(function (r) {
       const now = C.templateVersionAt(r.t, D.TODAY);
       const state = r.v.from > D.TODAY ? C.badge('line', '예정') : now === r.v ? C.badge('success', '지금 판') : C.badge('neutral', '지난 판');
-      return '<tr' + (r.v.from <= D.TODAY && now !== r.v ? ' class="is-muted"' : '') + '><td class="num-left">' + C.fmtDate(r.v.from) + '<span class="cell-meta">' + state + '</span></td>' +
+      return '<tr' + (r.v.from <= D.TODAY && now !== r.v ? ' class="is-muted"' : '') + '><td class="num-left nowrap">' + C.fmtDate(r.v.from) + '<span class="cell-meta">' + state + '</span></td>' +
         '<td><span class="cell-strong">' + esc(r.t.name) + '</span><span class="cell-meta">판 ' + r.v.no + '</span></td>' +
         '<td>' + esc(r.v.summary) + '</td><td>' + esc(r.v.basis || '-') + '</td>' +
         '<td class="center">' + esc(C.ownerLabel(r.v.by)) + '<span class="cell-meta">' + C.fmtDateTime(r.v.at) + '</span></td></tr>';
@@ -93,7 +93,8 @@
         C.adminSave('TEMPLATE', t.name, '새 판: 판 ' + no + ' (' + C.fmtDate(val(f, 'from')) + '부터) ' + val(f, 'summary'), val(f, 'basis'),
           { k: 'TEMPLATE_VERSION', id: t.id, v: { from: val(f, 'from'), summary: val(f, 'summary') } });
         render();
-        C.toast(t.name + ' 판 ' + no + '이 ' + C.fmtDate(val(f, 'from')) + '부터 적용됩니다.');
+        // 숫자 뒤에 조사를 붙이지 않음("판 2이"가 되던 것, v0.63 점검에서 고침)
+        C.toast(t.name + '의 새 판(판 ' + no + ')을 ' + C.fmtDate(val(f, 'from')) + '부터 적용합니다.');
       },
     });
   }

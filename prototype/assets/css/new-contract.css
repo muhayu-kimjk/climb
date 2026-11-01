@@ -69,6 +69,8 @@
   padding: 1.2rem 0; border-bottom: 1px solid var(--border-gray-light);
 }
 .route-list > li:last-child { border-bottom: 0; }
+/* 단계 이름과 담당자 줄은 양쪽 정렬하지 않음 (휴대폰에서 "운영 적용 (운영 종료)"의 낱말 사이가 크게 벌어졌음, REQ-UI-28) */
+.route-list > li { text-align: left; }
 .route-no { font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-primary); }
 .route-name { font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
 .route-who { margin-left: 0.6rem; font-size: var(--fs-body-small); font-weight: 500; color: var(--text-subtle); }

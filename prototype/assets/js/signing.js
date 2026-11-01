@@ -16,6 +16,9 @@
   const $ = function (s) { return document.querySelector(s); };
   const PAGE_SIZE = 20;
   const LONG = D.ALERT_RULES.signDelayDays;
+  // 관리자가 바꾼 독촉 기준 일수를 안내와 거르기에 씀 (결재선 규칙의 독촉 기준, v0.63 점검에서 고침: 일수가 글자로 고정되어 있었음)
+  document.querySelectorAll('[data-rule]').forEach(function (el) { el.textContent = D.ALERT_RULES[el.getAttribute('data-rule')]; });
+  $('#f-wait').querySelector('option[value="LONG"]').textContent = LONG + '일 이상';
   const SIGN_STEPS = ['S06', 'S07', 'S08'];
 
   const seeAll = me.role === 'SUPER' || me.role === 'ADMIN';
@@ -36,7 +39,7 @@
   function options(first, pairs) {
     return '<option value="">' + esc(first) + '</option>' + pairs.map(function (p) { return '<option value="' + p[0] + '">' + esc(p[1]) + '</option>'; }).join('');
   }
-  $('#f-step').innerHTML = options('전체', SIGN_STEPS.map(function (code) { return [code, D.STEPS[code].no + ' ' + D.STEPS[code].ing]; }));
+  $('#f-step').innerHTML = options('전체', SIGN_STEPS.map(function (code) { return [code, D.STEPS[code].no + ' ' + D.STEPS[code].ing.replace(/ (중|대기)$/, '')]; }));
 
   $('#thead').innerHTML = '<tr><th scope="col" class="col-customer">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col">지금 단계</th>' +
     (seeAll ? '<th scope="col">영업대표</th>' : '') + '<th scope="col">승인일</th><th scope="col" class="col-wait">승인 후</th></tr>';
@@ -73,10 +76,10 @@
         ? '<a class="cell-title" href="review.html?id=' + encodeURIComponent(x.c.id) + '">' + esc(x.c.counterparty) + '</a>' +
           '<span class="cell-sub">' + service + '</span><span class="cell-meta">' + esc(x.c.id) + (x.c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span>'
         : '<span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>';
-      // 지금 단계와 담당자. ⑦이 내 차례면 배지로 알림
+      // 지금 단계와 담당자. ⑦이 내 차례면 배지로 알림. 단계 이름 끝의 "대기", "중"은 떼어 전체 진행 현황과 같게(REQ-DASH-06)
       const st = x.s ? D.STEPS[x.s.step] : null;
       const stepCell = st
-        ? esc(st.no + ' ' + st.ing) + (x.s.step === 'S07' && x.s.userId === me.id ? ' ' + C.badge('progress', '내 차례') : '') +
+        ? esc(st.no + ' ' + st.ing.replace(/ (중|대기)$/, '')) + (x.s.step === 'S07' && x.s.userId === me.id ? ' ' + C.badge('progress', '내 차례') : '') +
           '<span class="cell-meta">' + esc(C.roleShort(x.s.role)) + ' ' + esc(C.ownerLabel(x.s.userId)) + '</span>'
         : '-';
       return '<tr>' +

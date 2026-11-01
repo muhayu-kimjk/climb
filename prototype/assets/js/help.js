@@ -191,7 +191,8 @@
       '<span class="doc-card-title">' + esc(p.getAttribute('data-title')) + '</span>' +
       '<span class="doc-card-text">' + esc(BLURB[nameOf(p)] || '') + '</span></a>';
   }).join('');
-  const releases = (D.NOTICES || []).filter(function (n) { return n.kind === 'RELEASE'; })
+  // 내린 글은 빼고 (REQ-UI-29: 내린 글은 숨김. v0.63 점검에서 고침: 내린 릴리즈도 보여 링크가 깨졌음)
+  const releases = (D.NOTICES || []).filter(function (n) { return n.kind === 'RELEASE' && !n.hidden; })
     .sort(function (a, b) { return a.at < b.at ? 1 : -1; }).slice(0, 3);
   document.getElementById('doc-news').innerHTML = releases.map(function (n) {
     return '<li><a href="notice.html?id=' + encodeURIComponent(n.id) + '"><span class="doc-news-ver">' + esc(n.version || '') + '</span>' +

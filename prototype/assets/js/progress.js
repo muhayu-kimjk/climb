@@ -14,6 +14,8 @@
   const esc = C.esc;
   const $ = function (s) { return document.querySelector(s); };
   const PAGE_SIZE = 20;
+  // 안내 글의 독촉 기준 일수: 결재선 규칙(SCR-52)에서 바꾼 값을 씀 (첫 사용 점검: 대기 칸 강조의 뜻이 안내에 없었음)
+  document.querySelectorAll('[data-rule]').forEach(function (el) { el.textContent = D.ALERT_RULES[el.getAttribute('data-rule')]; });
   const OPEN = ['IN_REVIEW', 'SUPPLEMENT', 'REJECTED', 'APPROVED', 'OPS_REVIEW']; // 보완 중(v0.26)도 진행 중
 
   const all = D.CONTRACTS.filter(function (c) { return OPEN.indexOf(c.status) > -1; })
@@ -31,6 +33,11 @@
   const preset = params.get('status');
   if (preset) $('#f-status').value = preset;
   // 개요에서 영업이 누르면 나로 거름 (v0.58 QA)
+  //   진행 중인 계약이 없는 영업도 나로 거름(빈 목록). 예전에는 다른 사람 계약이 모두 보였음 (v0.63 점검에서 고침)
+  if (params.get('owner') && params.get('owner') === me.id && owners.indexOf(me.id) < 0) {
+    $('#f-owner').insertAdjacentHTML('beforeend', '<option value="' + esc(me.id) + '">' + esc(C.ownerLabel(me.id)) + '</option>');
+    owners.push(me.id);
+  }
   if (owners.indexOf(params.get('owner')) > -1) $('#f-owner').value = params.get('owner');
 
   let page = 1;
@@ -71,7 +78,7 @@
         '<td class="nowrap">' + C.statusBadge(c) + '</td>' +
         C.progressCells(c) + // 현재 진행(단계) + 대기(날수) 두 칸 (v0.55)
         '<td class="center">' + esc(C.ownerLabel(c.requesterId)) + '</td>' +
-        '<td class="num-left">' + C.fmtDate(c.requestedAt) + '</td>' +
+        '<td class="num-left nowrap">' + C.fmtDate(c.requestedAt) + '</td>' + // 날짜는 한 줄 (첫 사용 점검: 하이픈에서 끊겼음)
       '</tr>';
     }).join('') : '<tr><td class="empty-row" colspan="7">조건에 맞는 계약이 없습니다.</td></tr>';
     $('#pagination').innerHTML = C.pagerHtml(page, pages, list.length, from, rows.length, PAGE_SIZE, '건');

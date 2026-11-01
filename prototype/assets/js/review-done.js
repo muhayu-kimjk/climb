@@ -40,12 +40,14 @@
     return '<option value="">' + esc(first) + '</option>' + pairs.map(function (p) { return '<option value="' + p[0] + '">' + esc(p[1]) + '</option>'; }).join('');
   }
   // 한 일: ⑥⑧⑨⑩의 승인은 "완료"로 함께 셈. 체결본 등록(⑦, 영업)은 최고관리자, 관리자 보기에서만 나옴
-  $('#f-action').innerHTML = options('전체', [['APPROVE', '승인, 완료'], ['REJECT', '반려'], ['CANCEL', '승인 취소'], ['RETURN', '다시 등록 요청'], ['REGISTER', '체결본 등록']]);
+  //   보완 요청(②~⑤)과 보완 완료(기안자, 최고관리자와 관리자 보기)도 목록에 나오므로 거르기에 둠 (v0.63 점검에서 고침)
+  $('#f-action').innerHTML = options('전체', [['APPROVE', '승인, 완료'], ['REJECT', '반려'], ['SUPPLEMENT', '보완 요청'], ['CANCEL', '승인 취소'], ['RETURN', '다시 등록 요청']]
+    .concat(seeAll ? [['REGISTER', '체결본 등록'], ['RESUBMIT', '보완 완료']] : [])); // 체결본 등록과 보완 완료는 영업의 일이라 모두 보는 보기에서만
   $('#f-step').innerHTML = options('전체 단계', D.REVIEW_GROUPS.concat(D.POST_GROUPS).reduce(function (a, g) { return a.concat(g); }, []).map(function (code) { return [code, C.stepLabel(code)]; }));
   $('#f-status').innerHTML = options('전체 상태', Object.keys(D.STATUS).filter(function (k) { return k !== 'DRAFT'; }).map(function (k) { return [k, D.STATUS[k].label]; }));
 
   $('#thead').innerHTML = '<tr><th scope="col">처리일시</th><th scope="col" class="col-customer">고객사</th><th scope="col">단계</th><th scope="col">한 일</th>' +
-    (seeAll ? '<th scope="col">처리한 사람</th>' : '') + '<th scope="col">의견, 사유</th><th scope="col">지금 상태</th></tr>';
+    (seeAll ? '<th scope="col">처리한 사람</th>' : '') + '<th scope="col" class="col-phone-wide">의견, 사유</th><th scope="col">지금 상태</th></tr>';
 
   let page = 1;
   function filtered() {
@@ -68,18 +70,18 @@
     const rows = list.slice(from, from + PAGE_SIZE);
     const count = function (a) { return list.filter(function (x) { return x.h.action === a; }).length; };
     $('#list-count').innerHTML = C.meta([[(list.length !== all.length ? '검색 결과' : '전체'), '<strong>' + list.length + '건</strong>'],
-      ['승인, 완료', count('APPROVE') + '건'], ['반려', count('REJECT') + '건'], ['승인 취소', count('CANCEL') + '건'], ['다시 등록 요청', count('RETURN') + '건']]);
+      ['승인, 완료', count('APPROVE') + '건'], ['반려', count('REJECT') + '건'], ['보완 요청', count('SUPPLEMENT') + '건'], ['승인 취소', count('CANCEL') + '건'], ['다시 등록 요청', count('RETURN') + '건']]);
     const cols = seeAll ? 7 : 6;
     $('#rows').innerHTML = rows.length ? rows.map(function (x) {
       const a = D.APPROVAL_ACTIONS[x.h.action];
       return '<tr>' +
-        '<td class="num-left">' + C.fmtDateTime(x.h.at) + '</td>' +
+        '<td class="num-left">' + C.fmtDateTime(x.h.at).split(' ').map(function (s) { return '<span class="keep">' + s + '</span>'; }).join(' ') + '</td>' + // 날짜와 시각을 각각 한 줄로("2026-10-" 뒤에서 끊기지 않게). 결재 문서의 결재 기록과 같은 방식 (첫 사용 점검)
         '<td><a class="cell-title" href="review.html?id=' + encodeURIComponent(x.c.id) + '">' + esc(x.c.counterparty) + '</a>' +
           // 계약번호는 날짜처럼 한 줄로 (마지막 하이픈에서 끊기지 않게). 서비스와 차수는 쉼표 뒤에서 줄이 바뀔 수 있음
           '<span class="cell-meta"><span class="nowrap">' + esc(x.c.id) + '</span>, ' + esc(C.serviceLabel(x.c.services)) + ', ' + (x.h.round || 1) + '차</span></td>' +
-        '<td>' + esc(D.STEPS[x.h.step].no + ' ' + D.STEPS[x.h.step].short) + '</td>' +
+        '<td class="nowrap">' + esc(D.STEPS[x.h.step].no + ' ' + D.STEPS[x.h.step].short) + '</td>' + // PC에서도 번호와 이름을 한 줄로("②"만 윗줄에 남지 않게). 짧은 칸이라 검토 대기의 단계 칸처럼 가운데 (첫 사용 점검)
         '<td class="nowrap">' + C.badge(a.tone, C.actionLabel(x.h, x.c)) + '</td>' +
-        (seeAll ? '<td class="center">' + esc(C.ownerLabel(x.h.actorId, x.h.actorDept)) + (x.h.onBehalfOf ? '<span class="cell-meta">' + esc(C.ownerLabel(x.h.onBehalfOf)) + ' 대신</span>' : '') + '</td>' : '') +
+        (seeAll ? '<td class="center cell-phone-nowrap">' + esc(C.ownerLabel(x.h.actorId, x.h.actorDept)) + (x.h.onBehalfOf ? '<span class="cell-meta">' + esc(C.ownerLabel(x.h.onBehalfOf)) + ' 대신</span>' : '') + '</td>' : '') +
         '<td>' + (x.h.comment ? esc(x.h.comment) : '-') + '</td>' +
         '<td class="nowrap">' + C.statusBadge(x.c) + '</td>' +
       '</tr>';

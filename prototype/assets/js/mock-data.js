@@ -408,12 +408,25 @@ window.CLIMB_DATA = (function () {
     { code: 'PERIOD', label: '계약 기간과 자동갱신과 통지 일수' }, { code: 'SETTLE', label: '정산 방식' },
     { code: 'SIDE', label: '계약서 밖 약정 발견' }, { code: 'OTHER', label: '그 밖의 것' },
   ];
+  /* ② 체크리스트 검토와 보완 요청 (v0.63, 통제와 표준 대응표 G-05: 내부회계 "수작업 통제의 정밀도와 증거", ISO 37001 8.3, 8.4)
+   * REVIEW_CHECKS: ② 승인 때 영업지원이 모두 확인하는 항목. ⑥, ⑧처럼 결재 기록에 "확인: ..."으로 남음 [가정]
+   *   4번 항목: 4번 답이 아니요인데 계약서에 무상 기간이나 환불권 같은 조건이 숨어 있지 않은지
+   * SUPPLEMENT_ITEMS: ②~⑤ 보완 요청 때 고르는 보완할 항목(하나 이상, ⑧ 반려의 어긋난 항목과 같은 방식). 결재 기록에 코드로 남아 통계에서 셈 [가정]
+   *   항목 이름 안에는 쉼표를 쓰지 않음(SIGNED_MISMATCH와 같은 까닭) */
+  const REVIEW_CHECKS = ['고객사와 사업자등록번호', '제품 줄의 수량과 금액', '1번 답과 표준계약서 판', '4번 답과 계약서의 무상 기간이나 환불 조건', '필수 첨부 파일'];
+  const SUPPLEMENT_ITEMS = [
+    { code: 'CHECKLIST', label: '체크리스트 답' }, { code: 'AMOUNT', label: '제품과 수량과 금액' },
+    { code: 'DOC', label: '계약서 내용' }, { code: 'ATTACH', label: '첨부 파일' }, { code: 'OTHER', label: '그 밖의 것' },
+  ];
+  function supplementLabels(codes) {
+    return codes.map(function (k) { return SUPPLEMENT_ITEMS.filter(function (x) { return x.code === k; })[0].label; }).join(', ');
+  }
   // ⑨ 고객지원이 운영에 적용하는 일. 서비스마다 다릅니다 (REQ-FLOW-25, panda p.35) [가정] 서비스 3단계 목록이 오면 다시 정함
   const OPS_CHECKS = {
     CK: ['라이선스 열기', '계약번호 설정', '계약 기간 설정', '계약 금액 설정'],
     HR: ['도메인 열기', '계약 기간 설정'],
   };
-  // 해지할 때 ⑨에서 고객지원이 하는 일 (REQ-SIGN-09) [가정]
+  // 해지할 때 ⑨에서 고객지원이 하는 일 (REQ-ARC-06) [가정]
   const OPS_CHECKS_END = { CK: ['라이선스 닫기', '계약 종료일 설정'], HR: ['도메인 닫기', '계약 종료일 설정'] };
   // 자동갱신(그대로 연장)할 때 ⑨에서 고객지원이 하는 일 (REQ-ARC-07) [가정]
   const OPS_CHECKS_EXTEND = { CK: ['라이선스 기간 연장'], HR: ['도메인 기간 연장'] };
@@ -428,7 +441,9 @@ window.CLIMB_DATA = (function () {
   // 결재 기록 한 줄 (데이터 정의서 approval_history). 한 번 남기면 고치거나 지우지 않습니다. (REQ-FLOW-12)
   //   step: 단계 코드 / action: APPROVE 승인, REJECT 반려, CANCEL 승인 취소 / at: 'YYYY-MM-DD HH:MM'
   //   comment: 승인 의견(선택) 또는 반려 사유(필수) 또는 취소 사유 / actorId: 비우면 그 단계 담당자 / round: 기안 차수
+  //   ② 승인은 확인 항목을 함께 남김(v0.63, G-05). 예시 기록도 실제 기록과 같은 모양으로
   function ev(step, action, at, comment, actorId, round) {
+    if (step === 'S02' && action === 'APPROVE') comment = ['확인: ' + REVIEW_CHECKS.join(', '), comment].filter(Boolean).join('. ');
     return { step: step, action: action, at: at, comment: comment || '', actorId: actorId || STEP_ASSIGNEE[step], round: round || 1 };
   }
 
@@ -443,7 +458,7 @@ window.CLIMB_DATA = (function () {
     {
       // draftKey: 계약번호가 없는 임시 저장 건을 화면 주소로 부를 때 쓰는 임시 키 (new-contract.html?id=D-0001)
       id: null, draftKey: 'D-0001', counterparty: '바름고등학교', services: ['HR'], type: 'SaaS 이용계약', kind: 'NEW',
-      amount: 7200000, requesterId: 'u_sales1', savedAt: '2026-10-18', restricted: false, personalData: true,
+      amount: 7200000, requesterId: 'u_sales1', savedAt: '2026-10-18 17:40', restricted: false, personalData: true,
       status: 'DRAFT', history: [],
       // 계약 등록 화면(SCR-11)에 이어서 채울 값 (3.4 입력 항목)
       form: {
@@ -491,7 +506,9 @@ window.CLIMB_DATA = (function () {
       memo: '지식재산권 조항 수정본을 첨부했습니다.',
       // 판 관리 예시 (v0.53): 법무가 보완을 요청해 영업이 계약서를 다시 올림 → 계약서 초안 판 1, 판 2
       history: [ev('S02', 'APPROVE', '2026-10-15 09:40'),
-        ev('S04', 'SUPPLEMENT', '2026-10-15 16:00', '지식재산권 조항 수정본에 대학 쪽 서명란이 빠졌습니다. 서명란을 넣은 계약서를 다시 올려 주세요.'),
+        // 보완할 항목 코드(v0.63, G-05): 결재 기록에 코드로 남아 통계 "보완 요청 항목"에서 셈
+        Object.assign(ev('S04', 'SUPPLEMENT', '2026-10-15 16:00', '보완할 항목: ' + supplementLabels(['DOC']) +
+          '. 지식재산권 조항 수정본에 대학 쪽 서명란이 빠졌습니다. 서명란을 넣은 계약서를 다시 올려 주세요.'), { supplementItems: ['DOC'] }),
         ev('S01', 'RESUBMIT', '2026-10-16 10:30', '서명란을 넣은 계약서를 다시 올렸습니다.', 'u_sales1')],
     },
     {
@@ -500,7 +517,7 @@ window.CLIMB_DATA = (function () {
       parentId: '2601CL001',
       amount: 12000000, requesterId: 'u_sales2', requestedAt: '2026-10-16 09:00', restricted: false, personalData: false,
       status: 'IN_REVIEW',
-      checklist: { standard: 'NO', standardNote: '변경 계약서(이용자 추가)', price: 'NO', priceNote: '기존 계약 할인율 유지', cap: 'NO', capNote: '추가 이용자 20% 할인(한도 15%), 기존 계약 조건 유지 요청' },
+      checklist: { standard: 'NO', standardNote: '변경 계약서(이용자 추가)', price: 'NO', priceNote: '기존 계약 할인율 유지', cap: 'NO', capNote: '추가 이용자 20% 할인, 기존 계약 조건 유지 요청' },
       products: [{ feature: 'CK_CAMPUS_USER', qty: 10, amount: 12000000 }],
       history: [
         ev('S02', 'APPROVE', '2026-10-16 09:10'),
@@ -536,7 +553,8 @@ window.CLIMB_DATA = (function () {
       // 보완 요청 예시(v0.26): ④ 법무가 기안자에게 보완을 요청. 기안자가 고치면 ④부터 이어서 결재
       history: [
         ev('S02', 'APPROVE', '2026-10-18 13:00'),
-        ev('S04', 'SUPPLEMENT', '2026-10-18 16:40', '상대방 양식 계약서에 서비스 이용 기간이 비어 있습니다. 기간을 채운 계약서를 다시 올려 주세요.'),
+        Object.assign(ev('S04', 'SUPPLEMENT', '2026-10-18 16:40', '보완할 항목: ' + supplementLabels(['DOC']) +
+          '. 상대방 양식 계약서에 서비스 이용 기간이 비어 있습니다. 기간을 채운 계약서를 다시 올려 주세요.'), { supplementItems: ['DOC'] }),
       ],
     },
     {
@@ -679,7 +697,7 @@ window.CLIMB_DATA = (function () {
       amount: 120000000, requesterId: 'u_sales2', requestedAt: '2026-02-10 10:00', restricted: false, personalData: false,
       status: 'ACTIVE', approvedAt: '2026-02-16 15:00', autoHistory: true, startDate: '2026-03-01', endDate: '2028-02-29',
       // 할인율 한도를 넘어 ③ 영업 검토를 거친 예시 (v0.53)
-      checklist: { standard: 'NO', price: 'NO', priceNote: '총판 공급가로 계약', cap: 'NO', capNote: '총판 공급가 30% 할인(한도 20%), 2년 최소 구매 약정 조건' },
+      checklist: { standard: 'NO', price: 'NO', priceNote: '총판 공급가로 계약', cap: 'NO', capNote: '총판 공급가 30% 할인, 2년 최소 구매 약정 조건' },
       // 제품 줄과 사용 업체 (v0.62, G-19): 한 줄은 쓸 기관이 정해졌고, 한 줄은 최소 구매 약정이라 미정
       products: [{ feature: 'CK_CAMPUS_PLAG', qty: 10, amount: 84000000, org: '누리솔대학교' },
         { feature: 'CK_CAMPUS_USER', qty: 30, amount: 36000000, orgPending: 'MIN_PURCHASE' }],
@@ -795,13 +813,13 @@ window.CLIMB_DATA = (function () {
     { id: 'OB-0001', bundle: '2604CL001', kind: 'SLA', title: '달마다 SLA 보고서(가용률 99.5%) 보내기', clause: 'SLA 제4조', when: 'REPEAT', first: '2026-06-05', everyMonths: 1,
       by: 'u_sales1', at: '2026-05-02 10:00',
       records: [rec('2026-06-05', '2026-06-04 17:20', 'u_cem', '5월 가용률 99.92% 보고서 보냄'), rec('2026-07-05', '2026-07-03 16:10', 'u_cem', '6월 가용률 99.88% 보고서 보냄'),
-        rec('2026-08-05', '2026-08-05 10:30', 'u_cem', '7월 가용률 99.95% 보고서 보냄'), rec('2026-09-05', '2026-09-04 15:00', 'u_cem', '8월 가용률 99.61% 보고서 보냄(8-21 장애 반영)')] },
+        rec('2026-08-05', '2026-08-05 10:30', 'u_cem', '7월 가용률 99.95% 보고서 보냄'), rec('2026-09-05', '2026-09-04 15:00', 'u_cem', '8월 가용률 99.61% 보고서 보냄(2026-08-21 장애 반영)')] },
     { id: 'OB-0002', bundle: '2604CL001', kind: 'SLA', title: '장애가 나면 1차 대응하기', clause: 'SLA 제6조', when: 'EVENT', within: '알게 된 때부터 4시간 안',
       by: 'u_sales1', at: '2026-05-02 10:00',
       records: [rec(null, '2026-09-12 11:40', 'u_cem', '09:50 접속 지연 신고를 받고 10:30 원인 확인과 1차 조치(40분 걸림)')] },
     { id: 'OB-0003', bundle: '2604CL001', kind: 'SECURITY', title: '고객의 수탁자 점검(보안 감사)에 자료 내기', clause: '개인정보 처리위탁 계약 제7조', when: 'EVENT', within: '요청받은 날부터 10일 안',
       by: 'u_legal', at: '2026-05-04 09:30',
-      records: [rec(null, '2026-08-20 11:00', 'u_privacy', '병원 정보보호팀 감사 요청(08-14)에 CEM유닛과 함께 접속 기록 사본 냄')] },
+      records: [rec(null, '2026-08-20 11:00', 'u_privacy', '병원 정보보호팀 감사 요청(2026-08-14)에 CEM유닛과 함께 접속 기록 사본 냄')] },
     { id: 'OB-0004', bundle: '2604CL001', kind: 'SECURITY', title: '계약이 끝난 뒤 위탁받은 개인정보를 파기하고 확인서 보내기', clause: '개인정보 처리위탁 계약 제9조', when: 'ONCE', due: '2027-05-05',
       by: 'u_legal', at: '2026-05-04 09:30', records: [] },
     // 온새미로대학교(2512CL001): 2차 분할 청구가 11일 남은 예시, 해마다 교육 확인서는 이 계약 기간에는 모두 함
@@ -873,7 +891,7 @@ window.CLIMB_DATA = (function () {
     { id: 'N-0008', kind: 'RELEASE', version: 'v0.9.1', title: '기관명 입력과 달력', at: '2026-10-22 19:00', by: 'u_super',
       items: {
         improved: ['달력에서 고른 날짜를 한 번 더 누르면 확인을 누르지 않아도 바로 입력됩니다. 달력의 "오늘" 아래에 작게 알려 줍니다.'],
-        changed: ['"기관(부서)"를 "기관 또는 부서명"으로 바꾸고, 고르지 않고 직접 적습니다. 기관 이름은 사업자등록번호처럼 확인할 고유 번호가 없기 때문입니다.',
+        changed: ['"기관(부서)"을 "기관 또는 부서명"으로 바꾸고, 고르지 않고 직접 적습니다. 기관 이름은 사업자등록번호처럼 확인할 고유 번호가 없기 때문입니다.',
           '거래처마다 두던 기관 목록을 없앴습니다. 거래처 검색에서도 기관 이름으로는 찾지 않습니다. 이미 등록한 계약의 기관 이름은 그대로 남습니다.'],
       } },
     // v0.9.2 (요구사항 정의서 v0.47): 제품과 기능을 나눔, 제품과 기능 관리 화면
@@ -961,7 +979,7 @@ window.CLIMB_DATA = (function () {
           '화면 위의 경로 줄(예: 개요 > 내 계정)을 모든 화면에서 뺐습니다. 내 계정은 안내 상자 없이 계정 정보부터 보입니다.'],
         improved: ['정해진 이름(올린 일시, 진행 중 등)은 흐리게, 바뀌는 값(날짜, 사람, 건수)은 진하게 보여 한눈에 나뉩니다.',
           '공지의 이전 글, 다음 글을 회색 상자에 두어 본문과 나뉘게 했습니다. "올린 날"은 "올린 일시"로 바꿨습니다.',
-          '로고 climb 옆 심볼을 조금 작게 했습니다.'],
+          '로고 글자 옆 심벌을 조금 작게 했습니다.'],
         fixed: ['짧은 화면과 긴 화면을 오갈 때 화면이 옆으로 흔들리던 것을 고쳤습니다.',
           '휴대폰 개요에서 고객사 이름이 서너 줄로 꺾이던 것을 고쳤습니다.',
           '새 계약 등록의 좁은 칸에서 칸 이름의 낱말 사이가 벌어지던 것을 고쳤습니다.'],
@@ -970,9 +988,9 @@ window.CLIMB_DATA = (function () {
     { id: 'N-0020', kind: 'RELEASE', version: 'v0.10.3', title: '휴대폰과 화면 전환', at: '2026-10-23 10:00', by: 'u_super',
       items: {
         changed: ['휴대폰에서 제목을 같은 비율로 줄입니다: 화면 제목 27px, 상자 제목 18px. 본문 글자(17px)는 PC와 같습니다.',
-          '로고는 PC와 휴대폰에서 같은 크기로 보이고, 심볼과 climb 사이를 조금 좁혔습니다.',
-          '화면 맨 아래 로고에서 한글 이름 줄을 빼고 climb과 영문 이름(MUHAYU Contract Lifecycle Intelligent Management Base)만 둡니다.',
-          '메뉴의 하위 메뉴를 누른 메뉴 바로 아래에 작게 열고, 밑줄도 누른 메뉴로 옮깁니다. 열어도 화살표와 그라데이션은 그대로이고, 아래 화면이 흐려지며 흐린 곳을 누르면 닫힙니다. PC와 휴대폰이 같습니다.'],
+          '로고는 PC와 휴대폰에서 같은 크기로 보이고, 심벌과 로고 글자 사이를 조금 좁혔습니다.',
+          '화면 맨 아래 로고에서 한글 이름 줄을 빼고 로고 글자와 영문 이름(MUHAYU Contract Lifecycle Intelligent Management Base)만 둡니다.',
+          '메뉴의 하위 메뉴를 누른 메뉴 바로 아래에 작게 열고, 밑줄도 누른 메뉴로 옮깁니다. 열어도 화살표와 그러데이션은 그대로이고, 아래 화면이 흐려지며 흐린 곳을 누르면 닫힙니다. PC와 휴대폰이 같습니다.'],
         fixed: ['화면을 옮길 때 반쯤 그려진 화면이나 글꼴이 바뀌는 순간이 보이던 것을 고쳤습니다. 새 화면은 다 그린 뒤 한 번에 보입니다.'],
       } },
     // v0.10.4 (요구사항 정의서 v0.56): 서비스 > 제품 > 기능(대분류 > 중분류 > 소분류), 서비스는 CK, HR, 기타
@@ -1017,7 +1035,7 @@ window.CLIMB_DATA = (function () {
           '휴대폰에서는 화면 아래 탭 막대(개요, 계약 등록, 계약 현황, 보관함, 더보기)로 메뉴를 엽니다.',
           '기기에서 동작 줄이기, 대비 높이기, 고대비를 켜 두면 화면이 그 설정을 따릅니다.'],
         changed: ['PC 글자를 인쇄 기준으로 줄였습니다. 본문 15px(인쇄 11.25pt), 화면 제목 27px이고, 제목은 단계마다 조금씩 커져 위계가 보입니다.',
-          '휴대폰 글자는 아이폰 글자 단계(본문 17, 보조 15, 작은 글자 13)를 따르고, 누르는 칸은 44px입니다.',
+          '휴대폰 글자는 아이폰 글자 단계(본문 17px, 보조 15px, 작은 글자 13px)를 따르고, 누르는 칸은 44px입니다.',
           '항목 사이, 상자 안쪽, 표 한 줄의 간격을 촘촘하게 줄였습니다.',
           '상자, 입력 칸, 단추의 모서리를 더 둥글게 했습니다. 메뉴에서 펼쳐지는 목록은 테두리 없는 직각입니다.',
           '상태 배지는 색 테두리 없이 연한 바탕만, 보조 단추(예: 제품 추가)는 초록 테두리 없이 연한 초록 바탕입니다.',
@@ -1094,13 +1112,46 @@ window.CLIMB_DATA = (function () {
         fixed: ['체결본 확인(⑧)에서 반려된 계약을 보완 후 재기안할 때, 다시 채울 값이 없으면 계약 기록에 있는 값(계약 방식, 기간 등)으로 채워 엽니다.',
           '검토 대기에서 볼 수 없는 열람 제한 계약은 서비스 칸도 가리고, 서비스로 걸러도 나오지 않습니다.'],
       } },
+    // v0.13.3 (요구사항 정의서 v0.63, 통제와 표준 대응표 G-05 ①③, G-25 ①, G-23 ②③ 일부): ② 확인 항목, 보완 요청 항목, 새 거래처 표시, 분기 검토의 대리 지정과 본 자료
+    { id: 'N-0030', kind: 'RELEASE', version: 'v0.13.3', title: '결재 확인 항목', at: '2026-11-01 01:00', by: 'u_super',
+      items: {
+        added: ['② 체크리스트 검토는 승인할 때 확인한 항목 다섯(고객사와 사업자등록번호, 제품 수량과 금액, 1번 답과 표준계약서 판, 4번 답과 계약서 조건, 필수 첨부)을 모두 표시합니다. 결재 기록에 남습니다.',
+          '보완을 요청할 때 보완할 항목(체크리스트 답, 제품과 수량과 금액, 계약서 내용, 첨부 파일, 그 밖의 것)을 하나 이상 고릅니다.',
+          '통계와 보고서에 "보완 요청 항목"을 더했습니다.'],
+        improved: ['계약을 올리며 직접 입력해 등록한 거래처는 결재 문서의 고객사 옆에 "새 거래처"로 보입니다.',
+          '결재 문서의 제품과 금액 표 총액 줄에 계약 전체 할인율을 보입니다.',
+          '접속 기록 점검의 분기 권한 검토 창에 그 분기의 대리 지정을 보입니다. 점검과 검토 결과를 저장하면 그때 본 자료가 함께 남습니다.',
+          '개요의 단계 표시기를 누르면 그 건수와 같은 목록이 열립니다(계약 등록은 작성 중, 계약 완료는 계약 완료).',
+          '결재 문서의 체크리스트 4번(회계 영향 조건)은 "예"일 때 강조합니다. "계약 묶음 보기", 진행 중인 기안 번호, 견적의 지난 판은 눌러 열 수 있는 모양으로 보입니다.',
+          '견적서의 공급자 칸을 항목마다 한 줄로 나누고, 휴대폰에서 견적서 품목과 결재란 머리글이 글자 중간에서 꺾이지 않습니다.',
+          '해지의 ⑨는 "운영 종료", 조건 그대로 연장의 ⑨는 "기간 연장"으로 보입니다. 검토 대기의 함께 검토하는 단계는 이름도 함께 보입니다(예: 동시: ⑤ 개인정보).',
+          '체결 대기, 운영 검토 대기, 만료 예정, 견적 목록, 통계와 보고서, 의무 관리의 안내와 건수 이름을 알아보기 쉽게 다듬었습니다.',
+          '관리자 화면, 표준계약서, 해지와 연장 검토, 운영 변경 기안의 날짜, 금액 정렬, 안내 문장을 다듬고, 휴대폰에서 표 칸이 글자 두세 개 폭으로 좁아지지 않게 했습니다.',
+          '표 안의 날짜가 "2026-" 뒤에서 줄이 바뀌지 않습니다. 새 견적의 제품 추가 단추를 계약 등록과 같게 바꾸고, 내 계정에서 내 역할에 오지 않는 알림은 체크하지 않은 채로 보입니다.'],
+        fixed: ['반려된 변경 기안이 있으면 새 변경을 기안하지 않고 그 기안을 보완해 다시 올립니다.',
+          '열람 제한은 관리자가 걸거나 풀 때 원계약과 그 뒤의 기안 모두에 적용됩니다.',
+          '운영 검토 대기에서 볼 수 없는 열람 제한 계약은 서비스와 회계 표시도 가립니다. 의무 관리에서는 묶음 번호도 가립니다.',
+          '계약 요약서의 결재 기록에 처리한 사람의 그때 조직이 나옵니다.',
+          '첨부 파일은 안내대로 PDF, Word, 한글 파일만 50MB 이하로 받습니다.',
+          '휴대폰에서 펼치기 줄, 체크 줄, 표 안의 짧은 버튼처럼 작던 누름 칸을 손가락 크기(44px)로 넓혔습니다.',
+          '결재란의 생략한 단계 글자를 읽기 쉬운 진하기로 바꿨습니다.',
+          '영업도 결재 차례 이메일(⑦ 체결본 등록)을 받는 것으로 내 계정에 보입니다.',
+          '결재 문서의 첨부 목록에 계약 등록에서 실제로 올린 파일 이름이 나옵니다.',
+          '휴대폰에서 선택 칸의 긴 값이 두 줄로 꺾이지 않고 한 줄로 보입니다.',
+          '화면 글을 표기 규칙에 맞게 다듬었습니다. 통계 안내, 전체 계약의 변경과 연장 건수, 계약 요약서의 항목 이름, 고객용 견적서 아래 문구, 이메일 미리 보기 등입니다.',
+          '반려된 계약을 다시 기안할 때, 걸려 있던 열람 제한은 풀 수 없습니다. 풀기는 관리자가 열람 제한 관리에서 합니다.',
+          '사용 안 함으로 돌린 제품의 기능이 든 견적은 그 줄을 다시 고르기 전에는 출력하지 않습니다.',
+          '이용 안내를 지금 화면에 맞췄습니다. ⑤ 개인정보 검토를 거치는 조건, 몇 단계만 거치는 기안(해지, 그대로 연장, 운영 변경), 계약 등록에서 꼭 올릴 파일, 담당자 화면을 함께 쓰는 리더입니다.',
+          '그 밖에 안내 문구, 휴대폰 만료 예정의 담당, 검토 완료의 보완 요청 거르기 등을 고쳤습니다.'],
+      } },
   ];
 
   /* ---------- 이메일 알림 (내 계정 SCR-93, v0.45 기획자 요청. 보내는 때는 요구사항 정의서 REQ-ENV-10) ----------
    * must: 꼭 받는 알림(업무 처리와 내부 통제에 필요해 끌 수 없음, 기획자 확인 C-26) / 선택 알림은 사람마다 켜고 끔(on: 처음 값)
    * roles: 이 알림을 받는 역할(없으면 모두). 내 역할에 오지 않는 알림은 흐리게 보여 줌 */
   const EMAIL_TYPES = [
-    { code: 'TURN', name: '결재 차례', when: '내가 처리할 결재 단계(②~⑩)가 됐을 때', must: true, roles: ['SALES_ADMIN', 'HEAD', 'LEGAL', 'PRIVACY', 'GA', 'CEM', 'FINANCE', 'EXEC'] },
+    // 영업도 받음: ⑦ 체결본 등록과 ⑧의 다시 등록 요청이 기안한 영업의 차례 (03 CODE-MAIL TURN, REQ-ENV-10 ①. v0.63 점검에서 고침)
+    { code: 'TURN', name: '결재 차례', when: '내가 처리할 결재 단계(②~⑩, ⑦ 체결본 등록 포함)가 됐을 때', must: true, roles: ['SALES', 'SALES_ADMIN', 'HEAD', 'LEGAL', 'PRIVACY', 'GA', 'CEM', 'FINANCE', 'EXEC'] },
     { code: 'REJECT', name: '반려와 보완 요청', when: '내가 기안한 계약이 반려되거나 보완 요청을 받았을 때', must: true, roles: ['SALES'] },
     { code: 'SIGN_READY', name: '체결 대기', when: '내가 기안한 계약의 계약 검토가 끝났을 때', must: true, roles: ['SALES'] },
     { code: 'REMIND', name: '독촉', when: '내 차례가 5일 넘게 머물거나, 승인 뒤 14일 동안 체결본이 없을 때', must: true },
@@ -1280,7 +1331,7 @@ window.CLIMB_DATA = (function () {
    *   출력할 때마다 누가 언제 어떤 판을 냈는지 기록을 남기는 것이 목적입니다. 견적은 계약과 이어지지 않습니다(계약 등록과 따로).
    *   견적 단계 할인 승인은 하지 않습니다(v0.21 결정 그대로). 할인율 한도를 넘는 줄은 화면에서만 알려 줌(계약할 때 ③ 영업 검토)
    * QUOTE_RULES: 유효기간 기본 일수, 부가세율. 실제 시스템에서는 관리자 설정 [가정]
-   * QUOTE_SUPPLIER: 견적서의 공급자 칸. 사업자등록번호, 대표자, 주소는 실제 시스템의 회사 설정 값을 씀(시안에는 넣지 않음)
+   * QUOTE_SUPPLIER: 견적서의 공급자 칸. 사업자등록번호, 대표자, 주소, 대표 연락처는 실제 시스템의 회사 설정 값을 씀(시안에는 넣지 않음, 03 8-9)
    * QUOTES: 견적 한 판이 한 줄. no(견적번호 QT + 연월 + 일련번호), ver(판), 고객사(거래처 번호, 상호, 사업자등록번호), unit(기관 또는 부서명),
    *   opp(판다 영업기회번호, 선택), date(견적일), validUntil(유효기간), lines(기능, 수량, 단가: 표준 단가와 할인율 한도는 그때의 가격 기준),
    *   note(조건과 비고), owner(작성한 영업), savedAt, issues(출력 기록: 일시, 출력한 사람, 합계). 출력한 판은 고칠 수 없고 고치려면 새 판
@@ -1392,6 +1443,10 @@ window.CLIMB_DATA = (function () {
    * absentId: 자리를 비우는 담당자 / delegateId: 대신할 사람 / from, to: 기간(날짜, 이틀 다 포함) / reason: 근거
    * by, at: 지정한 관리자와 일시 / endedAt: 기간 전에 끝냈으면 그 일시 */
   const DELEGATIONS = [
+    // 지난 분기의 끝난 대리 지정 예시(v0.63, 표준 대응표 G-23 ②): 2026년 3분기 권한 검토 창의 "이 분기에 걸친 대리 지정"에 보임
+    //   날짜는 두 사람의 계정이 생긴 뒤(송민재 2026-09-24 등록), 관리자 변경 이력에도 같은 줄 (v0.63 검토)
+    { id: 'DL-000', absentId: 'u_legal', delegateId: 'u_minjae_song', from: '2026-09-29', to: '2026-09-30',
+      reason: '김지우님 외부 교육(2026-09-29~2026-09-30). 같은 법무 담당자 송민재님이 법무 검토를 대신함', by: 'u_admin', at: '2026-09-28 10:00', endedAt: null },
     { id: 'DL-001', absentId: 'u_legal', delegateId: 'u_minjae_song', from: '2026-10-05', to: '2026-10-07',
       reason: '김지우님 연차(2026-10-05~2026-10-07). 같은 법무 담당자 송민재님이 법무 검토를 대신함', by: 'u_admin', at: '2026-10-02 10:20', endedAt: null },
     { id: 'DL-002', absentId: 'u_eunseong_ko', delegateId: 'u_exec', from: '2026-10-19', to: '2026-10-23',
@@ -1408,7 +1463,8 @@ window.CLIMB_DATA = (function () {
   const ADMIN_LOG = [
     { at: '2026-09-01 09:00', by: 'u_super', area: 'RULE', target: '결재선 규칙', change: '처음 설정: ② 배수아, ③ 유닛 리더(비즈니스1유닛 최민준, 비즈니스2유닛 고은성, 비즈니스3유닛 차유나, 리더 본인 계약은 문태호), ④ 김지우, ⑤ 한서연, ⑥ 노은채, ⑧ 배수아, ⑨ 임하준, ⑩ 오현우, 결재 대기 독촉 5일, 체결 지연 독촉 14일', reason: '시스템 도입' },
     { at: '2026-09-01 09:00', by: 'u_super', area: 'CUSTOMER', target: '거래처 13곳', change: '거래처 추가: 한결대학교 외 12곳', reason: '시스템 도입: 기존 계약관리대장에서 옮김' },
-    { at: '2026-09-01 09:00', by: 'u_super', area: 'CODE', target: '코드표 6개', change: '처음 등록: 조직, 서비스, 계약 유형, 계약 방식, 정산 방식, 사후관리 기록 종류', reason: '시스템 도입' },
+    { at: '2026-09-01 09:00', by: 'u_super', area: 'CODE', target: '코드표 5개', change: '처음 등록: 조직, 서비스, 계약 방식, 정산 방식, 사후관리 기록 종류', reason: '시스템 도입' },
+    { at: '2026-09-28 10:00', by: 'u_admin', area: 'RULE', target: '④ 법무 검토 대리 지정', change: '대리 지정: 김지우 → 송민재 (2026-09-29~2026-09-30)', reason: '김지우님 외부 교육(2026-09-29~2026-09-30). 같은 법무 담당자 송민재님이 법무 검토를 대신함' },
     { at: '2026-10-02 09:30', by: 'u_admin', area: 'USER', target: '기태민 (taemin.ki@muhayu.com)', change: '상태: 사용 중 → 사용 중지', reason: '9월 30일 퇴사(인사 담당 퇴사 통보 2026-10-01)' },
     { at: '2026-10-02 10:20', by: 'u_admin', area: 'RULE', target: '④ 법무 검토 대리 지정', change: '대리 지정: 김지우 → 송민재 (2026-10-05~2026-10-07)', reason: '김지우님 연차(2026-10-05~2026-10-07). 같은 법무 담당자 송민재님이 법무 검토를 대신함' },
     { at: '2026-10-06 14:10', by: 'u_super', area: 'USER', target: '송민재 (minjae.song@muhayu.com)', change: '권한: 법무 담당자 → 법무 담당자, 관리자', reason: '관리자 부재에 대비해 법무 담당자 송민재님을 관리자로 함께 지정(경영지원유닛 요청)' },
@@ -1451,7 +1507,7 @@ window.CLIMB_DATA = (function () {
       doneBy: 'u_privacy', doneAt: '2026-10-09 14:00', action: '본인에게 확인: 회사가 새로 지급한 노트북. 이상 없음' },
   ];
 
-  return { TODAY, BRAND, ROLES, ROLE_AREAS, ROLE_SHORT, ROLE_AREA, ROLE_BASE, STEP_LEADS, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, METHODS, SETTLEMENTS, END_USER_PENDING, PRICE_BOOK, STEPS, REVIEW_GROUPS, POST_GROUPS, PROCESS_ROLES, STEP_ASSIGNEE, APPROVAL_STATE, APPROVAL_ACTIONS, SEAL_CHECKS, SIDE_DEAL_CHECK, SIGNED_CHECKS, SIGNED_MISMATCH, OPS_CHECKS, OPS_CHECKS_END, OPS_CHECKS_EXTEND, AFTERCARE_TYPES, FILE_KINDS, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS,
+  return { TODAY, BRAND, ROLES, ROLE_AREAS, ROLE_SHORT, ROLE_AREA, ROLE_BASE, STEP_LEADS, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, METHODS, SETTLEMENTS, END_USER_PENDING, PRICE_BOOK, STEPS, REVIEW_GROUPS, POST_GROUPS, PROCESS_ROLES, STEP_ASSIGNEE, APPROVAL_STATE, APPROVAL_ACTIONS, SEAL_CHECKS, SIDE_DEAL_CHECK, SIGNED_CHECKS, SIGNED_MISMATCH, REVIEW_CHECKS, SUPPLEMENT_ITEMS, OPS_CHECKS, OPS_CHECKS_END, OPS_CHECKS_EXTEND, AFTERCARE_TYPES, FILE_KINDS, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS,
     CHANGE_TYPES, CHANGE_RULES, OPS_CHECKS_PERIOD, TEAM_LEADERS,
     PRODUCTS, FEATURES, TEMPLATES, PRICE_ROWS, currentPrices, CUSTOMERS, QUOTE_RULES, QUOTE_SUPPLIER, QUOTES, BIZ_REGISTRY, BIZ_REGISTRY_INFO, NTS_STATUS, CODE_GROUPS, CODES, DELEGATIONS, ASSIGNEE_CHANGES, ADMIN_LOG, RESTRICT_LOG,
     LOG_REVIEWS, ACCESS_REVIEWS, SEC_ALERT_KINDS, SEC_ALERTS, NOTICE_KINDS, RELEASE_PARTS, NOTICES, EMAIL_TYPES,

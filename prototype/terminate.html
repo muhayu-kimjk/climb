@@ -58,8 +58,8 @@
           <p class="section-desc" id="number-help"></p>
           <div class="field" data-field="date">
             <label class="field-label" for="f-date">해지일<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
-            <p class="field-help" id="date-help"></p>
             <input class="input" id="f-date" type="date">
+            <p class="field-help" id="date-help"></p>
             <p class="field-error" hidden></p>
           </div>
           <div class="field" data-field="reason">
@@ -68,16 +68,17 @@
             <p class="field-error" hidden></p>
           </div>
           <div class="field" data-field="refund">
-            <label class="field-label" for="f-refund">환불과 위약금</label>
-            <p class="field-help">남은 기간 이용료 환불, 위약금 등. ⑩ 재무 확인에서 재무가 봅니다.</p>
+            <label class="field-label" for="f-refund">환불과 위약금 <span class="opt">(선택)</span></label>
             <textarea class="textarea textarea--sm" id="f-refund" placeholder="예: 남은 기간 이용료는 환불하지 않음"></textarea>
+            <p class="field-help">남은 기간 이용료 환불, 위약금 등. ⑩ 재무 확인에서 재무가 봅니다.</p>
           </div>
           <div class="field act-file" data-field="file">
-            <label class="field-label" for="f-file">해지 관련 서류</label>
+            <label class="field-label" for="f-file">해지 관련 서류 <span class="opt">(선택)</span></label>
             <input type="file" id="f-file" accept=".pdf,.doc,.docx,.hwp,.hwpx,.jpg,.jpeg,.png">
             <p class="field-help">해지 합의서나 해지 통지서 등. PDF, Word, 한글, JPG, PNG, 50MB 이하. 프로토타입은 파일 이름만 남깁니다.
               <button type="button" class="btn-text" id="demo-file">예시 파일 고르기 (시연)</button></p>
             <p class="act-file-name" id="file-name" aria-live="polite"></p>
+            <p class="field-error" hidden></p>
           </div>
         </section>
 

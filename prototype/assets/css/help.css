@@ -115,6 +115,9 @@
 
 /* ---------- 표와 목록 ---------- */
 .doc .tbl td { vertical-align: top; }
+/* 글이 긴 칸(업무 흐름과 세부 단계의 하는 일, 거치는 조건, 역할별 할 일)은 좁아지지 않게: 휴대폰에서 줄바꿈 안 하는 칸에 밀려 두세 글자씩 꺾였음.
+   표가 넓어지면 옆으로 밀어 봄(관리자 화면의 .col-wide와 같은 값, v0.63 검토) */
+.doc .tbl .col-wide { min-width: 18rem; }
 .doc .tbl tr.is-me td { background: var(--surface-primary-subtler); }
 .help-list { padding-left: 2rem; list-style: disc; font-size: var(--fs-body-medium); color: var(--text-basic); }
 .help-list li + li { margin-top: 0.8rem; }

@@ -43,7 +43,7 @@
   const mine = root.requesterId === me.id || me.role === 'SUPER';
   if (pend.length) {
     $('#notice').innerHTML = notice('', '진행 중인 기안이 있습니다', pend.map(function (o) {
-      return '<a href="review.html?id=' + encodeURIComponent(o.id) + '">' + esc(o.id) + '</a> ' + esc(C.kindLabel(o)) + ': ' +
+      return '<a class="doc-link" href="review.html?id=' + encodeURIComponent(o.id) + '">' + esc(o.id) + '</a> ' + esc(C.kindLabel(o)) + ': ' +
         (o.status === 'REJECTED' ? (o.round || 1) + '차 반려' + (mine ? ' <a class="doc-link" href="' + C.resubmitHref(o) + '">보완 후 재기안</a>' : '') : C.progressText(o));
     }).join('<br>'));
   } else if (b.status === 'TERMINATED') {
@@ -58,13 +58,15 @@
   const blocking = b.open.some(function (o) { return o.kind === 'RENEW' || o.kind === 'TERMINATE'; });
   const rejRenew = b.rejected.some(function (o) { return o.kind === 'RENEW'; });
   const rejEnd = b.rejected.some(function (o) { return o.kind === 'TERMINATE'; });
+  // 반려된 변경이 있으면 새 변경 기안(새 번호) 대신 그 변경을 보완해 다시 올림 (REQ-FLOW-17, v0.63 점검에서 고침: 변경만 빠져 있었음)
+  const rejAmend = b.rejected.some(function (o) { return o.kind === 'AMEND'; });
   // 기간을 바꾸는 운영 변경이 진행 중이면 연장은 그 뒤에 (v0.58 QA)
   const periodBusy = b.open.some(function (o) { return o.kind === 'CHANGE' && o.changeType === 'PERIOD'; });
   if (b.status === 'ACTIVE' && canDraft) {
     const q = encodeURIComponent(b.id);
     $('#bundle-actions').innerHTML =
       // 변경 기안: 계약서가 바뀌는 변경(전체 결재) / 운영 변경 기안: 기간 변경이나 추가 충전만 (v0.26 재무 문서 반영)
-      '<a class="btn btn--tertiary btn--md" href="new-contract.html?kind=AMEND&origin=' + q + '">변경 기안</a>' +
+      (rejAmend ? '' : '<a class="btn btn--tertiary btn--md" href="new-contract.html?kind=AMEND&origin=' + q + '">변경 기안</a>') +
       '<a class="btn btn--tertiary btn--md" href="ops-change.html?origin=' + q + '">운영 변경 기안</a>' +
       (blocking ? '' : (periodBusy || rejRenew ? '' : b.autoRenew === 'YES'
         ? '<a class="btn btn--secondary btn--md" href="renewal.html?origin=' + q + '">연장 검토</a>'
@@ -127,7 +129,7 @@
     const fate = C.signedFateText(x.v);
     return '<li' + (x.v.current ? '' : ' class="is-old"') + '><span class="file-info">' + C.badge('line', D.FILE_KINDS.SIGNED) +
       (x.v.checked ? ' ' + C.badge('success', '확인한 체결본') : '') + ' <span class="file-name">' + esc(x.v.name) + '</span>' +
-      '<span class="file-size">' + esc(x.c.id) + ' ' + x.v.round + '차, ' + C.fmtDateTime(x.v.at) + ' 등록' + (fate ? ', ' + fate : '') + '</span></span>' +
+      '<span class="file-size">' + esc(x.c.id) + ' ' + x.v.round + '차 기안, ' + C.fmtDateTime(x.v.at) + ' 등록' + (fate ? ', ' + fate : '') + '</span></span>' +
       '<span class="file-acts"><button type="button" class="btn-text" data-file="preview">미리보기</button>' +
       '<button type="button" class="btn-text file-dl" data-file="pdf">PDF 내려받기</button>' +
       (canOriginal ? '<button type="button" class="btn-text file-dl" data-file="original">원본 내려받기</button>' : '') + '</span></li>';

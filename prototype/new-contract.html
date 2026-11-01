@@ -118,7 +118,7 @@
               <label class="field-label" for="f-bizno">사업자등록번호<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
               <!-- 숫자만 넣으면 '-'를 붙여 000-00-00000으로 보여 줌 (v0.34) -->
               <input class="input" id="f-bizno" name="bizNo" type="text" inputmode="numeric" maxlength="12" placeholder="예: 124-81-00998" readonly aria-describedby="bizno-help">
-              <p class="field-help" id="bizno-help">'-' 없이 숫자만 넣으면 됩니다.</p>
+              <p class="field-help" id="bizno-help" hidden>'-' 없이 숫자만 넣으면 됩니다.</p><!-- 직접 입력할 때만 보임(new-contract.js setCustomer). 잠긴 칸 아래에 입력 안내가 있으면 칸에 직접 쓰려다 막힘 -->
               <!-- 막지는 않지만 알릴 것: 고유번호 검증 숫자, 국세청 휴업 (v0.39) -->
               <p class="field-warn" id="bizno-warn" role="status" hidden></p>
               <p class="field-error" hidden></p>
@@ -223,7 +223,7 @@
           </fieldset>
 
           <div class="field">
-            <label class="choice"><input type="checkbox" id="f-restricted" name="restricted">열람 제한</label>
+            <label class="choice"><input type="checkbox" id="f-restricted" name="restricted" aria-describedby="restricted-help">열람 제한</label>
             <p class="field-help" id="restricted-help">체크하면 나와 이 계약의 담당자(결재선과 단계 담당자), 관리자만 계약 내용을 볼 수 있습니다. 더 볼 조직이나 사람이 있으면 관리자에게 지정을 요청합니다.</p><!-- REQ-AUTH-07, REQ-AUTH-09 -->
           </div>
         </section>
@@ -363,7 +363,7 @@
             <div class="file-drop" data-target="draft">
               <p>파일을 여기에 끌어다 놓거나, 파일 선택 버튼을 누르세요.<span class="file-limits">PDF, Word(doc, docx), 한글(hwp, hwpx), 한 파일 50MB 이하, 여러 개 가능</span></p>
               <label class="btn btn--tertiary" for="f-draft">파일 선택</label>
-              <input type="file" id="f-draft" aria-labelledby="draft-label" multiple>
+              <input type="file" id="f-draft" aria-labelledby="draft-label" multiple accept=".pdf,.doc,.docx,.hwp,.hwpx">
             </div>
             <ul class="file-list" id="draft-list"></ul>
             <p class="field-error" hidden></p>
@@ -377,7 +377,7 @@
             <div class="file-drop" data-target="diff">
               <p>표준계약서를 바꿨으면 바꾼 조항마다 표준 문구와 바꾼 문구를 나란히 적은 대비표를 올립니다. ④ 법무 검토가 이것을 보고 판단합니다.<span class="file-limits">PDF, Word(doc, docx), 한글(hwp, hwpx), 한 파일 50MB 이하, 한 개</span></p>
               <label class="btn btn--tertiary" for="f-diff">파일 선택</label>
-              <input type="file" id="f-diff" aria-labelledby="diff-label">
+              <input type="file" id="f-diff" aria-labelledby="diff-label" accept=".pdf,.doc,.docx,.hwp,.hwpx">
             </div>
             <ul class="file-list" id="diff-list"></ul>
             <p class="field-error" hidden></p>
@@ -389,9 +389,10 @@
             <div class="file-drop" data-target="annex">
               <p>비밀유지계약서처럼 이 계약에 딸린 서류가 있으면 함께 첨부합니다.<span class="file-limits">PDF, Word(doc, docx), 한글(hwp, hwpx), 한 파일 50MB 이하, 여러 개</span></p>
               <label class="btn btn--tertiary" for="f-annex">파일 선택</label>
-              <input type="file" id="f-annex" multiple aria-labelledby="annex-label">
+              <input type="file" id="f-annex" multiple aria-labelledby="annex-label" accept=".pdf,.doc,.docx,.hwp,.hwpx">
             </div>
             <ul class="file-list" id="annex-list"></ul>
+            <p class="field-error" hidden></p>
           </div>
 
           <div class="field">
@@ -399,9 +400,10 @@
             <div class="file-drop" data-target="quote">
               <p>고객에게 낸 최종 견적서가 있으면 첨부합니다.<span class="file-limits">PDF, Word(doc, docx), 한글(hwp, hwpx), 한 파일 50MB 이하, 한 개</span></p>
               <label class="btn btn--tertiary" for="f-quote">파일 선택</label>
-              <input type="file" id="f-quote" aria-labelledby="quote-label">
+              <input type="file" id="f-quote" aria-labelledby="quote-label" accept=".pdf,.doc,.docx,.hwp,.hwpx">
             </div>
             <ul class="file-list" id="quote-list"></ul>
+            <p class="field-error" hidden></p>
           </div>
 
           <div class="field">

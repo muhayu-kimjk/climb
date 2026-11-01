@@ -51,7 +51,7 @@
     info('자동갱신', b.autoRenew === 'YES' ? '있음' + (C.noticeDate(b) ? '<span class="cell-meta">' + C.noticeText(b) + '</span>' : '') : '없음'),
     // 표준계약서 판 관리(v0.53) 전에 맺은 계약은 판 기록이 없음
     info('기준 표준계약서', C.templateLabel(root) === '-' ? '판 기록 없음<span class="cell-meta">표준계약서 판 관리를 시작하기 전에 맺은 계약</span>' : esc(C.templateLabel(root))),
-    info('개인정보 처리위탁', yes(root.personalData)),
+    info('개인정보 처리위탁 계약', yes(root.personalData)),
     info('서비스 수준 협약(SLA)', yes(root.sla === 'YES')),
     info('영업대표', esc(C.ownerLabel(root.requesterId))),
     info('열람 제한', root.restricted ? '있음' + (C.viewerText(root) ? '<span class="cell-meta">지정 열람자: ' + esc(C.viewerText(root)) + '</span>' : '') : '없음'),
@@ -76,7 +76,7 @@
     return '체크리스트 1번 ' + a(k.standard) + ', 2번 ' + a(k.price) + ', 3번 ' + a(k.cap) + (k.accounting ? ', 4번 ' + a(k.accounting) : '');
   }
   $('#rounds').innerHTML = '<caption class="sr-only">차수와 금액: 계약번호와 기안일, 계약종류와 체크리스트, 상태, 계약 기간 또는 해지일, 금액</caption>' +
-    '<thead><tr><th scope="col">계약번호</th><th scope="col">계약종류</th><th scope="col">상태</th><th scope="col">계약 기간 또는 해지일</th><th scope="col" class="num">금액</th></tr></thead>' +
+    '<thead><tr><th scope="col">계약번호</th><th scope="col" class="col-phone-wide">계약종류</th><th scope="col">상태</th><th scope="col">계약 기간 또는 해지일</th><th scope="col" class="num">금액</th></tr></thead>' +
     '<tbody>' + b.items.map(function (c) {
       return '<tr' + (c === cur ? ' class="is-current"' : '') + '>' +
         '<td class="nowrap">' + esc(c.id) + '<span class="cell-meta">기안 ' + C.fmtDate(c.requestedAt) + (c === cur ? ', 지금 유효' : '') + '</span></td>' +
@@ -93,17 +93,19 @@
     const hist = [{ step: 'S01', action: 'SUBMIT', actorId: c.requesterId, at: c.requestedAt, comment: '', round: c.round || 1 }].concat(c.history || [])
       .sort(function (x, y) { return (x.at || '').slice(0, 16).localeCompare((y.at || '').slice(0, 16)) || (x.round || 1) - (y.round || 1); }); // 분 단위로, 같은 때면 앞 차수 먼저
     const rows = hist.map(function (h) {
+      // 처리한 사람은 그때 조직으로(REQ-AUTH-19, 결재 문서와 같게. v0.63 점검에서 고침: 지금 조직으로 나왔음)
+      const dept = h.actorDept || (D.USERS[h.actorId] || {}).dept || '';
       return { step: (many ? (h.round || 1) + '차 ' : '') + C.stepLabel(h.step, c), act: C.actionLabel(h, c),
-        who: C.ownerLabel(h.actorId) + (h.onBehalfOf ? ' (대신 처리: ' + C.ownerLabel(h.onBehalfOf) + ')' : ''), at: h.at, note: h.comment || '' };
+        who: C.ownerLabel(h.actorId, dept) + (h.onBehalfOf ? ' (' + C.ownerLabel(h.onBehalfOf) + ' 대신, ' + (h.delegationId ? '대리 지정' : '시연') + ')' : ''), at: h.at, note: h.comment || '' };
     }).concat(C.pendingSteps(c).map(function (s) {
       return { step: C.stepLabel(s.step, c), act: '처리 전(차례)', who: C.ownerLabel(s.userId), at: '', note: '' };
     }));
     return '<h3 class="round-title">' + esc(c.id) + ' ' + esc(C.kindLabel(c)) + ' <span class="round-sub">' + esc(D.STATUS[c.status].label) + '</span></h3>' +
       '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
       '<caption class="sr-only">' + esc(c.id) + ' 결재 기록: 단계, 처리, 처리한 사람, 일시, 의견</caption>' +
-      '<thead><tr><th scope="col">단계</th><th scope="col">처리</th><th scope="col">처리한 사람</th><th scope="col">일시</th><th scope="col">의견</th></tr></thead><tbody>' +
+      '<thead><tr><th scope="col">단계</th><th scope="col">처리</th><th scope="col">처리한 사람</th><th scope="col">일시</th><th scope="col" class="col-phone-wide">의견</th></tr></thead><tbody>' +
       rows.map(function (r) {
-        return '<tr><td class="nowrap">' + esc(r.step) + '</td><td class="center nowrap">' + esc(r.act) + '</td><td class="center">' + esc(r.who) + '</td>' +
+        return '<tr><td class="nowrap">' + esc(r.step) + '</td><td class="center nowrap">' + esc(r.act) + '</td><td class="center cell-phone-nowrap">' + esc(r.who) + '</td>' +
           '<td class="center nowrap">' + (r.at ? C.fmtDateTime(r.at) : '-') + '</td><td>' + esc(r.note || '-') + '</td></tr>';
       }).join('') + '</tbody></table></div>';
   }).join('');
@@ -115,12 +117,12 @@
     C.signedVersions(c).forEach(function (v) { signed.push({ c: c, v: v, name: v.name, at: v.at, by: v.by }); });
   });
   $('#signed').innerHTML = '<caption class="sr-only">체결본: 파일, 차수, 올린 사람, 일시</caption>' +
-    '<thead><tr><th scope="col">파일</th><th scope="col">차수</th><th scope="col">올린 사람</th><th scope="col">일시</th></tr></thead><tbody>' +
+    '<thead><tr><th scope="col" class="col-phone-wide">파일</th><th scope="col">차수</th><th scope="col">올린 사람</th><th scope="col">일시</th></tr></thead><tbody>' +
     (signed.length ? signed.map(function (x) {
       // 바뀐 판은 까닭을 적고 지우지 않음. 확인을 마친 판은 "확인한 체결본"
       const note = x.v.checked ? '확인한 체결본' : x.v.fate === 'RETURN' ? '다시 등록 요청으로 바뀐 앞 판(지우지 않음)' : x.v.fate === 'REJECT' ? '⑧에서 반려된 판(지우지 않음)' : '';
       return '<tr><td>' + esc(x.name) + (note ? '<span class="cell-meta">' + note + '</span>' : '') + '</td><td class="nowrap">' + esc(x.c.id) + ' ' + x.v.round + '차</td>' +
-        '<td class="center">' + esc(C.ownerLabel(x.by)) + '</td><td class="center">' + C.fmtDateTime(x.at) + '</td></tr>';
+        '<td class="center cell-phone-nowrap">' + esc(C.ownerLabel(x.by)) + '</td><td class="center">' + C.fmtDateTime(x.at) + '</td></tr>';
     }).join('') : '<tr><td class="empty-row" colspan="4">아직 등록된 체결본이 없습니다.</td></tr>') + '</tbody>';
 
   /* ---------- 5. 체결 후 의무 (v0.53 기획자 결정, REQ-FLOW-33~36) ---------- */

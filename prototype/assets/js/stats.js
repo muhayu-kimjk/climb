@@ -10,6 +10,7 @@
  *      (v0.62, 표준 대응표 G-01, G-19) 견적서 가운데 할인율 한도를 넘는 줄이 있는 것(견적을 볼 수 있는 역할만),
  *      계약 방식과 거래처마다 2, 3번 "아니요" 건수(표로 보기, 거래처는 예외가 있는 곳만 많은 순 10곳)
  *   6. 체결본 확인 반려 항목(v0.61, 통제와 표준 대응표 G-06): ⑧ 반려 때 고른 어긋난 항목(결재 기록의 mismatch 코드)을 반려 건수 대비로 (REQ-SIGN-04, REQ-DASH-19)
+ *   7. 보완 요청 항목(v0.63, 표준 대응표 G-05): ②~⑤ 보완 요청 때 고른 항목(결재 기록의 supplementItems 코드)을 보완 요청 건수 대비로 (REQ-REV-11, REQ-DASH-19)
  * 세는 법
  *   - 체결일: 체결본 등록(⑦)의 마지막 기록. 조건 그대로 연장(날인과 체결본 없음)은 ⑩ 재무 확인일
  *   - 금액이 있는 계약만(신규, 변경, 연장). 해지와 운영 변경, 작성 중은 넣지 않음
@@ -92,7 +93,7 @@
   options($('#f-service'), [['', '전체']].concat(Object.keys(D.SERVICES).map(function (k) { return [k, D.SERVICES[k]]; })));
   options($('#f-unit'), [['', '전체']].concat(units.map(function (u) { return [u, u]; })));
 
-  $('#intro-sub').textContent = '해지와 운영 변경은 금액에 넣지 않습니다. 진행 중인 금액은 기간과 상관없이 지금 검토부터 체결본 등록 전까지인 계약입니다.' +
+  $('#intro-sub').textContent = '해지와 운영 변경은 금액에 넣지 않습니다. 진행 중인 금액은 기간과 상관없이 지금 검토부터 체결본 등록 전까지인 계약의 금액입니다.' +
     (hiddenCount ? ' 열람 제한 계약 중 볼 수 없는 ' + hiddenCount + '건은 넣지 않았습니다.' : '');
 
   /* ---------- 그래프 조각 ---------- */
@@ -111,7 +112,8 @@
     for (let v = 0; v <= top; v += step) ticks.push(v);
     // 막대 끝 글자는 가장 큰 달과 이번 달만 (모든 막대에 숫자를 달지 않음)
     const maxKey = months.filter(function (k) { return by[k].sum === max; })[0];
-    const last = months[months.length - 1];
+    // 이번 달은 기간 안에 오늘이 있을 때만(지난해를 고르면 12월에 붙던 것, v0.63 점검에서 고침)
+    const last = months.indexOf(todayKey) > -1 ? todayKey : null;
     return '<div class="colchart" style="--n:' + months.length + '">' +
       '<div class="colchart-plot">' +
         ticks.map(function (v) { return '<span class="colchart-grid' + (v ? '' : ' is-base') + '" style="bottom:' + (v / top * 100) + '%"><em>' + fmtShort(v) + '</em></span>'; }).join('') +
@@ -166,7 +168,7 @@
     const tiles = [
       ['체결 금액', fmtMoney(sum(signed)), '체결본을 등록한 날 기준'],
       ['체결 건수', signed.length + '건', AMOUNT_KINDS.filter(function (k) { return kinds[k]; }).map(function (k) { return D.KINDS[k] + ' ' + kinds[k] + '건'; }).join(', ') || '없음'],
-      ['진행 중인 금액', fmtMoney(sum(pipe)), '검토부터 체결본 등록 전까지 ' + pipe.length + '건(지금)'],
+      ['진행 중인 금액', fmtMoney(sum(pipe)), '기간과 상관없이 지금 검토부터 체결본 등록 전까지 ' + pipe.length + '건'],
       ['기안부터 체결까지', lead.length ? '평균 ' + fmtDays(lead.reduce(function (a, b) { return a + b; }, 0) / lead.length) : '-',
         lead.length ? '가장 길었던 계약 ' + fmtDays(Math.max.apply(null, lead)) : '체결한 계약 없음'],
     ];
@@ -178,8 +180,8 @@
     const by = {};
     months.forEach(function (k) { by[k] = { sum: 0, count: 0 }; });
     signed.forEach(function (c) { const k = signDate(c).slice(0, 7); by[k].sum += c.amount; by[k].count++; });
-    $('#month-desc').innerHTML = from + '~' + to + '. 막대 위 글자는 가장 큰 달과 이번 달입니다.' +
-      '<span class="no-print"> 막대에 마우스를 올리면 건수와 금액이 보입니다.</span>';
+    $('#month-desc').innerHTML = from + '~' + to + '. 막대 위 글자는 가장 큰 달' + (months.indexOf(todayKey) > -1 ? '과 이번 달' : '') + '입니다.' +
+      '<span class="no-print"> 달마다 건수와 금액은 막대에 마우스를 올리거나 아래 "표로 보기"를 펼쳐 봅니다.</span>';
     $('#month-chart').innerHTML = columnChart(months, by);
     $('#month-rows').innerHTML = months.map(function (k) {
       return '<tr><td class="center">' + monthLong(k) + (k === todayKey ? '<span class="cell-meta">' + Number(D.TODAY.slice(8)) + '일까지</span>' : '') + '</td>' +
@@ -297,6 +299,24 @@
         '<span class="meter-val">반려 ' + rejects + '건 중 ' + n + '건(' + pct + '%)</span></p>' +
         '<span class="meter-track" role="img" aria-label="' + esc(x.label + ': 반려 ' + rejects + '건 중 ' + n + '건, ' + pct + '%') + '"><span class="meter-fill" style="width:' + pct + '%"></span></span></div>';
     }).join('') : '<p class="chart-empty">이 조건에서 체결본 확인을 반려한 계약이 없습니다.</p>';
+
+    // 7. 보완 요청 항목(v0.63, 표준 대응표 G-05): ②~⑤ 보완 요청 때 고른 항목(결재 기록의 supplementItems 코드). 코드가 없는 예전 기록은 "고르지 않음"
+    const why = {};
+    let supps = 0;
+    base.forEach(function (c) {
+      (c.history || []).forEach(function (h) {
+        if (h.action !== 'SUPPLEMENT' || months.indexOf(String(h.at).slice(0, 7)) < 0) return;
+        supps++;
+        (h.supplementItems && h.supplementItems.length ? h.supplementItems : ['NONE']).forEach(function (k) { why[k] = (why[k] || 0) + 1; });
+      });
+    });
+    const whyRows = D.SUPPLEMENT_ITEMS.concat([{ code: 'NONE', label: '고르지 않음(예전 기록)' }]).filter(function (x) { return why[x.code]; });
+    $('#supplement-meters').innerHTML = supps ? whyRows.map(function (x) {
+      const n = why[x.code], pct = Math.round(n / supps * 100);
+      return '<div class="meter"><p class="meter-head"><span class="meter-label">' + esc(x.label) + '</span>' +
+        '<span class="meter-val">보완 요청 ' + supps + '건 중 ' + n + '건(' + pct + '%)</span></p>' +
+        '<span class="meter-track" role="img" aria-label="' + esc(x.label + ': 보완 요청 ' + supps + '건 중 ' + n + '건, ' + pct + '%') + '"><span class="meter-fill" style="width:' + pct + '%"></span></span></div>';
+    }).join('') : '<p class="chart-empty">이 조건에서 보완을 요청한 계약이 없습니다.</p>';
   }
 
   /* ---------- 마우스를 올리면 보이는 설명 ---------- */

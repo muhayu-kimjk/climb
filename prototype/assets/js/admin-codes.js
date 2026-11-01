@@ -60,13 +60,13 @@
     $('#group-table').textContent = g.table;
     $('#group-note').textContent = g.note + '.';
     $('#caption').textContent = g.name + ' 코드: 코드, 화면 이름, ' + (leveled ? '단계, 상위, ' : '') + '쓰는 곳, 상태, 관리';
-    $('#thead').innerHTML = '<tr><th scope="col">코드</th><th scope="col">화면 이름</th>' + (leveled ? '<th scope="col">단계</th><th scope="col">상위</th>' : '') +
+    $('#thead').innerHTML = '<tr><th scope="col">코드</th><th scope="col">화면 이름</th>' + (leveled ? '<th scope="col">단계</th><th scope="col" class="col-phone-mid">상위</th>' : '') +
       '<th scope="col">쓰는 곳</th><th scope="col">상태</th><th scope="col" class="col-action">관리</th></tr>';
     $('#rows').innerHTML = ordered().map(function (c) {
       return '<tr' + (c.use ? '' : ' class="is-muted"') + '><td class="nowrap"><code>' + esc(c.code) + '</code></td>' +
         '<td class="cell-strong' + (leveled ? ' nowrap' : '') + '">' + (leveled && c.level > 1 ? '<span aria-hidden="true">' + new Array(c.level).join('　') + '└ </span>' : '') + esc(c.label) + '</td>' +
         (leveled ? '<td class="nowrap">' + esc(LEVEL[c.level]) + '</td><td>' + (c.parent ? esc(codeLabel(c.parent)) : '-') + '</td>' : '') +
-        '<td>' + esc(usage(c)) + '</td>' +
+        '<td class="cell-phone-nowrap">' + esc(usage(c)) + '</td>' +
         '<td class="nowrap">' + (c.use ? C.badge('success', '사용 중') : C.badge('neutral', '사용 안 함')) + '</td>' +
         '<td class="col-action"><button type="button" class="link-act" data-edit="' + esc(c.code) + '" aria-label="' + esc(c.label) + ' 고치기">고치기</button></td></tr>';
     }).join('');
@@ -122,7 +122,7 @@
     }
     C.formModal({
       title: g.name + ' 코드를 추가할까요?',
-      desc: '추가하면 바로 ' + g.note + '에 나옵니다. 코드는 한 번 정하면 바꿀 수 없습니다.',
+      desc: '추가하면 바로 화면에서 고르는 ' + g.name + ' 목록에 나옵니다. 코드는 한 번 정하면 바꿀 수 없습니다.',
       body: '<div class="field-row">' +
           C.fieldHtml({ name: 'code', label: '코드', required: true, placeholder: '예: SALES_4', help: '영문 대문자, 숫자, 밑줄(_)' }) +
           C.fieldHtml({ name: 'label', label: '화면 이름', required: true }) +

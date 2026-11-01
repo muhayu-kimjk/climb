@@ -63,13 +63,13 @@
     document.querySelector('.page-title').textContent = '해지 보완 후 재기안';
     $('#notice').innerHTML = C.rejectionNotice(again);
   }
-  function info(label, value) { return '<div><dt>' + esc(label) + '</dt><dd>' + value + '</dd></div>'; }
+  function info(label, value, cls) { return '<div><dt>' + esc(label) + '</dt><dd' + (cls ? ' class="' + cls + '"' : '') + '>' + value + '</dd></div>'; } // cls amount: 금액은 오른쪽(REQ-UI-16)
   $('#origin').innerHTML = [
     info('고객사', esc(root.counterparty)),
     info('계약번호', '<a href="' + back + '">' + esc(b.id) + '</a>' + (cur !== root ? ' (지금 유효: ' + esc(cur.id) + ')' : '')),
     info('서비스', esc(C.serviceLabel(root.services))),
     info('계약 기간', C.fmtPeriod(b.start, b.end)),
-    info('계약 금액', Number(cur.amount || 0).toLocaleString('ko-KR') + '원'),
+    info('계약 금액', Number(cur.amount || 0).toLocaleString('ko-KR') + '원<span class="cell-meta">' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도</span>', 'amount'),
     info('영업대표', esc(C.ownerLabel(root.requesterId))),
   ].join('');
   $('#number-help').textContent = again ? '같은 번호 ' + newId + '의 ' + ((again.round || 1) + 1) + '차로 기안합니다.' : '기안하면 ' + newId + '(해지)로 원계약과 함께 묶입니다.';
@@ -95,8 +95,19 @@
   /* ---------- 해지 관련 서류 (선택) ---------- */
   let fileName = '';
   function setFile(n) { fileName = n; $('#file-name').textContent = n ? '고른 파일: ' + n : ''; }
-  $('#f-file').addEventListener('change', function (e) { const f = e.target.files[0]; setFile(f && f.size <= 50 * 1048576 ? f.name : ''); });
-  $('#demo-file').addEventListener('click', function () { setFile(root.counterparty + '_해지합의서.pdf'); });
+  // 해지 관련 서류: PDF, Word, 한글, JPG, PNG, 한 파일 50MB 이하 (03 CODE-FILE-KIND TERMINATE_DOC. v0.63 점검에서 고침: 형식을 보지 않고 큰 파일은 말없이 뺐음)
+  $('#f-file').addEventListener('change', function (e) {
+    const f = e.target.files[0];
+    const box = e.target.closest('.field');
+    if (f && (f.size > 50 * 1048576 || !/\.(pdf|doc|docx|hwp|hwpx|jpe?g|png)$/i.test(f.name))) {
+      setFile(''); e.target.value = '';
+      if (box) C.setFieldError(box, 'PDF, Word, 한글, JPG, PNG 파일만, 한 파일 50MB 이하로 올립니다.');
+      return;
+    }
+    if (box) C.setFieldError(box, '');
+    setFile(f ? f.name : '');
+  });
+  $('#demo-file').addEventListener('click', function () { C.setFieldError($('#f-file').closest('.field'), ''); setFile(root.counterparty + '_해지합의서.pdf'); }); // 예시 파일을 고르면 앞의 형식 경고도 지움
   // 보완 후 재기안: 앞 차수 값을 채움
   if (again) {
     $('#f-date').value = again.terminateDate || '';

@@ -30,7 +30,7 @@
     ['S02', '모든 계약 (해지, 그대로 연장, 운영 변경은 없음). 기안자가 담당자면 재무 담당자가 대신 검토'],
     ['S03', '할인율 한도를 넘긴 계약, 해지, 그대로 연장, 운영 변경(기간 2개월 넘게 바뀜, 무상 충전 50건 초과). 구성원 계약은 유닛 리더(아래 표), 리더 본인 계약은 영업 임원'],
     ['S04', '표준계약서를 바꾼 계약, 해지, 그대로 연장'],
-    ['S05', '개인정보를 처리하는 계약 (해지, 그대로 연장, 운영 변경은 없음)'],
+    ['S05', '개인정보 처리위탁 계약이 있는 계약 (해지, 그대로 연장, 운영 변경은 없음)'], // v0.36 항목 이름에 맞춤(v0.63 이용 안내 점검)
     ['S06', '모든 계약 (해지, 그대로 연장, 운영 변경은 없음)'],
     ['S07', '모든 계약 (해지, 그대로 연장, 운영 변경은 없음)'],
     ['S08', '모든 계약 (해지, 그대로 연장, 운영 변경은 없음). 기안자가 담당자면 재무 담당자가 대신 확인'],
@@ -74,7 +74,7 @@
   function delegNote(id) {
     return D.DELEGATIONS.filter(function (d) { return d.absentId === id && C.delegationState(d) !== 'ENDED'; }).map(function (d) {
       return '<span class="cell-meta">' + (C.delegationState(d) === 'ACTIVE' ? '대리 중: ' : '대리 예정: ') +
-        esc(C.ownerLabel(d.delegateId)) + ' (' + period(d) + ')</span>';
+        esc(C.ownerLabel(d.delegateId)) + ' (<span class="keep">' + C.fmtDate(d.from) + '~</span><wbr><span class="keep">' + C.fmtDate(d.to) + '</span>)</span>';
     }).join('');
   }
   function renderAssignees() {
@@ -84,7 +84,7 @@
       // ③은 리더 본인 계약의 영업 임원만 이 줄에서 바꾸고, 구성원 계약은 아래 유닛별 리더 표에서 바꿈
       const who = fixed ? '기안한 영업' : (code === 'S03' ? '<span class="cell-meta">리더 본인 계약</span>' : '') + person(id) + delegNote(id) +
         (code === 'S03' ? '<span class="cell-meta">구성원 계약은 아래 유닛별 리더</span>' : '');
-      return '<tr><td class="nowrap"><span class="cell-strong">' + esc(stepName(code)) + '</span><span class="cell-meta">' + esc(C.roleLabel(st.role)) + '</span></td>' +
+      return '<tr><td class="nowrap cell-strong">' + esc(stepName(code)) + '<span class="cell-meta">' + esc(C.roleLabel(st.role)) + '</span></td>' +
         '<td class="col-wide">' + esc(r[1]) + '</td>' +
         '<td>' + who + '</td>' +
         // ③ 줄은 리더 본인 계약(영업 임원 차례)만 셈. 구성원 계약은 아래 유닛별 리더 표에서
@@ -190,7 +190,8 @@
       return '<tr' + (state === 'ENDED' ? ' class="is-muted"' : '') + '>' +
         '<td>' + person(d.absentId) + (steps ? '<span class="cell-meta">맡은 단계 ' + esc(steps) + '</span>' : '') + '</td>' +
         '<td>' + person(d.delegateId) + '</td>' +
-        '<td class="num-left">' + C.fmtDate(d.from) + '<br>~ ' + C.fmtDate(d.to) + (d.endedAt ? '<span class="cell-meta">' + C.fmtDate(d.endedAt) + ' 끝냄</span>' : '') + '</td>' +
+        // 기간은 붙여 쓰고 좁으면 물결 뒤에서만 줄바꿈 (REQ-UI-25, v0.63 점검에서 고침). 날짜마다 keep으로 묶어 "2026-" 뒤에서 끊기지 않게 (첫 사용 점검)
+        '<td class="num-left"><span class="keep">' + C.fmtDate(d.from) + '~</span><wbr><span class="keep">' + C.fmtDate(d.to) + '</span>' + (d.endedAt ? '<span class="cell-meta">' + C.fmtDate(d.endedAt) + ' 끝냄</span>' : '') + '</td>' +
         '<td class="col-wide">' + esc(d.reason) + '</td>' +
         '<td class="nowrap">' + C.badge(tag[0], tag[1]) + '</td>' +
         '<td class="col-action">' + (state === 'ENDED' ? '-' : '<button type="button" class="link-act link-act--danger" data-end="' + esc(d.id) + '">' + (state === 'ACTIVE' ? '끝내기' : '취소') + '</button>') + '</td></tr>';

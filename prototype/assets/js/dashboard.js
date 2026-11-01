@@ -143,13 +143,15 @@
    * 단계마다 단계 번호, 단계 이름, 건수만 보여 주고 아래 작은 설명 글은 두지 않습니다. (v0.14) */
   const STEPS = [
     // 영업은 내가 등록한 계약만 세므로 목록도 나로 거름(&owner=, v0.58 QA)
-    { label: '계약 등록', statuses: ['DRAFT'], href: 'my-contracts.html' },
+    // 누르면 건수와 같은 목록이 열리게 상태로 거름 (v0.63 점검에서 고침: 계약 등록과 계약 완료는 거르지 않은 목록이 열렸음).
+    //   작성 중은 영업 본인만 셀 수 있어 영업이 아니면 링크 없음
+    { label: '계약 등록', statuses: ['DRAFT'], href: isSales ? 'my-contracts.html?status=DRAFT' : '' },
     { label: '계약 검토', statuses: ['IN_REVIEW', 'SUPPLEMENT', 'REJECTED'], href: 'progress.html?status=REVIEW' + mineQ },
     // 계약 체결: 영업은 체결 대기 화면, 그 외는 전체 진행 현황(체결 대기로 거름)
     { label: '계약 체결', statuses: ['APPROVED'], href: isSales ? 'signing.html' : 'progress.html?status=APPROVED' },
     { label: '운영 검토', statuses: ['OPS_REVIEW'], href: 'progress.html?status=OPS_REVIEW' + mineQ },
     // 계약 완료는 묶음마다 셈(조건 그대로 연장한 기록을 따로 세지 않음)
-    { label: '계약 완료', statuses: ['ACTIVE'], href: 'contracts.html' + (isSales ? '?owner=' + encodeURIComponent(me.id) : ''), bundles: true },
+    { label: '계약 완료', statuses: ['ACTIVE'], href: 'contracts.html?status=ACTIVE' + (isSales ? '&owner=' + encodeURIComponent(me.id) : ''), bundles: true },
   ];
 
   function renderProgress() {
@@ -161,11 +163,11 @@
       const count = unknown ? '-' : list.length;
       const cls = !unknown && list.length ? ' class="has-items"' : ''; // 건수가 있는 단계 (v0.28: is-on 대신)
       return '<li' + cls + '>' +
-        '<a class="step-body" href="' + s.href + '">' +
+        (s.href ? '<a class="step-body" href="' + s.href + '">' : '<span class="step-body">') +
           '<i class="step">' + (i + 1) + '단계</i>' +
           '<span class="step-tit">' + esc(s.label) + '</span>' +
           '<span class="step-count">' + count + (unknown ? '' : '<span class="unit">건</span>') + '</span>' +
-        '</a>' +
+        (s.href ? '</a>' : '</span>') +
       '</li>';
     }).join('');
 
@@ -213,7 +215,7 @@
     const head = panelHead('my-reviews-title', '내가 ' + doWord + ' 계약', rows.length + '건',
       isSales ? '내 등록 목록 전체 보기' : ops ? '운영 검토 대기 전체 보기' : '검토 대기 전체 보기',
       isSales ? 'my-contracts.html' : ops ? 'ops-queue.html' : 'review-queue.html');
-    if (!rows.length) { el.innerHTML = head + '<p class="empty">지금 검토할 계약이 없습니다.</p>'; return; }
+    if (!rows.length) { el.innerHTML = head + '<p class="empty">지금 ' + doWord + ' 계약이 없습니다.</p>'; return; } // 상자 제목과 같은 말(총무, 고객지원, 재무는 "처리할", v0.63 점검)
     el.innerHTML = head +
       '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
         '<caption class="sr-only">내가 ' + doWord + ' 계약: 고객사, 서비스, 요청자, 대기 일수, 내 단계</caption>' +

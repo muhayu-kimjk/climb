@@ -17,6 +17,9 @@
   const $ = function (s) { return document.querySelector(s); };
   const PAGE_SIZE = 20;
   const LONG = D.ALERT_RULES.approvalDelayDays;
+  // 관리자가 바꾼 독촉 기준 일수를 안내와 거르기에 씀 (결재선 규칙의 독촉 기준, v0.63 점검에서 고침: 일수가 글자로 고정되어 있었음)
+  document.querySelectorAll('[data-rule]').forEach(function (el) { el.textContent = D.ALERT_RULES[el.getAttribute('data-rule')]; });
+  $('#f-wait').querySelector('option[value="LONG"]').textContent = LONG + '일 이상';
   const OPS_STEPS = ['S09', 'S10'];
 
   const seeAll = me.role === 'SUPER' || me.role === 'ADMIN';
@@ -52,7 +55,8 @@
       // 볼 수 없는 계약은 고객사 이름이나 계약번호로 찾을 수 없게 함
       if (q && (!C.canView(x.c, me) || (x.c.counterparty.toLowerCase().indexOf(q) < 0 && String(x.c.id).toLowerCase().indexOf(q) < 0))) return false;
       if (step && x.s.step !== step) return false;
-      if (service && (x.c.services || []).indexOf(service) < 0) return false;
+      // 서비스로 거를 때도 볼 수 없는 계약은 빼서, 거른 결과로 서비스가 드러나지 않게 함 (검토 대기와 같게, v0.63 점검에서 고침)
+      if (service && (!C.canView(x.c, me) || (x.c.services || []).indexOf(service) < 0)) return false;
       if (wait === 'LONG' && x.wait < LONG) return false;
       return true;
     });
@@ -64,24 +68,25 @@
     if (page > pages) page = pages;
     const from = (page - 1) * PAGE_SIZE;
     const rows = list.slice(from, from + PAGE_SIZE);
-    const acc = list.filter(function (x) { return x.c.checklist && x.c.checklist.accounting === 'YES'; }).length;
+    const acc = list.filter(function (x) { return C.canView(x.c, me) && x.c.checklist && x.c.checklist.accounting === 'YES'; }).length; // 가린 줄은 세지 않음
     $('#list-count').innerHTML = C.meta([[(list.length !== all.length ? '검색 결과' : '전체'), '<strong>' + list.length + '건</strong>'],
       ['회계 영향 조건', acc + '건'], [LONG + '일 이상', list.filter(function (x) { return x.wait >= LONG; }).length + '건']]);
     const cols = showWho ? 6 : 5;
     $('#rows').innerHTML = rows.length ? rows.map(function (x) {
       const service = esc(C.serviceLabel(x.c.services));
       // 체크리스트 4번이 "예"인 계약: 재무가 특수 조건을 확인해야 함 (REQ-CHK-08)
-      const accBadge = x.c.checklist && x.c.checklist.accounting === 'YES' ? '<span class="cell-meta">' + C.badge('attention', '회계 영향 조건') + '</span>' : '';
+      const see = C.canView(x.c, me); // 볼 수 없는 열람 제한 계약은 고객사, 서비스, 회계 표시, 종류를 모두 가림 (REQ-AUTH-09, v0.63 점검)
+      const accBadge = see && x.c.checklist && x.c.checklist.accounting === 'YES' ? '<span class="cell-meta">' + C.badge('attention', '회계 영향 조건') + '</span>' : '';
       return '<tr>' +
         // 리더가 보는 분야 전체 목록에는 볼 수 없는 열람 제한 계약도 있음: 고객사를 가림 (v0.58 QA)
-        (C.canView(x.c, me)
+        (see
           ? '<td><a class="cell-title" href="review.html?id=' + encodeURIComponent(x.c.id) + '">' + esc(x.c.counterparty) + '</a>' +
             '<span class="cell-sub">' + service + '</span><span class="cell-meta">' + esc(x.c.id) + (x.c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span></td>'
           : '<td><span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span></td>') +
-        '<td class="col-service">' + service + '</td>' +
+        '<td class="col-service">' + (see ? service : '-') + '</td>' +
         // 운영 변경(v0.26)은 단계 이름을 "운영 변경"으로, 대리 지정으로 내 차례가 된 건은 누구 대신인지 표시
         '<td class="nowrap">' + esc(C.stepLabel(x.s.step, x.c)) + accBadge +
-          (C.isChange(x.c) ? '<span class="cell-meta">' + esc(C.kindLabel(x.c)) + '</span>' : '') +
+          (see && C.isChange(x.c) ? '<span class="cell-meta">' + esc(D.CHANGE_TYPES[x.c.changeType] || C.kindLabel(x.c)) + '</span>' : '') +
           (!showWho && x.s.userId !== me.id ? '<span class="cell-meta">' + esc(C.ownerLabel(x.s.userId)) + ' 대신 (대리 지정)</span>' : '') + '</td>' +
         (showWho ? '<td class="center">' + esc(C.ownerLabel(x.s.userId)) + '</td>' : '') +
         // 운영 변경은 체결본이 없으므로 기안일

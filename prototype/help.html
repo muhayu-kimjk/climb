@@ -82,9 +82,9 @@
             <div class="tbl-scroll">
               <table class="tbl tbl--compact">
                 <caption class="sr-only">업무 흐름 5단계: 단계, 하는 일, 누가, 화면</caption>
-                <thead><tr><th scope="col">단계</th><th scope="col">하는 일</th><th scope="col" class="col-who">누가</th><th scope="col">화면</th></tr></thead>
+                <thead><tr><th scope="col">단계</th><th scope="col" class="col-wide">하는 일</th><th scope="col" class="col-who">누가</th><th scope="col">화면</th></tr></thead>
                 <tbody>
-                  <tr><td class="nowrap"><strong>1 계약 등록</strong></td><td>계약 정보와 제품 금액을 넣고, 체크리스트에 답하고, 계약서 초안과 견적서를 올려 기안합니다. 결재선은 체크리스트 답으로 자동으로 정해집니다.</td><td>영업</td><td class="nowrap"><a href="new-contract.html">새 계약 등록</a><br><a href="my-contracts.html">내 등록 목록</a></td></tr>
+                  <tr><td class="nowrap"><strong>1 계약 등록</strong></td><td>계약 정보와 제품 금액을 넣고, 체크리스트에 답하고, 계약서 초안을 올려 기안합니다. 최종 견적서는 있으면 함께 올립니다. 결재선은 체크리스트 답과 개인정보 처리위탁 계약 여부로 자동으로 정해집니다.</td><td>영업</td><td class="nowrap"><a href="new-contract.html">새 계약 등록</a><br><a href="my-contracts.html">내 등록 목록</a></td></tr>
                   <tr><td class="nowrap"><strong>2 계약 검토</strong></td><td>② 체크리스트, ③ 영업, ④ 법무, ⑤ 개인정보 순서로 결재합니다. ④와 ⑤는 동시에 검토합니다. 해당하지 않는 단계는 건너뜁니다.</td><td>영업지원, 영업 리더, 법무, 정보보호</td><td class="nowrap"><a href="review-queue.html">검토 대기</a></td></tr>
                   <tr><td class="nowrap"><strong>3 계약 체결</strong></td><td>⑥ 총무가 인장을 날인하고, ⑦ 영업이 상대방 서명을 받은 체결본을 올리고, ⑧ 영업지원이 승인된 내용과 같은지 확인합니다.</td><td>총무, 영업, 영업지원</td><td class="nowrap"><a href="signing.html">체결 대기</a><br><a href="review-queue.html">검토 대기</a></td></tr>
                   <tr><td class="nowrap"><strong>4 운영 검토</strong></td><td>⑨ 고객지원이 서비스에 계약을 적용하고(라이선스, 기간, 금액), ⑩ 재무가 회계 인식을 확인합니다.</td><td>고객지원, 재무</td><td class="nowrap"><a href="ops-queue.html">운영 검토 대기</a></td></tr>
@@ -125,17 +125,18 @@
             <h1 class="page-title" id="t-steps" tabindex="-1">세부 단계와 담당</h1>
             <div class="page-intro">
               <p>거치는 단계는 체크리스트 답과 개인정보 처리위탁 계약 여부로 정해지고, 금액으로 정하지 않습니다. 단계마다 담당자는 관리자가 결재선 규칙에서 정합니다.</p>
+              <p class="sub">아래 표는 새 계약, 변경, 조건을 바꾼 연장에 해당합니다. 해지, 그대로 연장, 운영 변경은 몇 단계만 거칩니다. 자세한 것은 <a class="doc-link" href="#change">변경, 연장, 해지</a> 쪽을 봅니다.</p>
             </div>
             <div class="tbl-scroll" tabindex="0" role="region" aria-label="세부 단계 표">
               <table class="tbl tbl--compact">
                 <caption class="sr-only">세부 단계: 단계, 담당, 하는 일, 거치는 조건</caption>
-                <thead><tr><th scope="col">단계</th><th scope="col">담당</th><th scope="col">하는 일</th><th scope="col">거치는 조건</th></tr></thead>
+                <thead><tr><th scope="col">단계</th><th scope="col">담당</th><th scope="col" class="col-wide">하는 일</th><th scope="col" class="col-wide">거치는 조건</th></tr></thead>
                 <tbody>
                   <tr><td class="nowrap">① 계약 등록과 기안</td><td class="nowrap">영업</td><td>계약 정보 입력, 체크리스트, 첨부, 기안</td><td>모든 계약</td></tr>
-                  <tr><td class="nowrap">② 체크리스트 검토</td><td class="nowrap">영업지원</td><td>체크리스트 답과 첨부가 맞는지 확인. 고칠 것이 있으면 보완 요청</td><td>모든 계약</td></tr>
+                  <tr><td class="nowrap">② 체크리스트 검토</td><td class="nowrap">영업지원</td><td>체크리스트 답과 첨부가 맞는지 확인(승인 창의 확인 항목 다섯을 모두 표시). 고칠 것이 있으면 보완 요청</td><td>모든 계약</td></tr>
                   <tr><td class="nowrap">③ 영업 검토</td><td class="nowrap">기안자 유닛의 리더</td><td>할인을 승인 (리더 본인 계약은 영업 임원)</td><td>할인율 한도를 넘긴 계약</td></tr>
                   <tr><td class="nowrap">④ 법무 검토</td><td class="nowrap">법무</td><td>바꾼 계약 조항 검토</td><td>표준계약서를 바꾼 계약</td></tr>
-                  <tr><td class="nowrap">⑤ 개인정보 검토</td><td class="nowrap">정보보호</td><td>개인정보 처리위탁 조항 검토</td><td>개인정보를 처리하는 계약</td></tr>
+                  <tr><td class="nowrap">⑤ 개인정보 검토</td><td class="nowrap">정보보호</td><td>개인정보 처리위탁 조항 검토</td><td>개인정보 처리위탁 계약이 있는 계약</td></tr>
                   <tr><td class="nowrap">⑥ 인장 날인 검토</td><td class="nowrap">총무</td><td>계약서 실물을 고객사명, 제품, 금액, 기간과 맞춰 보고 날인. 인장 사용 기록은 구글 폼</td><td>모든 계약</td></tr>
                   <tr><td class="nowrap">⑦ 체결본 등록</td><td class="nowrap">기안한 영업</td><td>상대방 서명을 받은 체결본(PDF, 스캔 이미지, 50MB까지)을 올림</td><td>모든 계약</td></tr>
                   <tr><td class="nowrap">⑧ 체결본 확인</td><td class="nowrap">영업지원</td><td>체결본이 승인된 내용과 같은지, 양쪽 서명과 날인이 있는지 확인</td><td>모든 계약</td></tr>
@@ -170,12 +171,12 @@
           <article class="doc-page" id="p-roles" data-group="역할과 권한" data-title="역할별 할 일" aria-labelledby="t-roles">
             <h1 class="page-title" id="t-roles" tabindex="-1">역할별 할 일</h1>
             <div class="page-intro">
-              <p id="role-desc">역할은 분야와 등급(담당자, 리더, 임원) 2단계입니다. 역할에 따라 메뉴와 할 일이 다르고, 열람 제한이 없는 계약은 누구나 볼 수 있습니다. 리더는 그 분야 담당자의 화면을 함께 씁니다.</p>
+              <p id="role-desc">역할은 분야와 등급(담당자, 리더, 임원) 2단계입니다. 역할에 따라 메뉴와 할 일이 다르고, 열람 제한이 없는 계약은 누구나 볼 수 있습니다. 영업 리더를 뺀 리더와 재무 임원은 그 분야 담당자의 화면을 함께 씁니다.</p>
             </div>
             <div class="tbl-scroll" tabindex="0" role="region" aria-label="역할별 할 일 표">
               <table class="tbl tbl--compact">
                 <caption class="sr-only">역할별 할 일: 분야, 등급, 할 일, 주로 쓰는 화면</caption>
-                <thead><tr><th scope="col">분야</th><th scope="col">등급</th><th scope="col">할 일</th><th scope="col">주로 쓰는 화면</th></tr></thead>
+                <thead><tr><th scope="col">분야</th><th scope="col">등급</th><th scope="col" class="col-wide">할 일</th><th scope="col">주로 쓰는 화면</th></tr></thead>
                 <tbody>
                   <tr data-role="SALES"><th scope="row" class="nowrap" rowspan="3">영업</th><td class="nowrap role-name"><strong>담당자</strong></td><td>견적서 작성과 출력, 계약 등록과 기안, 보완 요청과 반려를 받은 계약 고치기, ⑦ 체결본 등록, 변경과 연장과 해지와 운영 변경 기안, 자동갱신 계약의 연장 검토, 사후관리 기록</td><td><a href="quote.html">새 견적</a>, <a href="new-contract.html">새 계약 등록</a>, <a href="my-contracts.html">내 등록 목록</a>, <a href="signing.html">체결 대기</a>, <a href="expiring.html">만료 예정 계약</a></td></tr>
                   <tr data-role="HEAD"><td class="nowrap role-name"><strong>리더</strong></td><td>내 유닛 계약의 ③ 영업 검토(할인 승인, 2개월 넘는 기간 변경, 50건 넘는 무상 충전)</td><td><a href="review-queue.html">검토 대기</a></td></tr>
@@ -209,7 +210,7 @@
               <details class="faq" id="faq-reject"><summary>반려되면 어떻게 하나요?<span class="faq-icon"></span></summary>
                 <div class="faq-body">기안자에게 돌아갑니다. 반려 사유를 보고 보완해 다시 기안하면 다음 차수(2차)가 되고, 결재를 처음부터 다시 받습니다. 지난 차수의 기록은 그대로 남습니다.</div></details>
               <details class="faq" id="faq-fix"><summary>결재자가 보완을 요청했어요.<span class="faq-icon"></span></summary>
-                <div class="faq-body">②~⑤ 결재자는 반려 대신 보완을 요청할 수 있습니다. 결재 문서에서 요청 내용을 보고 고친 뒤 "보완 완료"를 누르면 요청한 단계부터 이어서 결재합니다. 금액이나 체크리스트 답을 바꿨으면 ② 체크리스트 검토부터 다시 받습니다.</div></details>
+                <div class="faq-body">②~⑤ 결재자는 반려 대신 보완을 요청할 수 있습니다. 요청할 때 결재자가 보완할 항목(체크리스트 답, 제품과 수량과 금액, 계약서 내용, 첨부 파일, 그 밖의 것)을 하나 이상 고르고, 그 항목은 결재 기록과 요청 내용에 함께 보입니다. 통계와 보고서에서는 무엇을 자주 고치는지 이 항목으로 셉니다. 결재 문서에서 요청 내용을 보고 고친 뒤 "보완 완료"를 누르면 요청한 단계부터 이어서 결재합니다. 금액이나 체크리스트 답을 바꿨으면 ② 체크리스트 검토부터 다시 받습니다.</div></details>
               <details class="faq" id="faq-self"><summary>내 계약을 내가 결재하게 되면요?<span class="faq-icon"></span></summary>
                 <div class="faq-body">기안자는 자기 계약을 결재할 수 없습니다. 리더 본인이 기안한 계약의 ③은 영업 임원이, 영업지원 담당자가 기안한 계약의 ②와 ⑧은 재무 담당자가 대신 검토합니다.</div></details>
               <details class="faq" id="faq-undo"><summary>승인을 잘못 눌렀어요.<span class="faq-icon"></span></summary>
@@ -225,9 +226,9 @@
               <details class="faq" id="faq-accounting"><summary>회계에 영향을 주는 조건이 있으면요?<span class="faq-icon"></span></summary>
                 <div class="faq-body">체크리스트 4번(무상 기간, 연도별 금액이 다름 등)에 "예"로 답하면 기안할 때 재무에 이메일이 갑니다. 재무는 결재선에 들어가지 않고 ⑩ 재무 확인에서 봅니다.</div></details>
               <details class="faq" id="faq-restrict"><summary>열람 제한 계약은 누가 보나요?<span class="faq-icon"></span></summary>
-                <div class="faq-body">요청자, 그 계약의 담당자(결재선과 단계 담당자), 관리자, 그리고 관리자가 지정한 열람자만 봅니다. 다른 사람에게는 목록에 "열람 제한 계약"으로만 보입니다. 등록할 때 영업이 걸고, 관리자가 걸거나 풀 수 있습니다. 열람자는 관리자가 조직으로 지정하는 것이 기본이라 인사이동이 저절로 반영되고, 사람으로 지정하면 그 사람이 다른 조직으로 옮길 때 지정이 풀립니다. 지정되면 이메일로 알려 드립니다.</div></details>
+                <div class="faq-body">영업대표(요청자), 결재선과 단계 담당자, 관리자, 그리고 관리자가 지정한 열람자만 봅니다. 다른 사람에게는 목록에 "열람 제한 계약"으로만 보입니다. 등록할 때 영업이 걸고, 관리자가 걸거나 풀 수 있습니다. 열람자는 관리자가 조직으로 지정하는 것이 기본이라 인사이동이 저절로 반영되고, 사람으로 지정하면 그 사람이 다른 조직으로 옮길 때 지정이 풀립니다. 지정되면 이메일로 알려 드립니다.</div></details>
               <details class="faq" id="faq-customer"><summary>거래처가 목록에 없어요.<span class="faq-icon"></span></summary>
-                <div class="faq-body">계약 등록의 거래처 칸에서 "목록에 없음: 새 거래처 등록"을 고르고 상호와 사업자등록번호를 넣습니다. 같은 사업자등록번호는 두 번 등록할 수 없고, 잘못 등록한 거래처는 관리자가 고치거나 합칩니다.</div></details>
+                <div class="faq-body">계약 등록의 거래처 칸에서 상호나 사업자등록번호로 검색하고, 나오지 않으면 "직접 입력하기"를 눌러 상호와 사업자등록번호를 넣습니다. 이렇게 넣은 거래처는 기안할 때 거래처 목록에 등록되고, 결재 문서의 고객사 옆에 "새 거래처"로 보여 ② 체크리스트 검토와 ⑩ 재무 확인이 한 번 더 봅니다. 같은 사업자등록번호는 두 번 등록할 수 없고, 잘못 등록한 거래처는 관리자가 고치거나 합칩니다.</div></details>
             </div>
           </article>
 
@@ -250,7 +251,7 @@
             </ul>
             <h2 class="doc-h2" id="ethics--public">공공기관과 학교 고객</h2>
             <ul class="help-list">
-              <li>공공기관과 학교(대학 포함)의 교직원은 청탁금지법 대상입니다. 거래와 관련해 금품, 접대, 편의를 주지 않습니다.</li>
+              <li>공공기관 직원과 학교(대학 포함) 교직원은 청탁금지법 대상입니다. 거래와 관련해 금품, 접대, 편의를 주지 않습니다.</li>
               <li>시범 사용이나 기증처럼 돈을 받지 않고 주는 것은 회사 절차를 따르고, 이 시스템에서 계약으로 등록하지 않습니다(돈이 오가는 계약만 등록, REQ-SCOPE-05).</li>
             </ul>
             <h2 class="doc-h2" id="ethics--indirect">총판과 리셀러를 거치는 거래</h2>

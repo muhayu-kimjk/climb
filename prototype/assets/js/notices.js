@@ -48,7 +48,7 @@
       return '<tr><td class="col-kind">' + kindBadge(n) + '</td>' +
         '<td><a class="board-title" href="notice.html?id=' + encodeURIComponent(n.id) + '">' + titleHtml(n) + '</a></td>' +
         '<td class="num-left nowrap">' + C.fmtDate(n.at) + '</td>' +
-        '<td class="center">' + esc(C.ownerLabel(n.by)) + '</td></tr>';
+        '<td class="center cell-phone-nowrap">' + esc(C.ownerLabel(n.by)) + '</td></tr>';
     }).join('') : '<tr><td class="empty-row" colspan="4">조건에 맞는 글이 없습니다.</td></tr>';
     $('#pagination').innerHTML = C.pagerHtml(page, pages, list.length, from, rows.length, PAGE_SIZE, '건');
     if (canWrite) $('#history').innerHTML = C.adminHistoryHtml(C.adminLog(['NOTICE']), '공지사항 변경 이력');

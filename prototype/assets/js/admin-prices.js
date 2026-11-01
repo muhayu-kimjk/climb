@@ -68,10 +68,10 @@
       // 제품과 기능 칸: "프리즘 결함검사" 아래에 서비스(대분류)와 단위를 함께 (A4 폭 안에 들어가게)
       //   제품이나 기능이 사용 안 함이면 표시하고 바꾸기를 두지 않음(새 계약에서 고를 수 없으므로, v0.58 QA)
       const off = retired(fid);
-      return '<tr' + (off ? ' class="is-muted"' : '') + '><td><span class="cell-strong">' + esc(C.featureLabel(any)) + '</span>' +
+      return '<tr' + (off ? ' class="is-muted"' : '') + '><td class="col-name"><span class="cell-strong">' + esc(C.featureLabel(any)) + '</span>' +
           '<span class="cell-meta">' + esc((D.SERVICES[any.service] || any.service) + ', ' + any.unit) + (off ? ' ' + C.badge('neutral', '사용 안 함') : '') + '</span>' + plan + '</td>' +
         (r ? '<td class="num">' + won(r.listPrice) + '</td><td class="num">' + pct(r.discountCap) + '</td>' +
-          '<td class="num-left">' + C.fmtDate(r.validFrom) + '</td><td class="nowrap">' + docLink(r) + '</td>'
+          '<td class="num-left nowrap">' + C.fmtDate(r.validFrom) + '</td><td class="nowrap">' + docLink(r) + '</td>'
           : '<td class="num" colspan="4">아직 적용 전</td>') +
         (canEdit ? '<td class="col-action">' + (off ? '-' : '<button type="button" class="link-act" data-change="' + esc(fid) + '" aria-label="' + esc(C.featureLabel(any)) + ' 가격 기준 바꾸기">바꾸기</button>') + '</td>' : '') +
       '</tr>';
@@ -82,8 +82,8 @@
     $('#history').innerHTML = rows.map(function (r) {
       const state = r.validFrom > D.TODAY ? C.badge('line', '예정') : current(r.feature) === r ? C.badge('success', '적용 중') : C.badge('neutral', '지난 기준');
       return '<tr' + (r.validFrom <= D.TODAY && current(r.feature) !== r ? ' class="is-muted"' : '') + '>' +
-        '<td class="num-left">' + C.fmtDate(r.validFrom) + '<span class="cell-meta">' + state + '</span></td>' +
-        '<td><span class="cell-strong">' + esc(C.featureLabel(r)) + '</span><span class="cell-meta">' + esc(r.unit) + '</span></td>' +
+        '<td class="num-left nowrap">' + C.fmtDate(r.validFrom) + '<span class="cell-meta">' + state + '</span></td>' +
+        '<td class="col-name"><span class="cell-strong">' + esc(C.featureLabel(r)) + '</span><span class="cell-meta">' + esc(r.unit) + '</span></td>' +
         '<td class="num">' + won(r.listPrice) + '<span class="cell-meta">한도 ' + pct(r.discountCap) + '</span></td>' +
         '<td class="col-wide">' + esc(r.reason) + '<span class="cell-meta">품의 ' + docLink(r) + '</span></td>' +
         '<td class="center">' + esc(C.ownerLabel(r.by)) + '<span class="cell-meta">' + C.fmtDateTime(r.at) + '</span></td></tr>';

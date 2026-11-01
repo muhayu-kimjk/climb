@@ -43,7 +43,8 @@
   const pct = function (r) { return Math.round(r * 1000) / 10 + '%'; };
   const featureOf = function (id) { return D.FEATURES.filter(function (f) { return f.id === id; })[0] || null; };
   const productOf = function (id) { return D.PRODUCTS.filter(function (p) { return p.id === id; })[0] || null; };
-  const sold = function (fid) { const f = featureOf(fid); return !!f && f.use && !!PRICE[fid]; }; // 지금 파는 기능(가격 기준이 있고 사용 중)
+  const sold = function (fid) { const f = featureOf(fid), p = f && productOf(f.product); return !!f && f.use && !!p && p.use && !!PRICE[fid]; };
+  //   지금 파는 기능: 가격 기준이 있고 기능과 제품이 모두 사용 중(제품 확인은 계약 등록 livePrices와 같게, REQ-QUO-04, 06. v0.63 통제 목록 CTL-05 점검)
   const overCap = C.quoteLineOverCap; // 할인율 한도를 넘는 줄(견적 목록, 통계와 같은 규칙, v0.62에 common.js로 옮김)
 
   /* ---------- 출력할 수 있는 견적인지(받는 곳, 제품 줄, 날짜). 고치기 화면의 검사와 보기 화면의 출력 단추가 함께 씀 ---------- */
@@ -61,7 +62,7 @@
     if (!lines.length) out.push(['lines', '제품을 한 줄 이상 넣으세요.']);
     else if (lines.some(function (l) { return l.bad; })) out.push(['lines', '수량과 단가는 숫자로만 넣습니다(쉼표는 괜찮음).']);
     else if (!lines.every(function (l) { return l.feature && Number.isInteger(l.qty) && l.qty > 0 && Number.isInteger(l.unitPrice) && l.unitPrice >= 0; })) out.push(['lines', '모든 줄에 기능과 수량(1 이상), 단가를 넣거나 빈 줄을 지우세요.']);
-    else if (!lines.every(function (l) { return sold(l.feature); })) out.push(['lines', '지금 팔지 않는 기능이 든 줄이 있습니다. 그 줄의 기능을 다시 고르거나 지우세요.']);
+    else if (!lines.every(function (l) { return sold(l.feature); })) out.push(['lines', '지금 팔지 않는 기능이 든 줄이 있습니다. 그 줄의 제품이나 기능을 다시 고르거나 지우세요.']);
     return out;
   }
 
@@ -102,7 +103,7 @@
     validHelp();
     // 지금 팔지 않는 기능이 든 줄(새 판을 만든 경우 등)은 열 때 알려 줌
     if (q.lines.some(function (l) { return l.feature && !sold(l.feature); })) {
-      $('#notice').innerHTML = C.noticeBox('', '지금 팔지 않는 기능이 든 줄이 있습니다', '그 줄의 기능을 다시 고르거나 지운 뒤 출력합니다. 표준 단가는 오늘의 가격 기준으로 다시 채워집니다.');
+      $('#notice').innerHTML = C.noticeBox('', '지금 팔지 않는 기능이 든 줄이 있습니다', '그 줄의 제품이나 기능을 다시 고르거나 지운 뒤 출력합니다. 표준 단가는 오늘의 가격 기준으로 다시 채워집니다.');
     }
 
     /* --- 2. 거래처 찾기 (KRDS 콤보 상자: 글자를 넣으면 목록, 위아래 화살표와 Enter로 고름, Esc로 닫음) --- */
@@ -174,7 +175,8 @@
     }
     function lineRow(l, i) {
       const svc = l.service;
-      const products = D.PRODUCTS.filter(function (p) { return p.use && p.service === svc && D.FEATURES.some(function (f) { return f.product === p.id && sold(f.id); }); });
+      // 이 줄에서 고른 제품은 사용 안 함이 되어도 그대로 보임(기능 칸과 같게, 빈 칸으로 보이지 않게. v0.63 검토)
+      const products = D.PRODUCTS.filter(function (p) { return p.id === l.product || (p.use && p.service === svc && D.FEATURES.some(function (f) { return f.product === p.id && sold(f.id); })); });
       const feats = D.FEATURES.filter(function (f) { return f.product === l.product && (sold(f.id) || f.id === l.feature); });
       const opt = function (v, label, cur) { return '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(label) + '</option>'; };
       const amount = (Number(l.unitPrice) || 0) * (Number(l.qty) || 0);
@@ -182,7 +184,10 @@
       return '<tr data-i="' + i + '"' + (overCap(l) ? ' class="is-alert"' : '') + '>' +
         '<td><div class="q-pick">' +
           '<select class="select" data-k="service" aria-label="' + n + '번째 줄 서비스" aria-describedby="q-lines-err"><option value="">서비스</option>' +
-            Object.keys(D.SERVICES).map(function (k) { return opt(k, D.SERVICES[k], svc); }).join('') + '</select>' +
+            // 팔 수 있는 제품이 있는 서비스만(제품이 없는 "기타"를 고르면 줄을 끝낼 수 없었음, v0.63 점검에서 고침). 이미 고른 서비스는 그대로 보임
+            Object.keys(D.SERVICES).filter(function (k) {
+              return k === svc || D.PRODUCTS.some(function (p) { return p.use && p.service === k && D.FEATURES.some(function (f) { return f.product === p.id && sold(f.id); }); });
+            }).map(function (k) { return opt(k, D.SERVICES[k], svc); }).join('') + '</select>' +
           '<select class="select" data-k="product" aria-label="' + n + '번째 줄 제품"' + (svc ? '' : ' disabled') + '><option value="">제품</option>' +
             products.map(function (p) { return opt(p.id, p.name, l.product); }).join('') + '</select>' +
           '<select class="select" data-k="feature" aria-label="' + n + '번째 줄 기능"' + (l.product ? '' : ' disabled') + '><option value="">기능</option>' +
@@ -254,6 +259,7 @@
       q.lines.splice(Number(b.dataset.del), 1);
       renderLines('#q-add');
     });
+    $('#q-add').insertAdjacentHTML('afterbegin', C.icon('plus')); // + 아이콘 (계약 등록의 제품 추가와 같게)
     $('#q-add').addEventListener('click', function () {
       q.lines.push(blankLine());
       renderLines('tr[data-i="' + (q.lines.length - 1) + '"] [data-k="service"]');
@@ -362,6 +368,8 @@
     else intro.push('출력한 판은 고칠 수 없습니다.' + (mine && latest.ver === q.ver ? ' 내용을 바꾸려면 새 판을 만듭니다.' : ''));
     if (latest.ver > q.ver) intro.push('이 견적에는 새 판(' + latest.ver + '판)이 있어 이 판은 출력할 수 없습니다.');
     if (st.code === 'EXPIRED') intro.push('유효기간(' + C.fmtDate(q.validUntil) + ')이 지나 출력할 수 없습니다. 다시 내려면 새 판을 만듭니다.');
+    // 고객용 견적서는 단추로만(REQ-QUO-05). 처음 쓰는 사람이 브라우저 인쇄로 찍지 않게 이용 안내와 같은 말로 알림
+    if (canIssue(q)) intro.push('고객에게 낼 견적서는 "견적서 출력"으로 냅니다(PDF로 저장해 보낼 수 있음). 브라우저의 인쇄 메뉴로 찍으면 워터마크가 든 사내 인쇄가 됩니다.');
     const overs = q.lines.filter(overCap);
     $('#page-intro').innerHTML = '<p>' + esc(intro.join(' ')) + '</p><p class="sub">작성 ' + esc(C.ownerLabel(q.owner)) + ', 저장 ' + esc(C.fmtDateTime(q.savedAt)) +
       (overs.length ? '. 할인율 한도를 넘는 줄이 ' + overs.length + '개 있어 이 가격으로 계약하면 영업 리더의 할인 승인이 필요합니다' : '') + '.</p>';
@@ -438,12 +446,12 @@
   function renderVersions(q) {
     const vers = C.allQuotes().filter(function (x) { return x.no === q.no; }).sort(function (a, b) { return b.ver - a.ver; });
     $('#q-versions').innerHTML = '<div class="tbl-scroll"><table class="tbl tbl--compact"><caption class="sr-only">이 견적의 판: 판, 견적일, 합계, 상태, 출력</caption>' +
-      '<thead><tr><th scope="col">판</th><th scope="col">견적일</th><th scope="col" class="num">합계</th><th scope="col">상태</th><th scope="col">출력</th></tr></thead><tbody>' +
+      '<thead><tr><th scope="col" class="col-phone-mid">판</th><th scope="col">견적일</th><th scope="col" class="num">합계</th><th scope="col">상태</th><th scope="col">출력</th></tr></thead><tbody>' +
       vers.map(function (x) {
         const s = C.quoteStatus(x);
         const cur = x.ver === q.ver;
-        return '<tr' + (cur ? ' class="is-current"' : '') + '><td class="center">' + (cur ? '<strong>' + x.ver + '판</strong><span class="sr-only"> (지금 보는 판)</span>' : '<a href="quote.html?no=' + encodeURIComponent(x.no) + '&ver=' + x.ver + '">' + x.ver + '판</a>') + '</td>' +
-          '<td class="num-left">' + C.fmtDate(x.date) + '</td><td class="num">' + C.fmtWon(C.quoteTotals(x).total) + '</td>' +
+        return '<tr' + (cur ? ' class="is-current"' : '') + '><td class="center">' + (cur ? '<strong>' + x.ver + '판</strong><span class="sr-only"> (지금 보는 판)</span>' : '<a class="doc-link" href="quote.html?no=' + encodeURIComponent(x.no) + '&ver=' + x.ver + '">' + x.ver + '판</a>') + '</td>' +
+          '<td class="num-left nowrap">' + C.fmtDate(x.date) + '</td><td class="num">' + C.fmtWon(C.quoteTotals(x).total) + '</td>' +
           '<td class="nowrap">' + C.badge(s.tone, s.label) + '</td><td class="center">' + ((x.issues || []).length ? x.issues.length + '번' : '-') + '</td></tr>';
       }).join('') + '</tbody></table></div>';
   }
@@ -461,22 +469,22 @@
           (q.bizNo ? '<p class="qd-small">사업자등록번호 ' + esc(q.bizNo) + '</p>' : '') + '<p class="qd-small">아래와 같이 견적합니다.</p></section>' +
         '<section class="qd-party"><h3 class="qd-h3">공급자</h3><dl class="qd-kv">' +
           '<div><dt>상호</dt><dd>' + esc(S.name) + '</dd></div>' +
-          '<div><dt>사업자등록번호, 대표자, 주소</dt><dd class="qd-setting">' + esc(S.note) + '</dd></div>' +
+          ['사업자등록번호', '대표자', '주소', '대표 연락처'].map(function (k) { return '<div><dt>' + k + '</dt><dd class="qd-setting">회사 설정 값</dd></div>'; }).join('') + // 실제 시스템은 회사 설정 값(REQ-QUO-08), 시안에는 넣지 않음
           '<div><dt>담당</dt><dd>' + esc(C.ownerLabel(q.owner)) + (acc && acc.email ? ' <span class="nowrap">' + esc(acc.email) + '</span>' : '') + '</dd></div></dl></section>' +
       '</div>' +
       '<p class="qd-total"><span>합계 금액(부가세 포함)</span><strong>' + esc(koreanWon(t.total)) + ' <span class="nowrap">(' + C.fmtWon(t.total) + ')</span></strong></p>' +
       '<div class="tbl-scroll qd-scroll" tabindex="0" role="region" aria-label="견적 품목 표"><table class="tbl tbl--compact qd-lines"><caption class="sr-only">견적 품목: 번호, 품목, 단위, 수량, 단가, 금액</caption>' +
-        '<thead><tr><th scope="col">번호</th><th scope="col">품목</th><th scope="col">단위</th><th scope="col" class="num">수량</th><th scope="col" class="num">단가</th><th scope="col" class="num">금액</th></tr></thead><tbody>' +
+        '<thead><tr><th scope="col">번호</th><th scope="col" class="col-phone-wide">품목</th><th scope="col">단위</th><th scope="col" class="num">수량</th><th scope="col" class="num">단가</th><th scope="col" class="num">금액</th></tr></thead><tbody>' +
         q.lines.map(function (l, i) {
           const f = featureOf(l.feature);
-          return '<tr><td class="center">' + (i + 1) + '</td><td>' + esc(C.featureLabel({ product: f ? f.product : '', feature: l.feature })) + '</td><td class="center">' + esc(l.unit) + '</td>' +
+          return '<tr><td class="center">' + (i + 1) + '</td><td>' + esc(C.featureLabel({ product: f ? f.product : '', feature: l.feature })) + '</td><td class="center cell-phone-nowrap">' + esc(l.unit) + '</td>' +
             '<td class="num">' + Number(l.qty).toLocaleString('ko-KR') + '</td><td class="num">' + C.fmtWon(l.unitPrice) + '</td><td class="num">' + C.fmtWon(l.unitPrice * l.qty) + '</td></tr>';
         }).join('') + '</tbody>' +
         '<tfoot><tr><th scope="row" colspan="5">공급가액</th><td class="num">' + C.fmtWon(t.supply) + '</td></tr>' +
         '<tr><th scope="row" colspan="5">부가세(' + Math.round(D.QUOTE_RULES.vat * 100) + '%)</th><td class="num">' + C.fmtWon(t.vat) + '</td></tr>' +
         '<tr class="qd-grand"><th scope="row" colspan="5">합계</th><td class="num">' + C.fmtWon(t.total) + '</td></tr></tfoot></table></div>' +
       (q.note ? '<section class="qd-note"><h3 class="qd-h3">조건과 비고</h3><p>' + esc(q.note).replace(/\n/g, '<br>') + '</p></section>' : '') +
-      '<p class="qd-foot">' + esc(D.BRAND.ko) + '에서 발급한 견적서입니다. 견적번호 ' + esc(q.no) + ' ' + q.ver + '판의 발급 기록이 남아 있습니다.</p>' +
+      '<p class="qd-foot">이 시스템에서 발급한 견적서입니다. 견적번호 ' + esc(q.no) + ' ' + q.ver + '판의 발급 기록이 남아 있습니다.</p>' +
     '</article>';
   }
 

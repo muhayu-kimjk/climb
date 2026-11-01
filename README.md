@@ -1,6 +1,6 @@
 # climb | 무하유 계약 관리 시스템 프로토타입
 
-climb(Contract Lifecycle Intelligent Management Base, 무하유 계약 관리 시스템. 로고 글자는 소문자 climb을 SUITE 글꼴로, 화면 글에는 이름을 쓰지 않음). 계약 등록, 계약 검토, 계약 체결, 운영 검토, 계약 완료 5단계로 계약을 관리하는 사내 시스템의 **화면 시안**입니다.
+climb(Contract Lifecycle Intelligent Management Base, 무하유 계약 관리 시스템. 로고 글자는 소문자 climb을 SUITE 글꼴로, 화면 글에는 이름을 쓰지 않음). 계약 등록, 계약 검토, 계약 체결, 운영 검토, 계약 완료 5단계로 계약을 관리하고, 고객에게 내는 견적서를 만들어 출력 기록을 남기는(요구사항 정의서 3.9) 사내 시스템의 **화면 시안**입니다.
 실제 시스템은 사내 개발팀이 이 시안과 아래 문서를 바탕으로 구현합니다.
 
 ## 프로토타입 보는 법
@@ -40,6 +40,7 @@ Projects/climb
 ├─ README.md               이 문서
 ├─ serve.py                프로토타입 미리보기 서버 (내 PC 전용)
 ├─ tools/device_shots.py   기준 기기(아이폰 18 Pro, 아이패드 프로 11인치) 크기와 터치 화면으로 시안을 찍음 (Chrome 필요, serve.py를 켠 뒤)
+├─ tools/doc_check.py      문서 점검: 표 칸 수, 보이지 않는 글자, 문서와 코드가 가리키는 번호(REQ, SCR, CODE, G, CTL 등)가 있는지, 화면 목록과 시안 파일이 맞는지
 ├─ docs/                   기획 문서
 └─ prototype/              화면 시안
    ├─ login.html           SCR-00 로그인
@@ -48,6 +49,8 @@ Projects/climb
    ├─ my-contracts.html    SCR-12 내 등록 목록 (영업)
    ├─ terminate.html       SCR-13 해지 기안 (?origin=원계약 번호)
    ├─ ops-change.html      SCR-14 운영 변경 기안 (기간 변경, 추가 충전. ?origin=원계약 번호)
+   ├─ quote.html           SCR-15 새 견적과 견적 고치기, SCR-17 견적서 보기 (?no=견적번호&ver=판, 견적서 출력과 출력 기록)
+   ├─ quotes.html          SCR-16 견적 목록 (견적 한 판이 한 줄, 한도 넘은 견적만 거르기)
    ├─ progress.html        SCR-20 전체 진행 현황
    ├─ review-queue.html    SCR-21 검토 대기
    ├─ review-done.html     SCR-22 검토 완료
@@ -66,7 +69,7 @@ Projects/climb
    ├─ admin-rules.html     SCR-52 결재선 규칙 (단계별 담당자, 대리 지정, 독촉 기준 일수)
    ├─ admin-restrict.html  SCR-53 열람 제한 관리
    ├─ admin-prices.html    SCR-54 가격 기준 관리 (기능마다 가격, 적용 시작일, 품의 문서, 이력)
-   ├─ admin-products.html  SCR-58 제품과 기능 관리 (제품 → 기능 두 단계, 서비스는 제품에 저절로 붙음, 관리자와 최고관리자)
+   ├─ admin-products.html  SCR-58 제품과 기능 관리 (서비스 > 제품 > 기능 세 단계, 제품을 추가할 때 서비스를 고름, 관리자와 최고관리자)
    ├─ admin-customers.html SCR-55 거래처 관리 (고치기, 합치기)
    ├─ admin-codes.html     SCR-56 코드 관리
    ├─ admin-logs.html      SCR-57 접속 기록 점검 (정보보호 담당자와 리더, 최고관리자)
@@ -87,6 +90,7 @@ Projects/climb
       ├─ css/help.css      이용 안내 화면 전용 스타일 (차례, 자주 묻는 것)
       ├─ css/board.css     공지사항, 내 계정, 개요의 최근 공지 한 줄과 이메일 미리 보기
       ├─ css/stats.css     통계와 보고서 전용 스타일 (막대 그래프, 숫자 상자)
+      ├─ css/quote.css     견적 화면 전용 스타일 (제품 줄 표, 고객에게 내는 견적서 모양, 견적서만 찍는 출력)
       ├─ js/mock-data.js   시연용 예시 데이터 (가상의 사람, 거래처)
       ├─ js/common.js      헤더, 메뉴, 푸터, 결재 흐름 계산, 권한 판단 등 공통 기능 (맨 위에 차례)
       ├─ js/dashboard.js   개요 화면 로직
@@ -95,7 +99,7 @@ Projects/climb
       ├─ js/admin-rules.js 결재선 규칙 화면 로직
       ├─ js/admin-restrict.js 열람 제한 관리 화면 로직
       ├─ js/admin-prices.js 가격 기준 관리 화면 로직
-      ├─ js/admin-products.js 제품과 기능 관리 화면 로직 (제품 추가, 기능 여러 개 한 번에 추가, 고치기)
+      ├─ js/admin-products.js 제품과 기능 관리 화면 로직 (서비스를 골라 제품 추가, 기능 여러 개 한 번에 추가, 고치기)
       ├─ js/admin-customers.js 거래처 관리 화면 로직
       ├─ js/admin-codes.js 코드 관리 화면 로직
       ├─ js/admin-logs.js  접속 기록 점검 화면 로직
@@ -116,6 +120,8 @@ Projects/climb
       ├─ js/expiring.js    만료 예정 계약 화면 로직
       ├─ js/terminate.js   해지 기안 화면 로직
       ├─ js/ops-change.js  운영 변경 기안 화면 로직
+      ├─ js/quote.js       새 견적과 견적서 보기 화면 로직 (오늘의 표준 단가로 채움, 출력 기록, 새 판)
+      ├─ js/quotes.js      견적 목록 화면 로직 (볼 수 있는 견적만, 검색과 상태 거르기)
       ├─ js/renewal.js     연장 검토 화면 로직
       ├─ js/templates.js   표준계약서 화면 로직 (새 판 올리기, 표준계약서 추가)
       ├─ js/stats.js       통계와 보고서 화면 로직 (세는 법, 그래프, 표로 보기)

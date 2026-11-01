@@ -58,7 +58,7 @@
 /* ---------- 가로 막대 (서비스, 영업 유닛, 결재 단계) ----------
  * 칸: 이름(--label-w) | 막대와 값. 막대 길이 = (칸 폭 - 값 자리 --val-w) x 비율(--p) */
 .hbar-row { display: grid; grid-template-columns: var(--label-w, 9rem) minmax(0, 1fr); gap: 1.2rem; align-items: stretch; min-height: 3.6rem; }
-.hbar-label { align-self: center; font-size: var(--fs-body-small); color: var(--text-basic); word-break: keep-all; }
+.hbar-label { align-self: center; font-size: var(--fs-body-small); color: var(--text-basic); word-break: keep-all; text-align: left; } /* 두 줄이 되면 낱말 사이가 벌어지지 않게 (REQ-UI-28 이름표 규칙) */
 .hbar-track { position: relative; display: flex; align-items: center; min-width: 0; }
 .hbar-fill { flex: none; width: calc((100% - var(--val-w, 11rem)) * var(--p)); height: 2rem; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; background: var(--chart-bar); }
 .hbar-val { flex: none; margin-left: 0.8rem; font-size: var(--fs-body-small); color: var(--text-basic); white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -80,7 +80,7 @@
 /* ---------- 비율 막대 (체크리스트 예외) ---------- */
 .meter-list { display: flex; flex-direction: column; gap: 1.6rem; }
 .meter-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1.2rem; margin-bottom: 0.6rem; }
-.meter-label { font-size: var(--fs-body-small); color: var(--text-basic); word-break: keep-all; }
+.meter-label { font-size: var(--fs-body-small); color: var(--text-basic); word-break: keep-all; text-align: left; }
 .meter-sub { margin-left: 0.6rem; font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
 .meter-val { flex: none; font-size: var(--fs-body-small); font-weight: 700; color: var(--text-bolder); font-variant-numeric: tabular-nums; }
 .meter-track { display: block; height: 0.8rem; border-radius: var(--radius-max); background: var(--chart-track); overflow: hidden; }

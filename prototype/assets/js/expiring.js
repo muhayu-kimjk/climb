@@ -45,7 +45,7 @@
     const soon = list.filter(function (b) { return noticeIn(b, SOON); }).length;
     const late = list.filter(function (b) { const n = noticeDate(b); return n && C.daysUntil(n) < 0; }).length;
     $('#list-count').innerHTML = C.meta([[(list.length !== all.length ? '검색 결과' : '전체'), '<strong>' + list.length + '건</strong>'],
-      ['자동갱신', autoCount + '건'], ['해지 통지 기한 ' + SOON + '일 이내', soon + '건'], ['지남', late + '건']]);
+      ['자동갱신', autoCount + '건'], ['해지 통지 기한 ' + SOON + '일 이내', soon + '건'], ['통지 기한 지남', late + '건']]);
     $('#rows').innerHTML = list.length ? list.map(function (b) {
       const c = b.root;
       const visible = C.canView(c, me);
@@ -72,13 +72,15 @@
             ? '<a class="btn btn--secondary" href="renewal.html?origin=' + encodeURIComponent(b.id) + '">연장 검토</a>'
             : '<a class="btn btn--secondary" href="new-contract.html?kind=RENEW&origin=' + encodeURIComponent(b.id) + '">연장 기안</a>') +
           (rejEnd ? '<a class="btn btn--tertiary" href="' + C.resubmitHref(rejEnd) + '">해지 보완 후 재기안</a>'
-            : '<a class="btn btn--tertiary" href="terminate.html?origin=' + encodeURIComponent(b.id) + '">해지 기안</a>') + '</div>';
+            : '<a class="btn btn--tertiary btn-reject" href="terminate.html?origin=' + encodeURIComponent(b.id) + '">해지 기안</a>') + '</div>';
       }
       return '<tr>' +
         // 남은 일자(D-n)는 날짜에 딸린 값이라 가운데 (v0.55 기획자 요청, REQ-UI-16)
         '<td class="center"><span class="badge badge--' + tone + '" aria-label="만료까지 ' + d + '일">D-' + d + '</span></td>' +
         '<td>' + cust + '</td>' +
-        '<td class="num-left nowrap">' + C.fmtDate(b.end) + '</td>' +
+        // 휴대폰은 담당자 칸을 감추고 만료일 아래에 담당을 보임(개요의 만료 임박과 같게, v0.63 점검에서 고침: 휴대폰에서 담당자가 사라졌음)
+        //   담당 줄은 휴대폰에서 줄을 바꿀 수 있게(col-expiry), 날짜는 하이픈에서 끊기지 않게 (v0.63 검토)
+        '<td class="num-left col-expiry"><span class="nowrap">' + C.fmtDate(b.end) + '</span>' + (visible ? '<span class="cell-sub">담당 ' + esc(C.ownerLabel(c.requesterId)) + '</span>' : '') + '</td>' +
         '<td>' + autoCell + '</td>' +
         '<td>' + (visible && open ? esc(open) : '-') + '</td>' +
         '<td class="center col-owner">' + esc(C.ownerLabel(c.requesterId)) + '</td>' +

@@ -267,11 +267,12 @@
       btn: '조직 옮기기',
       open: function (f) {
         f.elements.from.addEventListener('change', function () {
-          const list = all.filter(function (a) { return a.dept === val(f, 'from'); });
+          // 최고관리자 계정은 최고관리자만 옮김(수정 창과 같은 규칙, REQ-AUTH-14. v0.63 통제 목록 CTL-99 점검)
+          const list = all.filter(function (a) { return a.dept === val(f, 'from') && (me.role === 'SUPER' || a.roles.indexOf('SUPER') < 0); });
           f.querySelector('#move-people').innerHTML = list.length ? list.map(function (a) {
             return '<label class="choice"><input type="checkbox" name="people" value="' + esc(a.email) + '" checked>' + esc(a.name) +
               (a.status === 'SUSPENDED' ? ' (사용 중지)' : '') + '</label>';
-          }).join('') : '<p class="field-help">지금 조직을 먼저 고르세요.</p>';
+          }).join('') : '<p class="field-help">' + (val(f, 'from') ? '이 조직에는 옮길 수 있는 사람이 없습니다. 최고관리자 계정은 최고관리자만 옮깁니다.' : '지금 조직을 먼저 고르세요.') + '</p>';
         });
       },
       check: function (f) {

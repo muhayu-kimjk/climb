@@ -3,8 +3,8 @@
  * ---------------------------------------------------------------------
  * 하는 일
  *   1. 볼 수 있는 의무를 모음: 계약을 볼 수 있거나 맡은 분야(열람 제한 계약이면 고객사는 가림)
- *   2. 거르기: 검색, 종류, 맡은 분야(내 분야가 있으면 처음에 내 분야), 상태(처음에는 "챙길 것": 기한 지남과 14일 이내, 예정, 일이 생기면)
- *   3. 순서: 기한 지남 → 14일 이내 → 예정(다음 기한 순) → 일이 생기면 → 모두 함 → 끝냄
+ *   2. 거르기: 검색, 종류, 맡은 분야(내 분야가 있으면 처음에 내 분야), 상태(처음에는 "챙길 것": 기한 지남과 14일 이내, 예정, 일이 생기면, 기한 없음)
+ *   3. 순서: 기한 지남 → 14일 이내 → 예정(다음 기한 순) → 일이 생기면 → 기한 없음 → 모두 함 → 끝냄
  *   4. 할 일: 이행 기록, 기록 보기, 끝내기(obligation-ui.js의 창)
  * ===================================================================== */
 (function () {
@@ -14,10 +14,11 @@
   const me = C.init();
   const esc = C.esc;
   const $ = function (s) { return document.querySelector(s); };
-  const ORDER = { LATE: 0, SOON: 1, PLANNED: 2, EVENT: 3, DONE: 4, ENDED: 5 };
+  // 기한 없음(NONE, 03 8-7 v0.36: 되풀이 기한이 하나도 남지 않을 때)도 거르기와 줄 세우기에 (v0.63 점검에서 고침)
+  const ORDER = { LATE: 0, SOON: 1, PLANNED: 2, EVENT: 3, NONE: 4, DONE: 5, ENDED: 6 };
   // 챙길 것 = 모두 함과 끝냄을 뺀 것(처음 값), 급한 것 = 기한 지남과 14일 이내
   const STATES = [['OPEN', '챙길 것'], ['URGENT', '급한 것'], ['LATE', '기한 지남'], ['SOON', D.ALERT_RULES.obligationSoonDays + '일 이내'],
-    ['PLANNED', '예정'], ['EVENT', '일이 생기면'], ['DONE', '모두 함'], ['ENDED', '끝냄'], ['', '전체']];
+    ['PLANNED', '예정'], ['EVENT', '일이 생기면'], ['NONE', '기한 없음'], ['DONE', '모두 함'], ['ENDED', '끝냄'], ['', '전체']];
 
   function options(sel, list) { sel.innerHTML = list.map(function (o) { return '<option value="' + esc(o[0]) + '">' + esc(o[1]) + '</option>'; }).join(''); }
   options($('#f-kind'), [['', '전체']].concat(Object.keys(D.OBLIGATION_KINDS).map(function (k) { return [k, D.OBLIGATION_KINDS[k].label]; })));
@@ -34,7 +35,8 @@
   function contractCell(o) {
     const root = bundleRoot(o);
     if (!root) return '-';
-    if (!C.canView(root, me)) return '<span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span><span class="cell-meta">' + esc(o.bundle) + '</span>';
+    // 볼 수 없는 열람 제한 계약은 묶음 번호도 가림(다른 목록과 같게, REQ-AUTH-09. v0.63 점검에서 고침)
+    if (!C.canView(root, me)) return '<span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>';
     return '<a class="cell-title" href="contract.html?id=' + encodeURIComponent(o.bundle) + '">' + esc(root.counterparty) + '</a>' +
       '<span class="cell-meta">' + esc(o.bundle) + ', ' + esc(C.serviceLabel(root.services)) + '</span>';
   }
@@ -50,7 +52,7 @@
       if (st === 'URGENT' && ['LATE', 'SOON'].indexOf(s.code) < 0) return false;
       if (st && ['OPEN', 'URGENT'].indexOf(st) < 0 && s.code !== st) return false;
       if (q) {
-        const hay = (o.title + ' ' + o.bundle + ' ' + (root && C.canView(root, me) ? root.counterparty : '')).toLowerCase();
+        const hay = (o.title + ' ' + (root && C.canView(root, me) ? o.bundle + ' ' + root.counterparty : '')).toLowerCase(); // 가린 계약은 번호로도 찾을 수 없음
         if (hay.indexOf(q) < 0) return false;
       }
       return true;

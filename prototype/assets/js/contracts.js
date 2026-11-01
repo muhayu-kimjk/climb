@@ -28,13 +28,21 @@
   $('#f-owner').innerHTML = options('전체', owners.map(function (u) { return [u, C.ownerLabel(u)]; }));
   // 개요에서 영업이 누르면 나로 거름 (?owner=, v0.58 QA)
   const presetOwner = new URLSearchParams(location.search).get('owner');
+  //   계약이 하나도 없는 영업도 나로 거름(빈 목록). 진행 현황과 같게 (v0.63 검토)
+  if (presetOwner && presetOwner === me.id && owners.indexOf(me.id) < 0) {
+    $('#f-owner').insertAdjacentHTML('beforeend', '<option value="' + esc(me.id) + '">' + esc(C.ownerLabel(me.id)) + '</option>');
+    owners.push(me.id);
+  }
   if (owners.indexOf(presetOwner) > -1) $('#f-owner').value = presetOwner;
+  // 개요의 "계약 완료"에서 오면 그 상태로 거름 (?status=, v0.63 점검). 정해 둔 값만 받음
+  const presetStatus = new URLSearchParams(location.search).get('status');
+  if (['WORKING', 'ACTIVE', 'EXPIRED', 'TERMINATED'].indexOf(presetStatus) > -1) $('#f-status').value = presetStatus;
 
-  // 변경과 연장 칸: "변경 1, 연장 1(조건 그대로), 해지 기안"
+  // 변경과 연장 칸: "변경 1건, 연장 1건, 해지 기안"
   function childText(b) {
     const parts = [];
-    if (b.count('AMEND')) parts.push('변경 ' + b.count('AMEND'));
-    if (b.count('RENEW')) parts.push('연장 ' + b.count('RENEW'));
+    if (b.count('AMEND')) parts.push('변경 ' + b.count('AMEND') + '건');
+    if (b.count('RENEW')) parts.push('연장 ' + b.count('RENEW') + '건');
     if (b.count('TERMINATE')) parts.push('해지 기안');
     return parts.join(', ') || '-';
   }
@@ -75,13 +83,14 @@
           '<span class="cell-sub">' + service + '</span><span class="cell-meta">' + esc(b.id) + (c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span>'
         : '<span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>';
       const st = D.STATUS[b.status];
-      // 진행 중인 변경, 연장, 해지가 있으면 상태 아래에 알림
-      const open = b.open.length ? '<span class="cell-meta">진행 중: ' + esc(b.open.map(function (o) { return C.kindLabel(o); }).join(', ')) + '</span>' : '';
+      // 진행 중인 변경, 연장, 해지가 있으면 상태 아래에 알림. "해지 검토 중"처럼 종류와 상태로 씀(만료 예정 화면과 같은 말. "진행 중:"은 위 거르기의 진행 중과 헷갈려 뺌)
+      const open = b.open.length ? '<span class="cell-meta">' + esc(b.open.map(function (o) { return C.kindLabel(o) + ' ' + D.STATUS[o.status].label; }).join(', ')) + '</span>' : '';
       return '<tr' + (b.status === 'REJECTED' ? ' class="is-alert"' : '') + '>' +
         '<td>' + cust + '</td>' +
         '<td class="col-service">' + (visible ? service : '-') + '</td>' +
         '<td>' + C.badge(st.tone, st.label) + open + '</td>' +
-        '<td class="num-left">' + (b.start ? C.fmtPeriod(b.start, b.end) : '-') + '</td>' +
+        // 기간: 날짜는 하이픈에서 끊기지 않게 한 덩어리로, 줄은 물결표 뒤에서만 바꿈 (휴대폰에서 네 줄로 꺾였음. 만료 예정 화면과 같은 방식)
+        '<td class="num-left">' + (b.start ? '<span class="nowrap">' + C.fmtDate(b.start) + '~</span><wbr><span class="nowrap">' + C.fmtDate(b.end) + '</span>' : '-') + '</td>' +
         '<td class="nowrap">' + (visible ? esc(childText(b)) : '-') + '</td>' +
         '<td class="center">' + esc(C.ownerLabel(c.requesterId)) + '</td>' +
       '</tr>';

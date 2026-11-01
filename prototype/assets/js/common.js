@@ -11,10 +11,10 @@
  *   메뉴 구조 → 아이콘과 시스템 이름 → 시연용 역할 → 날짜와 금액 표시 → 계약과 결재 이름
  *   → 표준계약서와 판 → 사업자등록번호 → 영업기회번호
  *   → 결재 흐름 계산(체크리스트로 결재선, 결재 기록을 차례로 다시 적용해 지금 상태: reviewRoute, buildReview)
- *   → 열람 권한(canView, 지정 열람자) → 처리 대기 목록 → 시연 기록 → 체결 후 의무 → 관리자 설정(applyAdmin)
- *   → 계약 묶음(bundleOf, 만료 예정, 해지 통지 기한) → HTML 조각 → 헤더, 메뉴, 푸터 그리기
- *   → 안내 메시지와 확인 창 → 입력 칸 → 쪽 번호 → 관리자 화면 부품 → 워터마크, 맨 위로
- *   → 날짜 입력과 달력 → 화면 시작(init)과 내보내기
+ *   → 열람 권한(canView, 지정 열람자) → 처리 대기 목록 → 시연 기록 → 견적서 → 체결 후 의무 → 관리자 설정(applyAdmin)
+ *   → 계약 묶음(bundleOf, 만료 예정, 해지 통지 기한) → HTML 조각 → 헤더, 메뉴, 푸터 그리기 → 메뉴 검색 → 휴대폰 전체 메뉴판
+ *   → 안내 메시지와 확인 창 → 입력 칸 → 쪽 번호 → 관리자 화면 부품 → 워터마크 → 날짜 입력과 달력 → 표 머리글 정렬
+ *   → 화면 시작(init)과 내보내기   (v0.63: 견적서, 메뉴 검색, 휴대폰 전체 메뉴판, 표 머리글 정렬을 더하고 v0.60에 없앤 "맨 위로"를 뺌)
  * 불러올 때 한 번 하는 일: 시연 기록 다시 적용(시연 기록 묶음), 관리자 설정 적용(applyAdmin 뒤 buildReview)
  * ===================================================================== */
 window.CLIMB = (function () {
@@ -307,6 +307,18 @@ window.CLIMB = (function () {
   // 국세청 상태(가상, v0.39): 'CLOSED' 폐업, 'SUSPENDED' 휴업, '' 계속 사업자. 실제 시스템은 국세청 사업자등록 상태 조회
   function ntsStatus(v) { return (D.NTS_STATUS || {})[String(v || '').replace(/-/g, '')] || ''; }
 
+  // 이 계약을 기안하며 직접 입력해 거래처 목록에 새로 등록한 거래처인지 (v0.63, 통제와 표준 대응표 G-25 ①)
+  //   결재 문서에 표시해 ②와 ⑩이 사업자등록번호를 더 살펴보게 함. 시안에서 기안한 계약은 form.customerNew,
+  //   예시 계약은 거래처를 등록한 사람과 날이 이 계약의 기안자와 기안일과 같고(기안하면 거래처 목록에 함께 등록됨, REQ-REG-18)
+  //   그 번호가 사업자 정보 DB에 없으면(DB에서 고른 것이 아니면) 직접 입력으로 봄. 실제 시스템은 거래처의 등록 경로를 저장(데이터 정의서 6장)
+  function isNewCustomer(c) {
+    if (c.form && 'customerNew' in c.form) return !!c.form.customerNew;
+    const cu = (D.CUSTOMERS || []).filter(function (x) { return x.name === c.counterparty; })[0];
+    if (!cu || !c.requestedAt || cu.registeredBy !== c.requesterId || cu.registeredAt !== String(c.requestedAt).slice(0, 10)) return false;
+    const no = String(cu.bizNo).replace(/-/g, '');
+    return !(D.BIZ_REGISTRY || []).some(function (r) { return String(r.bizNo).replace(/-/g, '') === no; });
+  }
+
   // 거래처 검색: 상호 일부나 사업자등록번호 일부로 우리 거래처(C)와 사업자 정보 DB(R)를 함께 찾음. 거래처를 먼저, 최대 n건
   function searchBusinesses(q, n) {
     const text = String(q || '').trim().toLowerCase();
@@ -353,8 +365,8 @@ window.CLIMB = (function () {
   // 고르는 칸에 쓰는 기능 이름: 기능이 따로 없는 제품의 기능은 이름이 비어 있어 "기능 구분 없음" (v0.56 서비스 정리표)
   function featureText(id) { return featureName(id) || '기능 구분 없음'; }
   // '② 체크리스트 검토'
-  // c를 주면 운영 변경의 ⑨는 "운영 변경"으로 (v0.26)
-  function stepLabel(code, c) { const s = D.STEPS[code]; if (c && code === 'S09' && c.kind === 'CHANGE') return s.no + ' 운영 변경'; return s ? s.no + ' ' + s.name : code; }
+  // c를 주면 운영 변경의 ⑨는 "운영 변경"으로 (v0.26), 해지의 ⑨는 "운영 종료", 조건 그대로 연장의 ⑨는 "기간 연장"으로 (결재 문서 단추, 전체 진행 현황과 같게)
+  function stepLabel(code, c) { const s = D.STEPS[code]; if (c && code === 'S09' && c.kind === 'CHANGE') return s.no + ' 운영 변경'; if (c && code === 'S09' && c.kind === 'TERMINATE') return s.no + ' 운영 종료'; if (c && code === 'S09' && c.renewMode === 'AUTO') return s.no + ' 기간 연장'; return s ? s.no + ' ' + s.name : code; }
 
   /* ---------- 결재 흐름 계산 (요구사항 정의서 3.5, REQ-STEP-04, REQ-DOC-06, REQ-SIGN-01~06) ----------
    * 결재 기록(history)을 시간 순서대로 다시 적용해 단계마다 지금 상태(approvals)와 계약 상태를 만듭니다.
@@ -514,8 +526,10 @@ window.CLIMB = (function () {
         : code === 'S02' ? c.requestedAt.slice(0, 10) + ' 16:00'
         : c.approvedAt.slice(0, 10) + ' 11:00';
       // ④ 법무: 표준계약서를 바꾼 계약은 승인 의견 필수 (v0.27, C-20). 예시 기록에도 의견을 남김
+      // ② 체크리스트 검토는 확인 항목을 남김 (v0.63, 표준 대응표 G-05)
       const comment = code === 'S04' && (c.checklist || {}).standard === 'NO'
-        ? '바꾼 조항 확인(조항 대비표 참고): ' + ((c.checklist || {}).standardNote || '고객 요청 조항') + '. 회사 책임 범위가 표준과 같아 승인' : '';
+        ? '바꾼 조항 확인(조항 대비표 참고): ' + ((c.checklist || {}).standardNote || '고객 요청 조항') + '. 회사 책임 범위가 표준과 같아 승인'
+        : code === 'S02' ? '확인: ' + D.REVIEW_CHECKS.join(', ') : '';
       return { step: code, action: 'APPROVE', at: at, comment: comment, actorId: stepUser(code, c, at), round: round };
     });
     const d06 = addDays(c.approvedAt, 1);
@@ -677,6 +691,7 @@ window.CLIMB = (function () {
   //   ⑥~⑩은 승인 취소가 없고, 잘못은 ⑧ 다시 등록 요청이나 반려로 바로잡음 [가정] (REQ-SIGN-06)
   function canCancel(c, s, user) {
     if (!isReviewStep(s.step)) return false;
+    if (c.requesterId === user.id) return false; // 기안자는 자기 계약의 승인을 취소하지 않음(REQ-AUTH-16, 최고관리자 시연도 같음. canAct와 맞춤)
     if (s.state !== 'DONE' || ['IN_REVIEW', 'APPROVED', 'OPS_REVIEW'].indexOf(c.status) < 0) return false;
     if (s.decidedBy !== user.id && user.role !== 'SUPER') return false;
     const gi = groupIndex(s.step);
@@ -790,7 +805,9 @@ window.CLIMB = (function () {
   function resubmitRecord(source, fields) {
     const prev = JSON.parse(JSON.stringify(source));
     const hist = (prev.history || []).filter(function (h) { return !h.contractId; });
-    hist.unshift({ step: 'S01', action: 'SUBMIT', at: source.requestedAt, actorId: source.requesterId, comment: '', round: source.round || 1 });
+    // 앞 차수의 결재선(거친 ②~⑤)도 함께 남김: 다음 차수에서 답이 바뀌어도 앞 차수의 "결재한 판"을 그 차수 결재선으로 판단 (v0.63 검토)
+    hist.unshift({ step: 'S01', action: 'SUBMIT', at: source.requestedAt, actorId: source.requesterId, comment: '', round: source.round || 1,
+      route: routedReview(source).map(function (s) { return s.step; }) });
     const rec = Object.assign(prev, fields, {
       id: source.id, status: 'IN_REVIEW', requestedAt: nowStamp().slice(0, 16), round: (source.round || 1) + 1, history: hist, viewers: source.viewers,
     });
@@ -1213,7 +1230,10 @@ window.CLIMB = (function () {
       });
     } else if (op.k === 'RESTRICT') {
       // 묶음 전체에 걸고 풂(원계약 번호로): 후속 기안도 원계약을 이어받음 (D-13, v0.58 QA: 원계약만 바뀌어 후속 기안이 그대로 보였음)
-      D.CONTRACTS.forEach(function (c) { if (c.id === op.id || (c.id && rootOf(c) === op.id)) c.restricted = op.on; });
+      //   후속 기안 번호가 와도 원계약으로 바꿔 묶음 전체에 적용 (REQ-AUTH-09, v0.63 점검에서 고침: 후속 기안 하나에만 걸리거나 풀렸음)
+      const target = findBy(D.CONTRACTS, 'id', op.id);
+      const rid = target ? rootOf(target) : op.id;
+      D.CONTRACTS.forEach(function (c) { if (c.id === rid || (c.id && rootOf(c) === rid)) c.restricted = op.on; });
     } else if (op.k === 'TEMPLATE_ADD') {
       // 표준계약서 더하기 (v0.53): 첫 판과 함께
       D.TEMPLATES.push({ id: op.t.id, name: op.t.name, service: op.t.service || '', versions: [Object.assign({ no: 1, by: e.by, at: e.at, basis: e.reason }, op.v)] });
@@ -1399,7 +1419,8 @@ window.CLIMB = (function () {
   const CHILD_LETTER = { AMEND: 'A', RENEW: 'R', TERMINATE: 'T', CHANGE: 'C' };
   // 다음 차수 번호: 2601CL001 → 2601CL001-A02
   function nextChildId(rootId, kind) {
-    const n = D.CONTRACTS.filter(function (c) { return c.parentId === rootId && c.kind === kind; }).length;
+    // 번호를 받은 기안만 셈. 임시 저장(번호 없음)까지 세면 번호가 건너뜀 (v0.63 점검에서 고침)
+    const n = D.CONTRACTS.filter(function (c) { return c.id && c.parentId === rootId && c.kind === kind; }).length;
     return rootId + '-' + CHILD_LETTER[kind] + String(n + 1).padStart(2, '0');
   }
   function bundleOf(rootId) {
@@ -2125,8 +2146,9 @@ window.CLIMB = (function () {
         if (ids.indexOf(h.id) < 0) ids.push(h.id);
       });
       if (!ids.length) return;
-      // 라디오, 체크 묶음은 묶음(fieldset)에 설명을 이음
-      (control ? targets : [f]).forEach(function (t) { t.setAttribute('aria-describedby', ids.join(' ')); });
+      // 라디오, 체크 묶음은 묶음(fieldset)에 설명을 이음. fieldset이 아닌 칸(체크 하나만 든 div)은 체크 자체에 이음:
+      //   화면낭독기는 div의 aria-describedby를 읽지 않음 (v0.63 검토, 열람 제한 확인란)
+      (control ? targets : f.tagName === 'FIELDSET' ? [f] : targets).forEach(function (t) { t.setAttribute('aria-describedby', ids.join(' ')); });
     });
   }
   function setFieldError(box, msg) {
@@ -2246,9 +2268,9 @@ window.CLIMB = (function () {
   function adminHistoryHtml(list, caption) {
     return '<div class="tbl-scroll" tabindex="0" role="region" aria-label="' + esc(caption) + '">' +
       '<table class="tbl tbl--compact tbl--history"><caption class="sr-only">' + esc(caption) + ': 일시, 대상, 바뀐 내용, 사유, 바꾼 사람</caption>' +
-      '<thead><tr><th scope="col">일시</th><th scope="col">대상</th><th scope="col">바뀐 내용</th><th scope="col">사유</th><th scope="col">바꾼 사람</th></tr></thead><tbody>' +
+      '<thead><tr><th scope="col">일시</th><th scope="col" class="col-phone-wide">대상</th><th scope="col">바뀐 내용</th><th scope="col">사유</th><th scope="col">바꾼 사람</th></tr></thead><tbody>' +
       (list.length ? list.map(function (e) {
-        return '<tr><td class="num-left">' + fmtDateTime(e.at) + '</td><td>' + esc(e.target) + '</td><td>' + esc(e.change) + '</td>' +
+        return '<tr><td class="num-left">' + fmtDateTime(e.at).split(' ').map(function (s) { return '<span class="keep">' + s + '</span>'; }).join(' ') /* 날짜와 시각을 각각 한 줄로: "2026-" 뒤에서 끊기지 않게 (REQ-UI-25, 첫 사용 점검) */ + '</td><td>' + esc(e.target) + '</td><td>' + esc(e.change) + '</td>' +
           '<td>' + esc(e.reason) + '</td><td class="center">' + esc(e.byLabel || ownerLabel(e.by)) + '</td></tr>'; // byLabel: 사람이 아닌 기록(예: 시스템(자동))
       }).join('') : '<tr><td class="empty-row" colspan="5">아직 바꾼 기록이 없습니다.</td></tr>') + '</tbody></table></div>';
   }
@@ -2640,14 +2662,42 @@ window.CLIMB = (function () {
       });
     });
   }
+  // 표 안의 날짜(2026-10-18)는 하이픈에서 줄이 바뀌지 않게 날짜마다 한 덩어리(.keep)로 묶음 (REQ-UI-25. v0.63 첫 사용 점검:
+  //   칸이 좁으면 "2026-" 뒤에서 끊겼음, 화면 열다섯의 날짜 칸과 사유, 근거 글). 화면마다 칸을 고치지 않고 그린 뒤 한 번에.
+  //   날짜와 시각 사이, 물결(~) 뒤에서는 그대로 줄이 바뀜. 이미 묶인 날짜(.keep, .nowrap)와 입력 칸은 건드리지 않음
+  const DATE_ONE = /\d{4}-\d{2}-\d{2}/;
+  function keepDates() {
+    document.querySelectorAll('table td, table th').forEach(function (cell) {
+      if (!DATE_ONE.test(cell.textContent)) return;
+      const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT, { acceptNode: function (n) {
+        return n.parentNode.closest('.keep, .nowrap, script, style, textarea, option, select') || !DATE_ONE.test(n.nodeValue) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+      } });
+      const nodes = [];
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) nodes.push(n);
+      nodes.forEach(function (node) {
+        const s = node.nodeValue, frag = document.createDocumentFragment(), rx = /\d{4}-\d{2}-\d{2}/g;
+        let last = 0, m;
+        while ((m = rx.exec(s))) {
+          if (m.index > last) frag.appendChild(document.createTextNode(s.slice(last, m.index)));
+          const span = document.createElement('span');
+          span.className = 'keep';
+          span.textContent = m[0];
+          frag.appendChild(span);
+          last = m.index + m[0].length;
+        }
+        if (last < s.length) frag.appendChild(document.createTextNode(s.slice(last)));
+        node.parentNode.replaceChild(frag, node);
+      });
+    });
+  }
   let headTimer = 0;
   function alignTableHeadsSoon() {
     cancelAnimationFrame(headTimer);
-    headTimer = requestAnimationFrame(alignTableHeads);
+    headTimer = requestAnimationFrame(function () { keepDates(); alignTableHeads(); });
   }
   if (window.MutationObserver) {
     new MutationObserver(function (list) {
-      if (list.some(function (m) { return m.target.closest && m.target.closest('table, .tbl-wrap, main'); })) alignTableHeadsSoon();
+      if (list.some(function (m) { return m.target.closest && m.target.closest('table, .tbl-wrap, main, .modal-backdrop'); })) alignTableHeadsSoon();
     }).observe(document.documentElement, { childList: true, subtree: true });
   }
   if (window.matchMedia) {
@@ -2685,7 +2735,7 @@ window.CLIMB = (function () {
     daysSince: daysSince, daysUntil: daysUntil, daysBetween: daysBetween, ddayTone: ddayTone, addDays: addDays, monthsLater: monthsLater,
     fmtDate: fmtDate, fmtDateTime: fmtDateTime, fmtPeriod: fmtPeriod, fmtToday: fmtToday, fmtKRW: fmtKRW, fmtWon: fmtWon, josa: josa, nowStamp: nowStamp,
     // 거래처, 영업기회, 제품
-    isBizNo: isBizNo, fmtBizNo: fmtBizNo, isUniqueNo: isUniqueNo, ntsStatus: ntsStatus, searchBusinesses: searchBusinesses,
+    isBizNo: isBizNo, fmtBizNo: fmtBizNo, isUniqueNo: isUniqueNo, ntsStatus: ntsStatus, isNewCustomer: isNewCustomer, searchBusinesses: searchBusinesses,
     isOppNo: isOppNo, pandaUrl: pandaUrl, pandaLink: pandaLink,
     serviceLabel: serviceLabel, featureLabel: featureLabel, featureText: featureText,
     // 결재 흐름 (결재선, 지금 상태, 처리)

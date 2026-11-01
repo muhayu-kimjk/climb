@@ -16,6 +16,9 @@
   const $ = function (s) { return document.querySelector(s); };
   const PAGE_SIZE = 20;
   const LONG = D.ALERT_RULES.approvalDelayDays;
+  // 관리자가 바꾼 독촉 기준 일수를 안내와 거르기에 씀 (결재선 규칙의 독촉 기준, v0.63 점검에서 고침: 일수가 글자로 고정되어 있었음)
+  document.querySelectorAll('[data-rule]').forEach(function (el) { el.textContent = D.ALERT_RULES[el.getAttribute('data-rule')]; });
+  $('#f-wait').querySelector('option[value="LONG"]').textContent = LONG + '일 이상';
   const QUEUE_STEPS = ['S02', 'S03', 'S04', 'S05', 'S06', 'S08']; // ⑦은 체결 대기, ⑨⑩은 운영 검토 대기에서
 
   const seeAll = me.role === 'SUPER' || me.role === 'ADMIN';
@@ -74,7 +77,7 @@
       const service = esc(C.serviceLabel(x.c.services));
       // 같은 계약에서 동시에 차례인 다른 단계 (④와 ⑤)
       const together = C.pendingSteps(x.c).filter(function (o) { return o.step !== x.s.step; })
-        .map(function (o) { return D.STEPS[o.step].no; }).join(', ');
+        .map(function (o) { return D.STEPS[o.step].no + ' ' + D.STEPS[o.step].short; }).join(', '); // 번호만으로는 무슨 단계인지 몰라 짧은 이름을 붙임("동시: ⑤ 개인정보", 첫 사용 점검)
       return '<tr>' +
         // 리더가 보는 분야 전체 목록에는 볼 수 없는 열람 제한 계약도 있음: 고객사를 가림 (v0.58 QA)
         (C.canView(x.c, me)

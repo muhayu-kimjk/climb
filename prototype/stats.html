@@ -127,7 +127,7 @@
 
         <section class="panel" aria-labelledby="sec-check">
           <div class="panel-head"><h2 class="panel-title" id="sec-check">체크리스트 예외</h2></div>
-          <p class="panel-desc">체결한 계약 가운데 계약 등록 체크리스트에서 "아니요"(기준과 다름)로 답한 계약의 비율입니다.<span id="check-quote-desc" hidden> 맨 아래는 계약이 아니라 견적서로, 출력한 견적 가운데 할인율 한도를 넘는 줄이 있는 견적의 비율입니다.</span></p>
+          <p class="panel-desc">체결한 계약 가운데 계약 등록 체크리스트에서 기준과 다르게 답한 계약(1~3번은 "아니요", 4번은 "예")의 비율입니다.<span id="check-quote-desc" hidden> 맨 아래는 계약이 아니라 견적서로, 출력한 견적 가운데 할인율 한도를 넘는 줄이 있는 견적의 비율입니다.</span></p>
           <div class="meter-list" id="check-meters"></div>
           <!-- 계약 방식과 거래처마다 2, 3번 예외 (v0.62, 표준 대응표 G-19). 그래프가 없는 표라 인쇄할 때도 펼쳐 찍음(chart-table--print) -->
           <details class="chart-table chart-table--print" id="check-split">
@@ -148,6 +148,13 @@
           <div class="panel-head"><h2 class="panel-title" id="sec-signed">체결본 확인 반려 항목</h2></div>
           <p class="panel-desc">⑧ 체결본 확인에서 반려한 계약이 승인된 내용과 어디가 달랐는지 셉니다(기간 안의 반려, 한 번에 여러 항목을 고를 수 있음).</p>
           <div class="meter-list" id="signed-meters"></div>
+        </section>
+
+        <!-- 7. 보완 요청 항목 (v0.63, 통제와 표준 대응표 G-05): ②~⑤에서 보완을 요청할 때 고른 항목 -->
+        <section class="panel" aria-labelledby="sec-supplement">
+          <div class="panel-head"><h2 class="panel-title" id="sec-supplement">보완 요청 항목</h2></div>
+          <p class="panel-desc">②~⑤ 계약 검토에서 기안자에게 보완을 요청하며 고른 항목을 셉니다(기간 안의 보완 요청, 한 번에 여러 항목을 고를 수 있음).</p>
+          <div class="meter-list" id="supplement-meters"></div>
         </section>
       </div>
     </div>
