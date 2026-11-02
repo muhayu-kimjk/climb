@@ -4,7 +4,7 @@
  * 관련: 요구사항 정의서 REQ-UI-29, v0.45 기획자 결정
  *   1. 글 한 편: 구분, 제목(중요 배지, 버전), 올린 날, 쓴 사람
  *   2. 공지는 문단, 릴리즈는 새 기능, 개선, 바뀐 규칙, 고친 문제(있는 묶음만)
- *   3. 이전 글, 다음 글(목록 순서), 목록으로
+ *   3. 이전 글, 다음 글(올린 순서, 제목 뒤에 올린 날을 흐리게. 기획자 결정 2026-11-02 D-21), 목록으로
  *   4. 관리자와 최고관리자: 고치기(notice-form.js), 내리기(확인 창)
  * ===================================================================== */
 (function () {
@@ -44,10 +44,12 @@
     }
     $('#post-edited').hidden = !n.editedAt;
     $('#post-edited').textContent = n.editedAt ? C.fmtDateTime(n.editedAt) + '에 고쳤습니다.' : '';
-    // 이전 글(더 최근), 다음 글(더 예전): 목록과 같은 순서
+    // 이전 글(더 최근), 다음 글(더 예전): 올린 순서. 1쪽 맨 위 고정(D-20)과 상관없이 날짜 순서를 따름
+    // 기획자 결정 2026-11-02 D-21: 이름(이전 글, 다음 글)은 그대로 두고 제목 뒤에 올린 날을 흐리게 붙여 어느 쪽이 최근 글인지 알게 함
     const list = visible(), i = list.indexOf(n);
     const link = function (x) {
-      return x ? '<a href="notice.html?id=' + encodeURIComponent(x.id) + '">' + (x.version ? esc(x.version) + ' ' : '') + esc(x.title) + '</a>' : '없음';
+      return x ? '<a href="notice.html?id=' + encodeURIComponent(x.id) + '">' + (x.version ? esc(x.version) + ' ' : '') + esc(x.title) + '</a>' +
+        '<span class="post-nav-date">' + C.fmtDate(x.at) + '</span>' : '없음';
     };
     $('#post-nav').innerHTML = '<div><dt>이전 글</dt><dd>' + link(list[i - 1]) + '</dd></div><div><dt>다음 글</dt><dd>' + link(list[i + 1]) + '</dd></div>';
     const canWrite = window.NoticeForm.canWrite(me);
@@ -68,7 +70,8 @@
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !modal.hidden) closeModal(); });
   $('#hide-ok').addEventListener('click', function () {
     const n = D.NOTICES.filter(function (x) { return x.id === id; })[0];
-    C.adminSave('NOTICE', n.id + ' ' + n.title, '공지 내림', '-', { k: 'NOTICE_HIDE', id: n.id });
+    // 기획자 결정 2026-11-02 A-6: 공지는 사유를 따로 받지 않고 "공지 올림, 고침, 내림"을 사유로 남김
+    C.adminSave('NOTICE', n.id + ' ' + n.title, '공지 내림', '공지 내림', { k: 'NOTICE_HIDE', id: n.id });
     C.flash('글을 내렸습니다.');
     location.href = 'notices.html';
   });

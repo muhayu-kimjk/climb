@@ -42,6 +42,7 @@ Projects/climb
 ├─ tools/device_shots.py   기준 기기(아이폰 18 Pro, 아이패드 프로 11인치) 크기와 터치 화면으로 시안을 찍음 (Chrome 필요, serve.py를 켠 뒤)
 ├─ tools/doc_check.py      문서 점검: 표 칸 수, 보이지 않는 글자, 문서와 코드가 가리키는 번호(REQ, SCR, CODE, G, CTL 등)가 있는지, 화면 목록과 시안 파일이 맞는지
 ├─ docs/                   기획 문서
+├─ 작업기록/               날짜별 결정 기록과 다시 시작할 지점, 그날 쓴 점검 도구 (2026-11-02/다시시작.md부터 읽음)
 └─ prototype/              화면 시안
    ├─ login.html           SCR-00 로그인
    ├─ index.html           SCR-01 개요 (대시보드)

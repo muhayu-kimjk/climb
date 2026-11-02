@@ -22,8 +22,9 @@
 <!-- =====================================================================
   SCR-47 계약 요약서 (docs/02_화면목록.md, 요구사항 정의서 REQ-ARC-09, v0.53 기획자 요청)
   - 계약 상세(SCR-42)의 "계약 요약서" 버튼으로 엶. 메뉴에는 없음(보관함 > 전체 계약 아래로 표시)
-  - 계약 한 묶음(원계약 + 변경, 연장, 해지)을 A4 문서 한 벌로: 계약 개요, 차수마다 금액과 체크리스트, 결재 기록, 체결본 목록, 체결 후 의무(v0.53), 사후관리 기록
-  - 인쇄하면 출력자 이름과 일시 워터마크가 찍힘(REQ-SEC-07). 제품 줄과 첨부 파일은 차수별 결재 문서(SCR-23)에
+  - 계약 한 묶음(원계약 + 변경, 연장, 해지)을 A4 문서 한 벌로: 계약 개요, 계약마다 금액과 체크리스트, 결재 기록, 체결본 목록, 체결 후 의무(v0.53), 사후관리 기록
+    기획자 결정 2026-11-02 D-6: 2번 묶음 이름 "차수와 금액"을 "계약 이력과 금액"으로(계약 상세의 "계약 이력"과 맞춤)
+  - 인쇄하면 출력자 이름과 일시 워터마크가 찍힘(REQ-SEC-07). 제품 줄과 첨부 파일은 계약마다 결재 문서(SCR-23)에
   - 볼 수 있는 사람은 계약 상세와 같음(열람 제한 건은 권한자만)
   - 동작은 assets/js/contract-print.js
 ====================================================================== -->
@@ -56,14 +57,14 @@
         </section>
 
         <section class="panel" aria-labelledby="rounds-title">
-          <h2 class="section-title" id="rounds-title"><span class="num">2</span>차수와 금액</h2>
+          <h2 class="section-title" id="rounds-title"><span class="num">2</span>계약 이력과 금액</h2><!-- D-6(2026-11-02), 예전 "차수와 금액" -->
           <p class="section-desc">원계약과 변경, 연장, 해지를 기안한 순서대로 적습니다. 금액은 부가세 별도입니다. 체크리스트 1번은 표준계약서 사용, 2번은 표준단가표 적용, 3번은 할인율 한도 지킴, 4번은 회계에 영향을 주는 특수 조건이 있는지 묻는 문항입니다.</p>
           <div class="tbl-wrap"><table class="tbl tbl--compact" id="rounds"></table></div>
         </section>
 
         <section class="panel panel--flow" aria-labelledby="appr-title">
           <h2 class="section-title" id="appr-title"><span class="num">3</span>결재 기록</h2>
-          <p class="section-desc">차수마다 거친 단계와 처리한 사람, 일시, 의견입니다. 거치지 않은 단계는 적지 않습니다.</p>
+          <p class="section-desc">계약마다 거친 단계와 처리한 사람, 일시, 의견입니다. 거치지 않은 단계는 적지 않습니다.</p><!-- D-6: 묶음 이름만 "계약 이력"으로 바꿈. 번호에 붙는 차수(REQ-FLOW-18)는 그대로 -->
           <div id="approvals"></div>
         </section>
 

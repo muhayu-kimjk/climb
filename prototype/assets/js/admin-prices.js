@@ -9,7 +9,9 @@
  *   2. 바꾸기, 가격 추가: 적용 시작일(오늘 이후), 품의 문서 링크(필수, https), 품의 번호(선택), 변경 사유(필수)
  *      가격 추가는 제품 → 기능(사용 중이고 아직 가격이 없는 것만)을 고른 뒤 단위와 가격. 서비스는 그 제품의 서비스(대분류, v0.56)
  *      기존 줄은 고치지 않고 새 줄을 더함. 이미 기안한 계약은 기안할 때의 기준을 씀
- *   3. 바뀐 이력: 모든 줄(지난 기준, 적용 중, 예정)
+ *   3. 바뀐 이력: 모든 줄(지난 기준, 적용 중, 예정). 한 쪽에 PAGE_SIZE(20)건 (기획자 결정 2026-11-02 D-19)
+ *   4. 거르기 (기획자 결정 2026-11-02 D-19): 서비스(제품과 기능 관리와 같은 단추)와 기능 이름 찾기. 두 표에 함께 적용
+ *      기능 이름은 화면에 보이는 "프리즘 결함검사" 전체에서 찾음(띄어쓰기와 대소문자 무시). 제품 이름만 넣어도 그 제품의 기능이 모두 나옴
  * 볼 수 있는 사람: 영업, 영업지원, 관리자(바꾸기는 관리자만). 최고관리자는 모두
  * 프로토타입: 품의 문서 링크는 열리지 않음. 바꾼 내용은 이 브라우저에만 저장(시연 기록)
  * ===================================================================== */
@@ -28,6 +30,12 @@
     $('#th-action').hidden = true;
     $('#intro-sub').textContent = '영업지원은 볼 수만 있습니다. 가격 기준은 사내 품의 결재로 승인받은 뒤 관리자가 바꿉니다.';
   }
+
+  /* 바뀐 이력 한 쪽에 보이는 수 (기획자 결정 2026-11-02 D-19)
+   * 다른 목록과 같은 20건: 화면이 A4 2장을 넘지 않게 정한 기준(REQ-ADM-04, 사용자 권한 관리, 거래처 관리와 같음) */
+  const PAGE_SIZE = 20;
+  let svc = 'ALL'; // 거르는 서비스 (ALL: 전체). 제품과 기능 관리(admin-products.js)와 같은 방식
+  let page = 1;    // 바뀐 이력의 쪽
 
   function val(f, n) { return (f.elements[n].value || '').trim(); }
   function won(n) { return Number(n).toLocaleString('ko-KR') + '원'; }
@@ -57,10 +65,33 @@
     return '<a href="#" class="doc-link" data-doc="' + esc(r.docNo || r.docUrl) + '" title="' + esc(r.docUrl) + '">' + esc(r.docNo || '품의 문서') + '</a>';
   }
 
+  /* ---------- 4. 거르기 (기획자 결정 2026-11-02 D-19) ---------- */
+  // 서비스 단추: 제품과 기능 관리와 같은 목록(사용 중이거나 제품이 있는 서비스, 코드 관리 순서)
+  function services() { return C.codeList('SERVICE', true).filter(function (c) { return c.use || D.PRODUCTS.some(function (p) { return p.service === c.code; }); }); }
+  // 단추는 한 번만 그리고, 누를 때는 눌림 표시만 바꿈(누른 단추에 초점이 남게). data-label은 굵은 글자 폭을 미리 잡아 눌러도 단추 폭이 그대로(admin.css)
+  $('#services').innerHTML = [['ALL', '전체']].concat(services().map(function (c) { return [c.code, c.label]; })).map(function (s) {
+    return '<button type="button" data-svc="' + esc(s[0]) + '" data-label="' + esc(s[1]) + '" aria-pressed="' + (s[0] === svc) + '">' + esc(s[1]) + '</button>';
+  }).join('');
+  function setSvc(code) {
+    svc = code;
+    Array.prototype.forEach.call($('#services').querySelectorAll('[data-svc]'), function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-svc') === svc)); });
+  }
+  // 띄어쓰기와 대소문자를 무시하고 비교 ("gpt killer"로도 "GPT Killer"를 찾음)
+  function norm(s) { return String(s || '').replace(/\s+/g, '').toLowerCase(); }
+  // 이 가격 기준 줄이 고른 서비스와 찾는 기능 이름에 맞는지. r은 가격 기준 줄(서비스는 줄에 함께 저장된 값)
+  function matches(r) {
+    const q = norm($('#f-q').value);
+    if (svc !== 'ALL' && r.service !== svc) return false;
+    return !q || norm(C.featureLabel(r)).indexOf(q) > -1;
+  }
+  function isFiltered() { return svc !== 'ALL' || !!norm($('#f-q').value); }
+
   /* ---------- 1. 오늘 적용되는 기준 ---------- */
   function render() {
     $('#today').textContent = C.fmtDate(D.TODAY) + ' 기준';
-    $('#rows').innerHTML = priced().map(function (fid) {
+    // 거르기는 기능마다 오늘 기준(없으면 첫 예정 줄)으로 봄 (D-19)
+    const feats = priced().filter(function (fid) { return matches(current(fid) || planned(fid)[0]); });
+    $('#rows').innerHTML = !feats.length ? '<tr><td class="empty-row" colspan="' + (canEdit ? 6 : 5) + '">조건에 맞는 가격 기준이 없습니다.</td></tr>' : feats.map(function (fid) {
       const r = current(fid), next = planned(fid), any = r || next[0];
       const plan = next.map(function (p) {
         return '<span class="cell-meta">' + C.badge('line', '예정') + ' ' + C.fmtDate(p.validFrom) + '부터 ' + won(p.listPrice) + ', 한도 ' + pct(p.discountCap) + '</span>';
@@ -77,9 +108,16 @@
       '</tr>';
     }).join('');
 
-    /* ---------- 3. 바뀐 이력 ---------- */
-    const rows = D.PRICE_ROWS.slice().sort(function (a, b) { return b.validFrom.localeCompare(a.validFrom) || b.at.localeCompare(a.at); });
-    $('#history').innerHTML = rows.map(function (r) {
+    /* ---------- 3. 바뀐 이력: 거른 뒤 한 쪽에 20건 (D-19) ---------- */
+    const all = D.PRICE_ROWS.slice().sort(function (a, b) { return b.validFrom.localeCompare(a.validFrom) || b.at.localeCompare(a.at); }).filter(matches);
+    const pages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
+    if (page > pages) page = pages;
+    const from = (page - 1) * PAGE_SIZE, rows = all.slice(from, from + PAGE_SIZE);
+    // 건수 줄: 두 표의 건수를 한 줄에 (늘 한 줄이라 거를 때 아래가 들썩이지 않음). 이름은 흐리게, 수는 진하게 (REQ-UI-32)
+    $('#list-count').innerHTML = C.meta([[(isFiltered() ? '검색 결과' : '전체'), '<strong>기능 ' + feats.length + '개</strong>'], ['바뀐 이력', all.length + '건']]);
+    // 쪽 번호는 쪽이 하나여도 늘 보임(공통 C.pagerHtml)
+    $('#pagination').innerHTML = C.pagerHtml(page, pages, all.length, from, rows.length, PAGE_SIZE, '건');
+    $('#history').innerHTML = !rows.length ? '<tr><td class="empty-row" colspan="5">조건에 맞는 이력이 없습니다.</td></tr>' : rows.map(function (r) {
       const state = r.validFrom > D.TODAY ? C.badge('line', '예정') : current(r.feature) === r ? C.badge('success', '적용 중') : C.badge('neutral', '지난 기준');
       return '<tr' + (r.validFrom <= D.TODAY && current(r.feature) !== r ? ' class="is-muted"' : '') + '>' +
         '<td class="num-left nowrap">' + C.fmtDate(r.validFrom) + '<span class="cell-meta">' + state + '</span></td>' +
@@ -129,6 +167,9 @@
   function saved(row, change) {
     const label = C.featureLabel(row);
     C.adminSave('PRICE', label + ' (' + row.feature + ')', change + ' (' + C.fmtDate(row.validFrom) + '부터)', row.reason, { k: 'PRICE', row: row });
+    // 새 줄이 보이게: 이력은 1쪽부터. 가격 추가로 넣은 기능이 지금 거르기에 맞지 않으면 거르기를 풂 (D-19, [가정])
+    page = 1;
+    if (!matches(row)) { $('#filter').reset(); setSvc('ALL'); }
     render();
     C.toast(row.validFrom === D.TODAY ? label + ' 기준을 오늘부터 적용합니다.' : label + ' 기준이 ' + C.fmtDate(row.validFrom) + '부터 적용됩니다.');
   }
@@ -206,6 +247,14 @@
     if (!b) return;
     if (b.id === 'btn-add') openAdd();
     else if (b.getAttribute('data-change')) openChange(b.getAttribute('data-change'));
+    // 서비스 단추 (D-19): 바꾸면 이력은 1쪽부터
+    else if (b.getAttribute('data-svc')) { setSvc(b.getAttribute('data-svc')); page = 1; render(); }
+    // 이력 쪽 번호 (D-19): 쪽을 바꾸면 이력 묶음 맨 위로 (다른 목록과 같음)
+    else if (b.getAttribute('data-page') && !b.disabled) { page = Number(b.getAttribute('data-page')); render(); $('#sec-history').scrollIntoView({ block: 'start' }); }
   });
+  // 기능 이름 찾기는 넣는 즉시 반영. 초기화는 서비스도 전체로 (D-19)
+  $('#filter').addEventListener('input', function () { page = 1; render(); });
+  $('#filter').addEventListener('reset', function () { setTimeout(function () { setSvc('ALL'); page = 1; render(); }, 0); });
+  $('#filter').addEventListener('submit', function (e) { e.preventDefault(); });
   render();
 })();

@@ -10,6 +10,8 @@
  *      - 조직이 기본(인사이동이 저절로 반영), 사람은 예외. 사람은 조직이 바뀌면 지정이 저절로 풀리고 관리자에게 이메일
  *      - 지정하고 빼는 것은 관리자만, 사유 필수. 지정되면 그 사람(조직이면 그 조직 사람 모두)에게 이메일
  *      - 계약 묶음 단위: 원계약에 두고 변경, 연장, 해지, 운영 변경 기안이 이어받음(후속 기안 줄에서 바꿔도 원계약에 반영)
+ *      - 기획자 결정 2026-11-02 A-9: 관찰자는 지정되어도 보지 못함(common.js canView). 사람 목록에서 관찰자를 빼고,
+ *        조직으로 지정하면 그 조직의 관찰자는 보지 못한다고 도움말에 적음. 예전에 사람으로 지정된 관찰자는 칸에 "관찰자라 보지 못함"
  *   4. 변경 이력: 영업이 등록할 때 건 기록(RESTRICT_LOG), 관리자가 걸고 푼 기록과 열람자를 지정하고 뺀 기록(ADMIN_LOG의 RESTRICT),
  *      인사이동으로 사람 지정이 풀린 기록(계약의 viewers에서 만듦)
  * 열람 제한은 원계약의 변경, 연장, 해지, 운영 변경 기안이 이어받음(D-13 v0.39)
@@ -27,6 +29,11 @@
   function find(id) { return D.CONTRACTS.filter(function (c) { return c.id === id; })[0]; }
   function label(c) { return c.id + ' ' + c.counterparty; }
   const KIND = { DEPT: '조직', USER: '사람' };
+  // 관찰자 계정인지 (A-9: 지정 열람자로 고를 수 없고, 지정되어도 보지 못함)
+  function isObserver(id) {
+    const a = C.accountOf(id);
+    return a ? a.roles.indexOf('OBSERVER') > -1 : (D.USERS[id] || {}).role === 'OBSERVER';
+  }
 
   // 걸고 푼 기록 (건 때를 찾는 데 씀): 영업이 등록할 때 건 것 + 관리자가 걸고 푼 것. 열람자 지정 기록은 뺌
   function restrictEvents() {
@@ -68,6 +75,7 @@
     const rows = list.map(function (v) {
       const on = C.viewerState(v) === 'ON';
       return '<span class="viewer-line' + (on ? '' : ' is-off') + '">' + esc(C.viewerLabel(v)) + ' <span class="viewer-kind">' + KIND[v.kind] + '</span>' +
+        (on && v.kind === 'USER' && isObserver(v.userId) ? ' <span class="viewer-kind">관찰자라 보지 못함</span>' : '') + // A-9
         (on ? ' <button type="button" class="link-act link-act--danger" data-remove="' + esc(root.id) + '|' + esc(C.viewerKey(v)) + '" aria-label="' + esc(C.viewerLabel(v)) + ' 열람자에서 빼기">빼기</button>'
           : ' ' + C.badge('line', '풀림') + '<span class="cell-meta">조직이 바뀜: ' + esc(v.deptAtGrant) + ' → ' + esc(v.releasedTo || (D.USERS[v.userId] || {}).dept || '-') + '</span>') +
         '</span>';
@@ -139,8 +147,8 @@
     const root = find(rootId);
     const ons = C.viewersOf(root).filter(function (v) { return C.viewerState(v) === 'ON'; }).map(C.viewerKey);
     const depts = C.codeList('DEPT').map(function (d) { return [d.label, d.label]; });
-    // 사람: 사용 중인 계정. "조직 이름"으로 (v0.51 표기)
-    const people = (D.ACCOUNTS || []).filter(function (a) { return a.status !== 'SUSPENDED'; })
+    // 사람: 사용 중인 계정. "조직 이름"으로 (v0.51 표기). 관찰자는 지정되어도 보지 못하므로 목록에서 뺌 (기획자 결정 2026-11-02 A-9)
+    const people = (D.ACCOUNTS || []).filter(function (a) { return a.status !== 'SUSPENDED' && a.roles.indexOf('OBSERVER') < 0; })
       .map(function (a) { return [a.id, (a.dept ? a.dept + ' ' : '') + a.name]; })
       .sort(function (a, b) { return a[1].localeCompare(b[1], 'ko'); });
     C.formModal({
@@ -149,9 +157,9 @@
       body: '<p class="modal-info">' + esc(label(root)) + '</p>' +
         C.fieldHtml({ name: 'kind', label: '지정할 것', type: 'select', required: true, value: 'DEPT', options: [['DEPT', '조직 (기본: 인사이동이 저절로 반영)'], ['USER', '사람 (예외: 조직이 바뀌면 저절로 풀림)']] }) +
         '<div data-kind="DEPT">' + C.fieldHtml({ name: 'dept', label: '조직', type: 'select', required: true, options: [['', '고르세요']].concat(depts),
-          help: '그 조직에 지금 있는 사람이 봅니다. 사람이 옮겨 오거나 떠나면 저절로 반영됩니다.' }) + '</div>' +
+          help: '그 조직에 지금 있는 사람이 봅니다. 사람이 옮겨 오거나 떠나면 저절로 반영됩니다. 관찰자는 그 조직에 있어도 보지 못합니다.' }) + '</div>' +
         '<div data-kind="USER">' + C.fieldHtml({ name: 'user', label: '사람', type: 'select', required: true, options: [['', '고르세요']].concat(people),
-          help: '이 사람이 다른 조직으로 옮기면 지정이 저절로 풀리고 관리자에게 이메일로 알립니다. 꼭 필요할 때만 씁니다.' }) + '</div>' +
+          help: '이 사람이 다른 조직으로 옮기면 지정이 저절로 풀리고 관리자에게 이메일로 알립니다. 꼭 필요할 때만 씁니다. 관찰자는 고를 수 없습니다.' }) + '</div>' +
         C.fieldHtml({ name: 'reason', label: '지정하는 사유', type: 'textarea', required: true, placeholder: '예: 총판 계약이라 매출 인식 방법을 재무기획유닛이 미리 검토' }),
       btn: '열람자 더하기',
       open: function (f) {

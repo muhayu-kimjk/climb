@@ -4,9 +4,11 @@
  * 관련 요구사항: REQ-DASH-05, REQ-STEP-04, REQ-REV-01, REQ-SIGN-07
  * 하는 일
  *   1. 내 차례인 단계를 모음: ②~⑤ 계약 검토와 ⑥ 인장 날인(총무), ⑧ 체결본 확인(영업지원) (v0.23)
+ *      ③ 영업 임원 승인(기획자 결정 2026-11-02 E-3)과 ③ 만료 유예 확인(A-11, 줄을 누르면 계약 상세)도
  *      (최고관리자, 관리자는 모든 담당자 것을, 영업지원 리더와 정보보호 리더는 그 분야 담당자 것을 담당자 칸과 함께. v0.29)
  *   2. 검색, 단계, 서비스, 대기 기간으로 거르기. 오래 기다린 순서로 정렬
  *   3. 한 쪽에 20건씩 쪽 나누기 (화면이 A4 2장을 넘지 않게)
+ *   4. 휴대폰에서는 요청자 칸을 감추고 고객사 아래 작은 줄에 씀 (기획자 결정 2026-11-02 D-9, PC는 그대로)
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -19,7 +21,9 @@
   // 관리자가 바꾼 독촉 기준 일수를 안내와 거르기에 씀 (결재선 규칙의 독촉 기준, v0.63 점검에서 고침: 일수가 글자로 고정되어 있었음)
   document.querySelectorAll('[data-rule]').forEach(function (el) { el.textContent = D.ALERT_RULES[el.getAttribute('data-rule')]; });
   $('#f-wait').querySelector('option[value="LONG"]').textContent = LONG + '일 이상';
-  const QUEUE_STEPS = ['S02', 'S03', 'S04', 'S05', 'S06', 'S08']; // ⑦은 체결 대기, ⑨⑩은 운영 검토 대기에서
+  // ⑦은 체결 대기, ⑨⑩은 운영 검토 대기에서
+  //   기획자 결정 2026-11-02: ③ 영업 임원 승인(S03C, E-3)과 ③ 만료 유예 확인(SGR, A-11)도 단계 거르기에 보이게 적어 둠
+  const QUEUE_STEPS = ['S02', 'S03', 'S03C', 'S04', 'S05', 'S06', 'S08', 'SGR'];
 
   const seeAll = me.role === 'SUPER' || me.role === 'ADMIN';
   const lead = !seeAll && C.isLead(me);
@@ -46,8 +50,13 @@
   $('#f-step').innerHTML = options('전체 단계', QUEUE_STEPS.map(function (code) { return [code, C.stepLabel(code)]; }));
   $('#f-service').innerHTML = options('전체 서비스', Object.keys(D.SERVICES).map(function (k) { return [k, D.SERVICES[k]]; }));
 
+  // 기획자 결정 2026-11-02 D-9: 휴대폰에서는 요청자 칸을 감춰(col-owner) 대기 일수가 첫 화면에 들게 함. 요청자는 고객사 아래 작은 줄로
   $('#thead').innerHTML = '<tr><th scope="col" class="col-customer">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col">단계</th>' +
-    (showWho ? '<th scope="col">담당자</th>' : '') + '<th scope="col">요청자</th><th scope="col">기안일</th><th scope="col" class="col-wait">대기</th></tr>';
+    (showWho ? '<th scope="col">담당자</th>' : '') + '<th scope="col" class="col-owner">요청자</th><th scope="col">기안일</th><th scope="col" class="col-wait">대기</th></tr>';
+
+  // 기획자 결정 2026-11-02 D-3: 짧은 단계 이름은 처리하는 사람 이름으로("⑤ 정보보호"처럼). 계약마다 바뀌는 이름은 common.js stepTag가 정함
+  //   stepTag가 아직 없으면 예전처럼 번호와 짧은 이름
+  const stepTag = function (code, c) { return C.stepTag ? C.stepTag(code, c) : D.STEPS[code].no + ' ' + D.STEPS[code].short; };
 
   let page = 1;
   function filtered() {
@@ -77,19 +86,22 @@
       const service = esc(C.serviceLabel(x.c.services));
       // 같은 계약에서 동시에 차례인 다른 단계 (④와 ⑤)
       const together = C.pendingSteps(x.c).filter(function (o) { return o.step !== x.s.step; })
-        .map(function (o) { return D.STEPS[o.step].no + ' ' + D.STEPS[o.step].short; }).join(', '); // 번호만으로는 무슨 단계인지 몰라 짧은 이름을 붙임("동시: ⑤ 개인정보", 첫 사용 점검)
+        .map(function (o) { return stepTag(o.step, x.c); }).join(', '); // 번호만으로는 무슨 단계인지 몰라 짧은 이름을 붙임(첫 사용 점검). D-3부터 처리하는 사람 이름
+      // 휴대폰에서만 보이는 요청자 줄 (D-9). PC 요청자 칸처럼 가린 줄에도 보임
+      const requester = '<span class="cell-sub">요청자 ' + esc(C.ownerLabel(x.c.requesterId)) + '</span>';
       return '<tr>' +
         // 리더가 보는 분야 전체 목록에는 볼 수 없는 열람 제한 계약도 있음: 고객사를 가림 (v0.58 QA)
         (C.canView(x.c, me)
-          ? '<td><a class="cell-title" href="review.html?id=' + encodeURIComponent(x.c.id) + '">' + esc(x.c.counterparty) + '</a>' +
-            '<span class="cell-sub">' + service + '</span><span class="cell-meta">' + esc(x.c.id) + (x.c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span></td>'
-          : '<td><span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span></td>') +
+          // 처리하는 화면으로: 결재 단계는 결재 문서, ③ 만료 유예 확인은 확인과 반려 단추가 있는 계약 상세(C.turnHref, 2026-11-02 A-11)
+          ? '<td><a class="cell-title" href="' + C.turnHref(x.c, x.s) + '">' + esc(x.c.counterparty) + '</a>' +
+            '<span class="cell-sub">' + service + '</span>' + requester + '<span class="cell-meta">' + esc(x.c.id) + (x.c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span></td>'
+          : '<td><span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>' + requester + '</td>') +
         '<td class="col-service">' + (C.canView(x.c, me) ? service : '-') + '</td>' + // 가린 줄은 서비스도 가림 (v0.62)
         '<td class="nowrap">' + esc(C.stepLabel(x.s.step, x.c)) + (together ? '<span class="cell-meta">동시: ' + esc(together) + '</span>' : '') +
           // 대리 지정으로 내 차례가 된 건 (REQ-REV-08)
           (!showWho && x.s.userId !== me.id ? '<span class="cell-meta">' + esc(C.ownerLabel(x.s.userId)) + ' 대신 (대리 지정)</span>' : '') + '</td>' +
         (showWho ? '<td class="center">' + esc(C.ownerLabel(x.s.userId)) + '</td>' : '') +
-        '<td class="center">' + esc(C.ownerLabel(x.c.requesterId)) + '</td>' +
+        '<td class="center col-owner">' + esc(C.ownerLabel(x.c.requesterId)) + '</td>' + // 휴대폰에서는 감춤 (D-9)
         '<td class="num-left">' + C.fmtDate(x.c.requestedAt) + '</td>' +
         '<td class="num col-wait"><span' + (x.wait >= LONG ? ' class="wait-long"' : '') + '>' + x.wait + '일</span></td>' +
       '</tr>';

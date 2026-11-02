@@ -181,6 +181,7 @@
       const opt = function (v, label, cur) { return '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(label) + '</option>'; };
       const amount = (Number(l.unitPrice) || 0) * (Number(l.qty) || 0);
       const n = i + 1;
+      // 서비스, 제품, 기능 세 칸은 PC에서도 한 줄에 하나, 칸 전체 폭 (기획자 결정 2026-11-02 D-8, 계약 등록과 같게. quote.css .q-pick)
       return '<tr data-i="' + i + '"' + (overCap(l) ? ' class="is-alert"' : '') + '>' +
         '<td><div class="q-pick">' +
           '<select class="select" data-k="service" aria-label="' + n + '번째 줄 서비스" aria-describedby="q-lines-err"><option value="">서비스</option>' +

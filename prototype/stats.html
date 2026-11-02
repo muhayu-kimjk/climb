@@ -23,9 +23,12 @@
 <!-- =====================================================================
   SCR-46 통계와 보고서 (docs/02_화면목록.md, 요구사항 정의서 REQ-DASH-17~21, v0.53 기획자 요청)
   - 보관함 메뉴. 체결한 계약의 금액과 건수, 결재에 걸린 날, 체크리스트 예외 비율, 체결본 확인 반려 항목(v0.61, REQ-SIGN-04)
-  - 금액과 건수는 체결본을 등록한 날(⑦) 기준. 열람 제한 계약 중 볼 수 없는 건은 넣지 않음
+  - 금액과 건수는 ⑦에서 받은 서명본 체결일 기준, 올린 날도 남김(기획자 결정 2026-11-02 B-8. 예전에는 체결본을 등록한 날)
+  - ⑧에서 반려된 차수는 체결에서 뺌, 다시 기안해 체결되면 그때 셈(기획자 결정 2026-11-02 A-2). 열람 제한 계약 중 볼 수 없는 건은 넣지 않음
   - 기간, 서비스, 영업 유닛으로 좁혀 보고, 그래프마다 "표로 보기"가 있음
-  - 보고서 인쇄: 이 화면을 A4로 인쇄(고른 조건이 맨 위에 찍힘)
+  - 보고서 인쇄: 이 화면을 A4로 인쇄(고른 조건이 맨 위에 찍힘). 기간 마감 점검은 넣지 않음
+  - 기간 마감 점검(기획자 결정 2026-11-02 B-9, CTL-65): 기간 말을 골라 앞뒤 체결, 승인됐지만 체결 전, ⑨ ⑩ 기다림을 보고
+    재무가 확인을 남김(쌓기만 함). "마감 점검 인쇄"는 이 묶음만 A4로
   - 동작은 assets/js/stats.js
 ====================================================================== -->
 <body data-page="SCR-46">
@@ -41,7 +44,7 @@
         <h1 class="page-title">통계와 보고서</h1>
       </div>
       <div class="page-intro">
-        <p>체결한 계약의 금액과 건수, 결재에 걸린 날을 봅니다. 금액과 건수는 체결본을 등록한 날(⑦)을 기준으로 셉니다.</p>
+        <p>체결한 계약의 금액과 건수, 결재에 걸린 날을 봅니다. 금액과 건수는 ⑦에서 받은 서명본 체결일을 기준으로 셉니다. 맨 아래 기간 마감 점검에서는 결산 기간 말 앞뒤 계약을 보고 재무가 확인을 남깁니다.</p>
         <p class="sub" id="intro-sub"></p>
       </div>
 
@@ -155,6 +158,97 @@
           <div class="panel-head"><h2 class="panel-title" id="sec-supplement">보완 요청 항목</h2></div>
           <p class="panel-desc">②~⑤ 계약 검토에서 기안자에게 보완을 요청하며 고른 항목을 셉니다(기간 안의 보완 요청, 한 번에 여러 항목을 고를 수 있음).</p>
           <div class="meter-list" id="supplement-meters"></div>
+        </section>
+
+        <!-- 9. 통제 지표 (기획자 결정 2026-11-02 C-1): 리더와 임원만 봄(stats.js가 그 밖의 사람에게는 감춤). 위 조건을 따름
+             4번 조건의 종류(B-6, CTL-52)와 ④ 반부패 조항 판단(C-15, CTL-34). 영업기회 대사, 할인 예외 점검 같은 지표는 그 화면이 생기면 더함 -->
+        <section class="panel" id="control-panel" aria-labelledby="sec-control" hidden>
+          <div class="panel-head"><h2 class="panel-title" id="sec-control">통제 지표</h2></div>
+          <p class="panel-desc">리더와 임원만 보는 통제 지표입니다. 위 조건(기간, 서비스, 영업 유닛)을 따릅니다.</p>
+          <h3 class="chart-title">4번 조건의 종류</h3>
+          <p class="panel-desc">체결한 계약 가운데 체크리스트 4번이 "예"인 계약이 고른 조건의 종류입니다. 한 계약이 여러 종류를 고를 수 있습니다.</p>
+          <div class="meter-list" id="acct-meters"></div>
+          <h3 class="chart-title">④ 반부패 조항 판단</h3>
+          <p class="panel-desc">표준계약서를 바꾼 계약 가운데 기간 안에 ④ 법무가 승인한 계약을 계약 방식마다 셉니다. 간접과 조달은 꼭 고르고, 직접은 골라도 되고 안 골라도 됩니다.</p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="반부패 조항 판단 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">④ 반부패 조항 판단: 계약 방식, ④ 승인, 있고 약해지지 않음, 없음, 고르지 않음</caption>
+              <thead><tr><th scope="col">계약 방식</th><th scope="col" class="num">④ 승인</th><th scope="col" class="num">있고 약해지지 않음</th><th scope="col" class="num">없음</th><th scope="col" class="num">고르지 않음</th></tr></thead>
+              <tbody id="ab-rows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 8. 기간 마감 점검 (기획자 결정 2026-11-02 B-9, G-09 뒤, CTL-65)
+             위 조건과 상관없이 고른 기간 말 기준. 세 목록(앞뒤 체결, 승인됐지만 체결 전, ⑨ ⑩ 기다림)과 금액 합계
+             확인은 재무만 남김(단추는 stats.js가 재무가 아니면 지움). 보고서 인쇄에는 넣지 않고 "마감 점검 인쇄"로 따로 -->
+        <section class="panel close-panel" id="close-panel" aria-labelledby="sec-close">
+          <div class="panel-head"><h2 class="panel-title" id="sec-close">기간 마감 점검</h2></div>
+          <p class="panel-desc">결산 기간 말을 골라 그날 앞뒤에 체결한 계약, 승인됐지만 체결 전이던 계약, ⑨ ⑩을 기다리던 계약을 봅니다. 위 조건(기간, 서비스, 영업 유닛)과 상관없이 모든 계약을 보며, 금액은 신규, 변경, 연장만 더합니다. 재무가 기간 말마다 확인을 남깁니다.</p>
+          <div class="close-bar" id="close-bar">
+            <div class="field">
+              <label class="field-label field-label--sm" for="close-end">기간 말</label>
+              <input class="input" type="date" id="close-end">
+              <p class="field-error" hidden></p>
+            </div>
+            <div class="field">
+              <label class="field-label field-label--sm" for="close-days">앞뒤 날 수</label>
+              <div class="input-unit"><input class="input" type="number" id="close-days" min="0" max="31" step="1" inputmode="numeric" autocomplete="off"><span class="unit">일</span></div>
+              <p class="field-error" hidden></p>
+            </div>
+            <div class="close-acts">
+              <button type="button" class="btn btn--tertiary btn--md" id="btn-close-print">마감 점검 인쇄</button>
+              <button type="button" class="btn btn--primary btn--md" id="btn-close-ok">확인 남기기</button>
+            </div>
+          </div>
+          <!-- 인쇄할 때만: 기간 말과 앞뒤 날 수 -->
+          <p class="close-cond" id="close-cond"></p>
+          <div class="close-sum" id="close-sum"></div>
+          <!-- 이 기간 말의 확인 기록(누가, 언제, 메모, 확인 때 본 숫자). 기록이 없으면 안내 한 줄 -->
+          <div class="close-record" id="close-record"></div>
+
+          <h3 class="chart-title close-title">기간 말 앞뒤에 체결한 계약</h3>
+          <p class="close-desc" id="close-a-desc"></p>
+          <div class="close-split" id="close-a-split"></div>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="기간 말 앞뒤에 체결한 계약 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">기간 말 앞뒤에 체결한 계약: 고객사, 계약 종류, 체결일과 올린 날, 금액, 지금 상태</caption>
+              <thead><tr><th scope="col">고객사</th><th scope="col">계약 종류</th><th scope="col">체결일 (올린 날)</th><th scope="col" class="num">금액</th><th scope="col">지금</th></tr></thead>
+              <tbody id="close-a-rows"></tbody>
+            </table>
+          </div>
+
+          <h3 class="chart-title close-title">승인됐지만 체결 전이던 계약</h3>
+          <p class="close-desc">기간 말까지 계약 검토가 승인됐지만 그때 아직 체결하지 않은 계약입니다. 그때 단계는 기간 말에 차례였던 단계입니다.</p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="승인됐지만 체결 전이던 계약 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">승인됐지만 체결 전이던 계약: 고객사, 계약 종류, 승인일, 그때 단계, 금액, 지금 상태</caption>
+              <thead><tr><th scope="col">고객사</th><th scope="col">계약 종류</th><th scope="col">승인일</th><th scope="col">그때 단계</th><th scope="col" class="num">금액</th><th scope="col">지금</th></tr></thead>
+              <tbody id="close-b-rows"></tbody>
+            </table>
+          </div>
+
+          <h3 class="chart-title close-title">⑨ ⑩을 기다리던 계약</h3>
+          <p class="close-desc">기간 말에 운영 적용(⑨)이나 재무 확인(⑩) 차례였던 계약입니다. 해지와 운영 변경도 보이지만 금액은 "-"로 두고 합계에 넣지 않습니다.</p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="⑨ ⑩을 기다리던 계약 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">⑨ ⑩을 기다리던 계약: 고객사, 계약 종류, 그때 단계, 차례가 온 날, 금액, 지금 상태</caption>
+              <thead><tr><th scope="col">고객사</th><th scope="col">계약 종류</th><th scope="col">그때 단계</th><th scope="col">차례 온 날</th><th scope="col" class="num">금액</th><th scope="col">지금</th></tr></thead>
+              <tbody id="close-c-rows"></tbody>
+            </table>
+          </div>
+
+          <!-- 모든 기간 말의 확인 기록 (쌓기만 함). 인쇄에는 넣지 않음(이 기간 말의 기록은 위에 찍힘) -->
+          <details class="chart-table close-log">
+            <summary>모든 기간 말의 확인 기록 <span id="close-log-count"></span></summary>
+            <div class="tbl-scroll" tabindex="0" role="region" aria-label="기간 마감 점검 확인 기록 표">
+              <table class="tbl tbl--compact">
+                <caption class="sr-only">기간 마감 점검 확인 기록: 기간 말, 확인한 사람, 일시, 메모</caption>
+                <thead><tr><th scope="col">기간 말</th><th scope="col">확인한 사람</th><th scope="col">일시</th><th scope="col">메모</th></tr></thead>
+                <tbody id="close-log-rows"></tbody>
+              </table>
+            </div>
+          </details>
         </section>
       </div>
     </div>

@@ -5,10 +5,13 @@
  * 상자는 한 줄에 하나씩, 계약이 먼저이고 시스템 이야기는 나중 (REQ-DASH-15, v0.55 순서). 쌓는 순서는 index.html이 정함
  *   1. 계약 진행 현황: KRDS 단계 표시기(계약 등록 → 계약 검토 → 계약 체결 → 운영 검토 → 계약 완료)
  *      + 그 아래 진행 상세 표(고객사, 서비스, 상태, 현재 진행, 대기). 현재 진행은 한 줄(C.progressCells, v0.55)
- *   2. 만료 임박
+ *      표 위 회색 안내 한 줄로 단계 표시기와 ①~⑩ 번호의 관계(D-2), 영업이 처리할 줄에는 "내 차례" 배지(D-1) (기획자 결정 2026-11-02)
+ *   2. 만료 임박: 만료일이 가까운 순서(A-1), 첫 칸 머리글 "만료까지"(D-14) (기획자 결정 2026-11-02)
  *   3. 가장 최근 공지 한 줄(인사말과 함께 renderGreeting이 그림)
  *   4. 내가 검토할 계약(결재 역할에게만), 챙길 의무(의무를 맡는 분야와 최고관리자에게만)
  *   5. 점검할 일: 정보보호 담당자, 리더와 최고관리자에게만. 이상 행위 알림, 매월 기록 점검, 분기 권한 검토 (v0.27)
+ *      기획자 결정 2026-11-02 C-10: 점검을 맡은 사람마다 자기 점검만. 재무(담당자, 리더, 임원)는 기간 마감 점검(B-9)
+ *   내가 검토할 계약의 줄은 C.turnHref로: 만료 처리와 유예 확인(A-10, A-11)은 계약 상세로
  * 계약명은 따로 두지 않으므로 계약은 고객사와 서비스로 표시합니다. (v0.12)
  * "확인 필요" 상자는 뺐습니다. (REQ-DASH-09, v0.12)
  * 범위 [가정, REQ-DASH-14]: 영업은 내가 등록한 계약, 그 외 역할은 전체 계약
@@ -39,8 +42,11 @@
   // 만료 임박: 계약 묶음의 지금 유효한 계약 기준 (조건 그대로 연장한 기록이 있으면 그 기간, common.js expiringBundles)
   //   해지 통지 기한이 90일 안에 오는 자동갱신 계약도 넣음 (v0.53, REQ-FLOW-32). bundle: 통지 기한 계산용
   //   영업은 내가 영업대표인 묶음만 (만료 예정 화면과 같은 범위, v0.58 QA: 건수와 링크한 목록이 달랐음)
+  //   기획자 결정 2026-11-02 A-1(C-37 ①): 개요는 만료일이 가까운 순서. 표에는 만료까지 남은 D-n만 보여 그 순서여야 읽기 쉬움
+  //     다음에 오는 날(통지 기한이나 만료일) 순서는 만료 예정 화면(SCR-43)에서만 씀(expiringBundles가 주는 순서)
   const expiring = C.expiringBundles(R.expiryWindowDays, true).filter(function (b) { return !isSales || b.root.requesterId === me.id; })
-    .map(function (b) { return Object.assign({}, b.root, { endDate: b.end, bundle: b }); });
+    .map(function (b) { return Object.assign({}, b.root, { endDate: b.end, bundle: b }); })
+    .sort(function (a, b) { return a.endDate.localeCompare(b.endDate) || a.id.localeCompare(b.id); });
   const restricted = all.filter(function (c) { return c.restricted && c.status !== 'DRAFT'; });
   const myActions = C.myActions(me);
 
@@ -77,7 +83,21 @@
     if (!qTodo.length) { const n = next(yNow, qNow * 3); items.push({ what: yNow + '년 ' + qNow + '분기 권한 검토', todo: false, state: '분기가 끝난 뒤', due: lastDay(n[0], n[1]) }); }
     return items;
   }
-  const audits = isAuditor ? auditItems() : [];
+  /* 기획자 결정 2026-11-02 C-10: 점검할 일 상자를 점검을 맡은 사람에게 넓히고, 사람마다 자기가 맡은 점검만 보임
+   *   지금 시안에 화면이 있는 점검: 정보보호(위 세 가지), 재무(기간 마감 점검 B-9, 통계와 보고서의 맨 아래)
+   *   영업기회 대사, 매출 대사, 설정 변경 점검, 할인 예외 점검, 인장 기록 대사는 그 화면이 생길 때 여기에 더함
+   *   기간 마감: 지난달 말일의 확인(D.CLOSE_CHECKS + 시연 기록 closeChecks, 기록의 end가 기간 말)이 없으면 할 일
+   *     기한은 아직 정하지 않아 비워 둠 [가정: 재무와 정함]. 최고관리자는 시연용으로 모두 봄 */
+  const CLOSE_HREF = 'stats.html#close-panel';
+  const isCloser = C.hasRole(me, ['FINANCE']) || me.role === 'SUPER';
+  function closeItems() {
+    const prevEnd = C.addDays(D.TODAY.slice(0, 8) + '01', -1);
+    const ym = function (s) { return Number(s.slice(0, 4)) + '년 ' + Number(s.slice(5, 7)) + '월'; };
+    const done = (D.CLOSE_CHECKS || []).concat(C.loadDemo('closeChecks')).some(function (r) { return r.end === prevEnd; });
+    return done ? [{ what: ym(D.TODAY) + ' 기간 마감 점검', todo: false, state: '이달이 끝난 뒤', due: null, href: CLOSE_HREF }]
+      : [{ what: ym(prevEnd) + ' 기간 마감 점검', todo: true, state: '확인 전', due: null, noDue: true, href: CLOSE_HREF }];
+  }
+  const audits = (isAuditor ? auditItems() : []).concat(isCloser ? closeItems() : []);
 
   /* ---------- 공통 조각 ---------- */
   // 고객사 칸과 서비스 칸: 계약명 대신 고객사와 서비스로 계약을 구분 (v0.12)
@@ -129,7 +149,8 @@
     }
     // 정보보호: 점검할 일도 함께 (REQ-DASH-16)
     const auditCount = audits.filter(function (a) { return a.todo; }).length;
-    if (C.hasRole(me, ['PRIVACY']) && auditCount) msg += ' 점검할 일도 <strong class="em">' + auditCount + '건</strong> 있습니다.';
+    //   재무도 기간 마감 점검(C-10, 2026-11-02)
+    if (C.hasRole(me, ['PRIVACY', 'FINANCE']) && auditCount) msg += ' 점검할 일도 <strong class="em">' + auditCount + '건</strong> 있습니다.';
     document.getElementById('greeting').innerHTML = msg;
     document.getElementById('today').textContent = C.fmtToday() + ' 기준';
     // 최근 공지 한 줄은 없앰(v0.59 기획자 요청, REQ-UI-29). 공지와 릴리즈는 공지사항 게시판에서, 중요 공지는 이메일로(REQ-ENV-10).
@@ -179,16 +200,26 @@
       .sort(function (a, b) { return order[a.status] - order[b.status] || dateOf(a).localeCompare(dateOf(b)); });
 
     const sub = (isSales ? '내가 등록한 계약 ' : '전체 계약 ') + scope.length + '건';
+    // 기획자 결정 2026-11-02 D-1(C-40 ①): 인사말의 "처리가 필요한 내 계약 n건"이 어느 줄인지 "내 차례" 배지로 알림
+    //   영업만. n건과 같은 계약(C.myActions: 반려, 보완 요청, ⑦ 체결본 등록 차례)에만 붙임
+    //   배지는 체결 대기 화면이 ⑦에 쓰는 것과 같은 모양(C.badge progress). 색이 아닌 글자라 분홍인 반려 줄, 흑백 인쇄에서도 보임
+    const myTurn = isSales ? myActions : [];
+    const turnBadge = C.badge('progress', '내 차례');
     const table = rows.length
-      ? '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
+      // 기획자 결정 2026-11-02 D-2(C-40 ②): 위 단계 표시기(1~5단계)와 현재 진행 칸의 번호(①~⑩)가 어떻게 이어지는지 표 위 회색 안내 한 줄
+      //   전체 진행 현황(progress.html), 내 등록 목록(my-contracts.html)도 같은 문장. 영업 개요에는 "① 임시 저장" 줄도 있어 ①부터 적음
+      ? '<p class="step-guide">현재 진행의 ①은 1단계 계약 등록, ②~⑤는 2단계 계약 검토, ⑥~⑧은 3단계 계약 체결, ⑨와 ⑩은 4단계 운영 검토입니다.</p>' +
+        '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
           '<caption class="sr-only">진행 상세: 고객사, 서비스, 상태, 현재 진행, 대기</caption>' +
           '<thead><tr><th scope="col" class="col-customer">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col" class="col-status">상태</th><th scope="col">현재 진행</th><th scope="col" class="col-wait">대기</th></tr></thead>' +
           '<tbody>' + rows.map(function (c) {
+            const turn = myTurn.indexOf(c) > -1;
             // 휴대폰은 칸이 좁아 상태 칸을 감추고 고객사 아래에 상태 배지를 둠(현재 진행이 한 줄에 들어가게, v0.55)
+            //   "내 차례" 배지(D-1)도 휴대폰에서는 그 줄에 함께 두고, PC는 현재 진행 칸 단계 이름 뒤에 둠(체결 대기 화면과 같은 자리)
             return '<tr' + (c.status === 'REJECTED' ? ' class="is-alert"' : '') + '>' +
-              customerCells(c, '<span class="cell-sub">' + C.statusBadge(c) + '</span>') +
+              customerCells(c, '<span class="cell-sub">' + C.statusBadge(c) + (turn ? ' ' + turnBadge : '') + '</span>') +
               '<td class="nowrap col-status">' + C.statusBadge(c) + '</td>' +
-              C.progressCells(c) + // 현재 진행(단계) + 대기(날수) 두 칸 (v0.55)
+              C.progressCells(c, turn ? '<span class="turn-wide"> ' + turnBadge + '</span>' : '') + // 현재 진행(단계) + 대기(날수) 두 칸 (v0.55)
             '</tr>';
           }).join('') + '</tbody>' +
         '</table></div>'
@@ -224,13 +255,15 @@
           const s = mine(c);
           const wait = C.waitDays(c, s);
           // 내 차례인 결재 건은 열람 제한이어도 볼 수 있음 (REQ-AUTH-09)
+          // 처리하는 화면으로(C.turnHref): 결재 단계는 결재 문서, ⑨ 만료 처리와 ③ 유예 확인은 그 단추가 있는 계약 상세(2026-11-02 A-10, A-11)
+          //   보완 요청을 받은 기안자 줄처럼 내 차례인 단계가 없으면 결재 문서와 상태 배지
           return '<tr>' +
-            '<td><a class="cell-title" href="review.html?id=' + encodeURIComponent(c.id) + '">' + esc(c.counterparty) + '</a>' +
+            '<td><a class="cell-title" href="' + C.turnHref(c, s) + '">' + esc(c.counterparty) + '</a>' +
               '<span class="cell-sub">' + esc(C.serviceLabel(c.services)) + '</span></td>' +
             '<td class="col-service">' + esc(C.serviceLabel(c.services)) + '</td>' +
             '<td class="center">' + esc(C.ownerLabel(c.requesterId)) + '</td>' +
             '<td class="num col-wait"><span' + (wait >= R.approvalDelayDays ? ' class="wait-long"' : '') + '>' + wait + '일</span></td>' +
-            '<td class="nowrap col-steps">' + (C.isReviewStep(s.step) ? stepDots(c) : '') + esc(C.stepLabel(s.step, c)) + '</td>' +
+            '<td class="nowrap col-steps">' + (s ? (C.isReviewStep(s.step) ? stepDots(c) : '') + esc(C.stepLabel(s.step, c)) : C.statusBadge(c)) + '</td>' +
           '</tr>';
         }).join('') + '</tbody>' +
       '</table></div>';
@@ -239,18 +272,21 @@
   /* ---------- 3-1. 점검할 일 (정보보호, REQ-DASH-16) ---------- */
   function renderAudit() {
     const el = document.getElementById('audit');
-    if (!isAuditor) return;
+    if (!audits.length) return; // 점검을 맡은 사람에게만(C-10)
     el.hidden = false;
     const todo = audits.filter(function (a) { return a.todo; }).length;
-    el.innerHTML = panelHead('audit-title', '점검할 일', todo + '건', '접속 기록 점검으로', 'admin-logs.html') +
-      '<p class="panel-desc">접속 기록 점검은 정보보호 담당자가 합니다. 기한이 지나면 강조합니다.</p>' +
+    // 오른쪽 링크와 설명은 맡은 점검에 맞춰: 정보보호는 접속 기록 점검, 재무는 기간 마감 점검(C-10)
+    const who = [isAuditor ? '접속 기록 점검은 정보보호 담당자가' : '', isCloser ? '기간 마감 점검은 재무가' : ''].filter(Boolean).join(', ');
+    el.innerHTML = panelHead('audit-title', '점검할 일', todo + '건', isAuditor ? '접속 기록 점검으로' : '기간 마감 점검으로', isAuditor ? 'admin-logs.html' : CLOSE_HREF) +
+      '<p class="panel-desc">' + who + ' 합니다. 기한이 지나면 강조합니다.</p>' +
       '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
         '<caption class="sr-only">점검할 일: 할 일, 상태, 기한</caption>' +
         '<thead><tr><th scope="col">할 일</th><th scope="col">상태</th><th scope="col">기한</th></tr></thead>' +
         '<tbody>' + audits.map(function (a) {
           const late = a.todo && a.due && C.daysUntil(a.due) < 0;
-          const dueText = !a.due ? (a.todo ? '바로' : '-') : C.fmtDate(a.due) + (a.todo ? ' (' + (late ? '기한 지남' : 'D-' + C.daysUntil(a.due)) + ')' : '');
-          return '<tr' + (late ? ' class="is-alert"' : '') + '><td><a class="cell-title" href="admin-logs.html">' + esc(a.what) + '</a></td>' +
+          // 기한을 정하지 않은 점검(noDue, 기간 마감)은 "-"
+          const dueText = !a.due ? (a.todo && !a.noDue ? '바로' : '-') : C.fmtDate(a.due) + (a.todo ? ' (' + (late ? '기한 지남' : 'D-' + C.daysUntil(a.due)) + ')' : '');
+          return '<tr' + (late ? ' class="is-alert"' : '') + '><td><a class="cell-title" href="' + (a.href || 'admin-logs.html') + '">' + esc(a.what) + '</a></td>' +
             '<td class="nowrap">' + C.badge(a.todo ? (a.what.indexOf('알림') > -1 ? 'danger' : 'attention') : 'line', a.state) + '</td>' +
             '<td class="num-left">' + dueText + '</td></tr>';
         }).join('') + '</tbody></table></div>';
@@ -292,7 +328,9 @@
   }
 
   /* ---------- 4. 만료 임박 (REQ-DASH-07) ----------
-   * 표로 보여 줍니다: 남은 일자, 고객사, 서비스, 만료일, 담당자 (v0.14)
+   * 표로 보여 줍니다: 만료까지, 고객사, 서비스, 만료일, 담당자 (v0.14)
+   * 첫 칸 머리글은 "만료까지"(기획자 결정 2026-11-02 D-14, 예전 "남은 일자"). 배지는 그대로 만료일까지 남은 D-n
+   * 만료일이 가까운 순서 (A-1, 위 expiring)
    * 고객사, 서비스 칸 너비는 진행 상세 표와 같게 맞춤 */
   function renderExpiring() {
     const soon = expiring.filter(function (c) {
@@ -300,7 +338,7 @@
       return n && C.daysUntil(n) >= 0 && C.daysUntil(n) <= D.ALERT_RULES.noticeSoonDays && C.canView(c, me);
     }).length;
     const head = panelHead('expiring-title', '만료 임박', null, '전체 보기', 'expiring.html') +
-      '<p class="panel-desc">' + R.expiryWindowDays + '일 이내에 만료되거나 해지 통지 기한이 오는 계약입니다.' +
+      '<p class="panel-desc">' + R.expiryWindowDays + '일 이내에 만료되거나 해지 통지 기한이 오는 계약입니다. 만료일이 가까운 순서입니다.' + // 순서 A-1(2026-11-02)
       (soon ? ' 해지 통지 기한이 ' + D.ALERT_RULES.noticeSoonDays + '일 안에 오는 자동갱신 계약이 <a href="expiring.html?view=notice">' + soon + '건</a> 있습니다. 연장하지 않으려면 기한까지 상대방에게 알려야 합니다.' : '') + '</p>';
     if (!expiring.length) {
       document.getElementById('expiring').innerHTML = head + '<p class="empty">' + R.expiryWindowDays + '일 이내에 만료되는 계약이 없습니다.</p>';
@@ -316,7 +354,7 @@
         '<td class="center">' + dday + '</td>' + // 날짜에 딸린 값이라 가운데 (v0.55 기획자 요청, REQ-UI-16)
         customerCells(c) +
         // 휴대폰에서는 담당자 칸을 감추고 만료일 아래 작은 글자로 보여줌 (REQ-ENV-08)
-        // 해지 통지 기한 줄은 두지 않음(v0.59 기획자 요청: 남은 일자로 충분히 알아봄). 통지 기한은 만료 예정 화면(SCR-43)과 계약 상세에서 봄
+        // 해지 통지 기한 줄은 두지 않음(v0.59 기획자 요청: 만료까지 남은 일자로 충분히 알아봄). 통지 기한은 만료 예정 화면(SCR-43)과 계약 상세에서 봄
         // 휴대폰은 이 칸이 줄을 바꿀 수 있게 해(col-expiry) 고객사 이름이 꺾이지 않게 함(v0.55)
         '<td class="nowrap col-expiry">' + C.fmtDate(c.endDate) +
           (C.canView(c, me) ? '<span class="cell-sub">담당 ' + owner + '</span>' : '') + '</td>' +
@@ -325,8 +363,8 @@
     }).join('');
     document.getElementById('expiring').innerHTML = head +
       '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
-        '<caption class="sr-only">만료 임박: 남은 일자, 고객사, 서비스, 만료일, 담당자</caption>' +
-        '<thead><tr><th scope="col">남은 일자</th><th scope="col" class="col-customer">고객사</th><th scope="col" class="col-service">서비스</th>' +
+        '<caption class="sr-only">만료 임박: 만료까지, 고객사, 서비스, 만료일, 담당자</caption>' +
+        '<thead><tr><th scope="col">만료까지</th><th scope="col" class="col-customer">고객사</th><th scope="col" class="col-service">서비스</th>' +
           '<th scope="col">만료일</th><th scope="col" class="col-owner">담당자</th></tr></thead>' +
         '<tbody>' + rows + '</tbody>' +
       '</table></div>';

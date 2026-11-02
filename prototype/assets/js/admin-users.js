@@ -6,6 +6,8 @@
  *   1. 관리자와 최고관리자만 볼 수 있게 막기
  *   2. 검색(이름, 이메일), 권한, 조직, 상태로 거르기 (v0.29: 부서 → 조직, 권한은 분야별 묶음)
  *   3. 쪽 나누기: 한 쪽에 PAGE_SIZE(20)명. 화면이 A4 2장(약 2,245px)을 넘지 않게 정한 값
+ *      표 칸 순서: 이메일, 이름, 조직, 권한, 상태, 관리(수정), 날짜 다섯 칸 (기획자 결정 2026-11-02 D-16: 관리 칸을 맨 끝에서 상태 뒤로)
+ *      휴대폰에서는 이메일 칸에 @ 앞만 보임 (기획자 결정 2026-11-02 D-17)
  *   4. 사용자 추가: 이메일(@muhayu.com, 중복 불가), 이름, 조직(조직 목록), 권한(여러 개, 분야와 등급 2단계), 사유 → 첫 접속 전 상태
  *   5. 수정: 조직, 권한, 상태(사용 중지, 다시 사용), 사유 (기획자 결정 v0.25: 관리자가 바꾸고 사유를 남김)
  *      [가정] 자기 권한은 스스로 바꿀 수 없음(직무 분리). 최고관리자 권한은 최고관리자만 주거나 뺌
@@ -80,6 +82,14 @@
     const st = D.ACCOUNT_STATUS[s];
     return C.badge(st.tone, st.label);
   }
+  // 이메일 칸 (기획자 결정 2026-11-02 D-17): 왼쪽 고정은 그대로, 휴대폰에서는 @ 앞만 보임
+  //   계정은 모두 @muhayu.com이고 겹치지 않아(REQ-ADM-08) @ 앞만으로 사람이 가려짐. 칸이 좁아져 나머지 칸이 넓게 지나감
+  //   @ 뒤는 휴대폰 화면에서만 감추고(admin-users.css) 화면낭독기는 전체 주소를 읽음. 칸에 마우스를 올리면 전체 주소(title). PC와 인쇄는 전체 주소
+  function emailCell(email) {
+    const at = email.indexOf('@');
+    return '<td class="col-email" title="' + esc(email) + '">' + (at < 0 ? esc(email)
+      : esc(email.slice(0, at)) + '<span class="email-domain">' + esc(email.slice(at)) + '</span>') + '</td>';
+  }
 
   /* ---------- 2. 거르기 ---------- */
   let page = 1;
@@ -112,17 +122,18 @@
 
     $('#user-rows').innerHTML = rows.length ? rows.map(function (a) {
       return '<tr' + (a.status === 'SUSPENDED' ? ' class="is-muted"' : '') + '>' +
-        '<td class="col-email">' + esc(a.email) + '</td>' +
+        emailCell(a.email) +
         '<td class="cell-name">' + esc(a.name) + '</td>' +
         '<td>' + esc(a.dept) + '</td>' +
         '<td>' + roleBadges(a.roles) + '</td>' +
         '<td>' + statusBadge(a.status) + '</td>' +
+        // 기획자 결정 2026-11-02 D-16: 관리(수정) 칸은 상태 칸 바로 뒤. 날짜 다섯 칸은 참고용이라 뒤로
+        '<td class="col-action"><button type="button" class="link-act" data-edit="' + esc(a.email) + '" aria-label="' + esc((a.dept ? a.dept + ' ' : '') + a.name) + ' 권한 수정">수정</button></td>' +
         '<td class="num-left">' + C.fmtDate(a.registeredAt) + '</td>' +
         '<td class="num-left">' + dt(a.firstLoginAt) + '</td>' +
         '<td class="num-left">' + dt(a.lastLoginAt) + '</td>' +
         '<td class="num-left">' + dt(a.lastLogoutAt) + '</td>' +
         '<td class="num-left">' + C.fmtDate(a.roleChangedAt) + '</td>' +
-        '<td class="col-action"><button type="button" class="link-act" data-edit="' + esc(a.email) + '" aria-label="' + esc((a.dept ? a.dept + ' ' : '') + a.name) + ' 권한 수정">수정</button></td>' +
       '</tr>';
     }).join('') : '<tr><td class="empty-row" colspan="11">조건에 맞는 사용자가 없습니다.</td></tr>';
 

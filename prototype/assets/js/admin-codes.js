@@ -53,8 +53,9 @@
 
   function render() {
     const g = D.CODE_GROUPS[group], leveled = !!levels(), LEVEL = levels() || {};
+    // data-label: 굵은 글자 폭을 미리 잡아 눌러도 단추 폭이 그대로(admin.css, 가격 기준 관리 D-19와 같은 방식, 2026-11-02 화면이 흔들리지 않게)
     $('#groups').innerHTML = Object.keys(D.CODE_GROUPS).map(function (k) {
-      return '<button type="button" data-group="' + k + '" aria-pressed="' + (k === group) + '">' + esc(D.CODE_GROUPS[k].name) + '</button>';
+      return '<button type="button" data-group="' + k + '" data-label="' + esc(D.CODE_GROUPS[k].name) + '" aria-pressed="' + (k === group) + '">' + esc(D.CODE_GROUPS[k].name) + '</button>';
     }).join('');
     $('#group-name').textContent = g.name;
     $('#group-table').textContent = g.table;
@@ -167,7 +168,8 @@
   $('#content').addEventListener('click', function (e) {
     const b = e.target.closest('button');
     if (!b) return;
-    if (b.getAttribute('data-group')) { group = b.getAttribute('data-group'); render(); }
+    // 다시 그려도 누른 코드표 단추에 초점이 남게 (2026-11-02)
+    if (b.getAttribute('data-group')) { group = b.getAttribute('data-group'); render(); $('#groups [data-group="' + group + '"]').focus(); }
     else if (b.id === 'btn-add') openAdd();
     else if (b.getAttribute('data-edit')) openEdit(b.getAttribute('data-edit'));
   });

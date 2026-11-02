@@ -9,6 +9,18 @@ a.board-title:hover { color: var(--text-primary); text-decoration: underline; te
 .board-title .badge { margin-right: 0.6rem; vertical-align: 0.1em; }
 .board-ver { margin-right: 0.6rem; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .tbl--board .col-kind { width: 1%; white-space: nowrap; text-align: center; } /* 짧은 칸은 가운데 (v0.50) */
+/* 맨 위 고정한 줄 (기획자 결정 2026-11-02 D-20): 눈에 띄지 않게 옅은 회색 바탕과 구분 배지 아래 작은 "고정"만.
+ * "고정"은 배지 아래 줄이라 구분 칸 폭이 넓어지지 않음(휴대폰에서 제목 칸이 좁아지지 않게) */
+.tbl--board tr.is-pinned td { background: var(--surface-gray-subtler); }
+/* 글쓰기 창의 "맨 위 고정이 끝나는 날": 중요 공지를 체크하지 않으면 잠긴 칸으로 보임(D-20). 이름도 옅게
+ *   잠긴 모양은 읽기 전용 칸(form.css .input[readonly])과 같음. 예전에는 쓸 수 있는 칸과 똑같아 보이고 달력 단추만 사라졌음
+ *   이 칸에만 씀: 다른 화면의 잠긴 칸(견적의 단가 칸 등)은 결정이 없어 예전 모양 그대로 둠 (2026-11-02 점검에서 좁힘) */
+[data-field="pinUntil"] .input:disabled { background: var(--surface-gray-subtler); border-color: var(--border-gray-light); color: var(--text-subtle); cursor: not-allowed; }
+[data-field="pinUntil"]:has(.input:disabled) .field-label { color: var(--text-subtle); }
+/* 잠긴 동안은 필수 표시(빨간 *와 화면낭독기의 "(필수)")도 숨김: 중요 공지일 때만 꼭 고르는 칸(D-20).
+ *   글자 줄 안의 표시만 숨겨 이름 줄 높이는 그대로. 계약 등록의 사용 업체 칸(new-contract.js syncOrg)과 같은 생각 */
+[data-field="pinUntil"]:has(.input:disabled) .req,
+[data-field="pinUntil"]:has(.input:disabled) .req + .sr-only { display: none; }
 
 /* ---------- 글 보기 ---------- */
 .post-head { padding-bottom: 2rem; border-bottom: 1px solid var(--border-gray-light); }
@@ -28,6 +40,8 @@ a.board-title:hover { color: var(--text-primary); text-decoration: underline; te
 .post-nav dt { flex-shrink: 0; width: 6.4rem; color: var(--text-subtle); }
 .post-nav dd { min-width: 0; text-align: left; color: var(--text-bolder); }
 .post-nav a:hover { color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; }
+/* 제목 뒤 올린 날(기획자 결정 2026-11-02 D-21): 어느 쪽이 최근 글인지 알 수 있게 흐리게. 날짜 안에서는 줄을 바꾸지 않음 */
+.post-nav-date { margin-left: 0.6rem; color: var(--text-subtle); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .post-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.8rem; margin-top: var(--gap-box); }
 @media print { .post-actions, .post-nav { display: none !important; } }
 
@@ -46,6 +60,24 @@ a.board-title:hover { color: var(--text-primary); text-decoration: underline; te
 .mail-state { grid-column: 2; grid-row: 1 / span 2; align-self: center; white-space: nowrap; }
 .mail-to { text-align: left; }
 .mail-list > li.is-not-mine .mail-name { color: var(--text-subtle); font-weight: 500; }
+/* 두 묶음 (기획자 결정 2026-11-02 D-22): 위 "내 역할에 오는 알림", 아래 "내 역할에는 오지 않는 알림"(접어 둠)
+ *   아래 묶음은 켜고 끄는 칸이 없어 이름과 언제 오는지를 들여 쓰지 않고, 미리 보기는 두 줄 가운데에 */
+.mail-group { margin-bottom: 0; }
+.mail-list > li.is-not-mine .mail-name { grid-column: 1; grid-row: 1; }
+.mail-list > li.is-not-mine .mail-when { padding-left: 0; }
+.mail-list > li.is-not-mine .mail-preview-btn { grid-row: 1 / span 2; align-self: center; }
+.mail-more { margin-top: 2.4rem; }
+.mail-more > summary {
+  display: flex; align-items: center; gap: 0.6rem; width: fit-content; min-height: var(--touch-min);
+  font-size: var(--fs-body-small); font-weight: 700; color: var(--text-bolder); cursor: pointer; list-style: none;
+}
+.mail-more > summary::-webkit-details-marker { display: none; }
+.mail-more > summary .icon { flex-shrink: 0; color: var(--text-subtle); transition: transform 0.15s ease; }
+.mail-more[open] > summary .icon { transform: rotate(180deg); }
+.mail-more > summary:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
+.mail-more-desc { margin: 0.4rem 0 1.2rem; }
+/* 받음, 받지 않음, 꼭 받음 배지를 같은 폭으로: 켜고 끌 때 배지 폭이 바뀌어 옆 글이 다시 줄바꿈되며 줄이 흔들리지 않게 (D-23) */
+.mail-state .badge { min-width: 6em; justify-content: center; }
 /* 이메일 미리 보기 (v0.53): 목록의 "미리 보기"와 창 안의 메일 한 통 */
 /*   "미리 보기"는 오른쪽 상태 표시 아래(줄을 늘리지 않게). 상태는 윗줄에 붙임 */
 .mail-list > li:has(.mail-preview-btn) .mail-state { grid-row: 1; align-self: start; }
@@ -66,7 +98,10 @@ a.board-title:hover { color: var(--text-primary); text-decoration: underline; te
 .mail-body > .mail-cta { margin-top: 2rem; }
 .mail-body > .mail-note { margin-top: 2rem; padding-top: 1.2rem; border-top: 1px solid var(--border-gray-light); font-size: var(--fs-body-xsmall); color: var(--text-subtle); }
 
-.mail-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1.2rem; margin-top: 2rem; }
+/* 받을 이메일 아래 안내 한 줄. 저장 단추는 없앰(기획자 결정 2026-11-02 D-23: 켜고 끄면 바로 저장) */
+.mail-foot { margin-top: 2rem; }
+/* 인쇄: 접어 둔 "내 역할에는 오지 않는 알림"은 화면에서 펼쳐 보는 것이라 뺌 (D-22) */
+@media print { .mail-more { display: none !important; } }
 
 /* 스마트폰(v0.50부터 태블릿은 PC 화면): 글 보기와 계정 정보를 한 줄씩 */
 @media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {

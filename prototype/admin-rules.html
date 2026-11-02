@@ -23,7 +23,10 @@
   SCR-52 결재선 규칙 (docs/02_화면목록.md)
   - 관리자와 최고관리자가 씁니다. (REQ-AUTH-02, REQ-AUTH-06)
   - 결재선은 체크리스트 답과 개인정보 처리위탁 계약 여부로 정해지고 금액 기준은 없습니다(REQ-CHK-05). 이 화면에서는 그 조건을 보여 주기만 하고,
-    바꾸는 것은 단계별 담당자, 대리 지정, 독촉 기준 일수입니다.
+    바꾸는 것은 단계별 담당자, 대리 지정, 독촉과 알림 일수, 승인 기준과 근거입니다.
+  - 기획자 결정 2026-11-02 E-3(A안, 추천과 다름): 할인 폭이 큰 계약은 ③에서 유닛 리더 다음에 영업 임원(COO)도 승인. 그 기준(%p)과 위임전결 근거를 여기서 바꿈
+  - 기획자 결정 2026-11-02 A-5(추천과 다름): 해지 통지 기한과 의무 기한의 강조, 이메일 일수 네 칸을 독촉 기준 표에 더함
+  - 기획자 결정 2026-11-02 B-3: 운영 변경도 ⑩을 거침. HR 충전의 ⑩ 담당(재무 리더)을 따로 한 줄로 둠
   - 담당자를 바꾸면 아직 차례가 오지 않은 단계부터 새 담당자에게 가고, 지금 차례인 건은 원래 담당자가 처리합니다(기획자 결정 v0.25).
   - 대리 지정: 관리자가 기간과 대신할 사람을 정하고, 결재 기록에 "누구 대신"과 근거가 남습니다(REQ-REV-08, 기획자 결정 v0.25).
   - 바꿀 때는 사유가 필수이고, 변경 이력(누가, 언제, 무엇을, 사유)이 남습니다. 동작은 assets/js/admin-rules.js
@@ -41,8 +44,8 @@
         <h1 class="page-title">결재선 규칙</h1>
       </div>
       <div class="page-intro">
-        <p>단계마다 누가 처리하는지, 자리를 비울 때 누가 대신하는지, 언제 독촉하는지를 정합니다.</p>
-        <p class="sub">어떤 단계를 거치는지는 체크리스트 답과 개인정보 처리위탁 계약 여부로 정해지고, 금액 기준은 없습니다. 바꿀 때는 사유를 꼭 적고, 바꾼 기록은 지우지 않습니다.</p>
+        <p>단계마다 누가 처리하는지, 자리를 비울 때 누가 대신하는지, 언제 독촉하고 알리는지를 정합니다.</p>
+        <p class="sub">어떤 단계를 거치는지는 체크리스트 답과 개인정보 처리위탁 계약 여부로 정해지고, 금액 기준은 없습니다. 할인 폭이 큰 계약은 영업 임원도 승인합니다. 바꿀 때는 사유를 꼭 적고, 바꾼 기록은 지우지 않습니다.</p>
       </div>
 
       <div id="notice"></div>
@@ -51,10 +54,12 @@
         <section class="panel" aria-labelledby="sec-assignee">
           <div class="panel-head"><h2 class="panel-title" id="sec-assignee">단계별 담당자</h2></div>
           <p class="panel-desc">담당자를 바꾸면 아직 차례가 오지 않은 계약부터 새 담당자에게 갑니다. 지금 차례인 계약은 원래 담당자가 그대로 처리합니다.</p>
+          <!-- 기획자 결정 2026-11-02 D-18: 칸 순서를 단계, 담당자, 지금 차례, 관리, 거치는 조건으로.
+               이 표에서 하는 일은 담당자를 보고 바꾸는 것이라 그 칸들을 앞에 두고, 참고 글인 거치는 조건은 맨 뒤로 (아래 유닛별 리더 표와 같은 순서) -->
           <div class="tbl-scroll" tabindex="0" role="region" aria-label="단계별 담당자 표">
             <table class="tbl tbl--compact">
-              <caption class="sr-only">단계별 담당자: 단계, 거치는 조건, 담당자, 지금 차례, 관리</caption>
-              <thead><tr><th scope="col">단계</th><th scope="col">거치는 조건</th><th scope="col" class="col-phone-wide">담당자</th><th scope="col" class="num">지금 차례</th><th scope="col" class="col-action">관리</th></tr></thead>
+              <caption class="sr-only">단계별 담당자: 단계, 담당자, 지금 차례, 관리, 거치는 조건</caption>
+              <thead><tr><th scope="col">단계</th><th scope="col" class="col-phone-wide">담당자</th><th scope="col" class="num">지금 차례</th><th scope="col" class="col-action">관리</th><th scope="col">거치는 조건</th></tr></thead>
               <tbody id="assignee-rows"></tbody>
             </table>
           </div>
@@ -70,6 +75,17 @@
           </div>
           <!-- 조직 개편으로 새 유닛이 생기면 표에 더함 (v0.31). 표에 없는 유닛의 계약은 영업 임원이 검토 -->
           <div class="sub-actions"><button type="button" class="btn btn--tertiary btn--md" id="btn-unit">유닛 추가</button></div>
+          <!-- 기획자 결정 2026-11-02 E-3(A안, 추천과 다름): 영업 임원(COO)도 승인하는 기준(%p)과 위임전결 근거(규정 이름과 판).
+               바꿀 때 사유 필수, 변경 이력(결재선 규칙)에 남음. 기준을 바꿔도 이미 기안한 계약은 기안한 때의 기준으로 결재 -->
+          <h3 class="box-subtitle">승인 기준과 근거</h3>
+          <p class="panel-desc">할인 폭이 큰 계약을 영업 임원도 승인하는 기준과, 이 결재선 규칙이 따르는 회사 규정입니다.</p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="승인 기준과 근거 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">승인 기준과 근거: 기준, 지금 값, 쓰는 곳, 관리</caption>
+              <thead><tr><th scope="col">기준</th><th scope="col" class="col-phone-wide">지금 값</th><th scope="col">쓰는 곳</th><th scope="col" class="col-action">관리</th></tr></thead>
+              <tbody id="basis-rows"></tbody>
+            </table>
+          </div>
         </section>
 
         <section class="panel" aria-labelledby="sec-delegate">
@@ -88,11 +104,13 @@
         </section>
 
         <section class="panel" aria-labelledby="sec-remind">
-          <div class="panel-head"><h2 class="panel-title" id="sec-remind">독촉 기준 일수</h2></div>
-          <p class="panel-desc">기준을 넘긴 건은 목록에서 강조하고, 담당자나 기안자에게 독촉 이메일을 보냅니다.</p>
+          <!-- 기획자 결정 2026-11-02 A-5(추천과 다름): 고정값이던 해지 통지 기한 강조와 이메일, 의무 기한 강조와 이메일 네 줄을 더함.
+               E-12: 해지 통지 기한 이메일은 영업대표에게 두 날 모두, 그 유닛 리더에게는 두 번째 이메일만 -->
+          <div class="panel-head"><h2 class="panel-title" id="sec-remind">독촉과 알림 일수</h2></div>
+          <p class="panel-desc">기준을 넘긴 건은 목록에서 강조하고, 담당자나 기안자에게 독촉 이메일을 보냅니다. 해지 통지 기한과 체결 후 의무는 기한 전 정한 날에 이메일로 알립니다.</p>
           <div class="tbl-scroll">
             <table class="tbl tbl--compact">
-              <caption class="sr-only">독촉 기준 일수: 기준, 일수, 쓰는 곳, 관리</caption>
+              <caption class="sr-only">독촉과 알림 일수: 기준, 일수, 쓰는 곳, 관리</caption>
               <thead><tr><th scope="col">기준</th><th scope="col" class="num">일수</th><th scope="col">쓰는 곳</th><th scope="col" class="col-action">관리</th></tr></thead>
               <tbody id="remind-rows"></tbody>
             </table>
@@ -101,7 +119,7 @@
 
         <section class="panel" aria-labelledby="sec-history">
           <div class="panel-head"><h2 class="panel-title" id="sec-history">변경 이력</h2></div>
-          <p class="panel-desc">담당자, 대리 지정, 독촉 기준을 바꾼 기록입니다. 고치거나 지울 수 없습니다.</p>
+          <p class="panel-desc">담당자, 대리 지정, 승인 기준과 근거, 독촉과 알림 일수를 바꾼 기록입니다. 고치거나 지울 수 없습니다.</p>
           <div id="history"></div>
         </section>
       </div>

@@ -5,6 +5,7 @@
  * 하는 일
  *   1. 주소의 원계약 번호로 묶음을 찾고 연장 검토를 할 수 있는지 확인
  *      (자동갱신이고 지금 유효한 계약이 계약 완료, 영업대표 본인(시연용 최고관리자 포함), 진행 중인 연장이나 해지 없음)
+ *      기획자 결정 2026-11-02 A-11: 만료되었어도 서비스를 닫기 전(만료 처리 차례, 유예 중)이면 늦은 연장 검토를 받음(해지 갈래는 감춤)
  *   2. 세 갈래: 그대로 자동갱신(짧은 기안) / 조건을 바꿔 연장(계약 등록으로) / 해지(해지 기안으로)
  *   3. 그대로 자동갱신은 새 계약 기간(영업이 입력, 시작일은 지금 종료일 다음 날로 미리 채움)과 이유를 받아
  *      -R 번호로 저장하고 결재 문서로 이동 (v0.25 기획자 결정: 기간은 따로 입력)
@@ -33,8 +34,12 @@
   const root = b.root;
   // 진행 중인 연장, 해지, 기간을 바꾸는 운영 변경이 있으면 막음 (v0.58 QA: 기간 변경이 끝나기 전에 연장하면 바뀐 기간이 사라졌음)
   const blocking = b.open.filter(function (o) { return o.kind === 'RENEW' || o.kind === 'TERMINATE' || (o.kind === 'CHANGE' && o.changeType === 'PERIOD'); });
+  // 기획자 결정 2026-11-02 A-11: 만료되었어도 서비스를 닫기 전(만료 처리 차례, 유예 중)이면 늦은 연장 검토를 받음(계약 등록의 연장과 같은 규칙)
+  //   유예는 연장 협상 중에 두는 것이라 그 끝이 연장 기안이어야 함. 서비스를 닫은 계약(만료 처리 완료)은 신규로. 늦은 연장에는 해지 갈래가 없음
+  const ex = b.status === 'EXPIRED' ? C.expiryOf(b) : null;
+  const late = !!ex && (ex.state === 'OPEN' || ex.state === 'GRACE');
   let stop = '';
-  if (b.status !== 'ACTIVE') stop = '지금 유효한 계약이 계약 완료일 때만 연장을 검토합니다.';
+  if (b.status !== 'ACTIVE' && !late) stop = '지금 유효한 계약이 계약 완료일 때, 또는 만료되었어도 서비스를 닫기 전(만료 처리 차례, 유예 중)일 때만 연장을 검토합니다.';
   else if (b.autoRenew !== 'YES') stop = '자동갱신 계약이 아닙니다. 연장하려면 계약 상세에서 "연장 기안"을 눌러 주세요.';
   else if (root.requesterId !== me.id && me.role !== 'SUPER') stop = '영업대표(' + esc(C.ownerLabel(root.requesterId)) + ')만 연장 검토를 기안합니다.';
   else if (blocking.length) stop = '진행 중인 연장, 해지나 기간 변경이 있습니다: ' + blocking.map(function (o) { return '<a href="review.html?id=' + encodeURIComponent(o.id) + '">' + esc(o.id) + '</a>'; }).join(', ');
@@ -62,7 +67,8 @@
   $('#origin').innerHTML = [
     info('고객사', esc(root.counterparty)),
     info('계약번호', '<a href="' + back + '">' + esc(b.id) + '</a>' + (cur !== root ? ' (지금 유효: ' + esc(cur.id) + ')' : '')),
-    info('계약 기간', C.fmtPeriod(b.start, b.end) + '<span class="cell-meta">만료까지 ' + C.daysUntil(b.end) + '일</span>'),
+    // 늦은 연장(A-11)은 만료 처리 상태를 함께("만료, 서비스 닫기 전", "유예 중 (~2026-11-06)")
+    info('계약 기간', C.fmtPeriod(b.start, b.end) + '<span class="cell-meta">' + (late ? esc(ex.label) : '만료까지 ' + C.daysUntil(b.end) + '일') + '</span>'),
     info('계약 금액', Number(cur.amount || 0).toLocaleString('ko-KR') + '원<span class="cell-meta">' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도</span>', 'amount'),
     info('해지 통지 기한', noticeDay ? '<span class="keep">' + C.fmtDate(noticeDay) + (C.daysUntil(noticeDay) < 0 ? ' <span class="wait-long">지남</span>' : '') + '</span><span class="cell-meta">만료 ' + b.noticeDays + '일 전까지 상대방에게 알려야 연장되지 않음</span>' : '-'),
     info('영업대표', esc(C.ownerLabel(root.requesterId))),
@@ -71,6 +77,13 @@
     ', 승인되면 아래에 입력한 기간이 새 계약 기간이 됩니다. 금액과 조건은 그대로입니다.';
   $('#f-start').value = newStart;
   // 보완 후 재기안: 조건 그대로 연장만 다시 기안(다른 갈래는 감춤)하고 앞 차수 값을 채움
+  // 늦은 연장(A-11): 이미 끝난 계약이라 해지 갈래를 감추고, 만료 처리를 기다린다는 것을 알림
+  if (late && !again) {
+    const r = document.querySelector('input[name="choice"][value="END"]');
+    if (r) r.closest('label').hidden = true;
+    $('#notice').innerHTML = C.noticeBox('', '만료된 계약의 늦은 연장입니다', '종료일(' + C.fmtDate(b.end) + ')이 지났지만 서비스를 닫기 전이라 연장을 기안할 수 있습니다. ' +
+      '기안하면 만료 처리 차례가 없어지고, 반려되면 다시 만료 처리 차례가 됩니다. 지금: ' + esc(ex.label));
+  }
   if (again) {
     document.querySelector('.page-title').textContent = '연장 검토 보완 후 재기안';
     $('#notice').innerHTML = C.rejectionNotice(again);

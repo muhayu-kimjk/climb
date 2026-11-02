@@ -24,7 +24,9 @@
   - 머리글 계정 아이콘을 눌러 펼친 판의 내 계정으로 들어옴. 메뉴에는 없음(v0.61에 바뀜: 예전에는 머리글의 내 이름. 휴대폰은 전체 메뉴판 맨 아래에도)
   - 1. 계정 정보: 이름, 이메일, 조직, 역할, 상태, 최초 접속, 최종 로그인 (보기만. 조직과 역할은 관리자가 사용자 권한 관리에서 바꿈)
   - 2. 화면(v0.53 기획자 요청, REQ-UI-31): 기기 설정대로(처음 값), 밝게, 어둡게. 고르면 바로 바뀜(theme.js)
-  - 3. 받을 이메일: 알림 종류마다 언제 오는지와 받기. 꼭 받는 알림은 끌 수 없고(기획자 확인 C-26), 선택 알림만 켜고 끔. 내 역할에 오지 않는 알림은 흐리게
+  - 3. 받을 이메일: 알림 종류마다 언제 오는지와 받기. 꼭 받는 알림은 끌 수 없고(기획자 확인 C-26), 선택 알림만 켜고 끔.
+       기획자 결정 2026-11-02 D-22: 내 역할에 오는 알림과 오지 않는 알림 두 묶음, 아래 묶음은 접어 둠(펼치면 흐린 글자, 미리 보기 그대로)
+       기획자 결정 2026-11-02 D-23: 켜고 끄면 바로 저장하고 짧은 알림. 저장 단추는 없앰. 저장하는 값(user_mail_pref)은 그대로
 ====================================================================== -->
 <body data-page="SCR-93">
   <a class="skip-link" href="#main">본문 바로가기</a>
@@ -62,15 +64,20 @@
         <section class="panel" aria-labelledby="sec-mail">
           <div class="panel-head"><h2 class="panel-title" id="sec-mail">받을 이메일</h2></div>
           <p class="panel-desc mail-to" id="mail-desc"></p>
+          <!-- 기획자 결정 2026-11-02 D-22: "내 역할에 오는 알림"과 "내 역할에는 오지 않는 알림" 두 묶음. 아래 묶음은 접어 둠(펼치면 미리 보기 그대로)
+               기획자 결정 2026-11-02 D-23: 켜고 끄면 바로 저장하고 짧은 알림(화면 밝기와 같은 방식). 저장 단추는 없앰 -->
           <form id="mail-form">
-            <fieldset class="field">
-              <legend class="sr-only">받을 이메일 고르기</legend>
+            <fieldset class="field mail-group">
+              <legend class="field-label field-label--sm">내 역할에 오는 알림</legend>
               <ul class="mail-list" id="mail-list"></ul>
             </fieldset>
-            <div class="mail-foot">
-              <p class="field-help">꼭 받는 알림은 업무 처리와 내부 통제에 필요해 끌 수 없습니다.</p>
-              <button type="submit" class="btn btn--primary btn--md">저장</button>
-            </div>
+            <!-- 최고관리자는 모든 알림이 내 역할에 오므로 이 묶음이 없음(account.js가 감춤) -->
+            <details class="mail-more" id="mail-more">
+              <summary>내 역할에는 오지 않는 알림 <span id="mail-more-count"></span><span class="mail-more-icon"></span></summary>
+              <p class="field-help mail-more-desc">다른 역할에 가는 알림이라 켜고 끌 수 없습니다. 미리 보기로 어떤 메일인지 볼 수 있습니다.</p>
+              <ul class="mail-list" id="mail-list-other"></ul>
+            </details>
+            <p class="field-help mail-foot">꼭 받는 알림은 업무 처리와 내부 통제에 필요해 끌 수 없습니다. 고를 수 있는 알림은 켜고 끄면 바로 저장합니다.</p>
           </form>
         </section>
       </div>

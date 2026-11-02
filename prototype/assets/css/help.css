@@ -4,6 +4,7 @@
  *       왼쪽 차례(묶음별 쪽 목록, 이용 안내에서 찾기) / 가운데 한 쪽(위치 표시, 제목, 안내 상자, 소제목, 내용, 이전과 다음) / 오른쪽 "이 쪽에서"
  *   - A4 종이 틀은 그대로(REQ-UI-10): 넓은 화면(1360px 이상)에서는 차례와 "이 쪽에서"를 종이 틀 바깥 회색 바탕에 두고 메뉴 줄 아래에 붙어 따라오게 함.
  *       그래서 종이 안의 내용 폭과 줄바꿈은 인쇄와 같음. 그보다 좁으면 차례는 내용 위의 접힌 줄, "이 쪽에서"는 감춤
+ *       이용 안내에서 찾기는 좁은 화면에서도 접힌 줄 위에 늘 보임 (기획자 결정 2026-11-02 D-24)
  *   - 단계 표, 역할 표에서 "내 역할" 줄 강조, 자주 묻는 것(펼치기)
  *   - 인쇄하면 모든 쪽이 차례대로 나오고 자주 묻는 것을 모두 펼쳐 매뉴얼 한 부로 나옴 (help.js가 인쇄 직전에 펼침)
  * 관련 요구사항: REQ-FLOW-13, REQ-UI-14, REQ-UI-38
@@ -12,8 +13,10 @@
 .doc { position: relative; }
 
 /* ---------- 왼쪽 차례 ----------
- * 좁은 화면: 내용 위의 접힌 줄(지금 쪽 이름이 보임). 누르면 아래로 펼침 */
+ * 좁은 화면: 내용 위의 접힌 줄(지금 쪽 이름이 보임). 누르면 아래로 펼침
+ * 이용 안내에서 찾기는 접힌 줄 밖, 그 위에 늘 보임 (기획자 결정 2026-11-02 D-24. 예전에는 차례를 펼쳐야 보였음) */
 .doc-nav { margin-bottom: var(--gap-box); }
+.doc-search { margin-bottom: 0.8rem; }
 .doc-nav-toggle {
   display: flex; align-items: center; gap: 0.8rem; width: 100%; min-height: var(--touch-min); padding: 0.8rem 1.2rem;
   border: 1px solid var(--border-gray-light); border-radius: var(--radius-lg); background: var(--surface-white);
@@ -43,6 +46,8 @@
 .doc-search-input::placeholder { color: var(--text-subtle); }
 .doc-search-input:focus-visible { border-color: var(--border-focus); box-shadow: inset 0 0 0 1px var(--border-focus); }
 .doc-search-list { margin-top: 0.6rem; }
+/* 좁은 화면: 찾은 목록은 펼친 차례처럼 테두리 상자에 (찾기 칸이 차례 상자 밖으로 나와서, D-24). 넓은 화면은 아래에서 상자 없이 */
+.doc-search-list:not([hidden]) { padding: 0.6rem; border: 1px solid var(--border-gray-light); border-radius: var(--radius-lg); background: var(--surface-white); }
 .doc-search-item { display: flex; flex-direction: column; gap: 0.1rem; min-height: var(--touch-min); padding: 0.6rem 1rem; border-radius: var(--radius-md); color: var(--text-basic); }
 .doc-search-item:hover { background: var(--action-hover); }
 .doc-search-label { font-size: var(--fs-body-small); }
@@ -93,14 +98,19 @@
 
 /* ---------- 넓은 화면: 차례와 "이 쪽에서"를 종이 틀 바깥에(별도의 바, 기획자 요청) ----------
  * 종이 틀(794px) 왼쪽과 오른쪽 회색 바탕에 두고, 화면을 내리면 붙은 메뉴 줄 아래에 붙어 따라옴(--sticky-h, common.js).
- * 1360px: 종이 틀 794px + 양쪽 (차례 220px + 사이 32px) + 스크롤바 */
-@media screen and (min-width: 1360px) {
+ * 1360px: 종이 틀 794px + 양쪽 (차례 220px + 사이 32px) + 스크롤바
+ * 큰 모니터(화면 배율 100% 이하, 창 폭 960px 이상)는 화면 전체가 17/15배라(common.css 1장, 2026-11-02) 1360 × 17/15 = 1544px부터. help.js WIDE와 같은 조건 */
+@media screen and (min-width: 1360px) and (min-resolution: 1.01dppx), screen and (min-width: 1544px) {
   .doc-nav { position: absolute; top: 0; bottom: 0; right: calc(100% + var(--page-margin) + 3.2rem); width: 22rem; margin: 0; }
   .doc-nav-toggle { display: none; }
-  .doc-nav-body {
-    display: block; position: sticky; top: calc(var(--sticky-h, 0px) + 2.4rem); max-height: calc(100vh - var(--sticky-h, 0px) - 4.8rem);
-    overflow-y: auto; overscroll-behavior: contain; margin: 0; padding: 0; border: 0; border-radius: 0; background: none;
+  /* 붙어 따라오는 것은 찾기 칸과 차례를 함께 담은 틀(.doc-nav-in). 찾기 칸이 차례 상자 밖으로 나와서 옮김(D-24). 보이는 모습은 예전과 같음 */
+  .doc-nav-in {
+    position: sticky; top: calc(var(--sticky-h, 0px) + 2.4rem); max-height: calc(100vh - var(--sticky-h, 0px) - 4.8rem);
+    overflow-y: auto; overscroll-behavior: contain;
   }
+  .doc-nav-body { display: block; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; }
+  .doc-search { margin-bottom: 0; }
+  .doc-search-list:not([hidden]) { padding: 0; border: 0; border-radius: 0; background: none; }
   .doc-toc:not([hidden]) { display: block; position: absolute; top: 0; bottom: 0; left: calc(100% + var(--page-margin) + 3.2rem); width: 20rem; }
   .doc-toc-inner { position: sticky; top: calc(var(--sticky-h, 0px) + 2.4rem); }
 }

@@ -4,6 +4,7 @@
  * 의무 관리(SCR-48)와 계약 상세(SCR-42)가 함께 씀
  *   - 배지와 기한 칸: 종류(보안 의무, SLA, 청구 일정), 상태(기한 지남, D-n, 예정, 일이 생기면, 모두 함, 끝냄)
  *   - 창: 의무 더하기, 이행 기록 남기기, 끝내기, 이행 기록 보기
+ *   - 표 안 단추: 기록 남기기, 기록 보기, 끝내기 (기획자 결정 2026-11-02 D-15: "이행 기록"을 "기록 남기기"로)
  * 더한 의무와 이행 기록은 고치거나 지우지 않음. 그만 챙길 때는 사유를 적어 끝냄
  * 프로토타입: 바꾼 내용은 이 브라우저에만 저장(시연 기록). 실제 시스템은 서버에 저장하고 기한 알림을 보냄
  * ===================================================================== */
@@ -170,13 +171,15 @@
     });
   }
 
-  // 할 일 버튼: 이행 기록(맡은 분야), 기록 보기(모두), 끝내기
+  // 할 일 버튼: 기록 남기기(맡은 분야), 기록 보기(모두), 끝내기
+  // 기획자 결정 2026-11-02 D-15: "이행 기록"은 기록을 보는 단추로도 읽혀 옆의 "기록 보기"와 헷갈려 "기록 남기기"로.
+  //   의무 관리(SCR-48)와 계약 상세(SCR-42) 체결 후 의무 표가 함께 바뀜. 창 제목과 창 안 단추("이행 기록 남기기")는 그대로
   function actionsHtml(o, me) {
     const s = C.obligationState(o);
     const live = ['ENDED', 'DONE', 'NONE'].indexOf(s.code) < 0; // 기한 없음(NONE)은 기록할 기한이 없음
     const endable = ['ENDED', 'DONE'].indexOf(s.code) < 0;
     // 좁은 칸에 들어가게 한 줄에 하나씩(ob-acts)
-    return '<span class="ob-acts">' + (live && C.canRecordObligation(me, o) ? '<button type="button" class="link-act" data-ob-rec="' + o.id + '">이행 기록</button>' : '') +
+    return '<span class="ob-acts">' + (live && C.canRecordObligation(me, o) ? '<button type="button" class="link-act" data-ob-rec="' + o.id + '">기록 남기기</button>' : '') +
       '<button type="button" class="link-act" data-ob-view="' + o.id + '">기록 보기</button>' +
       (endable && C.canEndObligation(me, o) ? '<button type="button" class="link-act link-act--danger" data-ob-end="' + o.id + '">끝내기</button>' : '') + '</span>';
   }

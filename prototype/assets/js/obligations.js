@@ -5,7 +5,7 @@
  *   1. 볼 수 있는 의무를 모음: 계약을 볼 수 있거나 맡은 분야(열람 제한 계약이면 고객사는 가림)
  *   2. 거르기: 검색, 종류, 맡은 분야(내 분야가 있으면 처음에 내 분야), 상태(처음에는 "챙길 것": 기한 지남과 14일 이내, 예정, 일이 생기면, 기한 없음)
  *   3. 순서: 기한 지남 → 14일 이내 → 예정(다음 기한 순) → 일이 생기면 → 기한 없음 → 모두 함 → 끝냄
- *   4. 할 일: 이행 기록, 기록 보기, 끝내기(obligation-ui.js의 창)
+ *   4. 할 일: 기록 남기기, 기록 보기, 끝내기(obligation-ui.js의 창. 기획자 결정 2026-11-02 D-15: "이행 기록" 단추 이름을 "기록 남기기"로)
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -19,6 +19,8 @@
   // 챙길 것 = 모두 함과 끝냄을 뺀 것(처음 값), 급한 것 = 기한 지남과 14일 이내
   const STATES = [['OPEN', '챙길 것'], ['URGENT', '급한 것'], ['LATE', '기한 지남'], ['SOON', D.ALERT_RULES.obligationSoonDays + '일 이내'],
     ['PLANNED', '예정'], ['EVENT', '일이 생기면'], ['NONE', '기한 없음'], ['DONE', '모두 함'], ['ENDED', '끝냄'], ['', '전체']];
+  // 기획자 결정 2026-11-02 A-5: 안내 문장의 이메일 날은 결재선 규칙에서 바꾼 값(D.ALERT_RULES.obligationMailDays)
+  if ((D.ALERT_RULES.obligationMailDays || []).length) $('#ob-mail-days').textContent = D.ALERT_RULES.obligationMailDays.join('일 전과 ') + '일 전';
 
   function options(sel, list) { sel.innerHTML = list.map(function (o) { return '<option value="' + esc(o[0]) + '">' + esc(o[1]) + '</option>'; }).join(''); }
   options($('#f-kind'), [['', '전체']].concat(Object.keys(D.OBLIGATION_KINDS).map(function (k) { return [k, D.OBLIGATION_KINDS[k].label]; })));

@@ -25,6 +25,7 @@
   - 판은 지우거나 덮어쓰지 않고 쌓음. 적용 시작일이 오지 않은 판은 "예정"
   - 새 판 올리기와 표준계약서 추가는 법무, 관리자, 최고관리자만(적용 시작일, 바뀐 조항, 근거 필수). 관리자 변경 이력(TEMPLATE)에 남음
   - 계약 등록의 체크리스트 1번에서 고른 "기준 표준계약서"와 그 판이 계약에 남고, 여기에 "쓴 계약" 수로 보임
+  - 기획자 결정 2026-11-02 C-15: 판마다 "반부패 조항" 있음, 없음 표시. 판 이력의 칸과 지금 판 아래 줄, 새 판 올리기 창(꼭 고름)
   - 동작은 assets/js/templates.js
 ====================================================================== -->
 <body data-page="SCR-45">
@@ -41,7 +42,7 @@
       </div>
       <div class="page-intro">
         <p>법무가 정한 표준계약서의 지금 판을 보고 내려받습니다. 계약서는 지금 판으로 쓰고, 계약 등록의 체크리스트 1번에서 기준이 된 표준계약서를 고릅니다.</p>
-        <p class="sub" id="intro-sub">판은 지우거나 덮어쓰지 않고 쌓여, 지난 계약이 어느 판을 썼는지 남습니다. 새 판은 법무와 관리자가 적용 시작일, 바뀐 조항, 근거를 적어 올립니다.</p>
+        <p class="sub" id="intro-sub">판은 지우거나 덮어쓰지 않고 쌓여, 지난 계약이 어느 판을 썼는지 남습니다. 새 판은 법무와 관리자가 적용 시작일, 바뀐 조항, 반부패 조항이 있는지, 근거를 적어 올립니다.</p>
       </div>
 
       <div id="content" class="admin-stack">
@@ -64,8 +65,8 @@
           <p class="panel-desc">모든 판을 적용 시작일이 늦은 순서로 보여 줍니다. 지난 판도 지우지 않고 남깁니다.</p>
           <div class="tbl-scroll" tabindex="0" role="region" aria-label="표준계약서 판 이력 표">
             <table class="tbl tbl--compact">
-              <caption class="sr-only">판 이력: 적용 시작일, 표준계약서와 판, 바뀐 조항, 근거, 올린 사람</caption>
-              <thead><tr><th scope="col">적용 시작일</th><th scope="col">표준계약서</th><th scope="col" class="col-phone-wide">바뀐 조항</th><th scope="col" class="col-phone-wide">근거</th><th scope="col" class="col-phone-mid">올린 사람</th></tr></thead>
+              <caption class="sr-only">판 이력: 적용 시작일, 표준계약서와 판, 반부패 조항, 바뀐 조항, 근거, 올린 사람</caption>
+              <thead><tr><th scope="col">적용 시작일</th><th scope="col">표준계약서</th><th scope="col" class="center">반부패 조항</th><th scope="col" class="col-phone-wide">바뀐 조항</th><th scope="col" class="col-phone-wide">근거</th><th scope="col" class="col-phone-mid">올린 사람</th></tr></thead>
               <tbody id="history"></tbody>
             </table>
           </div>

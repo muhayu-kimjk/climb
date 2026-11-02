@@ -24,13 +24,17 @@
   - (v0.61 기획자 요청) Claude 문서 사이트(platform.claude.com/docs)의 형식을 빌려 씁니다(REQ-UI-38):
       왼쪽 차례(묶음별 쪽 목록과 이용 안내 찾기) / 가운데 한 쪽(위치 표시, 제목, 안내 상자, 내용, 이전과 다음) / 오른쪽 "이 쪽에서"(쪽 안의 소제목)
       넓은 화면(1360px 이상)에서는 차례와 "이 쪽에서"가 A4 종이 틀 바깥 왼쪽과 오른쪽에 붙어 따라옴(종이 틀은 그대로라 화면과 인쇄가 같은 모습, REQ-UI-10).
-      그보다 좁은 화면과 휴대폰에서는 차례가 내용 위의 접힌 줄("이용 안내 차례")이 됨
+      그보다 좁은 화면과 휴대폰에서는 차례가 내용 위의 접힌 줄("이용 안내 차례")이 됨.
+      "이용 안내에서 찾기" 칸은 접힌 줄 밖, 그 위에 늘 보임 (기획자 결정 2026-11-02 D-24)
   - 쪽(article.doc-page) 차례: 소개, 업무 흐름 5단계, 견적서 만들기(v0.61), 세부 단계와 담당, 변경과 연장과 해지, 역할별 할 일, 자주 묻는 것, 거래 윤리와 신고(v0.61 초안, REQ-UI-39), 보안 수칙.
       주소 뒤 #쪽이름으로 바로 열림(예: help.html#faq, 쪽 요소의 id는 p-쪽이름이라 브라우저가 그 자리로 뛰지 않음). 쪽 안 소제목은 #쪽이름--소제목
   - 내 역할의 줄은 강조합니다. 독촉 기준 일수는 결재선 규칙(SCR-52)의 지금 값을 보여 줍니다. (assets/js/help.js)
   - 인쇄하면 모든 쪽이 차례대로 나오고, 자주 묻는 것은 모두 펼쳐 매뉴얼 한 부로 나옵니다.
   - 해지와 그대로 연장에서 ⑥~⑧을 거치지 않는 것은 기획자가 재무와 상의 중입니다(요구사항 정의서 C-18). 결정되면 단계 표와 변경, 연장, 해지 쪽을 고칩니다.
   - v0.26: ③ 영업 리더, 운영 변경, 보완 요청을 반영했습니다(재무 문서 반영).
+  - 기획자 결정 2026-11-02: ③ 영업 임원 승인(E-3), 결재 창에서 꼭 표시하는 것(E-2, C-14, C-15, B-8), 결재선 밖 재무 의견(B-6),
+    견적서로 계약서를 대신함(B-5), 운영 변경의 ⑩과 계약 연도 누적(B-3, B-4), 만료 처리와 유예(A-10, A-11), 통계의 체결일(B-8, A-2, B-9)
+    규칙 값(알림 일수, 무상 충전 기준, 유예 일수, 영업 임원 승인 기준, 견적서 대신 금액)은 help.js가 data-rule로 채움
 ====================================================================== -->
 <body data-page="SCR-90">
   <a class="skip-link" href="#main">본문 바로가기</a>
@@ -85,10 +89,12 @@
                 <thead><tr><th scope="col">단계</th><th scope="col" class="col-wide">하는 일</th><th scope="col" class="col-who">누가</th><th scope="col">화면</th></tr></thead>
                 <tbody>
                   <tr><td class="nowrap"><strong>1 계약 등록</strong></td><td>계약 정보와 제품 금액을 넣고, 체크리스트에 답하고, 계약서 초안을 올려 기안합니다. 최종 견적서는 있으면 함께 올립니다. 결재선은 체크리스트 답과 개인정보 처리위탁 계약 여부로 자동으로 정해집니다.</td><td>영업</td><td class="nowrap"><a href="new-contract.html">새 계약 등록</a><br><a href="my-contracts.html">내 등록 목록</a></td></tr>
-                  <tr><td class="nowrap"><strong>2 계약 검토</strong></td><td>② 체크리스트, ③ 영업, ④ 법무, ⑤ 개인정보 순서로 결재합니다. ④와 ⑤는 동시에 검토합니다. 해당하지 않는 단계는 건너뜁니다.</td><td>영업지원, 영업 리더, 법무, 정보보호</td><td class="nowrap"><a href="review-queue.html">검토 대기</a></td></tr>
-                  <tr><td class="nowrap"><strong>3 계약 체결</strong></td><td>⑥ 총무가 인장을 날인하고, ⑦ 영업이 상대방 서명을 받은 체결본을 올리고, ⑧ 영업지원이 승인된 내용과 같은지 확인합니다.</td><td>총무, 영업, 영업지원</td><td class="nowrap"><a href="signing.html">체결 대기</a><br><a href="review-queue.html">검토 대기</a></td></tr>
-                  <tr><td class="nowrap"><strong>4 운영 검토</strong></td><td>⑨ 고객지원이 서비스에 계약을 적용하고(라이선스, 기간, 금액), ⑩ 재무가 회계 인식을 확인합니다.</td><td>고객지원, 재무</td><td class="nowrap"><a href="ops-queue.html">운영 검토 대기</a></td></tr>
-                  <tr><td class="nowrap"><strong>5 계약 완료</strong></td><td>보관함에 들어가 계약 기간 동안 관리합니다. 담당자 변경과 특이사항을 사후관리 기록으로 남기고, 만료가 다가오면 연장이나 해지를 정합니다.</td><td>모두</td><td class="nowrap"><a href="contracts.html">전체 계약</a><br><a href="expiring.html">만료 예정 계약</a></td></tr>
+                  <!-- 기획자 결정 2026-11-02 D-3: 단계 이름은 현재 진행 칸, 결재란 머리글과 같은 "맡는 사람" 이름으로(예전 "③ 영업"은 영업이 내 차례로 읽었음) -->
+                  <!-- 기획자 결정 2026-11-02: E-3 할인 폭이 크면 ③ 영업 임원도 승인, B-8 ⑦ 서명본 체결일과 ⑨ 실제 개통일, B-5 견적서로 대신함, A-10 A-11 만료 처리와 유예 -->
+                  <tr><td class="nowrap"><strong>2 계약 검토</strong></td><td>② 영업지원, ③ 영업 리더, ④ 법무, ⑤ 정보보호 순서로 결재합니다. 할인율 한도를 크게 넘긴 계약은 ③ 영업 리더 다음에 ③ 영업 임원도 승인합니다. ④와 ⑤는 동시에 검토합니다. 해당하지 않는 단계는 건너뜁니다.</td><td>영업지원, 영업 리더, 영업 임원, 법무, 정보보호</td><td class="nowrap"><a href="review-queue.html">검토 대기</a></td></tr>
+                  <tr><td class="nowrap"><strong>3 계약 체결</strong></td><td>⑥ 총무가 인장을 날인하고, ⑦ 영업이 상대방 서명을 받은 체결본과 서명본 체결일을 올리고, ⑧ 영업지원이 승인된 내용, 체결일과 같은지 확인합니다. 견적서로 계약서를 대신한 계약은 체결본 대신 고객 날인 최종 견적서를 올립니다.</td><td>총무, 영업, 영업지원</td><td class="nowrap"><a href="signing.html">체결 대기</a><br><a href="review-queue.html">검토 대기</a></td></tr>
+                  <tr><td class="nowrap"><strong>4 운영 검토</strong></td><td>⑨ 고객지원이 서비스에 계약을 적용하고(라이선스, 기간, 금액) 실제 개통일을 적으면, ⑩ 재무가 회계 인식을 확인합니다.</td><td>고객지원, 재무</td><td class="nowrap"><a href="ops-queue.html">운영 검토 대기</a></td></tr>
+                  <tr><td class="nowrap"><strong>5 계약 완료</strong></td><td>보관함에 들어가 계약 기간 동안 관리합니다. 담당자 변경과 특이사항을 사후관리 기록으로 남기고, 만료가 다가오면 연장이나 해지를 정합니다. 연장 없이 종료일이 지나면 고객지원이 서비스를 닫습니다(만료 처리).</td><td>모두</td><td class="nowrap"><a href="contracts.html">전체 계약</a><br><a href="expiring.html">만료 예정 계약</a></td></tr>
                 </tbody>
               </table>
             </div>
@@ -133,19 +139,26 @@
                 <thead><tr><th scope="col">단계</th><th scope="col">담당</th><th scope="col" class="col-wide">하는 일</th><th scope="col" class="col-wide">거치는 조건</th></tr></thead>
                 <tbody>
                   <tr><td class="nowrap">① 계약 등록과 기안</td><td class="nowrap">영업</td><td>계약 정보 입력, 체크리스트, 첨부, 기안</td><td>모든 계약</td></tr>
-                  <tr><td class="nowrap">② 체크리스트 검토</td><td class="nowrap">영업지원</td><td>체크리스트 답과 첨부가 맞는지 확인(승인 창의 확인 항목 다섯을 모두 표시). 고칠 것이 있으면 보완 요청</td><td>모든 계약</td></tr>
-                  <tr><td class="nowrap">③ 영업 검토</td><td class="nowrap">기안자 유닛의 리더</td><td>할인을 승인 (리더 본인 계약은 영업 임원)</td><td>할인율 한도를 넘긴 계약</td></tr>
-                  <tr><td class="nowrap">④ 법무 검토</td><td class="nowrap">법무</td><td>바꾼 계약 조항 검토</td><td>표준계약서를 바꾼 계약</td></tr>
+                  <!-- 기획자 결정 2026-11-02: 결재 창에서 새로 꼭 표시하는 것(E-2, C-14, C-15, B-8), ③ 영업 임원 승인(E-3), 견적서로 대신함(B-5), 운영 변경의 ⑩(B-3) -->
+                  <tr><td class="nowrap">② 체크리스트 검토</td><td class="nowrap">영업지원</td><td>체크리스트 답과 첨부가 맞는지 확인(승인 창의 확인 항목 다섯을 모두 표시). 같은 거래처 최근 계약이 있으면 나눠 맺은 계약이 아닌지도 꼭 표시. 고칠 것이 있으면 보완 요청</td><td>모든 계약</td></tr>
+                  <tr><td class="nowrap">③ 영업 검토</td><td class="nowrap">기안자 유닛의 리더</td><td>할인을 승인 (리더 본인 계약은 영업 임원). 승인 창에서 이 거래처와 개인적 이해관계가 없음을 꼭 표시</td><td>할인율 한도를 넘긴 계약</td></tr>
+                  <tr><td class="nowrap">③ 영업 임원 승인</td><td class="nowrap">영업 임원(COO)</td><td>③ 영업 리더 다음에 큰 할인을 한 번 더 승인. 이해관계 없음 확인은 ③과 같음</td><td>한 줄이라도 할인율 한도를 <span data-rule="cooOverPp" data-rule-of="PRICE_RULES">10</span>%p 넘게 넘긴 계약(금액은 보지 않음). 리더 본인 계약은 없음</td></tr>
+                  <tr><td class="nowrap">④ 법무 검토</td><td class="nowrap">법무</td><td>바꾼 계약 조항 검토. 반부패 조항이 있고 약해지지 않았는지, 없으면 그 사유를 고름(간접, 조달 계약은 꼭)</td><td>표준계약서를 바꾼 계약</td></tr>
                   <tr><td class="nowrap">⑤ 개인정보 검토</td><td class="nowrap">정보보호</td><td>개인정보 처리위탁 조항 검토</td><td>개인정보 처리위탁 계약이 있는 계약</td></tr>
                   <tr><td class="nowrap">⑥ 인장 날인 검토</td><td class="nowrap">총무</td><td>계약서 실물을 고객사명, 제품, 금액, 기간과 맞춰 보고 날인. 인장 사용 기록은 구글 폼</td><td>모든 계약</td></tr>
-                  <tr><td class="nowrap">⑦ 체결본 등록</td><td class="nowrap">기안한 영업</td><td>상대방 서명을 받은 체결본(PDF, 스캔 이미지, 50MB까지)을 올림</td><td>모든 계약</td></tr>
-                  <tr><td class="nowrap">⑧ 체결본 확인</td><td class="nowrap">영업지원</td><td>체결본이 승인된 내용과 같은지, 양쪽 서명과 날인이 있는지 확인</td><td>모든 계약</td></tr>
-                  <tr><td class="nowrap">⑨ 운영 적용</td><td class="nowrap">고객지원</td><td>라이선스나 도메인 열기, 계약번호, 기간, 금액 설정</td><td>모든 계약</td></tr>
-                  <tr><td class="nowrap">⑩ 재무 확인</td><td class="nowrap">재무</td><td>계약 금액과 회계에 영향을 주는 조건(체크리스트 4번) 확인</td><td>모든 계약</td></tr>
+                  <tr><td class="nowrap">⑦ 체결본 등록</td><td class="nowrap">기안한 영업</td><td>상대방 서명을 받은 체결본(PDF, 스캔 이미지, 50MB까지)을 올리고 서명본에 적힌 체결일을 꼭 적음. 견적서로 대신한 계약은 고객 날인 최종 견적서와 고객 날인일</td><td>모든 계약</td></tr>
+                  <tr><td class="nowrap">⑧ 체결본 확인</td><td class="nowrap">영업지원</td><td>체결본이 승인된 내용과 같은지, 양쪽 서명과 날인이 있는지, ⑦에서 적은 체결일이 체결본과 같은지 확인</td><td>모든 계약</td></tr>
+                  <tr><td class="nowrap">⑨ 운영 적용</td><td class="nowrap">고객지원</td><td>라이선스나 도메인 열기, 계약번호, 기간, 금액 설정. 실제 개통일을 꼭 적음</td><td>모든 계약</td></tr>
+                  <tr><td class="nowrap">⑩ 재무 확인</td><td class="nowrap">재무</td><td>계약 금액과 회계에 영향을 주는 조건(체크리스트 4번), 체결 전에 남긴 재무 의견 확인</td><td>모든 계약(운영 변경도)</td></tr>
                   <tr><td class="nowrap">⑪ 계약 완료</td><td class="nowrap">-</td><td>보관함에 들어감</td><td>모든 계약</td></tr>
                 </tbody>
               </table>
             </div>
+            <!-- 기획자 결정 2026-11-02 B-6: 결재선 밖 재무 의견. B-5: 견적서로 계약서를 대신함 -->
+            <h2 class="doc-h2" id="steps--fin">결재선 밖 재무 의견</h2>
+            <p class="doc-text">재무(담당자, 리더, 임원)는 결재 차례와 상관없이 체결 전에 결재 문서의 "재무 의견" 칸에 의견을 남깁니다. 2단계 계약 검토 중이나 ⑥ 인장 날인 전까지 남기고, 남긴 의견은 누가 언제 남겼는지와 함께 보이며 고치거나 지울 수 없습니다. ②~④는 결재 문서에서, ⑩은 확인 창에서 봅니다. 체크리스트 4번이 "예"인 계약은 기안할 때 재무에 가는 이메일이 이 칸으로 이어집니다.</p>
+            <h2 class="doc-h2" id="steps--quote">견적서로 계약서를 대신함</h2>
+            <p class="doc-text">공급가액 합계가 <span data-rule="under" data-rule-of="QUOTE_INSTEAD">5,000,000</span>원 미만인 신규, 변경, 바꿔서 연장 계약은 계약 등록에서 최종 견적서를 첨부하고 "견적서로 계약서를 대신함"을 고를 수 있습니다. 결재는 같고, ⑦에서 체결본 대신 고객이 날인한 최종 견적서와 고객 날인일을 올리면 ⑧이 결재한 견적과 같은지 확인합니다. 금액을 나눠 기준 아래로 맞추지 않도록 ②가 같은 거래처 최근 계약을 봅니다.</p>
           </article>
 
           <!-- 변경, 연장, 해지 (REQ-FLOW-18~22, REQ-ARC-05~07) -->
@@ -157,13 +170,21 @@
             <h2 class="doc-h2" id="change--amend">변경(-A)</h2>
             <p class="doc-text">계약서 내용이 바뀔 때. 계약 상세에서 "변경 기안"을 누르면 원계약이 미리 골라진 등록 화면이 열리고, 새 계약처럼 결재를 거칩니다.</p>
             <h2 class="doc-h2" id="change--ops">운영 변경(-C)</h2>
-            <p class="doc-text">계약서는 그대로 두고 계약 기간만 바꾸거나 수량을 추가 충전할 때. 계약 상세에서 "운영 변경 기안"을 누르고 한 번에 한 가지만 바꿉니다. 기간이 2개월 넘게 바뀌거나 무상 충전이 50건을 넘으면 ③ 영업 리더가 승인하고, ⑨에서 고객지원(HR 충전은 재무)이 반영하면 끝납니다. 변경 사유는 CRM 영업활동에 적고 그 링크를 남깁니다.</p>
+            <!-- 기획자 결정 2026-11-02 B-3(추천과 다름): 운영 변경도 ⑩ 재무 확인. B-4: 무상 충전은 계약 연도 누적. B-3 덧붙임: 유상 충전은 기능을 고르고 표준 금액과 할인율을 봄 -->
+            <p class="doc-text">계약서는 그대로 두고 계약 기간만 바꾸거나 수량을 추가 충전할 때. 계약 상세에서 "운영 변경 기안"을 누르고 한 번에 한 가지만 바꿉니다. 기간이 <span data-rule="periodMonths" data-rule-of="CHANGE_RULES">2</span>개월 넘게 바뀌거나 무상 충전이 같은 계약 연도에 모두 <span data-rule="freeQty" data-rule-of="CHANGE_RULES">50</span>건을 넘으면 ③ 영업 리더가 승인합니다. 그다음 ⑨에서 고객지원(HR 충전은 재무)이 반영하고, ⑩ 재무 확인까지 끝나면 계약 완료가 됩니다. HR 충전은 ⑨를 재무 담당자가 하므로 ⑩은 재무 리더가 확인합니다. 변경 사유는 CRM 영업활동에 적고 그 링크를 남깁니다.</p>
+            <p class="doc-text">무상 충전은 나눠 신청해도 계약 연도마다 더해서 세고, 기안 화면에 이번 계약 연도에 이미 받은 수량과 이번까지의 누적이 보입니다. 유상 충전은 충전할 기능을 꼭 고르고, 기안 화면과 결재 문서에 그날 표준 단가로 계산한 표준 금액과 할인율이 보입니다(보여 주기만 하고 막지 않음).</p>
             <h2 class="doc-h2" id="change--renew">연장(-R)</h2>
             <p class="doc-text">계약 기간을 이어 갈 때. 만료 예정 계약에서 시작합니다. 만료 90일 전부터 목록에 보이고, D-60과 D-30에 영업대표에게 이메일이 갑니다.</p>
             <h2 class="doc-h2" id="change--auto">자동갱신 계약의 연장 검토</h2>
             <p class="doc-text">저절로 연장되기 전에 세 갈래 중 하나를 고릅니다. 그대로 연장(새 계약 기간과 이유를 넣고 ③ 영업 리더, ④ 법무, ⑨ 고객지원 기간 연장, ⑩ 재무 확인), 조건을 바꿔 연장(등록 화면에서 연장 기안), 해지.</p>
+            <!-- 기획자 결정 2026-11-02 A-5: 알림 일수는 결재선 규칙 값. E-12: 그 유닛 리더는 가장 짧은 날에만 -->
+            <p class="doc-text">해지 통지 기한(연장을 막으려면 상대방에게 알려야 하는 마지막 날) <span data-rule="noticeMailDays">30일 전과 7</span>일 전에 영업대표에게, <span data-rule="noticeMailDays" data-rule-last>7</span>일 전에는 그 유닛 리더에게도 이메일이 갑니다. 일수는 관리자가 결재선 규칙에서 바꿉니다.</p>
             <h2 class="doc-h2" id="change--end">해지(-T)</h2>
             <p class="doc-text">해지일, 해지 사유, 환불과 위약금을 넣어 기안합니다. ③ 영업 리더, ④ 법무, ⑨ 고객지원 운영 종료, ⑩ 재무 확인이 끝나면 원계약이 해지 상태가 됩니다.</p>
+            <!-- 기획자 결정 2026-11-02 A-10: 만료 처리(고객지원, 해지의 ⑨와 같은 확인, 재무 확인 없음). A-11: 연장 협상 중 유예(사유, 종료일 뒤 30일 안의 기한, 영업 리더 확인) -->
+            <h2 class="doc-h2" id="change--expiry">만료 처리와 유예</h2>
+            <p class="doc-text">연장이나 새 계약 기안 없이 종료일이 지나면 고객지원의 만료 처리 차례가 됩니다. 해지할 때처럼 라이선스나 도메인을 닫고 계약 종료일을 설정한 뒤 계약 상세에서 "만료 처리"를 누릅니다. 재무 확인은 없고, 처리한 기록은 결재 기록에 남습니다.</p>
+            <p class="doc-text">연장 협상이 종료일을 넘기면 영업대표가 계약 상세나 만료 예정 계약에서 유예를 요청합니다. 사유와 기한(종료일 뒤 <span data-rule="graceMaxDays" data-rule-of="EXPIRY_RULES">30</span>일 안)을 적고, 그 유닛의 영업 리더가 확인하거나 반려합니다. 확인되면 기한까지 서비스를 열어 두고, 기한이 지나면 다시 만료 처리 차례가 됩니다. 서비스를 닫기 전에는 만료된 계약도 연장을 기안할 수 있습니다.</p>
           </article>
 
           <!-- ===== 역할과 권한 ===== -->
@@ -178,20 +199,20 @@
                 <caption class="sr-only">역할별 할 일: 분야, 등급, 할 일, 주로 쓰는 화면</caption>
                 <thead><tr><th scope="col">분야</th><th scope="col">등급</th><th scope="col" class="col-wide">할 일</th><th scope="col">주로 쓰는 화면</th></tr></thead>
                 <tbody>
-                  <tr data-role="SALES"><th scope="row" class="nowrap" rowspan="3">영업</th><td class="nowrap role-name"><strong>담당자</strong></td><td>견적서 작성과 출력, 계약 등록과 기안, 보완 요청과 반려를 받은 계약 고치기, ⑦ 체결본 등록, 변경과 연장과 해지와 운영 변경 기안, 자동갱신 계약의 연장 검토, 사후관리 기록</td><td><a href="quote.html">새 견적</a>, <a href="new-contract.html">새 계약 등록</a>, <a href="my-contracts.html">내 등록 목록</a>, <a href="signing.html">체결 대기</a>, <a href="expiring.html">만료 예정 계약</a></td></tr>
-                  <tr data-role="HEAD"><td class="nowrap role-name"><strong>리더</strong></td><td>내 유닛 계약의 ③ 영업 검토(할인 승인, 2개월 넘는 기간 변경, 50건 넘는 무상 충전)</td><td><a href="review-queue.html">검토 대기</a></td></tr>
-                  <tr data-role="EXEC"><td class="nowrap role-name"><strong>임원(COO)</strong></td><td>영업 리더 본인 계약의 ③ 영업 검토, 영업 리더가 자리를 비울 때 대리로 지정되면 대신 결재</td><td><a href="review-queue.html">검토 대기</a></td></tr>
+                  <tr data-role="SALES"><th scope="row" class="nowrap" rowspan="3">영업</th><td class="nowrap role-name"><strong>담당자</strong></td><td>견적서 작성과 출력, 계약 등록과 기안, 보완 요청과 반려를 받은 계약 고치기, ⑦ 체결본 등록(서명본 체결일), 변경과 연장과 해지와 운영 변경 기안, 자동갱신 계약의 연장 검토, 만료 유예 요청, 사후관리 기록</td><td><a href="quote.html">새 견적</a>, <a href="new-contract.html">새 계약 등록</a>, <a href="my-contracts.html">내 등록 목록</a>, <a href="signing.html">체결 대기</a>, <a href="expiring.html">만료 예정 계약</a></td></tr>
+                  <tr data-role="HEAD"><td class="nowrap role-name"><strong>리더</strong></td><td>내 유닛 계약의 ③ 영업 검토(할인 승인, 2개월 넘는 기간 변경, 계약 연도 누적 50건 넘는 무상 충전), 만료 유예 확인과 반려</td><td><a href="review-queue.html">검토 대기</a></td></tr>
+                  <tr data-role="EXEC"><td class="nowrap role-name"><strong>임원(COO)</strong></td><td>영업 리더 본인 계약의 ③ 영업 검토, 할인 폭이 큰 계약의 ③ 영업 임원 승인, 영업 리더가 자리를 비울 때 대리로 지정되면 대신 결재</td><td><a href="review-queue.html">검토 대기</a></td></tr>
                   <tr data-role="SALES_ADMIN"><th scope="row" class="nowrap" rowspan="2">영업지원</th><td class="nowrap role-name"><strong>담당자</strong></td><td>② 체크리스트 검토, ⑧ 체결본 확인(다르면 다시 등록 요청이나 반려)</td><td><a href="review-queue.html">검토 대기</a>, <a href="review-done.html">검토 완료</a></td></tr>
                   <tr data-role="SA_LEAD"><td class="nowrap role-name"><strong>리더</strong></td><td>영업지원 담당자의 차례를 모두 봄. 결재선 규칙에서 담당자나 대신할 사람으로 정해지면 처리</td><td><a href="review-queue.html">검토 대기</a></td></tr>
                   <tr data-role="LEGAL"><th scope="row" class="nowrap">법무</th><td class="nowrap role-name"><strong>담당자</strong></td><td>④ 법무 검토, 사후관리 기록</td><td><a href="review-queue.html">검토 대기</a>, <a href="contracts.html">전체 계약</a></td></tr>
                   <tr data-role="PRIVACY"><th scope="row" class="nowrap" rowspan="2">정보보호</th><td class="nowrap role-name"><strong>담당자</strong></td><td>⑤ 개인정보 검토, 접속 기록 매월 점검, 분기 권한 검토, 이상 행위 알림 확인</td><td><a href="review-queue.html">검토 대기</a>, <a href="admin-logs.html">접속 기록 점검</a></td></tr>
                   <tr data-role="SEC_LEAD"><td class="nowrap role-name"><strong>리더</strong></td><td>정보보호 담당자의 차례를 모두 봄, 접속 기록 점검과 권한 검토. 담당자나 대신할 사람으로 정해지면 ⑤ 처리</td><td><a href="review-queue.html">검토 대기</a>, <a href="admin-logs.html">접속 기록 점검</a></td></tr>
                   <tr data-role="GA"><th scope="row" class="nowrap">총무</th><td class="nowrap role-name"><strong>담당자</strong></td><td>⑥ 인장 날인 검토</td><td><a href="review-queue.html">검토 대기</a></td></tr>
-                  <tr data-role="CEM"><th scope="row" class="nowrap" rowspan="2">고객지원</th><td class="nowrap role-name"><strong>담당자</strong></td><td>⑨ 운영 적용(해지는 운영 종료, 그대로 연장은 기간 연장, 운영 변경은 기간 변경과 CK 추가 충전)</td><td><a href="ops-queue.html">운영 검토 대기</a></td></tr>
+                  <tr data-role="CEM"><th scope="row" class="nowrap" rowspan="2">고객지원</th><td class="nowrap role-name"><strong>담당자</strong></td><td>⑨ 운영 적용(실제 개통일. 해지는 운영 종료, 그대로 연장은 기간 연장, 운영 변경은 기간 변경과 CK 추가 충전), 종료일이 지난 계약의 만료 처리</td><td><a href="ops-queue.html">운영 검토 대기</a></td></tr>
                   <tr data-role="CEM_LEAD"><td class="nowrap role-name"><strong>리더</strong></td><td>고객지원 담당자의 차례를 모두 봄. 담당자나 대신할 사람으로 정해지면 처리</td><td><a href="ops-queue.html">운영 검토 대기</a></td></tr>
-                  <tr data-role="FINANCE"><th scope="row" class="nowrap" rowspan="3">재무</th><td class="nowrap role-name"><strong>담당자</strong></td><td>⑩ 재무 확인. 운영 변경의 HR 추가 충전은 ⑨에서 수불부에 반영. 체크리스트 4번이 "예"인 계약은 기안할 때 이메일로 미리 받음. 영업지원 담당자가 기안한 계약은 ②, ⑧을 대신 검토</td><td><a href="ops-queue.html">운영 검토 대기</a></td></tr>
-                  <tr data-role="FIN_LEAD"><td class="nowrap role-name"><strong>리더</strong></td><td>결재 단계 없이 재무 담당자의 차례와 회계 영향 계약(체크리스트 4번 "예")을 봄</td><td><a href="ops-queue.html">운영 검토 대기</a></td></tr>
-                  <tr data-role="FIN_EXEC"><td class="nowrap role-name"><strong>임원(CFO)</strong></td><td>재무 리더와 같음(보기만)</td><td><a href="ops-queue.html">운영 검토 대기</a></td></tr>
+                  <tr data-role="FINANCE"><th scope="row" class="nowrap" rowspan="3">재무</th><td class="nowrap role-name"><strong>담당자</strong></td><td>⑩ 재무 확인(운영 변경도). 운영 변경의 HR 추가 충전은 ⑨에서 수불부에 반영. 체크리스트 4번이 "예"인 계약은 기안할 때 이메일로 미리 받고, 체결 전에 결재 문서에 재무 의견을 남김. 영업지원 담당자가 기안한 계약은 ②, ⑧을 대신 검토. 기간 말마다 기간 마감 점검 확인</td><td><a href="ops-queue.html">운영 검토 대기</a>, <a href="stats.html#close-panel">기간 마감 점검</a></td></tr>
+                  <tr data-role="FIN_LEAD"><td class="nowrap role-name"><strong>리더</strong></td><td>재무 담당자의 차례와 회계 영향 계약(체크리스트 4번 "예")을 봄. 결재 단계는 운영 변경 HR 충전의 ⑩ 재무 확인만(⑨를 한 재무 담당자와 다른 사람이 확인). 재무 의견과 기간 마감 점검 확인</td><td><a href="ops-queue.html">운영 검토 대기</a>, <a href="stats.html#close-panel">기간 마감 점검</a></td></tr>
+                  <tr data-role="FIN_EXEC"><td class="nowrap role-name"><strong>임원(CFO)</strong></td><td>결재 단계 없이 재무 리더처럼 봄. 재무 의견과 기간 마감 점검 확인</td><td><a href="ops-queue.html">운영 검토 대기</a></td></tr>
                   <tr data-role="OBSERVER"><td class="nowrap role-name" colspan="2"><strong>관찰자</strong></td><td>계약을 읽기만 하고 아무 단계도 처리하지 않음. 열람 제한 계약은 볼 수 없음</td><td><a href="progress.html">전체 진행 현황</a>, <a href="contracts.html">전체 계약</a></td></tr>
                   <tr data-role="ADMIN"><td class="nowrap role-name" colspan="2"><strong>관리자</strong></td><td>사용자와 권한, 결재선 규칙과 대리 지정, 열람 제한, 가격 기준, 제품과 기능, 거래처, 코드 관리. 바꿀 때는 사유를 꼭 남김</td><td><a href="admin-users.html">사용자 권한 관리</a>, <a href="admin-rules.html">결재선 규칙</a></td></tr>
                   <tr data-role="SUPER"><td class="nowrap role-name" colspan="2"><strong>최고관리자</strong></td><td>모든 메뉴와 화면, 관리자가 하는 일 전부</td><td>모든 화면</td></tr>
@@ -204,7 +225,8 @@
           <article class="doc-page" id="p-faq" data-group="도움말" data-title="자주 묻는 것" aria-labelledby="t-faq">
             <h1 class="page-title" id="t-faq" tabindex="-1">자주 묻는 것</h1>
             <div class="page-intro">
-              <p>질문을 누르면 답이 펼쳐집니다. 찾는 답이 없으면 이용 안내 차례의 "이용 안내에서 찾기"에 낱말을 넣어 보세요.</p>
+              <!-- 기획자 결정 2026-11-02 D-24: 찾기 칸이 차례 위에 늘 보여서 그 자리를 가리킴(넓은 화면은 왼쪽 차례 맨 위, 좁은 화면은 접힌 차례 줄 위) -->
+              <p>질문을 누르면 답이 펼쳐집니다. 찾는 답이 없으면 차례 위의 "이용 안내에서 찾기"에 낱말을 넣어 보세요.</p>
             </div>
             <div class="faq-list">
               <details class="faq" id="faq-reject"><summary>반려되면 어떻게 하나요?<span class="faq-icon"></span></summary>
@@ -216,7 +238,7 @@
               <details class="faq" id="faq-undo"><summary>승인을 잘못 눌렀어요.<span class="faq-icon"></span></summary>
                 <div class="faq-body">②~⑤ 계약 검토 단계는 다음 단계가 처리하기 전까지 승인한 본인이 결재 문서에서 "승인 취소"를 누를 수 있습니다. 승인과 취소 기록은 모두 남습니다.</div></details>
               <details class="faq" id="faq-discount"><summary>할인율이 한도를 넘으면요?<span class="faq-icon"></span></summary>
-                <div class="faq-body">체크리스트 2, 3번이 제품 금액으로 자동 계산되어 ③ 영업 검토(영업 리더 할인 승인)가 결재선에 들어갑니다. 할인은 법무 검토보다 먼저 확정합니다.</div></details>
+                <div class="faq-body">체크리스트 2, 3번이 제품 금액으로 자동 계산되어 ③ 영업 검토(영업 리더 할인 승인)가 결재선에 들어갑니다. 한 줄이라도 한도를 <span data-rule="cooOverPp" data-rule-of="PRICE_RULES">10</span>%p 넘게 넘기면 영업 리더 다음에 영업 임원도 승인합니다. 할인은 법무 검토보다 먼저 확정합니다.</div></details>
               <details class="faq" id="faq-signed"><summary>체결본이 승인된 내용과 다르면요?<span class="faq-icon"></span></summary>
                 <div class="faq-body">오탈자나 스캔 문제처럼 내용은 같으면 ⑧에서 "다시 등록 요청"을 하고, 영업이 체결본을 다시 올립니다. 계약 내용이 다르면 반려하고, 기안자가 다음 차수로 다시 기안합니다.</div></details>
               <details class="faq" id="faq-away"><summary>담당자가 휴가나 출장으로 자리를 비우면요?<span class="faq-icon"></span></summary>
@@ -224,7 +246,11 @@
               <details class="faq" id="faq-delay"><summary>결재가 오래 머물면 어떻게 되나요?<span class="faq-icon"></span></summary>
                 <div class="faq-body">한 단계에 <strong data-rule="approvalDelayDays"></strong>일 이상 머물면 목록에서 강조하고 그 단계 담당자에게 독촉 이메일을 보냅니다. 계약 검토가 끝나고 <strong data-rule="signDelayDays"></strong>일이 지나도 체결본이 없으면 기안자에게 독촉 이메일을 보냅니다.</div></details>
               <details class="faq" id="faq-accounting"><summary>회계에 영향을 주는 조건이 있으면요?<span class="faq-icon"></span></summary>
-                <div class="faq-body">체크리스트 4번(무상 기간, 연도별 금액이 다름 등)에 "예"로 답하면 기안할 때 재무에 이메일이 갑니다. 재무는 결재선에 들어가지 않고 ⑩ 재무 확인에서 봅니다.</div></details>
+                <!-- 기획자 결정 2026-11-02 B-6: 4번 조건의 종류 다섯 가지와 결재선 밖 재무 의견 -->
+                <div class="faq-body">체크리스트 4번에 "예"로 답하면 조건의 종류(무상 기간, 무상 추가 제공, 해지 환불권, 사용량이나 성과에 따른 대가, 반품이나 취소)를 하나 이상 고르고 비고를 적습니다. 기안할 때 재무에 이메일이 가고, 재무는 결재선에 들어가지 않고 체결 전에 결재 문서의 재무 의견 칸에 의견을 남기며 ⑩ 재무 확인에서 다시 봅니다.</div></details>
+              <!-- 기획자 결정 2026-11-02 B-8, A-2, B-9: 통계의 체결일과 기간 마감 점검 -->
+              <details class="faq" id="faq-signdate"><summary>통계의 체결일은 언제인가요?<span class="faq-icon"></span></summary>
+                <div class="faq-body">⑦에서 받은 서명본 체결일입니다(체결본을 올린 날도 함께 남김). ⑧에서 반려된 계약은 빠지고, 다시 기안해 체결되면 그때 셉니다. 통계와 보고서 맨 아래 기간 마감 점검에서는 재무가 기간 말마다 그 앞뒤 계약을 보고 확인을 남깁니다.</div></details>
               <details class="faq" id="faq-restrict"><summary>열람 제한 계약은 누가 보나요?<span class="faq-icon"></span></summary>
                 <div class="faq-body">영업대표(요청자), 결재선과 단계 담당자, 관리자, 그리고 관리자가 지정한 열람자만 봅니다. 다른 사람에게는 목록에 "열람 제한 계약"으로만 보입니다. 등록할 때 영업이 걸고, 관리자가 걸거나 풀 수 있습니다. 열람자는 관리자가 조직으로 지정하는 것이 기본이라 인사이동이 저절로 반영되고, 사람으로 지정하면 그 사람이 다른 조직으로 옮길 때 지정이 풀립니다. 지정되면 이메일로 알려 드립니다.</div></details>
               <details class="faq" id="faq-customer"><summary>거래처가 목록에 없어요.<span class="faq-icon"></span></summary>
@@ -266,7 +292,8 @@
               <li>경쟁사가 이런 이야기를 꺼내면 대화를 멈추고 신고 창구로 알립니다.</li>
             </ul>
             <h2 class="doc-h2" id="ethics--conflict">이해관계</h2>
-            <p class="doc-text">고객사와 개인적인 이해관계(가족이 일함, 지분이 있음 등)가 있으면 그 견적과 계약을 맡거나 결재하지 않고 리더에게 알립니다.</p>
+            <!-- 기획자 결정 2026-11-02 C-14: ③ 승인 창에 이해관계 없음 확인 -->
+            <p class="doc-text">고객사와 개인적인 이해관계(가족이 일함, 지분이 있음 등)가 있으면 그 견적과 계약을 맡거나 결재하지 않고 리더에게 알립니다. 할인을 승인하는 ③ 영업 리더와 ③ 영업 임원은 승인 창에서 이해관계가 없음을 꼭 표시하고, 이 표시는 결재 기록에 남습니다.</p>
             <h2 class="doc-h2" id="ethics--report">신고</h2>
             <p class="doc-text">부적절한 요구를 받거나 규정을 어긴 것을 알게 되면 회사 신고 창구로 알립니다. 신고 창구는 이 시스템 밖에 있고 링크는 실제 시스템의 회사 설정에서 넣습니다. 이 시스템 안에서 한 일은 모두 기록되므로 익명이 아닙니다. 익명으로 알리려면 신고 창구를 씁니다.</p>
           </article>

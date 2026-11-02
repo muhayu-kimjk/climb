@@ -12,7 +12,7 @@
  *   → 표준계약서와 판 → 사업자등록번호 → 영업기회번호
  *   → 결재 흐름 계산(체크리스트로 결재선, 결재 기록을 차례로 다시 적용해 지금 상태: reviewRoute, buildReview)
  *   → 열람 권한(canView, 지정 열람자) → 처리 대기 목록 → 시연 기록 → 견적서 → 체결 후 의무 → 관리자 설정(applyAdmin)
- *   → 계약 묶음(bundleOf, 만료 예정, 해지 통지 기한) → HTML 조각 → 헤더, 메뉴, 푸터 그리기 → 메뉴 검색 → 휴대폰 전체 메뉴판
+ *   → 계약 묶음(bundleOf, 만료 예정, 해지 통지 기한) → 만료 처리와 유예(2026-11-02 A-10, A-11) → HTML 조각 → 헤더, 메뉴, 푸터 그리기 → 메뉴 검색 → 휴대폰 전체 메뉴판
  *   → 안내 메시지와 확인 창 → 입력 칸 → 쪽 번호 → 관리자 화면 부품 → 워터마크 → 날짜 입력과 달력 → 표 머리글 정렬
  *   → 화면 시작(init)과 내보내기   (v0.63: 견적서, 메뉴 검색, 휴대폰 전체 메뉴판, 표 머리글 정렬을 더하고 v0.60에 없앤 "맨 위로"를 뺌)
  * 불러올 때 한 번 하는 일: 시연 기록 다시 적용(시연 기록 묶음), 관리자 설정 적용(applyAdmin 뒤 buildReview)
@@ -366,7 +366,12 @@ window.CLIMB = (function () {
   function featureText(id) { return featureName(id) || '기능 구분 없음'; }
   // '② 체크리스트 검토'
   // c를 주면 운영 변경의 ⑨는 "운영 변경"으로 (v0.26), 해지의 ⑨는 "운영 종료", 조건 그대로 연장의 ⑨는 "기간 연장"으로 (결재 문서 단추, 전체 진행 현황과 같게)
-  function stepLabel(code, c) { const s = D.STEPS[code]; if (c && code === 'S09' && c.kind === 'CHANGE') return s.no + ' 운영 변경'; if (c && code === 'S09' && c.kind === 'TERMINATE') return s.no + ' 운영 종료'; if (c && code === 'S09' && c.renewMode === 'AUTO') return s.no + ' 기간 연장'; return s ? s.no + ' ' + s.name : code; }
+  //   기획자 결정 2026-11-02 B-5: 견적서로 계약서를 대신한 계약의 ⑦은 "고객 날인 견적서 등록", ⑧은 "견적서 확인"
+  function stepLabel(code, c) {
+    const s = D.STEPS[code];
+    if (c && (code === 'S07' || code === 'S08') && isQuoteInstead(c)) return s.no + (code === 'S07' ? ' 고객 날인 견적서 등록' : ' 견적서 확인');
+    if (c && code === 'S09' && c.kind === 'CHANGE') return s.no + ' 운영 변경'; if (c && code === 'S09' && c.kind === 'TERMINATE') return s.no + ' 운영 종료'; if (c && code === 'S09' && c.renewMode === 'AUTO') return s.no + ' 기간 연장'; return s ? s.no + ' ' + s.name : code;
+  }
 
   /* ---------- 결재 흐름 계산 (요구사항 정의서 3.5, REQ-STEP-04, REQ-DOC-06, REQ-SIGN-01~06) ----------
    * 결재 기록(history)을 시간 순서대로 다시 적용해 단계마다 지금 상태(approvals)와 계약 상태를 만듭니다.
@@ -379,23 +384,34 @@ window.CLIMB = (function () {
    *   - 다시 등록 요청(⑧): 오탈자나 스캔 문제면 ⑦ 체결본 등록이 다시 차례가 됨 (REQ-SIGN-04)
    *   - 승인 취소(②~⑤만): 그 단계는 다시 차례가 되고, 뒤 단계는 다시 대기가 됨 (기록은 지우지 않음)
    *   - 계약 상태: 검토 중 → (②~⑤ 끝) 체결 대기 → (⑧ 끝) 운영 검토 → (⑩ 끝) 계약 완료
+   *   - 기획자 결정 2026-11-02 E-3: ③ 다음에 ③ 영업 임원 승인(S03C, 할인 폭이 클 때만). 같은 사람에게 두 번 묻지 않음
+   *   - 기획자 결정 2026-11-02 B-3: 운영 변경도 ⑨ 다음 ⑩ 재무 확인(HR 충전의 ⑩은 ⑨를 한 재무 담당자가 아닌 재무 리더)
+   *   - 계약이 끝난 뒤의 차례(만료 처리 SXP, 유예 확인 SGR, A-10, A-11)는 이 계산이 아니라 아래 "만료 처리와 유예"가 결재란에 덧붙임
    * 실제 시스템에서는 이 규칙을 서버가 지켜야 합니다. 화면에서만 막으면 우회할 수 있습니다. */
   const REVIEW_ORDER = [].concat.apply([], D.REVIEW_GROUPS);
   const POST_ORDER = [].concat.apply([], D.POST_GROUPS);
   const ALL_GROUPS = D.REVIEW_GROUPS.concat(D.POST_GROUPS);
   const WORKING = ['IN_REVIEW', 'APPROVED', 'OPS_REVIEW']; // 누군가의 차례가 남은 상태
+  // 계약이 끝난 뒤의 차례: 만료 처리(A-10), 유예 확인(A-11). 지금 유효한 계약(계약 완료나 만료)의 결재란에 붙음
+  const AFTER_STEPS = ['SXP', 'SGR'];
+  const AFTER_STATUS = ['ACTIVE', 'EXPIRED'];
+  const EXPIRY = {}; // 묶음 번호 → 만료 처리와 유예 정보(아래 "만료 처리와 유예"의 applyExpiry가 채움)
   function groupIndex(code) {
     return ALL_GROUPS.findIndex(function (g) { return g.indexOf(code) > -1; });
   }
   function isReviewStep(code) { return REVIEW_ORDER.indexOf(code) > -1; }
-  // 단계가 속한 업무 단계: 2 계약 검토, 3 계약 체결, 4 운영 검토
-  function phaseOf(code) { return isReviewStep(code) ? 2 : ['S06', 'S07', 'S08'].indexOf(code) > -1 ? 3 : 4; }
+  // 단계가 속한 업무 단계: 2 계약 검토, 3 계약 체결, 4 운영 검토, 5 계약이 끝난 뒤(만료 처리, 유예 확인)
+  function phaseOf(code) { return isReviewStep(code) ? 2 : ['S06', 'S07', 'S08'].indexOf(code) > -1 ? 3 : AFTER_STEPS.indexOf(code) > -1 ? 5 : 4; }
   // 짧은 결재: 해지 기안(-T)과 연장 검토의 "그대로 자동갱신"(-R) (REQ-ARC-06, 07)
   //   ③ 영업 리더 → ④ 법무 → ⑨ 운영(종료, 기간 연장) → ⑩ 재무. ②, ⑤와 ⑥~⑧(날인, 체결본)은 없음
   function isShort(c) { return c.kind === 'TERMINATE' || c.renewMode === 'AUTO'; }
   /* 운영 변경(-C): 계약서는 그대로 두고 계약 기간을 바꾸거나 수량을 추가 충전 (REQ-CHG-06~11, 재무 문서 반영 v0.26)
-   *   [③ 영업 검토: 기간이 2개월 넘게 바뀌거나 무상 충전이 50건을 넘을 때만] → ⑨ 운영 변경 → 끝
-   *   ⑨는 기간 변경과 CK 충전은 고객지원, HR 충전은 재무(수불부, 안정화까지). ②, ④~⑧, ⑩은 없음
+   *   [③ 영업 검토: 기간이 2개월 넘게 바뀌거나 무상 충전이 계약 연도 누적 50건을 넘을 때만] → ⑨ 운영 변경 → ⑩ 재무 확인 → 끝
+   *   ⑨는 기간 변경과 CK 충전은 고객지원, HR 충전은 재무(수불부, 안정화까지). ②, ④~⑧은 없음
+   *   기획자 결정 2026-11-02 B-3(추천과 다름): 운영 변경 모두 ⑩ 재무 확인을 거침(예전에는 ⑩ 없이 ⑨에서 끝남, REQ-CHG-10)
+   *     HR 충전은 ⑨를 재무 담당자가 하므로 ⑩은 재무 리더(STEP_ASSIGNEE 'S10:HR')가 확인(같은 사람이 ⑨와 ⑩을 하지 않게)
+   *     [가정: ⑩을 재무 리더가 맡는 것은 B-3 답에 없어 시안이 정함. 재무와 확인 필요, 01 7장 C-18]
+   *   기획자 결정 2026-11-02 B-4: 무상 충전 50건은 계약 연도마다 더해서 셈(freeChargeUsed)
    *   한 번에 한 가지 변경만 (재무 문서 원칙). 계약서가 바뀌는 변경은 변경 계약(-A)으로 전체 결재 */
   function isChange(c) { return c.kind === 'CHANGE'; }
   function isoDate(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
@@ -406,6 +422,49 @@ window.CLIMB = (function () {
     const last = new Date(d.getFullYear(), d.getMonth() + n + 1, 0).getDate();
     return isoDate(new Date(d.getFullYear(), d.getMonth() + n, isLast ? last : Math.min(day, last)));
   }
+  /* 무상 충전 누적 (기획자 결정 2026-11-02 B-4, REQ-CHG-07): 50건 기준은 계약 연도마다 더해서 셈
+   *   계약 연도: 그날이 든 계약 기간(원계약이나 연장, contractYearWindow)의 시작일부터 1년씩. n번째 해 = [시작일 + (n-1)년, 시작일 + n년)
+   *     원계약 시작일 앞이면 원계약 첫해. 연장이 시작되면 앞 계약 기간의 충전은 세지 않음
+   *   세는 것: 같은 묶음, 같은 계약 연도(기안일 기준), 같은 종류(CK와 HR은 단위가 달라 따로 [가정])의 무상 충전 중
+   *     반려되지 않은 것(진행 중, 계약 완료). 임시 저장과 반려는 세지 않음 */
+  function contractYearOf(start, day) {
+    if (!start || !day) return 1;
+    let n = 1;
+    while (n < 50 && monthsLater(start, 12 * n) <= day) n++;
+    return n;
+  }
+  /* 그날이 든 계약 기간과 계약 연도 { term, n, from, to } (to는 다음 해 시작일이라 그날은 들지 않음)
+   *   기획자 결정 2026-11-02 B-4: 계약 연도는 그날이 든 계약 기간(원계약이나 계약 완료된 연장)에서 셈
+   *   계약 기간: 원계약과 계약 완료(또는 만료)된 연장 중 시작일이 그날보다 늦지 않은 마지막 것. 없으면(원계약 시작 전) 원계약
+   *   그래서 원계약 시작 전의 충전은 원계약 1년 차, 연장이 시작되기 전(일찍 승인된 연장)의 충전은 앞 계약의 것,
+   *   연장이 시작된 뒤에는 앞 계약 기간의 충전을 세지 않음(해마다 다시 셈) */
+  function contractYearWindow(b, day) {
+    day = String(day || D.TODAY).slice(0, 10);
+    if (!b) return { term: null, n: 1, from: '', to: '' };
+    let term = b.root;
+    b.items.forEach(function (x) {
+      if (x.kind === 'RENEW' && ['ACTIVE', 'EXPIRED'].indexOf(x.status) > -1 && startOf(x) && startOf(x) <= day) term = x;
+    });
+    const s = startOf(term);
+    if (!s) return { term: term.id, n: 1, from: '', to: '' };
+    const n = contractYearOf(s, day);
+    return { term: term.id, n: n, from: monthsLater(s, 12 * (n - 1)), to: monthsLater(s, 12 * n) };
+  }
+  //   before: 이 일시보다 먼저 기안한 것만(결재선을 정할 때 뒤에 기안한 것을 세지 않게)
+  //   B-4: 충전마다 그 기안일이 든 계약 기간과 계약 연도를 구해 onDate의 것과 같을 때만 셈(contractYearWindow)
+  function freeUsed(rootId, onDate, excludeId, type, before) {
+    const b = rootId ? bundleOf(rootId) : null;
+    const w = contractYearWindow(b, onDate);
+    return D.CONTRACTS.filter(function (x) {
+      if (!(x.id && x.kind === 'CHANGE' && /_FREE$/.test(x.changeType || '') && rootOf(x) === rootId && x.id !== excludeId &&
+        (!type || x.changeType === type) && ['DRAFT', 'REJECTED'].indexOf(x.status) < 0 && (!before || (x.requestedAt || '') < before))) return false;
+      const xw = contractYearWindow(b, x.requestedAt);
+      return xw.term === w.term && xw.n === w.n;
+    }).reduce(function (n, x) { return n + (Number(x.changeQty) || 0); }, 0);
+  }
+  // 기안 화면이 보여 줄 누적 수량: 이 묶음의 onDate가 속한 계약 연도에 이미 받은 무상 충전(이번 신청 excludeId는 뺌)
+  //   type(CK_FREE, HR_FREE)을 주면 그 종류만. 결재선(changeSales)과 같은 수가 나오게 고른 종류를 넘김
+  function freeChargeUsed(bundleId, onDate, excludeId, type) { return freeUsed(bundleId, onDate, excludeId, type, null); }
   // 운영 변경에 ③ 영업 검토가 필요한지 [거치는지, 까닭]
   function changeSales(c) {
     const R = D.CHANGE_RULES;
@@ -414,22 +473,65 @@ window.CLIMB = (function () {
       return over ? [true, '기간이 ' + R.periodMonths + '개월 넘게 바뀜'] : [false, '기간 변경이 ' + R.periodMonths + '개월 이내'];
     }
     if (/_FREE$/.test(c.changeType)) {
-      return c.changeQty > R.freeQty ? [true, '무상 충전이 ' + R.freeQty + '건을 넘음'] : [false, '무상 충전 ' + R.freeQty + '건 이내'];
+      // B-4: 기안할 때 남긴 앞선 누적(freeUsed, saveDemoContract)이 있으면 그 값. 없으면(예시 계약) 이 기안보다 먼저 기안한 것을 셈
+      const snap = c.freeUsed && c.freeUsed.at === c.requestedAt ? c.freeUsed.n : null;
+      const used = snap != null ? snap : freeUsed(c.parentId || rootOf(c), c.requestedAt || D.TODAY, c.id, c.changeType, c.requestedAt || null);
+      const qty = Number(c.changeQty) || 0, total = used + qty;
+      const text = '이번 계약 연도 무상 충전 누적 ' + total.toLocaleString('ko-KR') + '건(이번 ' + qty.toLocaleString('ko-KR') + '건)';
+      return total > R.freeQty ? [true, text + '이 ' + R.freeQty + '건을 넘음'] : [false, text + ', ' + R.freeQty + '건 이내'];
     }
     return [false, '유상 추가 충전은 영업 검토 없음'];
+  }
+  /* 할인율이 한도를 넘은 폭 (기획자 결정 2026-11-02 E-3 A안)
+   *   제품 줄마다 할인율 - 할인율 한도(%p, 소수 둘째 자리까지). 기안한 날의 가격 기준으로 셈(결재 문서의 할인율과 같음). 그날 가격이 없으면 오늘 가격
+   *   반환: [{ feature, discount, cap, overPp }] / capOverPp: 그중 가장 큰 값(넘지 않았으면 0 이하) */
+  function capOver(c) {
+    const lines = c.products || (c.form && c.form.products) || [];
+    const price = {};
+    D.PRICE_BOOK.forEach(function (p) { price[p.feature] = p; });
+    D.currentPrices(D.PRICE_ROWS, String(c.requestedAt || D.TODAY).slice(0, 10)).forEach(function (p) { price[p.feature] = p; });
+    return lines.map(function (r) {
+      const p = price[r.feature], qty = Number(r.qty) || 0;
+      const std = p ? p.listPrice * qty : 0;
+      const discount = std ? (std - (Number(r.amount) || 0)) / std : 0;
+      const cap = p ? p.discountCap || 0 : 0;
+      return { feature: r.feature, discount: discount, cap: cap, overPp: std ? Math.round((discount - cap) * 10000) / 100 : 0 };
+    });
+  }
+  function capOverPp(c) { return capOver(c).reduce(function (m, l) { return Math.max(m, l.overPp); }, 0); }
+  // 영업 임원 승인 기준 %p: at(기안 일시)에 쓰던 값. 없으면 지금 값. 관리자가 바꾼 이력(PRICE_RULE_CHANGES)을 거꾸로 따라감
+  function cooOverPp(at) {
+    let v = D.PRICE_RULES.cooOverPp;
+    if (!at) return v;
+    D.PRICE_RULE_CHANGES.slice().sort(function (a, b) { return b.at.localeCompare(a.at); }).forEach(function (x) {
+      if (x.key === 'cooOverPp' && x.at > at) v = x.from;
+    });
+    return v;
+  }
+  // ③ 영업 임원 승인(S03C)을 거치는지 [거치는지, 까닭]. sales: ③ 영업 검토의 [거치는지, 까닭]
+  //   ③을 거치고, 한 줄이라도 한도를 기준 %p보다 더 넘었고, 리더 본인 계약이 아닐 때(리더 본인 계약은 ③이 이미 영업 임원이라 한 번만)
+  function cooRoute(c, sales) {
+    if (!sales[0]) return [false, sales[1]];
+    const at = c.requestedAt || '9999', n = cooOverPp(c.requestedAt);
+    if (!(capOverPp(c) > n)) return [false, '할인율 한도를 넘은 폭이 ' + n + '%p 이하'];
+    const lead = leaderAt(teamOf(c.requesterId), at);
+    // 기획자 결정 2026-11-02 E-3: 유닛별 리더 표에 없는 유닛과 리더 본인 계약은 까닭을 나눠 보임(둘 다 ③을 영업 임원이 이미 승인)
+    if (!lead) return [false, '유닛별 리더 표에 없는 유닛이라 ③을 영업 임원이 승인'];
+    if (lead === c.requesterId) return [false, '리더 본인 계약이라 ③을 영업 임원이 승인'];
+    return [true, '할인율 한도를 ' + n + '%p 넘게 넘김'];
   }
   // [거치는지, 까닭] (2단계 계약 검토만. 3, 4단계는 짧은 결재와 운영 변경이 아니면 생략하는 단계가 없음)
   function reviewRoute(c) {
     if (isChange(c)) {
       return {
-        S02: [false, '운영 변경은 체크리스트 검토 없음'], S03: changeSales(c),
+        S02: [false, '운영 변경은 체크리스트 검토 없음'], S03: changeSales(c), S03C: [false, '운영 변경은 영업 임원 승인 없음'],
         S04: [false, '운영 변경은 법무 검토 없음'], S05: [false, '운영 변경은 개인정보 검토 없음'],
       };
     }
     if (isShort(c)) {
       const what = c.kind === 'TERMINATE' ? '해지 기안' : '연장 검토';
       return {
-        S02: [false, josa(what, '은', '는') + ' 체크리스트 검토 없음'], S03: [true, '영업 리더 승인'],
+        S02: [false, josa(what, '은', '는') + ' 체크리스트 검토 없음'], S03: [true, '영업 리더 승인'], S03C: [false, josa(what, '은', '는') + ' 영업 임원 승인 없음'],
         S04: [true, '법무 승인'], S05: [false, josa(what, '은', '는') + ' 개인정보 검토 없음'],
       };
     }
@@ -441,6 +543,7 @@ window.CLIMB = (function () {
     return {
       S02: [true, '어떤 경우에도 생략하지 않음'],
       S03: sales,
+      S03C: cooRoute(c, sales), // 기획자 결정 2026-11-02 E-3
       S04: ck.standard === 'NO' ? [true, '표준계약서를 바꿈'] : [false, '표준계약서를 그대로 씀'],
       S05: c.personalData ? [true, '개인정보 처리위탁 계약 있음'] : [false, '개인정보 처리위탁 계약 없음'],
     };
@@ -459,15 +562,53 @@ window.CLIMB = (function () {
   }
   function stepUser(code, c, at) {
     if (code === 'S07') return c.requesterId;
-    if (code === 'S03') {
+    // ③ 영업 검토와 만료 유예 확인(A-11): 기안자 유닛의 영업 리더, 리더 본인 계약이면 영업 임원
+    if (code === 'S03' || code === 'SGR') {
       const lead = leaderAt(teamOf(c.requesterId), at);
       return lead && lead !== c.requesterId ? lead : assigneeAt('S03', at);
     }
+    // 기획자 결정 2026-11-02 E-3: ③ 영업 임원 승인은 영업 임원(COO). 리더 본인 계약의 ③ 담당(STEP_ASSIGNEE.S03)과 같은 사람
+    if (code === 'S03C') return assigneeAt('S03', at);
+    // 기획자 결정 2026-11-02 A-10: 만료 처리는 고객지원(HR 서비스도). ⑨ 운영 적용 담당
+    if (code === 'SXP') return assigneeAt('S09', at);
     if (code === 'S09' && isChange(c) && /^HR_/.test(c.changeType)) return assigneeAt('S10', at);
+    // 기획자 결정 2026-11-02 B-3: HR 충전의 ⑩은 ⑨를 한 재무 담당자가 아닌 재무 리더('S10:HR'). 정하지 않았으면 재무 담당자
+    //   [가정: 재무 리더가 맡는 것은 B-3 답에 없어 시안이 정함. 재무와 확인 필요]
+    if (code === 'S10' && isChange(c) && /^HR_/.test(c.changeType)) return assigneeAt('S10:HR', at) || assigneeAt('S10', at);
     const id = assigneeAt(code, at);
     if ((code === 'S02' || code === 'S08') && id === c.requesterId) return assigneeAt('S10', at);
     return id;
   }
+  /* 단계를 맡는 사람 이름 (기획자 결정 2026-11-02 D-3, C-40 ③)
+   *   현재 진행 칸과 결재란 머리글의 짧은 이름은 "누가 처리하는지"로 씀: ② 영업지원, ③ 영업 리더, ④ 법무, ⑤ 정보보호,
+   *   ⑥ 총무, ⑦ 기안자, ⑧ 영업지원, ⑨ 고객지원, ⑩ 재무 (기본 이름은 mock-data.js STEPS의 short)
+   *   이 계약에서 다른 사람이 맡으면 그 사람 이름. 위 stepUser와 같은 규칙:
+   *     ③ 리더 본인이 기안한 계약(유닛 리더가 없거나 기안자 본인)은 영업 임원 (REQ-AUTH-06, 12)
+   *     ②와 ⑧ 기안자가 그 단계 담당자(영업지원)면 재무가 대신 (REQ-AUTH-16 직무 분리)
+   *     ⑨ 운영 변경의 HR 충전은 재무가 수불부에 반영 (REQ-CHG-08)
+   *     ③ 만료 유예 확인(SGR, A-11)도 ③과 같음. ③ 영업 임원 승인(S03C, E-3)은 늘 "③ 영업 임원"
+   *     ⑩ 재무 확인을 재무 담당자가 아닌 사람(HR 충전의 재무 리더, B-3)이 맡으면 그 사람의 역할 이름("⑩ 재무 리더")
+   *   그 단계가 차례가 된 때의 규칙으로 판단하고, 아직 차례가 오지 않은 단계는 지금 규칙으로 판단 */
+  function stepWho(code, c) {
+    const s = D.STEPS[code];
+    if (!s) return code;
+    if (!c || !c.requesterId) return s.short;
+    const a = (c.approvals || []).filter(function (x) { return x.step === code; })[0];
+    const at = (a && a.arrivedAt) || '9999';
+    if (code === 'S03' || code === 'SGR') {
+      const lead = leaderAt(teamOf(c.requesterId), at);
+      if (!lead || lead === c.requesterId) return roleShort('EXEC');
+    }
+    if ((code === 'S02' || code === 'S08') && assigneeAt(code, at) === c.requesterId) return roleShort('FINANCE');
+    if (code === 'S09' && isChange(c) && /^HR_/.test(c.changeType)) return roleShort('FINANCE');
+    if (code === 'S10') {
+      const r = roleFor((a && a.userId) || stepUser('S10', c, at), 'S10');
+      if (r !== 'FINANCE') return roleShort(r);
+    }
+    return s.short;
+  }
+  // 번호와 맡는 사람 이름 한 덩어리: "③ 영업 리더", 리더 본인 계약이면 "③ 영업 임원" (D-3). c가 없으면 기본 이름
+  function stepTag(code, c) { const s = D.STEPS[code]; return s ? s.no + ' ' + stepWho(code, c) : code; }
   // 결재란에 보이는 역할: 그 사람이 단계의 역할을 가졌으면 그 역할, 아니면 그 사람의 첫 역할(예: 대신 검토하는 재무, 담당자로 지정된 리더)
   function roleFor(userId, code) {
     const want = D.STEPS[code].role;
@@ -494,6 +635,8 @@ window.CLIMB = (function () {
     if (c.renewMode === 'AUTO') return opsChecks(c.services, D.OPS_CHECKS_EXTEND);
     return opsChecks(c.services);
   }
+  // 만료 처리 확인 항목(기획자 결정 2026-11-02 A-10): 해지의 ⑨와 같음(라이선스나 도메인 닫기, 계약 종료일 설정)
+  function expiryChecks(c) { return opsChecks(c.services, D.OPS_CHECKS_END); }
   // 계약종류 이름. 연장 검토의 "그대로 자동갱신"은 따로 표시 (REQ-ARC-07)
   function kindLabel(c) {
     if (isChange(c)) return '운영 변경(' + (D.CHANGE_TYPES[c.changeType] || '-') + ')';
@@ -505,7 +648,10 @@ window.CLIMB = (function () {
     if (code === 'S09' && c.kind === 'TERMINATE') return '운영 종료 중';
     if (code === 'S09' && c.renewMode === 'AUTO') return '기간 연장 중';
     if (code === 'S09' && isChange(c)) return /^HR_/.test(c.changeType) ? '수불부 반영 중' : '운영 변경 중';
-    return D.STEPS[code].ing;
+    // 기획자 결정 2026-11-02 B-5: 견적서로 계약서를 대신한 계약
+    if (code === 'S07' && isQuoteInstead(c)) return '견적서 등록 대기';
+    if (code === 'S08' && isQuoteInstead(c)) return '견적서 확인 중';
+    return D.STEPS[code].ing || D.STEPS[code].name;
   }
   // 'YYYY-MM-DD'에 n일을 더함
   function addDays(iso, n) {
@@ -527,24 +673,37 @@ window.CLIMB = (function () {
         : c.approvedAt.slice(0, 10) + ' 11:00';
       // ④ 법무: 표준계약서를 바꾼 계약은 승인 의견 필수 (v0.27, C-20). 예시 기록에도 의견을 남김
       // ② 체크리스트 검토는 확인 항목을 남김 (v0.63, 표준 대응표 G-05)
+      //   기획자 결정 2026-11-02 E-2 시연: 예시 계약에 c.splitSeen(② 승인 때 같은 거래처 최근 계약 건수)이 있으면
+      //   결재 창의 기록과 같은 모양으로 recentSame을 남기고, 1건 이상이면 "나눠 맺은 계약이 아님"(SPLIT_CHECK)도 확인 항목에
       const comment = code === 'S04' && (c.checklist || {}).standard === 'NO'
         ? '바꾼 조항 확인(조항 대비표 참고): ' + ((c.checklist || {}).standardNote || '고객 요청 조항') + '. 회사 책임 범위가 표준과 같아 승인'
-        : code === 'S02' ? '확인: ' + D.REVIEW_CHECKS.join(', ') : '';
-      return { step: code, action: 'APPROVE', at: at, comment: comment, actorId: stepUser(code, c, at), round: round };
+        : code === 'S02' ? '확인: ' + D.REVIEW_CHECKS.concat(c.splitSeen ? [D.SPLIT_CHECK] : []).join(', ') : '';
+      // 기획자 결정 2026-11-02 C-15 시연: 예시 계약에 ④의 반부패 조항 판단(c.antiBribe { pick: KEPT 또는 NONE, note })이 있으면
+      //   결재 창에서 남기는 기록과 같은 모양(antiBribe, antiBribeNote, 의견 문장의 "반부패 조항: ...")으로
+      const ab = code === 'S04' && c.antiBribe ? c.antiBribe : null;
+      const abText = ab ? '반부패 조항: ' + (ab.pick === 'NONE' ? '없음(사유: ' + (ab.note || '') + ')' : '있고 약해지지 않음') : '';
+      return Object.assign({ step: code, action: 'APPROVE', at: at, comment: [abText, comment].filter(Boolean).join('. '), actorId: stepUser(code, c, at), round: round },
+        ab ? { antiBribe: ab.pick, antiBribeNote: ab.pick === 'NONE' ? ab.note || '' : '' } : null,
+        code === 'S02' && c.splitSeen != null ? { recentSame: c.splitSeen } : null);
     });
     const d06 = addDays(c.approvedAt, 1);
     const d07 = c.signedAt || addDays(c.approvedAt, 6);
     const d08 = addDays(d07, 1);
     const d09 = addDays(d08, 2);
     const d10 = addDays(d09, 1);
+    const signs = !isShort(c) && !isChange(c); // 날인과 체결본을 거치는 계약
     const post = [
       { step: 'S06', action: 'APPROVE', at: d06 + ' 10:00', comment: '확인: ' + D.SEAL_CHECKS.join(', '), actorId: stepUser('S06', c, d06) },
       // ⑦ ⑧ 확인(v0.61, 표준 대응표 G-06): 계약서 밖 약속 없음, 체결본을 항목별로 맞춰 봄
-      { step: 'S07', action: 'REGISTER', at: d07 + ' 14:00', comment: '확인: ' + D.SIDE_DEAL_CHECK.S07, actorId: c.requesterId, fileName: c.counterparty + '_체결본.pdf' },
-      { step: 'S08', action: 'APPROVE', at: d08 + ' 11:00', comment: '확인: ' + D.SIGNED_CHECKS.concat([D.SIDE_DEAL_CHECK.S08]).join(', '), actorId: stepUser('S08', c, d08) },
-      { step: 'S09', action: 'APPROVE', at: d09 + ' 15:00', comment: '확인: ' + opsChecksFor(c).join(', '), actorId: stepUser('S09', c, d09) },
+      //   기획자 결정 2026-11-02 B-8: ⑦에 서명본 체결일(signDate, 예시는 올리기 하루 전이나 c.signDate), ⑨에 실제 개통일(openDate, 예시는 ⑨ 처리한 날이나 c.openDate)
+      //   B-5: 견적서로 계약서를 대신한 계약은 ⑦에 고객 날인 최종 견적서, ⑧은 견적서 확인 항목(signedChecks)
+      { step: 'S07', action: 'REGISTER', at: d07 + ' 14:00', comment: '확인: ' + D.SIDE_DEAL_CHECK.S07, actorId: c.requesterId,
+        fileName: c.counterparty + (isQuoteInstead(c) ? '_최종견적서_고객날인.pdf' : '_체결본.pdf'), signDate: c.signDate || addDays(d07, -1) },
+      { step: 'S08', action: 'APPROVE', at: d08 + ' 11:00', comment: '확인: ' + signedChecks(c).join(', '), actorId: stepUser('S08', c, d08) },
+      Object.assign({ step: 'S09', action: 'APPROVE', at: d09 + ' 15:00', comment: '확인: ' + opsChecksFor(c).join(', '), actorId: stepUser('S09', c, d09) },
+        signs ? { openDate: c.openDate || d09 } : {}),
       { step: 'S10', action: 'APPROVE', at: d10 + ' 16:00', comment: '', actorId: stepUser('S10', c, d10) },
-    ].filter(function (h) { return !isShort(c) || h.step === 'S09' || h.step === 'S10'; }); // 짧은 결재는 ⑨, ⑩만
+    ].filter(function (h) { return signs || h.step === 'S09' || h.step === 'S10'; }); // 짧은 결재와 운영 변경은 ⑨, ⑩만
     const order = post.map(function (h) { return h.step; });
     const stop = c.postAt ? order.indexOf(c.postAt) : order.length;
     post.slice(0, stop).forEach(function (h) { h.round = round; list.push(h); });
@@ -563,18 +722,19 @@ window.CLIMB = (function () {
     const NOW = '9999'; // 아직 차례가 오지 않은 단계는 지금 담당자
     const steps = REVIEW_ORDER.concat(POST_ORDER).map(function (code) {
       const review = isReviewStep(code);
-      // 짧은 결재와 운영 변경은 ⑥~⑧을 거치지 않음 [가정, C-18 재무 상의 중]. 운영 변경은 ⑩도 없음(재무 문서)
+      // 짧은 결재와 운영 변경은 ⑥~⑧을 거치지 않음 [가정, C-18 재무 상의 중]
+      // 기획자 결정 2026-11-02 B-3(추천과 다름): 운영 변경도 ⑩ 재무 확인을 거침(예전에는 ⑩을 생략하고 ⑨에서 끝남)
       const skipSign = (short || change) && ['S06', 'S07', 'S08'].indexOf(code) > -1;
-      const skipFin = change && code === 'S10';
       const userId = stepUser(code, c, NOW);
       return {
         step: code, role: roleFor(userId, code), phase: phaseOf(code),
         // ⑦ 체결본 등록은 기안한 영업이 함. 나머지는 지금 담당자(차례가 되는 때 다시 정함, 아래 recompute)
         userId: userId,
-        state: skipSign || skipFin ? 'SKIPPED' : !review || route[code][0] ? 'WAITING' : 'SKIPPED',
-        reason: review ? route[code][1] : skipSign ? noSign
-          : skipFin ? (/^HR_/.test(c.changeType) ? '재무가 ⑨에서 반영' : '운영 변경은 재무 확인 없음') : '',
+        state: skipSign ? 'SKIPPED' : !review || route[code][0] ? 'WAITING' : 'SKIPPED',
+        reason: review ? route[code][1] : skipSign ? noSign : '',
         arrivedAt: null, decidedAt: null, decidedBy: null, onBehalfOf: null, delegationId: null, comment: '', fileName: null,
+        // 기획자 결정 2026-11-02 B-8: ⑦의 서명본 체결일(signDate), ⑨의 실제 개통일(openDate). 결재 기록의 값을 fileName처럼 옮겨 둠
+        signDate: null, openDate: null,
       };
     });
     const by = {};
@@ -594,6 +754,11 @@ window.CLIMB = (function () {
           } else if (s.state === 'WAITING') {
             s.state = 'PENDING'; s.arrivedAt = at;
             s.userId = stepUser(s.step, c, at); s.role = roleFor(s.userId, s.step);
+            // 기획자 결정 2026-11-02 B-3: ⑨를 처리한 사람은 ⑩을 맡지 않음. 같으면 재무 담당자와 재무 리더('S10:HR') 중 다른 사람에게
+            if (s.step === 'S10' && by.S09.decidedBy && by.S09.decidedBy === s.userId) {
+              const other = [assigneeAt('S10', at), assigneeAt('S10:HR', at)].filter(function (id) { return id && id !== s.userId; })[0];
+              if (other) { s.userId = other; s.role = roleFor(other, 'S10'); }
+            }
           }
         });
         if (members.some(function (s) { return s.state !== 'DONE'; })) blocked = true;
@@ -605,8 +770,13 @@ window.CLIMB = (function () {
       // 보완 완료(기안자): 멈춘 결재를 다시 이어 감. 금액이나 체크리스트 답이 바뀌었으면(restart) 계약 검토를 처음부터 다시
       if (h.action === 'RESUBMIT') {
         hold = null; supplement = null;
+        // 기획자 결정 2026-11-02 E-3: 고쳐서 다시 올리면 지금 답으로 다시 정한 결재선대로(생략된 단계는 다시 차례가 되지 않음)
+        //   승인했던 단계와 "한 번만"으로 건너뛴 ③ 영업 임원 승인을 지금 결재선(route)의 거치는지와 까닭으로 되돌림
         if (h.restart) review0().forEach(function (x) {
-          if (x.state === 'DONE') { x.state = 'WAITING'; x.decidedAt = null; x.decidedBy = null; x.onBehalfOf = null; x.delegationId = null; x.comment = ''; }
+          if (x.state === 'DONE' || x.oneApproval) {
+            x.state = route[x.step][0] ? 'WAITING' : 'SKIPPED'; x.reason = route[x.step][1]; x.oneApproval = false;
+            x.decidedAt = null; x.decidedBy = null; x.onBehalfOf = null; x.delegationId = null; x.comment = '';
+          }
         });
         recompute(h.at);
         return;
@@ -624,13 +794,21 @@ window.CLIMB = (function () {
         s.state = h.action === 'REJECT' ? 'REJECTED' : 'DONE';
         s.decidedAt = h.at; s.decidedBy = h.actorId; s.onBehalfOf = h.onBehalfOf || null; s.delegationId = h.delegationId || null; s.comment = h.comment;
         if (h.fileName) s.fileName = h.fileName;
+        if (h.signDate) s.signDate = h.signDate; // B-8: ⑦ 서명본 체결일
+        if (h.openDate) s.openDate = h.openDate; // B-8: ⑨ 실제 개통일
         if (h.action === 'REJECT') rejection = { step: h.step, role: s.role, at: h.at, reason: h.comment, by: h.actorId };
+        // 기획자 결정 2026-11-02 E-3: ③을 영업 임원이 승인했으면(대리 지정 등) ③ 영업 임원 승인을 다시 받지 않음(한 사람에게 두 번 묻지 않음)
+        if (h.step === 'S03' && h.action === 'APPROVE' && by.S03C.state === 'WAITING' && h.actorId === stepUser('S03C', c, h.at)) {
+          by.S03C.state = 'SKIPPED'; by.S03C.reason = '③을 영업 임원이 승인해 한 번만 받음'; by.S03C.oneApproval = true;
+        }
       } else if (h.action === 'CANCEL') {
         s.state = 'PENDING'; s.decidedAt = null; s.decidedBy = null; s.onBehalfOf = null; s.delegationId = null; s.comment = '';
+        // E-3: ③ 승인을 취소하면 위에서 "한 번만"으로 건너뛴 영업 임원 승인을 되돌림
+        if (h.step === 'S03' && by.S03C.oneApproval) { by.S03C.state = 'WAITING'; by.S03C.reason = route.S03C[1]; by.S03C.oneApproval = false; }
       } else if (h.action === 'RETURN') {
         // ⑧ 다시 등록 요청: ⑦ 체결본 등록이 다시 차례가 되고 ⑧은 대기로 돌아감
         const s07 = by.S07;
-        s07.state = 'PENDING'; s07.arrivedAt = h.at; s07.decidedAt = null; s07.decidedBy = null; s07.onBehalfOf = null; s07.comment = '';
+        s07.state = 'PENDING'; s07.arrivedAt = h.at; s07.decidedAt = null; s07.decidedBy = null; s07.onBehalfOf = null; s07.comment = ''; s07.signDate = null;
         s.state = 'WAITING'; s.arrivedAt = null;
         lastReturn = { at: h.at, reason: h.comment, by: h.actorId };
       }
@@ -642,7 +820,7 @@ window.CLIMB = (function () {
     const fin = function (code) { return by[code].state === 'DONE' || by[code].state === 'SKIPPED'; };
     const lastAt = function (list) { return list.reduce(function (m, x) { return x.decidedAt && x.decidedAt > m ? x.decidedAt : m; }, ''); };
     const post = steps.filter(function (x) { return x.phase > 2; });
-    // ⑥~⑩이 모두 끝났거나 생략됨 (운영 변경은 ⑩이 생략이라 ⑨에서 끝남)
+    // ⑥~⑩이 모두 끝났거나 생략됨 (운영 변경도 ⑩까지 끝나야 계약 완료, 기획자 결정 2026-11-02 B-3)
     const allPost = post.every(function (x) { return fin(x.step); }) && post.some(function (x) { return done(x.step); });
     // 다시 계산하는 상태 (해지 기안 자신은 끝나면 "해지"가 되므로 함께)
     const live = ['IN_REVIEW', 'SUPPLEMENT', 'REJECTED', 'APPROVED', 'OPS_REVIEW', 'ACTIVE'].concat(c.kind === 'TERMINATE' ? ['TERMINATED'] : []);
@@ -655,7 +833,10 @@ window.CLIMB = (function () {
     c.signedAt = done('S07') ? by.S07.decidedAt : null;        // 체결본을 등록한 때
     c.completedAt = allPost ? lastAt(post) : null;             // 계약 완료(보관함)된 때
     c.supplement = supplement;                                 // 지금 보완 요청 중이면 그 내용
-    c.approvals = steps;
+    // 기획자 결정 2026-11-02 E-3: ③ 영업 임원 승인 칸은 그 단계를 거치는 계약에만 둠(거치지 않으면 칸 없음, REQ-REV-03)
+    //   ③을 이미 영업 임원이 맡는 계약(리더 본인 계약, 리더 표에 없는 유닛)에 같은 이름 칸이 둘 생기지 않게.
+    //   거치다가 ③을 영업 임원이 승인해 "한 번만 받음"으로 생략된 칸은 남김
+    c.approvals = steps.filter(function (s) { return s.step !== 'S03C' || route.S03C[0]; });
     c.rejection = rejection;
     c.lastReturn = lastReturn;
     if (rejection) { c.rejectedAt = rejection.at; c.rejectReason = rejection.reason; }
@@ -663,9 +844,62 @@ window.CLIMB = (function () {
 
   function pendingSteps(c) { return (c.approvals || []).filter(function (a) { return a.state === 'PENDING'; }); }
   function currentStep(c) { return pendingSteps(c)[0] || null; }
-  // 체결일(통계와 보고서, 계약 요약서): 체결본 등록(⑦)이 끝난 때. 조건 그대로 연장(날인과 체결본 없음)은 계약 완료(⑩)된 때
+  // 체결본을 올린 때(⑦이 끝난 때). 조건 그대로 연장(날인과 체결본 없음)은 계약 완료(⑩)된 때
   //   buildReview가 차수와 다시 등록 요청을 따져 정한 signedAt, completedAt을 씀(결재 기록을 직접 뒤지지 않음)
+  //   기획자 결정 2026-11-02 B-8, A-2: 통계와 계약 요약서의 체결일은 아래 signedDate(서명본 체결일)로 바뀜. 통계는 ⑧ 반려 차수를 뺌(stats.js)
+  //     이 함수는 화면 코드에서 쓰지 않고 올린 때가 필요한 곳을 위해 남겨 둠
   function signDate(c) { return (c.renewMode === 'AUTO' ? c.completedAt : c.signedAt) || ''; }
+  /* 서명본 체결일과 실제 개통일 (기획자 결정 2026-11-02 B-8, G-09)
+   *   signedDate: ⑦에서 받은 서명본 체결일. 지금 차수의 마지막 체결본 등록 기록(S07 REGISTER)의 signDate, 없으면 올린 날(c.signedAt)
+   *     ⑦이 끝나지 않았으면(다시 등록 요청 뒤 등) 빈칸. c.signedAt은 지금처럼 올린 시각 그대로(통계는 올린 시각도 남김)
+   *   openDate: ⑨에서 받은 실제 개통일. 지금 차수의 마지막 ⑨ 승인 기록의 openDate, 없으면 null
+   *   dateOrderIssues: 날짜 순서가 이상하면 결재 문서에 표시할 글 [{ code, text }] */
+  function lastOfRound(c, step, action) {
+    const round = c.round || 1;
+    return (c.history || []).filter(function (h) { return h.step === step && h.action === action && (h.round || 1) === round; }).pop() || null;
+  }
+  function signedDate(c) {
+    if (!c.signedAt) return '';
+    const h = lastOfRound(c, 'S07', 'REGISTER');
+    return (h && h.signDate) || String(c.signedAt).slice(0, 10);
+  }
+  function openDate(c) { const h = lastOfRound(c, 'S09', 'APPROVE'); return (h && h.openDate) || null; }
+  // ④ 법무 승인 기록(기획자 결정 2026-11-02 C-15): ④가 지금 끝난 상태면 지금 차수의 마지막 ④ 승인(승인 취소 뒤 다시 승인했으면 그것), 아니면 null
+  //   기록의 antiBribe: KEPT 있고 약해지지 않음, NONE 없음(antiBribeNote 사유), 비어 있으면 고르지 않음. 통계(통제 지표)와 전체 계약의 거르기가 씀
+  function legalApproval(c) {
+    const s = (c.approvals || []).filter(function (a) { return a.step === 'S04'; })[0];
+    return s && s.state === 'DONE' ? lastOfRound(c, 'S04', 'APPROVE') : null;
+  }
+  function dateOrderIssues(c) {
+    const out = [], sd = signedDate(c), od = openDate(c);
+    const up = c.signedAt ? String(c.signedAt).slice(0, 10) : '', ap = c.approvedAt ? String(c.approvedAt).slice(0, 10) : '';
+    if (sd && ap && sd < ap) out.push({ code: 'SIGN_BEFORE_APPROVAL', text: '서명본 체결일(' + fmtDate(sd) + ')이 계약 검토 승인일(' + fmtDate(ap) + ')보다 앞섬' });
+    if (sd && up && sd > up) out.push({ code: 'SIGN_AFTER_UPLOAD', text: '서명본 체결일(' + fmtDate(sd) + ')이 올린 날(' + fmtDate(up) + ')보다 뒤' });
+    if (od && sd && od < sd) out.push({ code: 'OPEN_BEFORE_SIGN', text: '개통일(' + fmtDate(od) + ')이 서명본 체결일(' + fmtDate(sd) + ')보다 앞섬' });
+    return out;
+  }
+  /* 견적서로 계약서를 대신함 (기획자 결정 2026-11-02 B-5, C-19, REQ-FLOW-24)
+   *   quoteInsteadAllowed: 고를 수 있는 계약인지. 공급가액 합계(부가세 별도)가 D.QUOTE_INSTEAD.under(5백만 원) 미만인 신규, 변경, 바꿔서 연장
+   *     합계는 계약 금액(amount), 없으면 제품 줄 금액의 합. 해지, 그대로 연장, 운영 변경은 ⑦이 없어 고를 수 없음
+   *   isQuoteInstead: 고른 계약(c.quoteInstead)이고 지금도 기준 안인지. 보완하며 금액이 기준을 넘으면 체결본을 받는 원래 흐름으로 돌아감
+   *   signedChecks: ⑧ 확인 항목(견적서면 D.QUOTE_INSTEAD_CHECKS) + 계약서 밖 약정 없음 / signDocLabel: ⑦에 올리는 문서 이름
+   *   ⑥ 인장 날인은 지금처럼 거침 [가정]: 누가 날인할지는 재무 문서의 견적서 대체 규칙 2), 3)을 바로잡으며 정함(C-18 ④) */
+  function contractTotal(c) {
+    if (c.amount != null && c.amount !== '') return Number(c.amount) || 0;
+    return (c.products || (c.form && c.form.products) || []).reduce(function (n, r) { return n + (Number(r.amount) || 0); }, 0);
+  }
+  function quoteInsteadAllowed(c) {
+    if (!c || c.kind === 'TERMINATE' || c.kind === 'CHANGE' || c.renewMode === 'AUTO') return false;
+    const total = contractTotal(c);
+    return total > 0 && total < D.QUOTE_INSTEAD.under;
+  }
+  function isQuoteInstead(c) { return !!c && !!(c.quoteInstead || (c.form && c.form.quoteInstead)) && quoteInsteadAllowed(c); }
+  //   기획자 결정 2026-11-02 B-8: ⑦에서 적은 서명본 체결일(견적서면 고객 날인일)이 올린 문서와 같은지도 ⑧이 확인(SIGN_DATE_CHECK, 계약서 밖 약정 앞)
+  function signedChecks(c) {
+    const q = isQuoteInstead(c);
+    return (q ? D.QUOTE_INSTEAD_CHECKS : D.SIGNED_CHECKS).concat([D.SIGN_DATE_CHECK[q ? 'QUOTE' : 'SIGNED'], D.SIDE_DEAL_CHECK.S08]);
+  }
+  function signDocLabel(c) { return isQuoteInstead(c) ? '고객 날인 최종 견적서' : D.FILE_KINDS.SIGNED; }
   // 계약 방식 코드(DIRECT, PROCURE, INDIRECT → D.METHODS). 예전 값 리셀러는 간접으로 읽음(v0.34 계약 유형을 계약 방식에 합침, REQ-ARC-09)
   function methodOf(c) {
     const m = (c.form || {}).method;
@@ -683,8 +917,12 @@ window.CLIMB = (function () {
   // 이 사람이 지금 처리할 수 있는 단계인지: 담당자 본인, 대리 지정 기간 안의 대신할 사람(REQ-REV-08)
   //   최고관리자는 시연용으로 담당자 대신 처리할 수 있음 (프로토타입 전용)
   //   직무 분리: 기안자는 자기 계약의 결재 단계를 처리하지 않음(⑦ 체결본 등록 빼고, v0.26)
+  //   기획자 결정 2026-11-02: ③ 영업 리더와 ③ 영업 임원 승인(E-3), ⑨와 ⑩(B-3)은 같은 사람이 하지 않음. 최고관리자 시연은 예외(모든 단계를 눌러 볼 수 있게)
+  //   계약이 끝난 뒤의 차례(만료 처리, 유예 확인)는 결재 문서가 아니라 계약 상세에서 처리하므로 여기서는 늘 false(canCloseExpiry, canDecideGrace)
+  function didStep(c, code, userId) { return (c.approvals || []).some(function (a) { return a.step === code && a.state === 'DONE' && a.decidedBy === userId; }); }
   function canAct(c, s, user) {
     if (s.step !== 'S07' && c.requesterId === user.id) return false;
+    if (user.role !== 'SUPER' && ((s.step === 'S10' && didStep(c, 'S09', user.id)) || (s.step === 'S03C' && didStep(c, 'S03', user.id)))) return false;
     return WORKING.indexOf(c.status) > -1 && s.state === 'PENDING' && (isMyStep(s, user) || user.role === 'SUPER');
   }
   // 승인 취소: 2단계 계약 검토 단계만. 승인한 본인이, 다음 단계가 아직 아무것도 처리하지 않았을 때만 (REQ-DOC-06)
@@ -736,7 +974,8 @@ window.CLIMB = (function () {
    * - 열람 제한이 없는 계약: 모든 사용자 열람 가능
    * - 열람 제한 계약: 요청자 본인, 결재선과 단계 담당자(생략된 단계 제외. 총무, 영업지원, 고객지원, 재무 포함), 관리자,
    *   그리고 관리자가 지정한 열람자(조직 또는 사람, v0.52)만 열람 가능
-   *   관찰자와 재무 리더, 재무 임원은 지정되지 않으면 열람 제한 계약을 볼 수 없음(재무는 아래 회계 영향 건만) [가정 v0.29]
+   *   재무 리더, 재무 임원은 지정되지 않으면 열람 제한 계약을 볼 수 없음(재무는 아래 회계 영향 건만) [가정 v0.29]
+   *   관찰자는 지정되어도 볼 수 없음(기획자 결정 2026-11-02 A-9)
    * ※ 실제 시스템에서는 반드시 서버에서 판단해야 합니다. 화면에서 가리는 것만으로는 보안이 되지 않습니다. */
   // 볼 수 없는 계약을 열었을 때의 안내 (결재 문서, 계약 상세, 계약 요약서가 같은 문장을 씀)
   const RESTRICTED_MSG = '열람 제한 계약은 요청자, 그 계약의 결재선과 단계 담당자, 관리자, 지정 열람자만 볼 수 있습니다.';
@@ -744,6 +983,9 @@ window.CLIMB = (function () {
     // 작성 중(임시 저장) 계약은 작성자 본인만 봅니다. [가정]
     if (c.status === 'DRAFT') return c.requesterId === user.id;
     if (!c.restricted) return true;
+    // 기획자 결정 2026-11-02 A-9: 관찰자는 지정 열람자로 지정되어도(조직이든 사람이든) 열람 제한 계약을 보지 못함 (REQ-AUTH-18)
+    //   관찰자가 지정된 조직으로 옮겨 오기만 해도 저절로 보게 되는 것을 막음. 열람 제한 계약까지 읽어야 하면 감사 열람 역할(C-2)로 따로 줌
+    if (user.role === 'OBSERVER') return false;
     if (user.role === 'ADMIN' || user.role === 'SUPER') return true;
     if (c.requesterId === user.id) return true;
     // 지정 열람자: 조직은 지금 그 조직에 있는 사람, 사람은 지정이 풀리지 않았을 때 (v0.52)
@@ -753,15 +995,25 @@ window.CLIMB = (function () {
     // 체크리스트 4번이 예면 재무(담당자, 리더, 임원)도 볼 수 있음 (REQ-CHK-08)
     if (user.base === 'FINANCE' && c.checklist && c.checklist.accounting === 'YES') return true;
     if (pendingSteps(c).some(function (a) { return activeDelegation(a.userId, user.id); })) return true;
+    // 만료 처리와 유예 확인 차례인 사람(기획자 결정 2026-11-02 A-10, A-11): 그 묶음의 어느 계약이든 봄(지금 유효한 계약이 연장이어도 원계약까지)
+    const ex = EXPIRY[rootOf(c)];
+    if (ex && [ex.step, ex.askStep].some(function (s) { return s && s.state === 'PENDING' && isMyStep(s, user); })) return true;
     return routedSteps(c).some(function (a) { return a.userId === user.id; });
   }
 
   // 내 차례인 단계 목록: [{ c: 계약, s: 단계 }] (all=true면 모든 담당자 것, steps를 주면 그 단계만)
   //   검토 대기: ②~⑥, ⑧ / 운영 검토 대기: ⑨, ⑩ / ⑦은 체결 대기 화면에서 영업이 봄
+  //   기획자 결정 2026-11-02: 계약이 끝난 뒤의 차례도 넣음. ⑨ 만료 처리(SXP, 운영 검토 대기), ③ 만료 유예 확인(SGR, 검토 대기)
+  //     그 차례는 계약 완료나 만료인 계약에 있으므로 그 상태도 봄. 화면은 steps로 고르고, 처리 화면은 C.turnHref(계약 상세)
   function pendingQueue(user, all, steps) {
     const out = [];
+    // 검토 대기처럼 ②와 ③을 함께 찾는 목록에는 ③ 영업 임원 승인(S03C, E-3)과 ③ 만료 유예 확인(SGR, A-11)도 넣음
+    //   (기획자 결정 2026-11-02: 영업 임원과 영업 리더의 차례가 그 목록에서 빠지지 않게. 한 단계만 찾는 결재선 규칙의 건수는 그대로)
+    if (steps && steps.indexOf('S02') > -1 && steps.indexOf('S03') > -1) {
+      steps = steps.concat(['S03C', 'SGR'].filter(function (x) { return steps.indexOf(x) < 0; }));
+    }
     D.CONTRACTS.forEach(function (c) {
-      if (WORKING.indexOf(c.status) < 0) return;
+      if (WORKING.indexOf(c.status) < 0 && AFTER_STATUS.indexOf(c.status) < 0) return;
       pendingSteps(c).forEach(function (s) {
         if (steps && steps.indexOf(s.step) < 0) return;
         if (all || isMyStep(s, user)) out.push({ c: c, s: s });
@@ -771,12 +1023,17 @@ window.CLIMB = (function () {
   }
   // 내가 처리해야 할 계약 (개요 인사말과 '내가 검토할 계약'): 내 차례인 단계가 있는 계약
   //   영업은 ⑦ 체결본 등록 차례와 내가 기안한 반려 건
+  //   만료 처리(고객지원)와 유예 확인(영업 리더) 차례도 셈(2026-11-02 A-10, A-11). 그 줄은 C.turnHref로 계약 상세에 이어야 처리할 수 있음
   function myActions(user) {
     return D.CONTRACTS.filter(function (c) {
       if (user.role === 'SALES' && c.requesterId === user.id && c.status === 'REJECTED') return canResubmit(c);
       if (c.requesterId === user.id && c.status === 'SUPPLEMENT') return true; // 보완 요청을 받은 기안자
-      return WORKING.indexOf(c.status) > -1 && pendingSteps(c).some(function (s) { return isMyStep(s, user); });
+      return (WORKING.indexOf(c.status) > -1 || AFTER_STATUS.indexOf(c.status) > -1) && pendingSteps(c).some(function (s) { return isMyStep(s, user); });
     });
+  }
+  // 차례를 처리하는 화면 주소: 결재 단계는 결재 문서, 만료 처리와 유예 확인은 계약 상세(그 화면의 단추에서 처리)
+  function turnHref(c, s) {
+    return s && AFTER_STEPS.indexOf(s.step) > -1 ? 'contract.html?id=' + encodeURIComponent(rootOf(c)) : 'review.html?id=' + encodeURIComponent(c.id);
   }
 
   /* 보완 후 재기안 (REQ-FLOW-17): 반려된 기안은 같은 번호의 다음 차수로 다시 기안
@@ -823,8 +1080,10 @@ window.CLIMB = (function () {
   }
 
   /* 현재 진행 (REQ-DASH-06, v0.55 기획자 결정: 두 칸으로 나눈 C안)
-   *   현재 진행 칸: 지금 단계의 번호와 이름만 한 줄로(왼쪽 정렬, 줄 바꾸지 않음). 예: "④ 법무", "④⑤ 법무, 개인정보",
+   *   현재 진행 칸: 지금 단계의 번호와 이름만 한 줄로(왼쪽 정렬, 줄 바꾸지 않음). 예: "④ 법무", "④⑤ 법무, 정보보호",
    *     "⑦ 체결본 등록", "④ 법무 반려", "④ 법무 보완 요청". "검토 중", "대기" 같은 말은 옆 상태 배지가 말하므로 쓰지 않음
+   *   기획자 결정 2026-11-02 D-3: 계약 검토(②~⑤)와 반려, 보완 요청은 맡는 사람 이름(stepWho, 예: "③ 영업 리더", "② 영업지원 반려")
+   *     ⑥~⑩이 차례일 때는 지금처럼 하는 일 이름("⑦ 체결본 등록", "⑧ 체결본 확인"). 하는 일이 드러나 남의 차례로 잘못 읽히지 않음
    *   대기 칸: 지금 단계에 온 날(반려, 보완 요청이면 그날)부터 오늘까지의 날수. 한 가지 기준으로만 셈(예전의 승인 후, 체결 후, 기안 후를 없앰)
    *     독촉 기준(alert_rule)을 넘으면 강조: ②~⑥, ⑧~⑩은 approvalDelayDays(5일), ⑦ 체결본 등록은 signDelayDays(14일)
    *   끝난 계약: 현재 진행 칸에 날짜(예: "만료 2027-04-30"), 대기 칸은 "-"
@@ -833,13 +1092,11 @@ window.CLIMB = (function () {
     const R = D.ALERT_RULES;
     if (c.status === 'DRAFT') return { step: D.STEPS.S01.no + ' 임시 저장', days: daysSince(c.savedAt), lim: 0 };
     if (c.status === 'REJECTED') {
-      const s = D.STEPS[c.rejection.step];
-      return { step: s.no + ' ' + s.short + ' 반려', days: daysSince(c.rejection.at), lim: 0 };
+      return { step: stepTag(c.rejection.step, c) + ' 반려', days: daysSince(c.rejection.at), lim: 0 }; // D-3: 맡는 사람 이름
     }
     // 보완 중: 어느 단계에서 보완을 요청했는지 (REQ-REV-11)
     if (c.status === 'SUPPLEMENT' && c.supplement) {
-      const s = D.STEPS[c.supplement.step];
-      return { step: s.no + ' ' + s.short + ' 보완 요청', days: daysSince(c.supplement.at), lim: 0 };
+      return { step: stepTag(c.supplement.step, c) + ' 보완 요청', days: daysSince(c.supplement.at), lim: 0 };
     }
     // 검토 중(②~⑤): ④⑤는 동시에 차례일 수 있음 / 체결 대기(⑥~⑧)와 운영 검토(⑨, ⑩): 하는 일 이름
     if (['IN_REVIEW', 'APPROVED', 'OPS_REVIEW'].indexOf(c.status) > -1) {
@@ -847,13 +1104,17 @@ window.CLIMB = (function () {
       if (!ps.length) return { step: D.STATUS[c.status].label, days: null, lim: 0 };
       const first = ps[0].step;
       const step = isReviewStep(first)
-        ? ps.map(function (s) { return D.STEPS[s.step].no; }).join('') + ' ' + ps.map(function (s) { return D.STEPS[s.step].short; }).join(', ')
+        ? ps.map(function (s) { return D.STEPS[s.step].no; }).join('') + ' ' + ps.map(function (s) { return stepWho(s.step, c); }).join(', ')
         : D.STEPS[first].no + ' ' + stepIng(c, first).replace(/ (중|대기)$/, '');
       return { step: step, days: waitDays(c), lim: first === 'S07' ? R.signDelayDays : R.approvalDelayDays };
     }
     if (c.status === 'ACTIVE' && isChange(c)) return { step: '완료 ' + fmtDate(c.completedAt), days: null, lim: 0 };
     if (c.status === 'ACTIVE') return { step: '만료 ' + fmtDate(c.endDate), days: null, lim: 0 };
     if (c.status === 'TERMINATED') return { step: '해지일 ' + fmtDate(c.terminateDate), days: null, lim: 0 };
+    // 기획자 결정 2026-11-02 A-10, A-11: 만료 처리 차례면 "⑨ 만료 처리"와 대기 일수(종료 다음 날이나 유예 기한 다음 날부터), 유예 중이면 "유예 중 (~기한)"
+    const ex = c.status === 'EXPIRED' ? EXPIRY[rootOf(c)] : null;
+    if (ex && ex.holder === c && ex.state === 'OPEN') return { step: D.STEPS.SXP.no + ' ' + D.STEPS.SXP.name, days: waitDays(c, ex.step), lim: R.approvalDelayDays };
+    if (ex && ex.holder === c && ex.state === 'GRACE') return { step: ex.label, days: null, lim: 0 };
     if (c.status === 'EXPIRED') return { step: '만료 ' + fmtDate(c.endDate), days: null, lim: 0 };
     return { step: '-', days: null, lim: 0 };
   }
@@ -865,10 +1126,11 @@ window.CLIMB = (function () {
   // 목록 표의 두 칸: 현재 진행(글, 왼쪽) + 대기(숫자, 오른쪽). 개요의 진행 상세, 전체 진행 현황, 내 등록 목록이 함께 씀
   //   머리글은 '<th scope="col">현재 진행</th><th scope="col" class="col-wait">대기</th>'
   //   대기 일수는 숫자지만 가운데(v0.59 기획자 요청: 짧은 칸이라 날짜, 상태처럼 가운데). 숫자 글꼴(num)은 그대로
-  function progressCells(c) {
+  //   extra: 단계 이름 뒤에 붙일 HTML(개요의 "내 차례" 배지, 기획자 결정 2026-11-02 D-1). 없으면 지금과 같음
+  function progressCells(c, extra) {
     const p = progressInfo(c);
     const d = p.days == null ? '-' : p.lim && p.days >= p.lim ? '<span class="wait-long">' + p.days + '일</span>' : p.days + '일';
-    return '<td class="col-progress">' + esc(p.step) + '</td><td class="num col-wait">' + d + '</td>';
+    return '<td class="col-progress">' + esc(p.step) + (extra || '') + '</td><td class="num col-wait">' + d + '</td>';
   }
   // 결재 기록의 "한 일" 이름: ⑥⑧⑨⑩의 승인은 단계에 맞는 말로 (예: 날인 완료)
   //   c를 주면 해지와 그대로 연장의 ⑨를 운영 종료 완료, 기간 연장 완료로
@@ -877,7 +1139,8 @@ window.CLIMB = (function () {
     if (h.action === 'APPROVE' && h.step === 'S09' && c && c.kind === 'TERMINATE') return '운영 종료 완료';
     if (h.action === 'APPROVE' && h.step === 'S09' && c && c.renewMode === 'AUTO') return '기간 연장 완료';
     if (h.action === 'APPROVE' && h.step === 'S09' && c && isChange(c)) return '운영 변경 완료';
-    return h.action === 'APPROVE' && st && st.doneAction ? st.doneAction : D.APPROVAL_ACTIONS[h.action].label;
+    if (h.action === 'REGISTER' && c && isQuoteInstead(c)) return '견적서 등록'; // 기획자 결정 2026-11-02 B-5
+    return h.action === 'APPROVE' && st && st.doneAction ? st.doneAction : (D.APPROVAL_ACTIONS[h.action] || { label: h.action }).label;
   }
 
   /* ---------- 시연 기록 (프로토타입 전용) ----------
@@ -918,7 +1181,8 @@ window.CLIMB = (function () {
   }
   // 시연으로 만든 계약(해지 기안, 연장 검토), 사후관리 기록, 지운 임시 저장 (프로토타입 전용, REQ-ARC-04~07)
   const DEMO_KEYS = { contracts: 'climb.demoContracts', notes: 'climb.demoNotes', deleted: 'climb.demoDeleted', admin: 'climb.demoAdmin', mail: 'climb.demoMail', theme: 'climb.demoTheme' /* 화면 설정(v0.53, theme.js) */,
-    obligations: 'climb.demoObligations' /* 체결 후 의무(v0.53) */, quotes: 'climb.demoQuotes' /* 견적서(v0.61) */ };
+    obligations: 'climb.demoObligations' /* 체결 후 의무(v0.53) */, quotes: 'climb.demoQuotes' /* 견적서(v0.61) */,
+    closeChecks: 'climb.demoCloseChecks' /* 기획자 결정 2026-11-02 B-9: 통계의 기간 마감 점검 확인(쌓기만 함) */ };
   // 받을 이메일 설정(내 계정, v0.45): { 사용자 id: { 알림 코드: 켬/끔 } }. 실제 시스템은 서버의 사용자 설정
   function mailPrefs(userId) {
     let all = {};
@@ -953,6 +1217,11 @@ window.CLIMB = (function () {
   //   같은 계약번호(임시 저장은 임시 키)의 기록이 있으면 바꿔 씀: 이어서 작성한 임시 저장, 다음 차수로 다시 기안한 계약 (v0.58 QA)
   function demoKey(c) { return c.id || 'draft:' + c.draftKey; }
   function saveDemoContract(c) {
+    // 기획자 결정 2026-11-02 B-4: 무상 충전은 기안한 때 같은 계약 연도의 앞선 무상 충전 수를 남김(freeUsed). 뒤에 다른 기안이 반려되어도
+    //   이 기안의 결재선(③ 영업 검토를 거치는지)이 바뀌지 않게. 다시 기안하면(기안 일시가 바뀌면) 그때 다시 셈
+    if (c.id && c.kind === 'CHANGE' && /_FREE$/.test(c.changeType || '') && c.requestedAt && !(c.freeUsed && c.freeUsed.at === c.requestedAt)) {
+      c.freeUsed = { n: freeUsed(c.parentId || rootOf(c), c.requestedAt, c.id, c.changeType, c.requestedAt), at: c.requestedAt };
+    }
     const list = loadDemo('contracts').filter(function (x) { return demoKey(x) !== demoKey(c); });
     list.push(c);
     try { localStorage.setItem(DEMO_KEYS.contracts, JSON.stringify(list)); } catch (e) { /* 저장소를 못 쓰면 이 화면에서만 반영 */ }
@@ -1055,6 +1324,34 @@ window.CLIMB = (function () {
     if (i > -1) D.CONTRACTS.splice(i, 1);
   });
 
+  /* 재무 의견 (기획자 결정 2026-11-02 B-6, G-07, REQ-CHK-08): 결재선 밖에서 재무가 체결 전에 남기는 의견
+   *   재무(담당자, 리더, 임원)가 볼 수 있는 계약에, 2단계 계약 검토 중(검토 중, 보완 중)이나 ⑥ 인장 날인이 끝나기 전(체결 대기)까지 남김
+   *   덧붙이기만 함(고치거나 지우지 않음). 누가, 언제, 몇 차 기안에 남겼는지 함께. 결재 차례와 상태는 바꾸지 않음
+   *   ②~④는 결재 문서의 체크리스트 묶음에서 보고, ⑩ 재무 확인 창에도 보임. 4번이 예인 계약이 주 대상이지만 그 밖의 계약에도 남길 수 있음
+   *   계약 기록 finOpinions: [{ at, by, dept(그때 조직), round, text }]. 시안은 이 브라우저에 저장(climb.demoFinOpinions) */
+  DEMO_KEYS.finOpinions = 'climb.demoFinOpinions'; // 시연 기록 지우기와 기록 수 세기에 함께 들어감
+  function canWriteFinOpinion(c, user) {
+    if (!c || !c.id || user.base !== 'FINANCE' || !canView(c, user)) return false;
+    // 기획자 결정 2026-11-02 B-6: 재무 의견은 ⑥ 날인과 체결이 있는 계약(신규, 변경, 바꿔서 연장)에만. 해지, 그대로 연장, 운영 변경은 없음
+    if (isShort(c) || isChange(c)) return false;
+    if (c.status === 'IN_REVIEW' || c.status === 'SUPPLEMENT') return true;
+    const s06 = (c.approvals || []).filter(function (a) { return a.step === 'S06'; })[0];
+    return c.status === 'APPROVED' && !!s06 && s06.state !== 'DONE' && s06.state !== 'SKIPPED';
+  }
+  function addFinOpinion(c, text, user) {
+    const entry = { contractId: c.id, round: c.round || 1, at: nowStamp(), by: user.id, dept: (D.USERS[user.id] || {}).dept || '', text: text };
+    pushDemo('finOpinions', entry);
+    c.finOpinions = (c.finOpinions || []).concat([entry]);
+    return entry;
+  }
+  //   다시 기안한 계약은 앞 차수 의견을 함께 저장하므로(resubmitRecord), 같은 의견은 한 번만 붙임
+  loadDemo('finOpinions').forEach(function (n) {
+    const c = D.CONTRACTS.find(function (x) { return x.id === n.contractId; });
+    if (!c) return;
+    const same = (c.finOpinions || []).some(function (o) { return o.at === n.at && o.by === n.by && o.text === n.text; });
+    if (!same) c.finOpinions = (c.finOpinions || []).concat([n]);
+  });
+
   /* ---------- 체결 후 의무 (v0.53 기획자 결정, 요구사항 정의서 REQ-FLOW-33~36) ----------
    * 의무 하나: mock-data.js OBLIGATIONS. 시연으로 더한 의무, 이행 기록, 끝냄은 이 브라우저에만 저장(climb.demoObligations)
    * 실제 시스템에서는 서버의 obligation, obligation_record에 저장하고 기한 알림(OBLIGATION 이메일)은 서버가 매일 보냄 */
@@ -1111,18 +1408,19 @@ window.CLIMB = (function () {
    * 검토 상세(첨부 파일), 계약 상세(체결본), 계약 요약서(체결본)가 이 목록 하나를 같이 씀
    *   no: 판 번호(차수를 이어서 셈) / round: 올린 차수 / why: 체결본 등록, 다시 등록(앞 차수면 ", n차")
    *   fate: 그 판을 두고 ⑧에서 한 일(APPROVE 확인 완료, RETURN 다시 등록 요청, REJECT 반려, 없으면 확인 전)
-   *   current: 지금 차수에서 올린 마지막 판 / checked: current이고 ⑧ 확인 완료("확인한 체결본") */
+   *   current: 지금 차수에서 올린 마지막 판 / checked: current이고 ⑧ 확인 완료("확인한 체결본")
+   *   기획자 결정 2026-11-02: doc는 파일 종류(SIGNED 체결본, 견적서로 계약서를 대신한 계약은 QUOTE 최종 견적서, B-5), signDate는 서명본 체결일(B-8, 없으면 null) */
   function signedVersions(c) {
-    const hist = c.history || [], round = c.round || 1;
+    const hist = c.history || [], round = c.round || 1, quote = isQuoteInstead(c);
     const regs = hist.filter(function (h) { return h.action === 'REGISTER'; });
     return regs.map(function (h, i) {
       const r = h.round || 1, next = regs[i + 1];
       const first = regs.filter(function (x) { return (x.round || 1) === r; })[0] === h;
       const s08 = hist.filter(function (x) { return (x.round || 1) === r && x.step === 'S08' && x.at >= h.at && (!next || x.at < next.at); }).pop();
       const current = !next && r === round;
-      return { no: i + 1, at: h.at, by: h.actorId || c.requesterId, round: r, name: h.fileName || c.counterparty + '_체결본.pdf',
-        why: (first ? '체결본 등록' : '다시 등록') + (r < round ? ', ' + r + '차' : ''), fate: s08 ? s08.action : null,
-        current: current, checked: current && !!s08 && s08.action === 'APPROVE' };
+      return { no: i + 1, at: h.at, by: h.actorId || c.requesterId, round: r, name: h.fileName || c.counterparty + (quote ? '_최종견적서_고객날인.pdf' : '_체결본.pdf'),
+        why: (first ? (quote ? '견적서 등록' : '체결본 등록') : '다시 등록') + (r < round ? ', ' + r + '차' : ''), fate: s08 ? s08.action : null,
+        current: current, checked: current && !!s08 && s08.action === 'APPROVE', doc: quote ? 'QUOTE' : 'SIGNED', signDate: h.signDate || null };
     });
   }
   // 바뀐 판의 까닭(글자로): 다시 등록 요청, ⑧ 반려
@@ -1201,10 +1499,20 @@ window.CLIMB = (function () {
     const op = e.op;
     if (!op) return;
     const day = e.at.slice(0, 10);
+    // 기획자 결정 2026-11-02 A-6: 공지는 사유 칸 없이 "공지 올림", "공지 고침", "공지 내림"을 사유로 남김(REQ-ADM-10의 예외)
+    //   사유를 "-"로 남긴 예전 시연 기록과 공지 내림(notice.js)도 같은 글로 맞춤
+    const noticeReason = { NOTICE_ADD: '공지 올림', NOTICE_EDIT: '공지 고침', NOTICE_HIDE: '공지 내림' }[op.k];
+    if (noticeReason && (!e.reason || e.reason === '-')) e.reason = noticeReason;
     if (op.k === 'ASSIGNEE') D.ASSIGNEE_CHANGES.push({ step: op.step, to: op.to, at: e.at });
     else if (op.k === 'DELEGATE') D.DELEGATIONS.push(Object.assign({ by: e.by, at: e.at, endedAt: null }, op.d));
     else if (op.k === 'DELEGATE_END') { const d = findBy(D.DELEGATIONS, 'id', op.id); if (d) d.endedAt = e.at; }
     else if (op.k === 'ALERT_RULE') D.ALERT_RULES[op.key] = op.to;
+    // 가격 예외의 영업 임원 승인 기준(기획자 결정 2026-11-02 E-3, 영역 RULE): { k: 'PRICE_RULE', key: 'cooOverPp', to: 숫자(%p) }
+    //   바꾸기 전 값을 함께 남겨 이미 기안한 계약은 그때 값으로 결재선을 정함(C.cooOverPp(기안 일시))
+    else if (op.k === 'PRICE_RULE') { D.PRICE_RULE_CHANGES.push({ key: op.key, from: D.PRICE_RULES[op.key], to: op.to, at: e.at }); D.PRICE_RULES[op.key] = op.to; }
+    // 위임전결 근거(기획자 결정 2026-11-02 E-3, 영역 RULE, 결재선 규칙 화면): { k: 'RULE_BASIS', name: 규정 이름, ver: 판 }. 결재선은 바뀌지 않음
+    //   처음에는 없음(D.RULE_BASIS가 비어 있음). 실제 규정 이름과 판은 운영 시작 전에 넣음 [가정]
+    else if (op.k === 'RULE_BASIS') D.RULE_BASIS = { name: op.name, ver: op.ver, by: e.by, at: e.at };
     else if (op.k === 'ACCOUNT_ADD') {
       const a = Object.assign({ status: 'INVITED', registeredAt: day, firstLoginAt: null, lastLoginAt: null, lastLogoutAt: null, roleChangedAt: day, id: newUserId(op.a.email) }, op.a);
       D.ACCOUNTS.push(a);
@@ -1377,7 +1685,10 @@ window.CLIMB = (function () {
     teams.forEach(function (team) {
       if (leaderAt(team, '9999') === userId) out.push({ key: 'S03:' + team, label: D.STEPS.S03.no + ' ' + D.STEPS.S03.name + '(' + team + ' 리더)', role: 'HEAD' });
     });
-    if (assigneeOf('S03') === userId) out.push({ key: 'S03', label: D.STEPS.S03.no + ' ' + D.STEPS.S03.name + '(리더 본인 계약)', role: 'EXEC' });
+    // 기획자 결정 2026-11-02 E-3: 영업 임원은 할인 폭이 큰 계약의 ③ 영업 임원 승인도 맡음(리더 본인 계약의 ③ 담당과 같은 사람이라 한 줄로)
+    if (assigneeOf('S03') === userId) out.push({ key: 'S03', label: D.STEPS.S03.no + ' ' + D.STEPS.S03.name + '(리더 본인 계약, 할인 폭이 큰 계약의 영업 임원 승인)', role: 'EXEC' });
+    // 기획자 결정 2026-11-02 B-3: 운영 변경 HR 충전의 ⑩ 재무 확인(재무 리더)
+    if (assigneeOf('S10:HR') === userId) out.push({ key: 'S10:HR', label: D.STEPS.S10.no + ' ' + D.STEPS.S10.name + '(HR 충전)', role: roleFor(userId, 'S10') });
     return out;
   }
   // 내가 처리할 차례인지: 담당자 본인이거나, 그 담당자의 대리로 지정된 기간 안
@@ -1414,6 +1725,7 @@ window.CLIMB = (function () {
       const r = D.CONTRACTS.find(function (x) { return x.id === t.parentId; });
       if (r) { r.status = 'TERMINATED'; r.terminatedAt = t.completedAt; r.terminateDate = t.terminateDate; }
     });
+    applyExpiry(); // 만료 처리와 유예 차례를 다시 계산 (기획자 결정 2026-11-02 A-10, A-11)
   }
   applyBundleEffects();
   const CHILD_LETTER = { AMEND: 'A', RENEW: 'R', TERMINATE: 'T', CHANGE: 'C' };
@@ -1474,7 +1786,8 @@ window.CLIMB = (function () {
   }
   // 해지 통지 기한 한 줄: "해지 통지 기한 2026-11-01 D-13" / 지났으면 "해지 통지 기한 2026-09-15 지남"
   //   ALERT_RULES.noticeSoonDays(30일) 안이거나 지났으면 "D-13", "지남"만 강조 글자(wait-long). 좁은 칸에서도 덩어리가 짧게
-  //   label: 앞 글자(자동갱신 칸 안에서는 "통지 기한"으로 줄임). 이메일은 noticeMailDays(30일, 7일) 전에 영업대표에게
+  //   label: 앞 글자(자동갱신 칸 안에서는 "통지 기한"으로 줄임). 이메일은 noticeMailDays(30일, 7일) 전에 영업대표에게,
+  //   그 유닛 리더에게는 가장 짧은 날(7일 전)에 (기획자 결정 2026-11-02 E-12. 일수는 결재선 규칙에서 바꿈, A-5)
   function noticeText(b, label) {
     const n = noticeDate(b);
     if (!n) return '';
@@ -1483,6 +1796,209 @@ window.CLIMB = (function () {
     // 날짜와 D-day는 한 덩어리(keep)로: 좁은 칸에서 날짜 가운데가 끊기지 않게
     return (label || '해지 통지 기한') + ' <span class="keep">' + fmtDate(n) + ' ' +
       (d <= D.ALERT_RULES.noticeSoonDays ? '<span class="wait-long">' + tag + '</span>' : tag) + '</span>';
+  }
+
+  /* ---------- 만료 처리와 유예 (기획자 결정 2026-11-02 A-10, A-11) ----------
+   * 만료 처리(A-10): 지금 유효한 계약이 만료(종료일이 지남)이고 연장이나 새 계약 기안이 없으면 고객지원(HR 서비스도)의 차례
+   *   해지의 ⑨와 같은 확인 항목(라이선스나 도메인 닫기, 계약 종료일 설정)을 남김. 재무 확인은 없음
+   *   연장(묶음 안, 진행 중이거나 계약 완료)이나 같은 거래처의 새 계약(종료일 30일 전 뒤에 기안하고 서비스가 겹침, 진행 중이거나 계약 완료)이 있으면 차례가 없음
+   *   새 계약은 묶음이 달라 거래처 이름으로 찾음 [가정: 실제 시스템은 거래처 번호]. 임시 저장과 반려된 기안은 세지 않음
+   * 유예(A-11): 연장 협상 중이면 영업대표가 유예를 요청(사유 필수, 기한은 종료일 뒤 EXPIRY_RULES.graceMaxDays일 안)
+   *   그 유닛의 영업 리더(리더 본인 계약이면 영업 임원)가 확인하거나 반려(반려 사유 필수)
+   *   확인된 유예의 기한까지는 만료 처리 차례가 없고 "유예 중 (~기한)". 기한 다음 날부터 다시 만료 처리 차례
+   *   요청만 하고 확인 전이면 만료 처리 차례는 그대로 [가정: 확인 없이 서비스를 열어 두지 않게]
+   *   끝나기 전에도 종료일 EXPIRY_RULES.graceAskDays일 전부터 요청할 수 있음. 연장 기안이 있으면 요청할 일이 없어 단추가 없음
+   * 기록: 지금 유효한 계약의 결재 기록(history)에 남아 결재 문서와 계약 요약서의 결재 기록에 보임
+   *   유예 요청 { step: 'S01', action: 'GRACE', graceUntil } / 확인과 반려 { step: 'SGR', action: 'GRACE_OK', 'GRACE_NO' } / 만료 처리 { step: 'SXP', action: 'APPROVE' }
+   * 차례: 그 계약의 결재란(approvals)에 ⑨ 만료 처리(SXP)와, 요청 중이면 ③ 만료 유예 확인(SGR)을 덧붙임(phase 5)
+   *   그래서 대기 목록(pendingQueue), 내 할 일(myActions), 대기 일수(waitDays), 열람(canView)이 다른 단계처럼 셈
+   *   처리는 결재 문서가 아니라 계약 상세와 만료 예정의 단추에서(canCloseExpiry, canAskGrace, canDecideGrace와 아래 창)
+   * 실제 시스템에서는 서버가 매일 종료일을 보고 계약 상태를 만료로 바꾸고 이 차례를 만듦 */
+  function expiryInfo(b) {
+    if (!b || !b.end || AFTER_STATUS.indexOf(b.status) < 0) return null;
+    const h = b.current, hist = h.history || [];
+    const ended = b.status === 'EXPIRED' && b.end < D.TODAY;
+    // 유예 요청마다 그 뒤의 첫 확인이나 반려
+    const asks = hist.filter(function (e) { return e.action === 'GRACE'; }).map(function (e) {
+      const d = hist.filter(function (y) { return y.step === 'SGR' && (y.action === 'GRACE_OK' || y.action === 'GRACE_NO') && y.at >= e.at; })[0] || null;
+      return { entry: e, until: e.graceUntil, decision: d, state: !d ? 'REQUESTED' : d.action === 'GRACE_OK' ? 'OK' : 'NO' };
+    });
+    const ask = asks[asks.length - 1] || null;
+    const grace = asks.filter(function (a) { return a.state === 'OK'; }).pop() || null; // 확인된 마지막 유예
+    const done = hist.filter(function (e) { return e.step === 'SXP' && e.action === 'APPROVE'; }).pop() || null;
+    const going = WORKING.concat(['SUPPLEMENT', 'ACTIVE']);
+    // 기획자 결정 2026-11-02 A-10: 새 계약은 이 계약을 잇는 것만 셈. 종료일 graceAskDays(30)일 전 뒤에 기안했고 서비스가 겹치는 것
+    //   [가정] 같은 거래처가 따로 맺은 다른 계약(앞서 기안했거나 다른 서비스)으로 만료 처리 차례가 사라지지 않게
+    const svc = h.services || b.root.services || [];
+    const renewFrom = addDays(b.end, -D.EXPIRY_RULES.graceAskDays);
+    const block = b.items.filter(function (x) { return x !== h && x.kind === 'RENEW' && going.indexOf(x.status) > -1; })[0] ||
+      D.CONTRACTS.filter(function (x) {
+        return x.id && !x.parentId && x.kind === 'NEW' && x.id !== b.id && x.counterparty === b.root.counterparty &&
+          (x.requestedAt || '') > (b.root.requestedAt || '') && going.indexOf(x.status) > -1 &&
+          String(x.requestedAt || '').slice(0, 10) >= renewFrom &&
+          (x.services || []).some(function (s) { return svc.indexOf(s) > -1; });
+      })[0] || null;
+    const graceOn = !!grace && D.TODAY <= grace.until;
+    const state = done ? 'DONE' : !ended ? 'NONE' : block ? 'OFF' : graceOn ? 'GRACE' : 'OPEN';
+    // 고객지원의 차례가 온 때: 종료 다음 날. 확인된 유예가 끝났으면 그 기한 다음 날
+    const arrivedAt = addDays(grace && grace.until > b.end ? grace.until : b.end, 1) + ' 09:00';
+    const blockName = block ? (block.kind === 'RENEW' ? '연장' : '새 계약') : '';
+    const look = {
+      NONE: ['', ''], OPEN: ['danger', '만료, 서비스 닫기 전'], GRACE: ['attention', '유예 중 (~' + (grace ? fmtDate(grace.until) : '') + ')'],
+      DONE: ['neutral', '만료, 서비스 닫음'], OFF: ['neutral', '만료, ' + blockName + ' ' + (block && block.status === 'ACTIVE' ? '계약 완료' : '진행 중')],
+    }[state];
+    let step = null, askStep = null;
+    if (ended) {
+      const uid = stepUser('SXP', h, state === 'OPEN' || state === 'DONE' ? arrivedAt : '9999');
+      step = { step: 'SXP', role: roleFor(uid, 'SXP'), phase: 5, userId: uid,
+        state: { DONE: 'DONE', OPEN: 'PENDING', GRACE: 'WAITING', OFF: 'SKIPPED' }[state],
+        reason: state === 'OFF' ? blockName + ' 기안이 있어 만료 처리 없음' : state === 'GRACE' ? look[1] : '',
+        arrivedAt: state === 'OPEN' || state === 'DONE' ? arrivedAt : null,
+        decidedAt: done ? done.at : null, decidedBy: done ? done.actorId : null, onBehalfOf: done ? done.onBehalfOf || null : null,
+        delegationId: done ? done.delegationId || null : null, comment: done ? done.comment || '' : '', fileName: null, signDate: null, openDate: null };
+    }
+    // 확인 차례는 요청한 기한이 아직 지나지 않았을 때만(기한이 지난 요청은 확인할 일이 없어 저절로 끝남)
+    if (ask && ask.state === 'REQUESTED' && ask.until >= D.TODAY && state !== 'DONE' && state !== 'OFF') {
+      const uid2 = stepUser('SGR', h, ask.entry.at);
+      askStep = { step: 'SGR', role: roleFor(uid2, 'SGR'), phase: 5, userId: uid2, state: 'PENDING', reason: '', arrivedAt: ask.entry.at,
+        decidedAt: null, decidedBy: null, onBehalfOf: null, delegationId: null, comment: '', fileName: null, signDate: null, openDate: null };
+    }
+    // 덧붙이는 한 줄: 요청 중인 유예, 끝나기 전에 확인된 유예
+    const note = askStep ? '유예 요청 중 (~' + fmtDate(ask.until) + ', ' + stepWho('SGR', h) + ' 확인 전)'
+      : !ended && grace ? '종료 뒤 유예 확인됨 (~' + fmtDate(grace.until) + ')' : '';
+    return { bundle: b.id, holder: h, end: b.end, ended: ended, state: state, tone: look[0], label: look[1], note: note,
+      block: block, ask: ask, grace: grace, graceOn: graceOn, done: done, arrivedAt: state === 'OPEN' ? arrivedAt : null, step: step, askStep: askStep };
+  }
+  // 모든 묶음의 만료 처리와 유예를 다시 계산해 지금 유효한 계약의 결재란에 차례를 덧붙임 (applyBundleEffects가 부름)
+  function applyExpiry() {
+    Object.keys(EXPIRY).forEach(function (k) { delete EXPIRY[k]; });
+    D.CONTRACTS.forEach(function (c) {
+      if ((c.approvals || []).some(function (a) { return AFTER_STEPS.indexOf(a.step) > -1; })) {
+        c.approvals = c.approvals.filter(function (a) { return AFTER_STEPS.indexOf(a.step) < 0; });
+      }
+    });
+    bundles().forEach(function (b) {
+      const x = expiryInfo(b);
+      if (!x) return;
+      EXPIRY[b.id] = x;
+      const add = [x.step, x.askStep].filter(Boolean);
+      if (add.length) x.holder.approvals = (x.holder.approvals || []).concat(add);
+    });
+  }
+  // 묶음(또는 묶음 번호, 묶음 안의 계약)의 만료 처리와 유예 정보. 끝나지 않았고 기록도 없으면 state NONE
+  //   { state: NONE 끝나지 않음, OPEN 만료 처리 차례, GRACE 유예 중, OFF 연장이나 새 계약이 있음, DONE 만료 처리 끝, label, tone, note,
+  //     holder: 기록을 남기는 계약, step: ⑨ 만료 처리 차례, askStep: ③ 유예 확인 차례, ask: 마지막 유예 요청, grace: 확인된 마지막 유예, done: 만료 처리 기록 }
+  function expiryOf(b) {
+    if (!b) return null;
+    const id = typeof b === 'string' ? b : b.items ? b.id : rootOf(b);
+    return EXPIRY[id] || null;
+  }
+  // 유예 기한으로 고를 수 있는 날 { min, max }: 종료 다음 날(지났으면 오늘, 확인된 유예가 있으면 그 기한 다음 날)부터 종료일 뒤 graceMaxDays일까지
+  function graceRange(b) {
+    const x = expiryOf(b);
+    if (!x || !b.end) return null;
+    const max = addDays(b.end, D.EXPIRY_RULES.graceMaxDays);
+    let min = addDays(b.end, 1);
+    if (D.TODAY > min) min = D.TODAY;
+    if (x.grace && x.grace.until >= min) min = addDays(x.grace.until, 1);
+    return min <= max ? { min: min, max: max } : null;
+  }
+  // 유예 요청: 영업대표(시연용 최고관리자 포함). 만료 처리 차례이거나 유예 중(기한을 늘릴 때), 또는 끝나기 graceAskDays일 전부터
+  function canAskGrace(b, user) {
+    const x = expiryOf(b);
+    if (!x || !(b.root.requesterId === user.id || user.role === 'SUPER')) return false;
+    if (x.state === 'DONE' || x.state === 'OFF' || x.block || x.askStep || !graceRange(b)) return false;
+    if (x.ended) return true;
+    const d = daysUntil(b.end);
+    return b.status === 'ACTIVE' && d >= 0 && d <= D.EXPIRY_RULES.graceAskDays;
+  }
+  // 유예 확인과 반려: 그 차례의 영업 리더(대리 지정 포함, 시연용 최고관리자). 영업대표와 요청한 사람은 하지 못함(직무 분리)
+  function canDecideGrace(b, user) {
+    const x = expiryOf(b);
+    if (!x || !x.askStep) return false;
+    if (user.role !== 'SUPER' && (user.id === x.holder.requesterId || user.id === b.root.requesterId || user.id === x.ask.entry.actorId)) return false;
+    return isMyStep(x.askStep, user) || user.role === 'SUPER';
+  }
+  // 만료 처리: 그 차례의 고객지원 담당자(대리 지정 포함, 시연용 최고관리자)
+  function canCloseExpiry(b, user) {
+    const x = expiryOf(b);
+    return !!x && !!x.step && x.step.state === 'PENDING' && (isMyStep(x.step, user) || user.role === 'SUPER');
+  }
+  // 창: 만료 처리 완료. 확인 항목을 모두 확인해야 처리되고 결재 기록에 "확인: ..."으로 남음. after: 처리한 뒤 화면을 다시 그리는 함수
+  function openExpiryClose(b, user, after) {
+    const x = expiryOf(b);
+    if (!canCloseExpiry(b, user)) return;
+    const h = x.holder, checks = expiryChecks(h);
+    formModal({
+      title: '만료 처리를 완료할까요?',
+      desc: '완료하면 서비스를 닫은 것으로 결재 기록에 남고 고칠 수 없습니다. 재무 확인은 없습니다.',
+      body: '<p class="modal-info">' + meta([['계약', esc(h.counterparty + ' ' + h.id)], ['종료일', fmtDate(b.end)], ['서비스', esc(serviceLabel(h.services))]]) +
+          (x.note ? '<br>' + esc(x.note) : '') + '</p>' +
+        '<fieldset class="field" data-field="checks"><legend class="field-label">서비스에 한 일 (모두 확인)<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>' +
+          '<div class="choice-col">' + checks.map(function (t) { return '<label class="choice"><input type="checkbox" name="chk" value="' + esc(t) + '">' + esc(t) + '</label>'; }).join('') +
+          '</div><p class="field-error" hidden></p></fieldset>' +
+        fieldHtml({ name: 'memo', label: '메모', type: 'textarea', placeholder: '예: 고객에게 종료 안내 메일을 보냄' }),
+      btn: '만료 처리 완료',
+      check: function (f) { return { checks: f.querySelectorAll('[name="chk"]:not(:checked)').length ? '확인 항목을 모두 확인해 주세요.' : '' }; },
+      done: function (f) {
+        const memo = f.elements.memo.value.trim();
+        recordAction(h, x.step, 'APPROVE', ['확인: ' + checks.join(', '), memo].filter(Boolean).join('. '), user);
+        const msg = '만료 처리를 완료했습니다. 결재 기록에 남았습니다.';
+        toast(msg);
+        if (after) after(msg); // 화면을 다시 불러오는 화면은 이 글을 C.flash로 넘김
+      },
+    });
+  }
+  // 창: 유예 요청. 기한(필수, graceRange 안)과 사유(필수). 결재 기록에 "유예 기한 2026-11-10. 사유"로 남고 기한은 graceUntil 칸에
+  function openGraceAsk(b, user, after) {
+    const x = expiryOf(b), r = graceRange(b);
+    if (!canAskGrace(b, user) || !r) return;
+    const h = x.holder, who = stepUser('SGR', h, '9999');
+    formModal({
+      title: '유예를 요청할까요?',
+      desc: '연장 협상이 이어지는 동안 기한까지 서비스를 열어 둡니다. ' + josa(roleShort(roleFor(who, 'SGR')), '이', '가') +
+        ' 확인하면 기한까지 만료 처리를 하지 않고, 기한이 지나면 다시 고객지원의 만료 처리 차례가 됩니다.',
+      body: '<p class="modal-info">' + meta([['계약', esc(h.counterparty + ' ' + h.id)], ['종료일', fmtDate(b.end)], ['확인하는 사람', esc(ownerLabel(who))]]) + '</p>' +
+        fieldHtml({ name: 'until', label: '유예 기한', type: 'date', required: true, attrs: ' min="' + r.min + '" max="' + r.max + '"',
+          help: fmtDate(r.min) + '부터 ' + fmtDate(r.max) + '(종료일 뒤 ' + D.EXPIRY_RULES.graceMaxDays + '일)까지 고릅니다. 이날까지 서비스를 열어 둡니다.' }) +
+        fieldHtml({ name: 'reason', label: '유예 사유', type: 'textarea', required: true, placeholder: '예: 연장 단가를 협상 중이라 11월 초까지 서비스를 열어 둠' }),
+      btn: '유예 요청',
+      check: function (f) {
+        const u = f.elements.until.value;
+        return { until: !u ? '유예 기한을 고르세요.' : u < r.min || u > r.max ? fmtDate(r.min) + '부터 ' + fmtDate(r.max) + ' 사이의 날을 고르세요.' : '',
+          reason: f.elements.reason.value.trim() ? '' : '유예 사유를 적으세요.' };
+      },
+      done: function (f) {
+        const u = f.elements.until.value;
+        recordAction(h, { step: 'S01', userId: b.root.requesterId }, 'GRACE', '유예 기한 ' + u + '. ' + f.elements.reason.value.trim(), user, { graceUntil: u });
+        const msg = '유예를 요청했습니다. ' + josa(ownerLabel(who), '이', '가') + ' 확인하면 유예 중이 됩니다.';
+        toast(msg);
+        if (after) after(msg);
+      },
+    });
+  }
+  // 창: 유예 확인(ok true) 또는 반려(ok false, 사유 필수)
+  function openGraceDecide(b, user, ok, after) {
+    const x = expiryOf(b);
+    if (!canDecideGrace(b, user)) return;
+    const a = x.ask, h = x.holder;
+    formModal({
+      title: ok ? '유예를 확인할까요?' : '유예를 반려할까요?',
+      desc: ok ? '확인하면 기한까지 만료 처리를 하지 않고 "유예 중"으로 보입니다. 기한이 지나면 다시 고객지원의 만료 처리 차례가 됩니다.'
+        : '반려하면 유예 없이 ' + (x.ended ? '고객지원의 만료 처리 차례가 그대로 이어집니다.' : '종료일이 지나면 고객지원의 만료 처리 차례가 됩니다.'),
+      body: '<p class="modal-info">' + meta([['계약', esc(h.counterparty + ' ' + h.id)], ['종료일', fmtDate(b.end)], ['유예 기한', fmtDate(a.until)],
+          ['요청', esc(ownerLabel(a.entry.actorId) + ', ' + fmtDateTime(a.entry.at))]]) + '<br>' + esc(a.entry.comment || '') + '</p>' +
+        fieldHtml({ name: 'memo', label: ok ? '의견' : '반려 사유', type: 'textarea', required: !ok,
+          placeholder: ok ? '예: 협상 일정 확인. 기한 안에 연장 기안이 없으면 닫음' : '예: 협상 일정이 정해지지 않아 유예 없이 닫음' }),
+      btn: ok ? '유예 확인' : '유예 반려', tone: ok ? 'primary' : 'danger',
+      check: function (f) { return { memo: ok || f.elements.memo.value.trim() ? '' : '반려 사유를 적으세요.' }; },
+      done: function (f) {
+        recordAction(h, x.askStep, ok ? 'GRACE_OK' : 'GRACE_NO', f.elements.memo.value.trim(), user, { graceUntil: a.until });
+        const msg = ok ? '유예를 확인했습니다. ' + fmtDate(a.until) + '까지 서비스를 열어 둡니다.' : '유예를 반려했습니다.';
+        toast(msg);
+        if (after) after(msg);
+      },
+    });
   }
 
   // 다음 화면에서 한 번 보여 줄 안내 (예: 승인한 뒤 목록으로 돌아갔을 때)
@@ -1617,8 +2133,8 @@ window.CLIMB = (function () {
         // 메뉴 줄이 위에 붙었을 때(PC) 보이는 계정, 메뉴 검색 아이콘(v0.61 기획자 선택). 자리는 늘 잡아 두고 붙을 때만 보여 메뉴와 이용 안내가 움직이지 않음
         //   v0.60의 메뉴 줄 돋보기와 그 아래 검색 칸(.gnb-search)은 머리글 판(#menu-search)으로 합침
         (guest ? '' : '<div class="gnb-tools">' + hdrIcons('bar') + '</div>') +
-        // 이용 안내(SCR-90): 메뉴 줄 오른쪽 끝 (REQ-UI-14)
-        '<a class="gnb-aside' + (pageId === 'SCR-90' ? ' is-current" aria-current="page' : '') + '" href="help.html">' + icon('help', 'sm') + '<span class="gnb-aside-label">이용 안내</span></a>' +
+        // 이용 안내(SCR-90): 메뉴 줄 오른쪽 끝 (REQ-UI-14). 메뉴 줄이 위에 붙으면 아이콘만(2026-11-02 기획자 요청, common.css): title은 그때 마우스를 올리면 보이는 이름
+        '<a class="gnb-aside' + (pageId === 'SCR-90' ? ' is-current" aria-current="page' : '') + '" href="help.html" title="이용 안내">' + icon('help', 'sm') + '<span class="gnb-aside-label">이용 안내</span></a>' +
       '</div>' +
       '</nav>' +
       // 머리글 아래로 펼쳐지는 판(v0.61, 휴대폰과 PC 모두): 계정, 메뉴 검색
@@ -1762,8 +2278,9 @@ window.CLIMB = (function () {
       syncDim();
     }
     function closeSheets(returnFocus) { if (openSheet) setSheet(openSheet, false, returnFocus); }
+    // 판 높이: 판 윗변부터 화면 아래까지. PC는 판이 메뉴 줄을 덮으며 시작해(2026-11-02 기획자 요청, common.css .hdr-sheet) 머리글 아래가 아니라 판 자신의 윗변에서 잼
     function fitSheet() {
-      if (openSheet) openSheet.sheet.style.maxHeight = Math.max(160, window.innerHeight - el.getBoundingClientRect().bottom) + 'px';
+      if (openSheet) openSheet.sheet.style.maxHeight = Math.max(160, window.innerHeight - Math.max(0, openSheet.sheet.getBoundingClientRect().top)) + 'px';
     }
     el.querySelectorAll('.hdr-sheet').forEach(function (sheet) {
       const s = { sheet: sheet, btns: [].slice.call(el.querySelectorAll('[aria-controls="' + sheet.id + '"]')) };
@@ -2739,10 +3256,27 @@ window.CLIMB = (function () {
     isOppNo: isOppNo, pandaUrl: pandaUrl, pandaLink: pandaLink,
     serviceLabel: serviceLabel, featureLabel: featureLabel, featureText: featureText,
     // 결재 흐름 (결재선, 지금 상태, 처리)
-    reviewRoute: reviewRoute, stepLabel: stepLabel, kindLabel: kindLabel, isShort: isShort, isChange: isChange, changeSales: changeSales,
+    // stepWho, stepTag: 단계를 맡는 사람 이름 "③ 영업 리더" (기획자 결정 2026-11-02 D-3)
+    reviewRoute: reviewRoute, stepLabel: stepLabel, stepWho: stepWho, stepTag: stepTag, kindLabel: kindLabel, isShort: isShort, isChange: isChange, changeSales: changeSales,
     currentStep: currentStep, pendingSteps: pendingSteps, routedReview: routedReview, isReviewStep: isReviewStep, waitDays: waitDays,
     stepDots: stepDots, progressText: progressText, progressCells: progressCells, actionLabel: actionLabel, opsChecksFor: opsChecksFor, signDate: signDate, methodOf: methodOf,
     canAct: canAct, canCancel: canCancel, canResubmit: canResubmit, resubmitHref: resubmitHref, resubmitSource: resubmitSource, rejectionNotice: rejectionNotice, resubmitRecord: resubmitRecord, recordAction: recordAction, pendingQueue: pendingQueue, myActions: myActions,
+    // 기획자 결정 2026-11-02 (결재 흐름 엔진)
+    //   E-3 영업 임원 승인: cooOverPp(기안 일시) 기준 %p, capOver(c) 줄마다 한도를 넘은 폭, capOverPp(c) 그중 가장 큰 값
+    //   B-4 무상 충전 누적: freeChargeUsed(묶음 번호, 날짜, 뺄 계약번호, 종류), contractYearOf(시작일, 날짜),
+    //     contractYearWindow(묶음, 날짜) 그날이 든 계약 기간과 계약 연도 { term, n, from, to }
+    //   B-5 견적서로 계약서를 대신함: quoteInsteadAllowed(c), isQuoteInstead(c), signedChecks(c) ⑧ 확인 항목, signDocLabel(c)
+    //   B-8 서명본 체결일과 개통일: signedDate(c), openDate(c), dateOrderIssues(c)
+    //   차례 화면 주소: turnHref(c, s) / 하는 일 이름: stepIng(c, code)
+    cooOverPp: cooOverPp, capOver: capOver, capOverPp: capOverPp, freeChargeUsed: freeChargeUsed, contractYearOf: contractYearOf, contractYearWindow: contractYearWindow,
+    quoteInsteadAllowed: quoteInsteadAllowed, isQuoteInstead: isQuoteInstead, signedChecks: signedChecks, signDocLabel: signDocLabel,
+    signedDate: signedDate, openDate: openDate, dateOrderIssues: dateOrderIssues, turnHref: turnHref, stepIng: stepIng,
+    //   C-15 ④ 법무 승인 기록(반부패 조항 판단): legalApproval(c)
+    legalApproval: legalApproval,
+    //   A-10, A-11 만료 처리와 유예: expiryOf(묶음), expiryChecks(c), graceRange(묶음), canAskGrace, canDecideGrace, canCloseExpiry(묶음, 사람)
+    //     창: openExpiryClose(묶음, 사람, 다시 그리기), openGraceAsk(묶음, 사람, 다시 그리기), openGraceDecide(묶음, 사람, 확인이면 true, 다시 그리기)
+    expiryOf: expiryOf, expiryChecks: expiryChecks, graceRange: graceRange, canAskGrace: canAskGrace, canDecideGrace: canDecideGrace, canCloseExpiry: canCloseExpiry,
+    openExpiryClose: openExpiryClose, openGraceAsk: openGraceAsk, openGraceDecide: openGraceDecide,
     // 기안자 기준 지금 담당자 (결재선 미리 보기): C.stepUserNow('S03', { requesterId: 'u_sales1' })
     stepUserNow: function (code, c) { return stepUser(code, c, '9999'); },
     stepUserAt: stepUser,
@@ -2761,6 +3295,10 @@ window.CLIMB = (function () {
     addObligation: addObligation, recordObligation: recordObligation, endObligation: endObligation,
     // 시연 기록 (프로토타입 전용)
     saveDemoContract: saveDemoContract,
+    // 재무 의견(기획자 결정 2026-11-02 B-6): 남길 수 있는지 canWriteFinOpinion(c, 사람), 남기기 addFinOpinion(c, 글, 사람). 계약의 c.finOpinions
+    canWriteFinOpinion: canWriteFinOpinion, addFinOpinion: addFinOpinion,
+    // 시연 저장소 읽기와 더하기(DEMO_KEYS의 이름). 통계의 기간 마감 점검 확인(closeChecks, 기획자 결정 2026-11-02 B-9)이 씀
+    loadDemo: loadDemo, pushDemo: pushDemo,
     currentUser: currentUser, // 견적 화면이 머리글을 그리기 전에 고치기인지 보기인지 정할 때(v0.61)
     allQuotes: allQuotes, findQuote: findQuote, saveQuote: saveQuote, newQuoteNo: newQuoteNo, quoteTotals: quoteTotals, quoteStatus: quoteStatus, quoteLineOverCap: quoteLineOverCap, quoteOverCap: quoteOverCap, canSeeQuote: canSeeQuote, canEditQuote: canEditQuote, newDraftKey: newDraftKey, addNote: addNote, deleteDraft: deleteDraft, flash: flash,
     // 관리자 설정 (SCR-51~58)

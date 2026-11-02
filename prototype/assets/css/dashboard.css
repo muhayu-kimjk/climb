@@ -27,6 +27,15 @@
 
 /* 대기 일수 강조, 고객사와 서비스 칸, 칸 아래 작은 글자 줄은 목록 화면들이 함께 쓰므로 common.css(표)로 옮김 (v0.18) */
 
+/* 진행 상세 표 위 회색 안내 한 줄 (기획자 결정 2026-11-02 D-2): 모양은 common.css 15장 .step-guide. 개요는 아래 여백만 넓게(예전과 같음) */
+.step-guide { margin-bottom: 1.2rem; }
+
+/* "내 차례" 배지 (기획자 결정 2026-11-02 D-1): PC는 현재 진행 칸 단계 이름 뒤, 휴대폰은 고객사 아래 상태 배지 옆(.cell-sub)
+ *   휴대폰에서 현재 진행 칸이 한 줄에 들어가게(v0.55) 그 칸의 배지는 감춤 */
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
+  #progress .turn-wide { display: none; }
+}
+
 /* 휴대폰(600px 이하)만: "계약 진행 현황" 단계를 한 줄에 하나씩 (v0.43 기획자 요청. 다섯 칸을 한 줄에 두면 이름이 글자 단위로 끊김)
  * [번호 원] 1단계 계약 등록 ......... 10건. 원 사이는 세로선으로 이음. PC와 인쇄는 가로 그대로 */
 @media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {

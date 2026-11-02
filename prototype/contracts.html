@@ -23,6 +23,7 @@
   - 보관함: 반려, 진행 중, 계약 완료, 만료, 해지를 포함한 모든 계약을 묶음마다 한 줄로 (REQ-FLOW-15, REQ-ARC-01)
     묶음 = 원계약 + 변경(-A) + 연장(-R) + 해지(-T) (REQ-FLOW-18, 3.3 방식 C)
   - 작성 중(임시 저장)은 나오지 않습니다. 열람 제한 계약은 볼 수 없는 사람에게 가립니다(REQ-AUTH-09).
+  - 변경과 연장 칸은 계약 완료된 변경과 연장만 셉니다. 진행 중이거나 반려된 변경, 연장, 해지 기안은 상태 칸 아래 줄에 보입니다 (기획자 결정 2026-11-02 D-13)
   - 고객사를 누르면 계약 상세(SCR-42)가 열립니다. 거르기, 쪽 나누기는 assets/js/contracts.js가 처리합니다.
 ====================================================================== -->
 <body data-page="SCR-41">
@@ -39,7 +40,8 @@
       </div>
       <div class="page-intro">
         <p>지금까지의 모든 계약입니다. 원계약과 그 변경, 연장, 해지를 한 줄로 묶어 보여 줍니다.</p>
-        <p class="sub">계약 기간은 지금 유효한 계약(계약 완료된 마지막 연장, 없으면 원계약) 기준입니다. 고객사를 누르면 계약 상세가 열립니다.</p>
+        <!-- D-13: 변경과 연장 칸이 무엇을 세는지 알림 -->
+        <p class="sub">계약 기간은 지금 유효한 계약(계약 완료된 마지막 연장, 없으면 원계약) 기준입니다. 변경과 연장 칸은 계약 완료된 것만 세고, 진행 중이거나 반려된 기안은 상태 아래에 보입니다. 고객사를 누르면 계약 상세가 열립니다.</p>
       </div>
 
       <section id="list" aria-labelledby="list-title">
@@ -61,6 +63,8 @@
             <label class="field-label field-label--sm" for="f-owner">영업대표</label>
             <select class="select" id="f-owner"></select>
           </div>
+          <!-- 기획자 결정 2026-11-02 C-15: 표준계약서를 바꾼 계약 가운데 ④ 법무가 "반부패 조항 없음"을 고른 계약이 든 묶음만. 통계의 통제 지표에서 이어짐(?ab=NONE) -->
+          <label class="choice filter-wide"><input type="checkbox" id="f-ab">④에서 반부패 조항 없음을 고른 계약만</label>
           <button type="reset" class="btn btn--tertiary btn--md filter-reset">초기화</button>
         </form>
 

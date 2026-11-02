@@ -3,9 +3,13 @@
  * ---------------------------------------------------------------------
  * 하는 일
  *   1. 주소의 번호로 계약 묶음을 찾고(common.js bundleOf), 볼 수 있는 사람인지 확인(계약 상세와 같음)
- *   2. A4 문서 한 벌: 계약 개요, 차수와 금액(체크리스트 답 함께), 차수마다 결재 기록, 체결본 목록, 체결 후 의무(v0.53), 사후관리 기록
+ *   2. A4 문서 한 벌: 계약 개요, 계약 이력과 금액(체크리스트 답 함께), 계약마다 결재 기록, 체결본 목록, 체결 후 의무(v0.53), 사후관리 기록
  *   3. "A4로 인쇄": 브라우저 인쇄. 워터마크(출력자, 일시)는 공통 인쇄 규칙이 찍음(REQ-SEC-07)
- * 제품 줄, 체크리스트 비고, 첨부 파일과 판은 차수별 결재 문서(SCR-23)에 있어 여기서는 적지 않음(문서가 길어지지 않게)
+ * 제품 줄, 체크리스트 비고, 첨부 파일과 판은 계약마다 결재 문서(SCR-23)에 있어 여기서는 적지 않음(문서가 길어지지 않게)
+ * 기획자 결정 2026-11-02 D-6: 묶음 이름을 "차수와 금액"에서 "계약 이력과 금액"으로 바꿈.
+ *   번호에 붙는 차수(REQ-FLOW-18의 1차 변경)는 그대로
+ * 기획자 결정 2026-11-02 B-8: 개요에 서명본 체결일(올린 날)과 실제 개통일. 결재 기록에 ⑦ 체결일, ⑨ 개통일, ② 그때 같은 거래처 최근 계약 건수
+ *   B-6: 결재선 밖 재무 의견도 결재 기록 표에 시각 순서로(남긴 사람, 차수, 글)
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -40,6 +44,7 @@
   function info(label, value, cls) { return '<div><dt>' + esc(label) + '</dt><dd' + (cls ? ' class="' + cls + '"' : '') + '>' + value + '</dd></div>'; } // cls amount: 금액은 오른쪽(REQ-UI-16)
   const bizNo = (root.form && root.form.bizNo) || (D.CUSTOMERS.filter(function (cu) { return cu.name === root.counterparty; })[0] || {}).bizNo;
   const yes = function (v) { return v ? '있음' : '없음'; };
+  const curSigns = !C.isShort(cur) && !C.isChange(cur); // ⑦ ⑨에서 날짜를 받는 계약 (B-8)
   $('#summary').innerHTML = [
     info('고객사', esc(root.counterparty) + (root.unit ? '<span class="cell-meta">기관 또는 부서명: ' + esc(root.unit) + '</span>' : '')),
     bizNo ? info('사업자등록번호', esc(C.fmtBizNo(bizNo))) : '',
@@ -55,10 +60,14 @@
     info('서비스 수준 협약(SLA)', yes(root.sla === 'YES')),
     info('영업대표', esc(C.ownerLabel(root.requesterId))),
     info('열람 제한', root.restricted ? '있음' + (C.viewerText(root) ? '<span class="cell-meta">지정 열람자: ' + esc(C.viewerText(root)) + '</span>' : '') : '없음'),
+    // 기획자 결정 2026-11-02 B-8: 체결일은 ⑦에서 받은 서명본 체결일(견적서로 대신했으면 고객 날인일), 올린 날도 함께. ⑨의 실제 개통일
+    //   날인과 체결본을 거치는 계약(신규, 변경, 바꿔서 연장)만. 통계의 체결일과 같은 값(C.signedDate)
+    curSigns ? info(C.isQuoteInstead(cur) ? '고객 날인일' : '서명본 체결일', C.signedDate(cur) ? C.fmtDate(C.signedDate(cur)) + '<span class="cell-meta">올린 날 ' + C.fmtDate(cur.signedAt) + '</span>' : '-') : '',
+    curSigns ? info('실제 개통일', C.openDate(cur) ? C.fmtDate(C.openDate(cur)) : '-') : '',
     info(b.status === 'TERMINATED' ? '해지일' : '계약 완료일', b.status === 'TERMINATED' ? C.fmtDate(root.terminateDate) : cur.completedAt ? C.fmtDateTime(cur.completedAt) : '-'),
   ].join('');
 
-  /* ---------- 2. 차수와 금액 ---------- */
+  /* ---------- 2. 계약 이력과 금액 (D-6, 예전 "차수와 금액") ---------- */
   function termOf(c) {
     if (c.kind === 'TERMINATE') return '해지일 ' + C.fmtDate(c.terminateDate);
     const s = C.startOf(c), e = C.endOf(c);
@@ -75,7 +84,7 @@
     const a = function (v) { return v === 'YES' ? '예' : v === 'NO' ? '아니요' : '-'; };
     return '체크리스트 1번 ' + a(k.standard) + ', 2번 ' + a(k.price) + ', 3번 ' + a(k.cap) + (k.accounting ? ', 4번 ' + a(k.accounting) : '');
   }
-  $('#rounds').innerHTML = '<caption class="sr-only">차수와 금액: 계약번호와 기안일, 계약종류와 체크리스트, 상태, 계약 기간 또는 해지일, 금액</caption>' +
+  $('#rounds').innerHTML = '<caption class="sr-only">계약 이력과 금액: 계약번호와 기안일, 계약종류와 체크리스트, 상태, 계약 기간 또는 해지일, 금액</caption>' +
     '<thead><tr><th scope="col">계약번호</th><th scope="col" class="col-phone-wide">계약종류</th><th scope="col">상태</th><th scope="col">계약 기간 또는 해지일</th><th scope="col" class="num">금액</th></tr></thead>' +
     '<tbody>' + b.items.map(function (c) {
       return '<tr' + (c === cur ? ' class="is-current"' : '') + '>' +
@@ -92,14 +101,26 @@
     const many = (c.round || 1) > 1;
     const hist = [{ step: 'S01', action: 'SUBMIT', actorId: c.requesterId, at: c.requestedAt, comment: '', round: c.round || 1 }].concat(c.history || [])
       .sort(function (x, y) { return (x.at || '').slice(0, 16).localeCompare((y.at || '').slice(0, 16)) || (x.round || 1) - (y.round || 1); }); // 분 단위로, 같은 때면 앞 차수 먼저
+    // 기획자 결정 2026-11-02: 결재 창에서 받은 값도 의견 칸에 함께(결재 문서의 결재 기록과 같게)
+    //   ⑦ 서명본 체결일(견적서로 대신했으면 고객 날인일), ⑨ 실제 개통일(B-8), ② 그때 같은 거래처 최근 계약 건수(E-2)
+    const signDay = C.isQuoteInstead(c) ? '고객 날인일' : '서명본 체결일';
+    const extraOf = function (h) {
+      return [h.signDate ? signDay + ': ' + C.fmtDate(h.signDate) : '', h.openDate ? '실제 개통일: ' + C.fmtDate(h.openDate) : '',
+        h.recentSame != null ? '그때 같은 거래처 최근 계약: ' + h.recentSame + '건' : ''].filter(Boolean);
+    };
     const rows = hist.map(function (h) {
       // 처리한 사람은 그때 조직으로(REQ-AUTH-19, 결재 문서와 같게. v0.63 점검에서 고침: 지금 조직으로 나왔음)
       const dept = h.actorDept || (D.USERS[h.actorId] || {}).dept || '';
       return { step: (many ? (h.round || 1) + '차 ' : '') + C.stepLabel(h.step, c), act: C.actionLabel(h, c),
-        who: C.ownerLabel(h.actorId, dept) + (h.onBehalfOf ? ' (' + C.ownerLabel(h.onBehalfOf) + ' 대신, ' + (h.delegationId ? '대리 지정' : '시연') + ')' : ''), at: h.at, note: h.comment || '' };
-    }).concat(C.pendingSteps(c).map(function (s) {
-      return { step: C.stepLabel(s.step, c), act: '처리 전(차례)', who: C.ownerLabel(s.userId), at: '', note: '' };
-    }));
+        who: C.ownerLabel(h.actorId, dept) + (h.onBehalfOf ? ' (' + C.ownerLabel(h.onBehalfOf) + ' 대신, ' + (h.delegationId ? '대리 지정' : '시연') + ')' : ''), at: h.at,
+        note: [h.comment || ''].concat(extraOf(h)).filter(Boolean).join('. ') };
+    }).concat((c.finOpinions || []).map(function (o) {
+      // 결재선 밖 재무 의견(B-6): 남긴 때, 사람(그때 조직), 차수, 글. 결재 기록과 같은 표에 시각 순서로 넣음
+      return { step: (many ? (o.round || 1) + '차 ' : '') + '재무 의견(결재선 밖)', act: '의견', who: C.ownerLabel(o.by, o.dept), at: o.at, note: o.text || '' };
+    })).sort(function (x, y) { return String(x.at || '').slice(0, 16).localeCompare(String(y.at || '').slice(0, 16)); })
+      .concat(C.pendingSteps(c).map(function (s) {
+        return { step: C.stepLabel(s.step, c), act: '처리 전(차례)', who: C.ownerLabel(s.userId), at: '', note: '' };
+      }));
     return '<h3 class="round-title">' + esc(c.id) + ' ' + esc(C.kindLabel(c)) + ' <span class="round-sub">' + esc(D.STATUS[c.status].label) + '</span></h3>' +
       '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
       '<caption class="sr-only">' + esc(c.id) + ' 결재 기록: 단계, 처리, 처리한 사람, 일시, 의견</caption>' +
@@ -120,7 +141,9 @@
     '<thead><tr><th scope="col" class="col-phone-wide">파일</th><th scope="col">차수</th><th scope="col">올린 사람</th><th scope="col">일시</th></tr></thead><tbody>' +
     (signed.length ? signed.map(function (x) {
       // 바뀐 판은 까닭을 적고 지우지 않음. 확인을 마친 판은 "확인한 체결본"
-      const note = x.v.checked ? '확인한 체결본' : x.v.fate === 'RETURN' ? '다시 등록 요청으로 바뀐 앞 판(지우지 않음)' : x.v.fate === 'REJECT' ? '⑧에서 반려된 판(지우지 않음)' : '';
+      //   기획자 결정 2026-11-02 B-8, B-5: 서명본 체결일(견적서는 고객 날인일)도 함께
+      const day = x.v.signDate ? (x.v.doc === 'QUOTE' ? '고객 날인일 ' : '서명본 체결일 ') + C.fmtDate(x.v.signDate) : '';
+      const note = [x.v.checked ? (x.v.doc === 'QUOTE' ? '확인한 견적서' : '확인한 체결본') : x.v.fate === 'RETURN' ? '다시 등록 요청으로 바뀐 앞 판(지우지 않음)' : x.v.fate === 'REJECT' ? '⑧에서 반려된 판(지우지 않음)' : '', day].filter(Boolean).join(', ');
       return '<tr><td>' + esc(x.name) + (note ? '<span class="cell-meta">' + note + '</span>' : '') + '</td><td class="nowrap">' + esc(x.c.id) + ' ' + x.v.round + '차</td>' +
         '<td class="center cell-phone-nowrap">' + esc(C.ownerLabel(x.by)) + '</td><td class="center">' + C.fmtDateTime(x.at) + '</td></tr>';
     }).join('') : '<tr><td class="empty-row" colspan="4">아직 등록된 체결본이 없습니다.</td></tr>') + '</tbody>';
@@ -149,6 +172,6 @@
         '<td>' + esc(n.content) + '</td><td class="center">' + esc(C.ownerLabel(n.by)) + '</td></tr>';
     }).join('') : '<tr><td class="empty-row" colspan="4">남긴 기록이 없습니다.</td></tr>') + '</tbody>';
 
-  $('#endnote').textContent = '이 요약서는 시스템에 남은 기록으로 만들었습니다(기준일 ' + C.fmtDate(D.TODAY) + '). 제품 줄, 체크리스트 비고, 첨부 파일과 판은 차수별 결재 문서에서, 체결본 파일은 계약 상세에서 확인합니다.';
+  $('#endnote').textContent = '이 요약서는 시스템에 남은 기록으로 만들었습니다(기준일 ' + C.fmtDate(D.TODAY) + '). 제품 줄, 체크리스트 비고, 첨부 파일과 판은 계약마다 결재 문서에서, 체결본 파일은 계약 상세에서 확인합니다.'; // "차수별" → "계약마다"(D-6)
   $('#doc').hidden = false;
 })();

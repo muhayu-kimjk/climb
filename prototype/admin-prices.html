@@ -25,6 +25,8 @@
   - v0.49 기획자 결정: 제품 → 기능 두 단계. 가격 기준은 기능마다 하나입니다(v0.47의 플랜은 없앰). 제품과 기능은 제품과 기능 관리(SCR-58)
   - 바꿀 때는 적용 시작일, 사내 품의 문서 링크(필수), 변경 사유를 넣습니다. 승인은 이 시스템이 아니라 사내 품의 결재로 받습니다(REQ-CHK-07).
   - 기존 기준은 고치지 않고 새 적용 시작일로 새 줄을 더합니다. 이미 기안한 계약은 기안할 때의 기준을 그대로 씁니다.
+  - 기획자 결정 2026-11-02 D-19: 두 표가 길어(01 C-42) 맨 위에 서비스 거르기와 기능 이름 찾기를 두고 두 표에 함께 적용.
+    서비스 단추는 제품과 기능 관리(SCR-58)와 같은 모양. 바뀐 이력 표는 다른 목록처럼 한 쪽에 20건씩 쪽을 나눔(REQ-ADM-04와 같은 기준)
   - 동작은 assets/js/admin-prices.js
 ====================================================================== -->
 <body data-page="SCR-54">
@@ -47,6 +49,23 @@
       <div id="notice"></div>
 
       <div id="content" class="admin-stack">
+        <!-- 거르기 (기획자 결정 2026-11-02 D-19): 서비스(제품과 기능 관리와 같은 단추)와 기능 이름 찾기. 아래 두 표에 함께 적용, 바꾸는 즉시 반영
+             두 표 위에 두어 거르는 동안 이 줄은 움직이지 않음. 건수 줄은 늘 한 줄 -->
+        <div class="price-filter">
+          <form class="filter-bar filter-bar--price" id="filter" role="search" aria-label="가격 기준 거르기">
+            <div class="field">
+              <span class="field-label field-label--sm" id="f-svc-label">서비스</span>
+              <div class="seg" id="services" role="group" aria-labelledby="f-svc-label"></div>
+            </div>
+            <div class="field">
+              <label class="field-label field-label--sm" for="f-q">기능 이름</label>
+              <input class="input" id="f-q" type="search" placeholder="예: 프리즘, 결함검사" autocomplete="off">
+            </div>
+            <button type="reset" class="btn btn--tertiary btn--md filter-reset">초기화</button>
+          </form>
+          <p class="list-count" id="list-count" aria-live="polite"></p>
+        </div>
+
         <section class="panel" aria-labelledby="sec-now">
           <div class="panel-head panel-head--act">
             <h2 class="panel-title" id="sec-now">오늘 적용되는 기준 <span class="badge badge--line" id="today"></span></h2>
@@ -64,7 +83,7 @@
 
         <section class="panel" aria-labelledby="sec-history">
           <div class="panel-head"><h2 class="panel-title" id="sec-history">바뀐 이력</h2></div>
-          <p class="panel-desc">모든 기준을 적용 시작일이 늦은 순서로 보여 줍니다. 지난 기준도 지우지 않고 남깁니다.</p>
+          <p class="panel-desc">모든 기준을 적용 시작일이 늦은 순서로 보여 줍니다. 지난 기준도 지우지 않고 남깁니다.<span class="no-print"> 위에서 고른 서비스와 기능 이름이 이 표에도 적용됩니다.</span></p>
           <div class="tbl-scroll" tabindex="0" role="region" aria-label="가격 기준 이력 표">
             <table class="tbl tbl--compact">
               <caption class="sr-only">가격 기준 이력: 적용 시작일, 제품과 기능, 표준 단가와 할인율 한도, 변경 사유와 품의 문서, 바꾼 사람</caption>
@@ -72,6 +91,8 @@
               <tbody id="history"></tbody>
             </table>
           </div>
+          <!-- KRDS 페이지네이션: 한 쪽에 20건 (기획자 결정 2026-11-02 D-19). 쪽이 하나여도 늘 보여 거를 때 아래가 들썩이지 않음 -->
+          <nav class="pagination" id="pagination" aria-label="가격 기준 이력 쪽 이동"></nav>
         </section>
       </div>
     </div>

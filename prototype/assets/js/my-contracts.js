@@ -7,6 +7,8 @@
  *      (최고관리자, 관리자는 모든 영업 것을 영업대표 칸과 함께. 작성 중은 작성자만 보므로 빠짐)
  *   2. 검색, 상태, 계약종류로 거르기. 한 쪽에 20건
  *   3. 할 일: 이어서 작성, 임시 저장 삭제(확인 창), 보완 후 재기안, ⑦ 체결본 등록
+ *      휴대폰은 고객사 아래에 같은 버튼을 두고 맨 끝 칸을 감춤(기획자 결정 2026-11-02 D-10). PC는 맨 끝 칸 그대로
+ *   표 위 회색 안내 한 줄(D-2)은 my-contracts.html에 있음
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -44,7 +46,7 @@
   if (D.STATUS[presetStatus]) $('#f-status').value = presetStatus;
   $('#f-kind').innerHTML = options('전체 계약종류', Object.keys(D.KINDS).map(function (k) { return [k, D.KINDS[k]]; }));
   $('#thead').innerHTML = '<tr><th scope="col" class="col-customer col-phone-wide">고객사</th><th scope="col" class="col-phone-wide">계약종류</th><th scope="col">상태</th><th scope="col">현재 진행</th><th scope="col" class="col-wait">대기</th>' +
-    (seeAll ? '<th scope="col" class="col-phone-mid">영업대표</th>' : '') + '<th scope="col">기안일</th><th scope="col">할 일</th></tr>';
+    (seeAll ? '<th scope="col" class="col-phone-mid">영업대표</th>' : '') + '<th scope="col">기안일</th><th scope="col" class="col-todo">할 일</th></tr>'; // 할 일 칸은 휴대폰에서 감춤(D-10)
 
   // 할 일 버튼 (내 계약일 때만)
   function todo(c) {
@@ -95,14 +97,17 @@
       const link = c.status === 'DRAFT'
         ? '<a class="cell-title" href="new-contract.html?id=' + encodeURIComponent(c.draftKey) + '">' + esc(c.counterparty) + '</a><span class="cell-meta">임시 저장</span>'
         : '<a class="cell-title" href="review.html?id=' + encodeURIComponent(c.id) + '">' + esc(c.counterparty) + '</a><span class="cell-meta"><span class="nowrap">' + esc(c.id) + '</span>' + (c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span>';
+      // 기획자 결정 2026-11-02 D-10(C-43 ⑤): 휴대폰은 할 일 단추를 고객사 아래에 함께 둠(표를 끝까지 밀지 않아도 보이게)
+      //   .cell-sub라 PC에서는 감춰지고, 휴대폰에서는 맨 끝 할 일 칸(col-todo)을 감춤(list.css 끝). 버튼이 없으면 줄도 두지 않음
+      const acts = todo(c);
       return '<tr' + (c.status === 'REJECTED' ? ' class="is-alert"' : '') + '>' +
-        '<td>' + link + '</td>' +
+        '<td>' + link + (acts !== '-' ? '<div class="cell-sub cell-acts">' + acts + '</div>' : '') + '</td>' +
         '<td>' + esc(C.kindLabel(c)) + '</td>' +
         '<td class="nowrap">' + C.statusBadge(c) + '</td>' +
         C.progressCells(c) + // 현재 진행(단계) + 대기(날수) 두 칸 (v0.55)
         (seeAll ? '<td class="center">' + esc(C.ownerLabel(c.requesterId)) + '</td>' : '') +
         '<td class="num-left nowrap">' + C.fmtDate(dateOf(c)) + '</td>' + // 날짜가 "2026-10-" 뒤에서 끊기지 않게 한 줄로 (첫 사용 점검)
-        '<td>' + todo(c) + '</td>' +
+        '<td class="col-todo">' + acts + '</td>' + // 휴대폰에서는 감춤(D-10, 위 고객사 아래 버튼)
       '</tr>';
     }).join('') : '<tr><td class="empty-row" colspan="' + cols + '">' + (all.length ? '조건에 맞는 계약이 없습니다.' : '등록한 계약이 없습니다.') + '</td></tr>';
     $('#pagination').innerHTML = C.pagerHtml(page, pages, list.length, from, rows.length, PAGE_SIZE, '건');

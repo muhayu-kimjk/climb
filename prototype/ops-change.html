@@ -24,7 +24,10 @@
   - 계약서는 그대로 두고 계약 기간을 바꾸거나(연장, 단축) 수량을 추가 충전할 때 쓰는 가벼운 기안입니다.
     번호는 원계약에 묶인 -C01. (기획자 결정 v0.26: 재무 문서의 "본 계약 체결 이후 수정에 관한 절차" 반영, REQ-CHG-06~11)
   - 한 번에 한 가지만 변경합니다(재무 문서 원칙). 계약서 내용이 바뀌면 변경 기안(-A, 전체 결재)을 씁니다.
-  - 결재: [③ 영업 검토: 기간이 2개월 넘게 바뀌거나 무상 충전이 50건을 넘을 때만] → ⑨ 운영 변경(기간 변경, CK 충전은 고객지원, HR 충전은 재무) → 끝
+  - 결재: [③ 영업 검토: 기간이 2개월 넘게 바뀌거나 무상 충전이 계약 연도 누적 50건을 넘을 때만] → ⑨ 운영 변경(기간 변경, CK 충전은 고객지원, HR 충전은 재무)
+      → ⑩ 재무 확인(HR 충전은 ⑨를 한 사람이 아닌 재무 리더) → 끝
+  - 기획자 결정 2026-11-02: B-3 운영 변경 모두 ⑩ 재무 확인(추천과 다름), B-4 무상 충전은 계약 연도 누적으로 세고 기안 화면에 누적 수량을 보임,
+      B-3 덧붙임 유상 충전은 기능을 고르고 표준 단가 x 수량과 할인율을 보임(막지 않음)
   - 변경 사유는 CRM 영업활동에 적고 그 링크를 남깁니다(재무 문서).
   - 들어오는 곳: 계약 상세(SCR-42)의 "운영 변경 기안". 주소: ops-change.html?origin=원계약 번호
   - 프로토타입: 기안한 운영 변경은 이 브라우저에만 저장됩니다(시연 띠의 "시연 기록 지우기"로 되돌림).
@@ -76,6 +79,13 @@
           </div>
           <!-- 추가 충전 -->
           <div id="qty-box" hidden>
+            <!-- 유상 충전의 기능 (기획자 결정 2026-11-02 B-3 덧붙임, G-10 ②): 계약의 서비스(CK, HR)에서 사용 중이고 오늘 가격 기준이 있는 기능. ops-change.js가 채움 -->
+            <div class="field" data-field="feature" id="feature-field" hidden>
+              <label class="field-label" for="f-feature">충전할 기능<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+              <select class="select" id="f-feature"></select>
+              <p class="field-help">고른 기능의 오늘 가격 기준으로 표준 금액과 할인율을 아래에 보여 줍니다. 보여 주기만 하고 기안을 막지 않습니다.</p>
+              <p class="field-error" hidden></p>
+            </div>
             <div class="field-row">
               <div class="field" data-field="qty">
                 <label class="field-label" for="f-qty">충전 수량<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
@@ -90,6 +100,9 @@
                 <p class="field-error" hidden></p>
               </div>
             </div>
+            <!-- 회색 안내 상자: 무상 충전은 이번 계약 연도 누적(B-4), 유상 충전은 표준 금액과 할인율(B-3 덧붙임). 하나만 보임 -->
+            <div class="change-box" id="free-used" hidden></div>
+            <div class="change-box" id="price-compare" hidden></div>
           </div>
 
           <div class="field" data-field="reason">

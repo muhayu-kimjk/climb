@@ -5,6 +5,9 @@
  *   1. 공지와 릴리즈를 최근에 올린 글부터. 내린 글은 감춤
  *   2. 구분(전체, 공지, 릴리즈)과 검색(제목, 버전, 내용)으로 거름. 한 쪽에 10건
  *   3. 관리자와 최고관리자: 글쓰기(notice-form.js), 변경 이력
+ *   4. 맨 위 고정(기획자 결정 2026-11-02 D-20): 중요 공지 가운데 고정이 끝나는 날(pinUntil)이 오늘이나 그 뒤인 글만 1쪽 맨 위에.
+ *      고정한 글은 그 아래 목록에 다시 나오지 않음(한 쪽 10건에 함께 셈). 거르기와 검색에 맞는 글만 고정해 보임.
+ *      고정한 줄은 옅은 회색 바탕과 구분 아래 작은 "고정" 글자로만 나눔(눈에 띄지 않게)
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -26,6 +29,8 @@
     return (n.body || []).join(' ');
   }
   function kindBadge(n) { return n.kind === 'RELEASE' ? C.badge('success', '릴리즈') : C.badge('line', '공지'); }
+  // 맨 위 고정 (D-20): 중요 공지이고 고정이 끝나는 날이 오늘이나 그 뒤
+  function pinned(n) { return !!(n.important && n.pinUntil && n.pinUntil >= D.TODAY); }
   function titleHtml(n) {
     return (n.important ? C.badge('danger', '중요') : '') + (n.version ? '<span class="board-ver">' + esc(n.version) + '</span>' : '') + esc(n.title);
   }
@@ -33,11 +38,13 @@
   function render() {
     const kind = $('#f-kind').value, q = $('#f-q').value.trim().toLowerCase();
     const all = visible();
-    const list = all.filter(function (n) {
+    const hits = all.filter(function (n) {
       if (kind && n.kind !== kind) return false;
       if (q && (n.title + ' ' + (n.version || '') + ' ' + text(n)).toLowerCase().indexOf(q) < 0) return false;
       return true;
     });
+    // 고정한 글을 맨 앞에 두고 나머지는 그대로(최근 글부터). 쪽은 이 순서로 10건씩 나눠 고정한 글은 1쪽 맨 위에 옴 (D-20)
+    const list = hits.filter(pinned).concat(hits.filter(function (n) { return !pinned(n); }));
     const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
     if (page > pages) page = pages;
     const from = (page - 1) * PAGE_SIZE, rows = list.slice(from, from + PAGE_SIZE);
@@ -45,7 +52,9 @@
       ['공지', list.filter(function (n) { return n.kind === 'NOTICE'; }).length + '건'],
       ['릴리즈', list.filter(function (n) { return n.kind === 'RELEASE'; }).length + '건']]);
     $('#rows').innerHTML = rows.length ? rows.map(function (n) {
-      return '<tr><td class="col-kind">' + kindBadge(n) + '</td>' +
+      const pin = pinned(n);
+      // 고정한 줄: 옅은 회색 바탕(board.css)과 구분 배지 아래 작은 "고정" (D-20). 화면낭독기도 "고정"을 읽음
+      return '<tr' + (pin ? ' class="is-pinned"' : '') + '><td class="col-kind">' + kindBadge(n) + (pin ? '<span class="cell-meta board-pin">고정</span>' : '') + '</td>' +
         '<td><a class="board-title" href="notice.html?id=' + encodeURIComponent(n.id) + '">' + titleHtml(n) + '</a></td>' +
         '<td class="num-left nowrap">' + C.fmtDate(n.at) + '</td>' +
         '<td class="center cell-phone-nowrap">' + esc(C.ownerLabel(n.by)) + '</td></tr>';

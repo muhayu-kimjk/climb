@@ -58,6 +58,27 @@
 .case-summary { margin-top: 0.8rem; padding: 1.2rem 1.6rem; border-radius: var(--radius-lg); background: var(--surface-primary-subtler); font-size: var(--fs-body-small); color: var(--text-basic); }
 .case-summary strong { color: var(--text-bolder); }
 .case-summary:empty { display: none; }
+/* 4번 조건의 종류 (기획자 결정 2026-11-02 B-6): 4번 문항, 종류, 비고를 한 묶음으로 붙여 보임(문항과 비고 사이와 같은 간격) */
+.check-q:has(+ .acct-kinds:not([hidden])) { margin-bottom: 0.8rem; }
+.acct-kinds:has(+ .field[data-field$="Note"]:not([hidden])) { margin-bottom: 1.2rem; }
+
+/* 견적서로 계약서를 대신함 (기획자 결정 2026-11-02 B-5): 최종 견적서 칸 바로 아래에 붙여 한 묶음으로
+ * 지금 상태 줄은 두 줄 높이를 늘 잡아 둠(휴대폰은 세 줄). 고를 수 있는지가 바뀌어 글이 바뀌어도 아래 칸이 움직이지 않게 */
+.field:has(+ .quote-instead) { margin-bottom: 1.2rem; }
+.quote-instead .field-help { margin-top: 0.4rem; }
+.quote-instead-state { min-height: 3em; }
+.quote-instead-state.field-warn { margin-top: 0.4rem; }
+
+/* 운영 변경 기안(SCR-14)의 회색 안내 상자 (기획자 결정 2026-11-02)
+ *   B-4 무상 충전: 이번 계약 연도의 누적 수량과 ③ 영업 검토를 거치는지 / B-3 덧붙임 유상 충전: 표준 금액과 할인율(막지 않음)
+ *   읽을 안내라 회색 상자(REQ-UI-32). 이름은 흐리게, 값은 진하게. 금액과 수량은 오른쪽 정렬(v0.57)
+ *   줄 수는 늘 같음(값이 없으면 "-"): 입력하는 동안 상자 높이가 바뀌지 않게 */
+.change-box { margin: 0 0 var(--gap-item); padding: 1.2rem 1.6rem; border-radius: var(--radius-lg); background: var(--surface-gray-subtler); font-size: var(--fs-body-small); }
+.change-box .kv { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.4rem 1.6rem; margin: 0; }
+.change-box dt { color: var(--text-subtle); }
+.change-box dd { margin: 0; text-align: right; color: var(--text-bolder); font-weight: 500; font-variant-numeric: tabular-nums; }
+.change-note { margin-top: 0.8rem; min-height: 3em; color: var(--text-subtle); }
+@media print { .change-box { background: none; box-shadow: inset 0 0 0 1px var(--border-gray-light); } } /* 흑백 인쇄(REQ-UI-35) */
 
 /* ---------- 결재선 (자동) ----------
  * 단계(2단계 계약 검토, 3단계 계약 체결, 4단계 운영 검토, 5단계 계약 완료)별로 세부 단계를 나열하고,
@@ -78,6 +99,22 @@
 .route-list > li.is-skip .route-name, .route-list > li.is-skip .route-no { color: var(--text-disabled); }
 .route-list .badge { align-self: center; }
 
+/* ---------- 화면 아래에 붙은 단추 줄: 임시 저장, 기안하기 (기획자 결정 2026-11-02 D-4, PC와 휴대폰 모두) ----------
+ * 계약 등록은 PC에서 약 5,700px로 길어 단추가 맨 아래에만 있었음. 쓰는 중에도 늘 보이게 화면 아래에 붙임
+ * 결재 문서의 처리 막대(review.css .action-bar, REQ-ENV-06)와 같은 모양. 폼 안에서만 붙어 있다가 폼 끝에 오면 제자리에 멈춤:
+ *   제자리 자리를 차지하므로 따로 아래 여백을 두지 않아도 마지막 묶음(결재선)과 바닥글을 가리지 않음
+ * 높이 고정(단추 한 줄): 보완 후 재기안에서 임시 저장이 숨어도 높이가 같아 흔들리지 않음. 인쇄 때는 숨김(form.css .form-actions)
+ * 겹침 순서 10: 거래처 찾기 목록(12), 메뉴 막(15), 머리글(20), 메뉴 창(250), 확인 창(300), 달력(350)보다 아래라 가리지 않음
+ * 두 클래스를 함께 쓴 곳만(이 CSS는 해지, 운영 변경, 연장 검토 화면도 읽음) */
+.form-actions.action-bar {
+  position: sticky; bottom: 0; z-index: 10; flex-wrap: nowrap; align-items: center;
+  height: calc(var(--height-md) + 2.4rem + 0.2rem); margin-top: 0; padding: 1.2rem 2rem;
+  border: 1px solid var(--border-gray-light); border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  background: var(--surface-white); box-shadow: var(--shadow-up);
+}
+/* Tab으로 옮겨 간 칸이 단추 줄 뒤에 가리지 않게 화면 아래쪽에 단추 줄만큼 띄워 보임 */
+html:has(.form-actions.action-bar) { scroll-padding-bottom: calc(var(--height-md) + 3.2rem + env(safe-area-inset-bottom, 0px)); }
+
 /* 기안 확인 창 안의 요약 */
 .confirm-list { margin-top: 0.4rem; }
 .confirm-list > div { display: grid; grid-template-columns: 10rem minmax(0, 1fr); gap: 1.2rem; padding: 0.8rem 0; border-bottom: 1px solid var(--border-gray-light); font-size: var(--fs-body-small); }
@@ -92,4 +129,13 @@
   .product-grid > .field:nth-child(2) { grid-column: auto; }
   .year-row { grid-template-columns: minmax(0, 1fr); gap: 0.4rem; }
   .confirm-list > div { grid-template-columns: minmax(0, 1fr); gap: 0.2rem; }
+  .quote-instead-state, .change-note { min-height: 4.5em; } /* B-5, B-4: 휴대폰은 세 줄 높이를 잡아 둠 */
+  /* 단추 줄(D-4): 처리 막대처럼 화면 폭 끝까지, 단추는 줄을 나눠 채움(form.css). 단추 높이 44px(--height-md)
+   * 아이폰 아래 홈 표시줄 자리(safe-area)만큼 아래를 더 띄우고 높이에도 더함(높이는 그대로 고정) */
+  .form-actions.action-bar {
+    height: calc(var(--height-md) + 2.4rem + 1px + env(safe-area-inset-bottom, 0px));
+    margin-left: calc(var(--page-margin) * -1); margin-right: calc(var(--page-margin) * -1);
+    padding: 1.2rem var(--page-margin) calc(1.2rem + env(safe-area-inset-bottom, 0px));
+    border-width: 1px 0 0; border-radius: 0;
+  }
 }

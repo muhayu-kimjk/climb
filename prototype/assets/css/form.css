@@ -36,6 +36,12 @@
 /* 여러 칸이 함께 쓰는 도움말(예: 시작일, 종료일의 날짜 형식 안내): 칸 줄 바로 아래로 (v0.35) */
 .field-row + .field-help { margin: -1rem 0 var(--gap-item); } /* 칸 줄 아래 0.6rem에 붙임 */
 .field-row:last-child { margin-bottom: 0; }
+/* 시작일과 종료일 짝은 휴대폰에서 한 줄에 하나씩 (기획자 결정 2026-11-02 D-7, 모든 화면. PC는 나란히 그대로)
+ * 예전에는 칸마다 16rem을 줄 수 있으면 나란히 놓는 위 규칙 때문에 휴대폰에서도 두 칸이 한 줄이었음. 제품 줄 칸(REQ-REG-03)처럼 한 줄에 하나
+ * 짝은 "앞 칸보다 앞설 수 없는 날짜 칸"(data-after)이 든 칸 줄로 알아봄: 계약 등록 계약 기간, 연장 검토 새 계약 기간, 견적일과 유효기간, 대리 지정 기간 */
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
+  .field-row:has(input[data-after]) { grid-template-columns: minmax(0, 1fr); }
+}
 
 /* ---------- 텍스트 입력, 셀렉트, 여러 줄 입력 ---------- */
 .input, .select, .textarea {

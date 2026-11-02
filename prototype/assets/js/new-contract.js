@@ -12,6 +12,8 @@
  *   4. 체크리스트 2, 3번 자동 계산과 결재선 표시
  *   5. 필수 항목 검사(오류 요약 + 항목별 오류), 기안 확인 창
  *   7. 임시 저장과 기안: 계약 기록으로 저장하고 결재 문서로 감 (v0.58 QA: 예전에는 안내만 하고 저장하지 않았음)
+ *   기획자 결정 2026-11-02: A-3 원계약은 내가 영업대표인 계약만(A-11 만료 뒤 서비스를 닫기 전이면 연장 가능),
+ *     B-5 견적서로 계약서를 대신함(quoteInstead), B-6 4번 조건의 종류(checklist.acctKinds), E-3 결재선에 ③ 영업 임원 승인
  * 프로토타입: 임시 저장과 기안은 이 브라우저에만 저장(시연 기록), 파일은 이름만 남습니다. 실제 시스템에서는 서버에 저장하고,
  *   가격 기준 계산과 결재선 결정도 서버에서 다시 검증해야 합니다(화면 값은 바꿀 수 있으므로).
  * ===================================================================== */
@@ -186,14 +188,56 @@
     if (r) setCustomer(r.key, r.name, r.bizNo, unit);
     else { setCustomer(NEW_CUSTOMER, name, bizNo || '', unit); }
   }
-  // 원계약 후보: 보관함의 계약 완료 묶음(원계약 번호) 중 볼 수 있는 것.
+  // 원계약 후보: 보관함의 계약 완료 묶음(원계약 번호) 중 내가 영업대표이고 볼 수 있는 것(A-3, 아래).
   //   묶음 상태로 봄: 원계약 기간이 끝났어도 연장 계약이 유효하면 후보 (v0.58 QA: 만료 예정에서 "연장 기안"으로 와도 원계약이 비어 있었음)
-  const origins = D.CONTRACTS.filter(function (c) {
-    return c.id && !c.parentId && C.canView(c, me) && (C.bundleOf(c.id) || {}).status === 'ACTIVE';
+  //   기획자 결정 2026-11-02 A-3(C-37 ③): 변경과 연장도 영업대표(원계약을 기안한 사람) 본인만 기안. 최고관리자는 시연용으로 모두
+  //     계약 상세의 기안 단추, 만료 예정의 할 일 단추와 같은 규칙(REQ-REG-08, CTL-66). 다른 영업의 계약은 목록에 없고 주소로 와도 미리 고르지 않음
+  //   기획자 결정 2026-11-02 A-11(A-10과 함께): 연장은 만료된 계약도 서비스를 닫기 전(만료 처리 차례, 유예 중)이면 고를 수 있음.
+  //     유예는 연장 협상 중에 두는 것이라 만료 뒤에도 연장 기안이 이어져야 함. 서비스를 닫은 계약(만료 처리 완료)은 신규로. 변경은 계약 완료만
+  const anyOrigin = me.role === 'SUPER';
+  const mine = D.CONTRACTS.filter(function (c) {
+    return c.id && !c.parentId && (anyOrigin || c.requesterId === me.id) && C.canView(c, me);
   });
-  $('#f-origin').innerHTML = '<option value="">고르세요</option>' + origins.map(function (c) {
-    return '<option value="' + esc(c.id) + '">' + esc(c.id + ' ' + c.counterparty + ' (' + C.serviceLabel(c.services) + ')') + '</option>';
-  }).join('');
+  function lateRenewable(b) {
+    const x = b && b.status === 'EXPIRED' ? C.expiryOf(b) : null;
+    return !!x && (x.state === 'OPEN' || x.state === 'GRACE');
+  }
+  function originsFor(kind) {
+    return mine.filter(function (c) {
+      const b = C.bundleOf(c.id);
+      return b && (b.status === 'ACTIVE' || (kind === 'RENEW' && lateRenewable(b)));
+    });
+  }
+  let origins = [];
+  // 원계약 목록을 계약종류에 맞게 다시 채움. 고른 값은 남김. extra: 보완 후 재기안이나 이어서 작성의 원계약(목록에 없어도 보임)
+  function renderOrigins(extra) {
+    const sel = $('#f-origin'), keep = sel.value;
+    origins = originsFor(val('kind'));
+    sel.innerHTML = '<option value="">고르세요</option>' + origins.map(function (c) {
+      const b = C.bundleOf(c.id), x = b.status === 'ACTIVE' ? null : C.expiryOf(b);
+      return '<option value="' + esc(c.id) + '">' + esc(c.id + ' ' + c.counterparty + ' (' + C.serviceLabel(c.services) + ')' +
+        (x ? ', 만료 ' + C.fmtDate(b.end) + (x.state === 'GRACE' ? ', 유예 중' : ', 서비스 닫기 전') : '')) + '</option>';
+    }).join('');
+    if (extra && !origins.some(function (c) { return c.id === extra.id; })) {
+      sel.insertAdjacentHTML('beforeend', '<option value="' + esc(extra.id) + '">' + esc(extra.id + ' ' + extra.counterparty) + '</option>');
+    }
+    if (keep && Array.prototype.some.call(sel.options, function (o) { return o.value === keep; })) sel.value = keep;
+  }
+  // 원계약 칸 도움말: 고를 원계약이 없으면 왜 없는지 알림 (A-3)
+  // 기안자(requesterId): 기획자 결정 2026-11-02 A-3: 변경과 연장의 기안자는 원계약의 영업대표
+  //   최고관리자는 시연으로 대신 기안(해지, 연장 검토, 운영 변경과 같게). 그래야 ③은 영업대표 유닛의 리더, ⑦은 영업대표에게 가고 E-3도 맞게 정해짐
+  //   보완 후 재기안은 반려된 기안의 기안자 그대로. 영업은 자기 계약만 원계약으로 고르므로 늘 본인
+  function drafterId() {
+    if (source && source.status === 'REJECTED') return source.requesterId;
+    const o = (val('kind') || 'NEW') !== 'NEW' && $('#f-origin').value ? D.CONTRACTS.find(function (x) { return x.id === $('#f-origin').value; }) : null;
+    return o ? o.requesterId : (source && source.requesterId) || me.id;
+  }
+  function originHelp() {
+    const late = val('kind') === 'RENEW' ? ' 연장은 만료되었어도 서비스를 닫기 전이면 고를 수 있습니다.' : '';
+    return anyOrigin ? '보관함의 계약 완료 계약 중에서 고릅니다(최고관리자는 시연용으로 모든 계약). 원계약 번호에 차수가 붙어 함께 묶입니다.' + late
+      : origins.length ? '내가 영업대표인 계약 완료 계약 중에서 고릅니다. 원계약 번호에 차수가 붙어 함께 묶입니다.' + late
+      : '내가 영업대표인 계약 완료 계약이 없습니다. 변경과 연장은 그 계약의 영업대표만 기안합니다.';
+  }
 
   /* ---------- 2. 이어서 작성, 보완 후 재기안 (REQ-FLOW-14, REQ-FLOW-17) ---------- */
   const srcId = new URLSearchParams(location.search).get('id');
@@ -203,6 +247,12 @@
     return (c.id === srcId || c.draftKey === srcId) && (c.requesterId === me.id || me.role === 'SUPER') &&
       (c.status === 'DRAFT' || (C.canResubmit(c) && C.resubmitHref(c).indexOf('new-contract.html') === 0)); // 해지, 그대로 연장, 운영 변경은 그 화면에서
   }) : null;
+  // 원계약 목록에 없어도 보이는 원계약: 보완 후 재기안은 원계약을 바꿀 수 없어 늘. 이어서 작성은 내가 영업대표인 원계약일 때만(A-3, 시연용 최고관리자는 모두)
+  const extraOrigin = source && source.parentId ? (function () {
+    const o = D.CONTRACTS.find(function (c) { return c.id === source.parentId; });
+    if (source.status !== 'REJECTED' && !anyOrigin && (!o || o.requesterId !== me.id)) return null;
+    return { id: source.parentId, counterparty: source.counterparty };
+  })() : null;
   let round = 1;
   if (source && source.status === 'REJECTED') {
     round = (source.round || 1) + 1;
@@ -468,7 +518,8 @@
     if (q1 === 'YES') return q2 === 'YES' ? 1 : (q3 === 'YES' ? 2 : 3);
     return q2 === 'YES' ? 4 : (q3 === 'YES' ? 5 : 6);
   }
-  function buildRoute(q1, pc) {
+  // rows: 제품 줄(readProducts), qi: 견적서로 계약서를 대신함을 골랐는지(B-5)
+  function buildRoute(q1, pc, rows, qi) {
     const personal = val('personalData');
     const legal = q1 === 'YES' ? ['skip', '표준계약서를 그대로 씀'] : q1 === 'NO' ? ['go', '표준계약서를 바꿈'] : ['wait', '체크리스트 1번 답을 기다림'];
     const privacy = personal === 'YES' ? ['go', '개인정보 처리위탁 계약 있음'] : personal === 'NO' ? ['skip', '개인정보 처리위탁 계약 없음'] : ['wait', '개인정보 처리위탁 계약 여부를 기다림'];
@@ -478,23 +529,36 @@
     else if (pc.q3 === 'NO') sales = ['go', '할인율 한도를 넘김'];
     else sales = ['wait', '금액 계산을 기다림'];
     // ③ 영업 검토는 기안자 유닛의 리더 (리더 본인 계약은 영업 임원, v0.26 재무 문서 반영)
-    const req = { requesterId: (source && source.requesterId) || me.id };
+    //   맡는 사람 이름은 결재 문서와 같은 규칙(C.stepWho, 기획자 결정 2026-11-02 D-3): 리더 본인 계약의 ③은 "영업 임원", 영업지원이 기안하면 ②⑧은 "재무"
+    const req = { requesterId: drafterId(), kind: val('kind') || 'NEW', personalData: personal === 'YES', // A-3: 변경과 연장은 원계약의 영업대표
+      checklist: { standard: q1, price: pc.q2, cap: pc.q3 },
+      products: rows.filter(function (r) { return r.product && r.qty && r.amount != null; }).map(function (r) { return { feature: r.feature, qty: r.qty, amount: r.amount }; }),
+      amount: totalAmount(), quoteInstead: qi };
     const name = function (code) { return C.ownerLabel(C.stepUserNow(code, req)); };
+    const who = function (code) { return C.stepWho(code, req) + ' ' + name(code); };
+    // 기획자 결정 2026-11-02 E-3(A안): ③을 거치고 한 줄이라도 할인율 한도를 기준 %p보다 더 넘으면 ③ 다음에 영업 임원도 승인(C.reviewRoute S03C)
+    //   늘 한 줄로 보임(거치지 않으면 생략과 까닭): 답에 따라 줄이 생기고 없어지며 화면이 흔들리지 않게
+    const coo = sales[0] === 'wait' ? ['wait', '금액 계산을 기다림'] : sales[0] === 'skip' ? ['skip', '③ 영업 검토를 거치지 않음']
+      : (function () { const r = C.reviewRoute(req).S03C; return [r[0] ? 'go' : 'skip', r[1]]; })();
+    // 기획자 결정 2026-11-02 B-5: 견적서로 계약서를 대신하면 ⑦은 고객 날인 견적서 등록, ⑧은 견적서 확인(이름은 C.stepLabel)
+    const stepName = function (code) { return C.stepLabel(code, req).replace(/^\S+\s/, ''); };
     return [
       { stage: '2단계 계약 검토 (② 다음 ③, 그다음 ④와 ⑤ 동시)', items: [
-        { no: '②', name: '체크리스트 검토', who: '영업지원 ' + name('S02'), state: 'go', reason: '어떤 경우에도 생략하지 않음' }, // REQ-CHK-02
-        { no: '③', name: '영업 검토', who: '영업 리더 ' + name('S03'), state: sales[0], reason: sales[1] }, // 가격 예외 승인, 법무보다 먼저 (v0.20)
+        { no: '②', name: '체크리스트 검토', who: who('S02'), state: 'go', reason: '어떤 경우에도 생략하지 않음' }, // REQ-CHK-02
+        { no: '③', name: '영업 검토', who: who('S03'), state: sales[0], reason: sales[1] }, // 가격 예외 승인, 법무보다 먼저 (v0.20)
+        { no: '③', name: '영업 임원 승인', who: who('S03C'), state: coo[0], reason: coo[1] }, // E-3
         { no: '④', name: '법무 검토', who: '법무 ' + name('S04'), state: legal[0], reason: legal[1] },
         { no: '⑤', name: '개인정보 검토', who: '정보보호 담당자 ' + name('S05'), state: privacy[0], reason: privacy[1] },
       ] },
       { stage: '3단계 계약 체결', items: [
         { no: '⑥', name: '인장 날인 검토', who: '총무 ' + name('S06'), state: 'go', reason: '기초 정보 확인 후 인장 날인' },
-        { no: '⑦', name: '상대방 서명, 체결본 등록', who: '영업 (나)', state: 'go', reason: '서명은 시스템 밖에서' },
-        { no: '⑧', name: '체결본 확인', who: '영업지원 ' + name('S08'), state: 'go', reason: '승인된 내용과 같은지 확인' },
+        qi ? { no: '⑦', name: stepName('S07'), who: '영업 (나)', state: 'go', reason: '고객의 날인이나 서명은 시스템 밖에서' }
+          : { no: '⑦', name: '상대방 서명, 체결본 등록', who: '영업 (나)', state: 'go', reason: '서명은 시스템 밖에서' },
+        { no: '⑧', name: qi ? stepName('S08') : '체결본 확인', who: who('S08'), state: 'go', reason: qi ? '날인한 견적서가 결재한 견적과 같은지 확인' : '승인된 내용과 같은지 확인' },
       ] },
       { stage: '4단계 운영 검토', items: [
         { no: '⑨', name: '운영 적용', who: '고객지원 ' + name('S09'), state: 'go', reason: '라이선스나 도메인 열기' },
-        { no: '⑩', name: '재무 확인', who: '재무 ' + name('S10'), state: 'go', reason: '회계 인식 (결재선에는 없음)' },
+        { no: '⑩', name: '재무 확인', who: who('S10'), state: 'go', reason: '회계 인식 (결재선에는 없음)' },
       ] },
       { stage: '5단계 계약 완료', items: [
         { no: '⑪', name: '계약 완료', who: '보관함', state: 'go', reason: '계약 완료 기록으로 보관' },
@@ -553,7 +617,8 @@
     $('#q3-answer').innerHTML = answerHtml(pc.q3);
     $('#q3-detail').textContent = pc.d3;
     const cn = caseNo(q1, pc.q2, pc.q3);
-    const route = buildRoute(q1, pc);
+    const qi = syncQuoteInstead(total); // B-5: 견적서로 계약서를 대신할 수 있는지 다시 보고, 넘으면 풂
+    const route = buildRoute(q1, pc, rows, qi);
     const reviews = route[0].items.filter(function (i) { return i.state === 'go'; }).map(function (i) { return i.name; });
     const passText = '계약 검토에서 거치는 단계는 ' + esc(reviews.join(', ')) + '입니다.';
     // 비고는 적어야 할 때만 보임 (v0.58 기획자 요청): 1번 아니요(표준계약서를 쓰지 않음), 2번, 3번 자동 계산이 아니요, 4번 예
@@ -561,12 +626,67 @@
     showNote('standardNote', q1 === 'NO');
     showNote('priceNote', pc.q2 === 'NO');
     showNote('capNote', pc.q3 === 'NO');
+    showNote('acctKinds', q4 === 'YES'); // 기획자 결정 2026-11-02 B-6: 4번 조건의 종류도 4번이 "예"일 때만
     showNote('accountingNote', q4 === 'YES');
     $('#case-summary').innerHTML = cn
       ? '<strong>경우 ' + cn + '</strong>: ' + passText // 경우의 수: 요구사항 정의서 3.5
       : '';
     $('#route').innerHTML = routeHtml(route);
-    current = { route: route, pc: pc, q1: q1, total: total };
+    current = { route: route, pc: pc, q1: q1, total: total, qi: qi };
+  }
+
+  /* ---------- 4번 조건의 종류 (기획자 결정 2026-11-02 B-6, G-07, REQ-CHK-08) ----------
+   * 4번이 "예"이면 D.ACCT_KINDS에서 하나 이상 고르고 비고도 꼭 적음(둘 다 필수). 계약 기록 checklist.acctKinds(코드 목록)로 남음 */
+  $('#acct-kind-choices').innerHTML = D.ACCT_KINDS.map(function (k) {
+    return '<label class="choice"><input type="checkbox" name="acctKinds" value="' + esc(k.code) + '">' + esc(k.label) + '</label>';
+  }).join('');
+  function acctKinds() { return $$('[name="acctKinds"]:checked', form).map(function (i) { return i.value; }); }
+  function acctKindText(codes) {
+    return (codes || []).map(function (code) { return (D.ACCT_KINDS.filter(function (k) { return k.code === code; })[0] || { label: code }).label; }).join(', ');
+  }
+
+  /* ---------- 견적서로 계약서를 대신함 (기획자 결정 2026-11-02 B-5, C-19, REQ-FLOW-24) ----------
+   * 공급가액 합계(부가세 별도, 제품 줄 금액의 합)가 기준(D.QUOTE_INSTEAD.under) 미만이고 최종 견적서를 첨부했을 때만 고를 수 있음
+   *   기준은 결재 흐름과 같은 C.quoteInsteadAllowed로 봄(결재 문서의 ⑦⑧ 이름도 같은 판단)
+   *   고른 뒤 합계가 기준 이상이 되거나 견적서를 지우면 저절로 풀고 까닭을 알림(quoteDropped). 다시 고르면 알림을 지움
+   *   고르면 계약서 초안은 선택(최종 견적서가 계약서를 대신함) [가정]. 계약 기록 quoteInstead(와 form.quoteInstead)로 남음 */
+  const QI_UNDER = D.QUOTE_INSTEAD.under;
+  $('#quote-instead-rule').textContent = '공급가액 합계(부가세 별도)가 ' + fmtNum(QI_UNDER) + '원 미만이고 최종 견적서를 첨부했을 때만 고를 수 있습니다. ' +
+    '고르면 계약서 대신 ⑦에서 고객이 날인한 견적서를 올리고 ⑧ 영업지원이 확인합니다.';
+  let quoteDropped = ''; // 저절로 푼 까닭: AMOUNT(합계가 기준 이상), FILE(견적서를 지움)
+  function quoteInsteadOk(total) {
+    return C.quoteInsteadAllowed({ kind: val('kind') || 'NEW', amount: total }) && files.quote.length > 0;
+  }
+  // 체크 칸을 쓸 수 있는지 정하고, 고른 채로 기준을 벗어나면 풂. 돌려주는 값: 지금 견적서로 대신하는지
+  //   금액 칸을 고쳐 쓰느라 잠깐 비어 합계가 0원이 될 때는 풀지 않음(기안할 때 validate가 다시 봄)
+  function syncQuoteInstead(total) {
+    const box = $('#f-quote-instead'), state = $('#quote-instead-state');
+    const ok = quoteInsteadOk(total);
+    if (box.checked && total >= QI_UNDER) { box.checked = false; quoteDropped = 'AMOUNT'; }
+    else if (box.checked && !files.quote.length) { box.checked = false; quoteDropped = 'FILE'; }
+    box.disabled = !box.checked && !ok;
+    const on = box.checked;
+    let msg, warn = false;
+    if (quoteDropped && !on) {
+      warn = true;
+      msg = quoteDropped === 'AMOUNT'
+        ? '공급가액 합계가 ' + fmtNum(QI_UNDER) + '원 이상이 되어 견적서로 대신하기를 풀었습니다. 계약서 초안을 첨부하세요.'
+        : '최종 견적서를 지워 견적서로 대신하기를 풀었습니다. 계약서 초안을 첨부하세요.';
+    } else if (on) msg = '견적서로 계약서를 대신합니다. 계약서 초안은 선택이고, ⑦ 고객 날인 견적서 등록과 ⑧ 견적서 확인을 거칩니다.';
+    //   글에 지금 합계를 넣지 않음: 금액을 칠 때마다 글이 바뀌어 화면낭독기가 계속 읽지 않게(합계는 2번 묶음의 총액에 있음)
+    else if (ok) msg = '고를 수 있습니다. 고르면 계약서 초안은 선택이 됩니다.';
+    else if (total >= QI_UNDER) msg = '공급가액 합계가 ' + fmtNum(QI_UNDER) + '원 이상이라 고를 수 없습니다.';
+    else if (!total) msg = '제품과 계약 금액을 넣으면 고를 수 있는지 나옵니다.';
+    else msg = '최종 견적서를 첨부하면 고를 수 있습니다.';
+    state.classList.toggle('field-warn', warn);
+    state.classList.toggle('field-help', !warn);
+    state.innerHTML = (warn ? C.icon('alert', 'sm') : '') + esc(msg);
+    // 계약서 초안: 견적서로 대신하면 선택 (필수 표시를 바꿈)
+    $('#draft-req').hidden = on;
+    $('#draft-req-sr').hidden = on;
+    $('#draft-opt').hidden = !on;
+    if (on && files.draft.length === 0) C.setFieldError(fieldBox('draftFile'), ''); // 앞서 난 "계약서 초안을 첨부하세요" 오류는 맞지 않으므로 지움
+    return on && ok;
   }
   function showNote(name, on) {
     const box = form.querySelector('[data-field="' + name + '"]');
@@ -592,6 +712,7 @@
     if (e.target.type !== 'file') clearError(e.target); // 파일 칸은 addFiles가 오류를 직접 정함(맞지 않는 파일 경고가 바로 지워지던 것, v0.63 검토)
     if (e.target.name === 'kind') onKindChange();
     if (e.target.id === 'f-origin') onOriginChange();
+    if (e.target.id === 'f-quote-instead') quoteDropped = ''; // B-5: 직접 고르거나 풀면 저절로 푼 알림을 지움
     if (e.target.name === 'autoRenew') $('#notice-days-field').hidden = val('autoRenew') !== 'YES';
     if (e.target.name === 'method') syncOrgAll();
     refresh();
@@ -617,6 +738,7 @@
   function onKindChange() {
     const kind = val('kind');
     $('#origin-field').hidden = kind === 'NEW';
+    renderOrigins(extraOrigin); // 연장이면 만료 뒤 서비스를 닫기 전인 계약도 목록에 (A-11)
     onOriginChange();
   }
   function bundleNumber() {
@@ -654,7 +776,7 @@
     help.innerHTML = block ? esc(block.msg) + (block.href ? ' <a class="doc-link" href="' + block.href + '">보완 후 재기안</a>' : '')
       : esc(no
         ? '기안하면 ' + no + '(' + D.KINDS[val('kind')] + ' ' + no.slice(-2).replace(/^0/, '') + '차)로 원계약과 함께 묶입니다.'
-        : '보관함에 있는 계약 중에서 고릅니다. 원계약 번호에 차수가 붙어 함께 묶입니다.');
+        : originHelp()); // A-3: 내가 영업대표인 계약만
     // 원계약을 고르면 거래처를 미리 채움 (비어 있을 때만). 계약명은 두지 않음 (v0.12)
     const o = D.CONTRACTS.find(function (c) { return c.id === $('#f-origin').value; });
     if (o) {
@@ -705,13 +827,15 @@
   $$('.file-drop').forEach(function (drop) {
     drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.classList.add('is-dragover'); });
     drop.addEventListener('dragleave', function () { drop.classList.remove('is-dragover'); });
-    drop.addEventListener('drop', function (e) { e.preventDefault(); drop.classList.remove('is-dragover'); addFiles(drop.dataset.target, e.dataTransfer.files); });
+    drop.addEventListener('drop', function (e) { e.preventDefault(); drop.classList.remove('is-dragover'); addFiles(drop.dataset.target, e.dataTransfer.files); refresh(); });
   });
+  // 파일을 넣거나 지우면 다시 계산: 최종 견적서가 있어야 "견적서로 계약서를 대신함"을 고를 수 있음(B-5). 파일 칸 선택은 폼의 change가 다시 계산
   form.addEventListener('click', function (e) {
     const b = e.target.closest('[data-file]');
     if (!b) return;
     files[b.dataset.file].splice(Number(b.dataset.i), 1);
     renderFiles(b.dataset.file);
+    refresh();
   });
 
   /* ---------- 6. 필수 항목 검사 (KRDS 오류 패턴) ---------- */
@@ -822,9 +946,14 @@
     if (current.pc.q2 === 'NO') need(!!val('priceNote'), 'priceNote', '2번이 "아니요"이면 비고에 표준 단가와 다르게 정한 이유를 적으세요.');
     if (current.pc.q3 === 'NO') need(!!val('capNote'), 'capNote', '3번이 "아니요"이면 비고에 할인율 한도를 넘긴 영업적 사유를 적으세요.');
     need(!!val('accounting'), 'accounting', '체크리스트 4번에 답하세요.');
+    // 기획자 결정 2026-11-02 B-6: 4번이 "예"이면 조건의 종류(하나 이상)와 비고 둘 다
+    if (val('accounting') === 'YES') need(acctKinds().length > 0, 'acctKinds', '4번이 "예"이면 조건의 종류를 하나 이상 고르세요.');
     if (val('accounting') === 'YES') need(!!val('accountingNote'), 'accountingNote', '4번이 "예"이면 비고에 어떤 조건인지 적으세요.');
 
-    need(files.draft.length > 0, 'draftFile', '계약서 초안을 첨부하세요.', $('#f-draft'));
+    // 기획자 결정 2026-11-02 B-5: 견적서로 계약서를 대신하면 계약서 초안 없이 기안할 수 있음. 고른 채로 기준을 벗어났으면 막음
+    const qiChecked = $('#f-quote-instead').checked;
+    if (qiChecked) need(quoteInsteadOk(totalAmount()), 'quoteInstead', '견적서로 계약서를 대신하려면 공급가액 합계가 ' + fmtNum(QI_UNDER) + '원 미만이고 최종 견적서를 첨부해야 합니다.');
+    if (!qiChecked) need(files.draft.length > 0, 'draftFile', '계약서 초안을 첨부하세요.', $('#f-draft'));
     if (val('standard') === 'NO') need(files.diff.length > 0, 'diffFile', '표준계약서를 바꿨으면 조항 대비표를 첨부하세요.', $('#f-diff'));
     return errors;
   }
@@ -864,7 +993,10 @@
       price: current.pc.q2 === 'WAIT' ? null : current.pc.q2, priceNote: noteIf(current.pc.q2 === 'NO', 'priceNote'),
       cap: current.pc.q3 === 'WAIT' ? null : current.pc.q3, capNote: noteIf(current.pc.q3 === 'NO', 'capNote'),
       accounting: val('accounting'), accountingNote: noteIf(val('accounting') === 'YES', 'accountingNote'),
+      acctKinds: val('accounting') === 'YES' ? acctKinds() : [], // B-6: 4번 조건의 종류(D.ACCT_KINDS 코드)
     };
+    // B-5: 견적서로 계약서를 대신함. 고른 채로 기준을 벗어나면(임시 저장 때) false로 남김
+    const quoteInstead = $('#f-quote-instead').checked && quoteInsteadOk(totalAmount());
     const kind = val('kind') || 'NEW';
     const tp = templatePick();
     const fileList = [];
@@ -880,19 +1012,22 @@
       startDate: val('startDate'), endDate: val('endDate'), autoRenew: val('autoRenew'), noticeDays: parseNum(val('noticeDays')),
       products: products, checklist: checklist, yearly: $('#yearly-field').hidden ? [] : yearlyAmounts(),
       ledger: val('ledger'), taxInvoice: val('taxInvoice'), purchase: val('purchase'), memo: val('memo'), template: tp,
+      quoteInstead: quoteInstead,
     };
     return {
       counterparty: val('counterparty'), unit: unitValue(), services: services, kind: kind,
       parentId: kind !== 'NEW' ? ($('#f-origin').value || null) : null,
-      amount: totalAmount(), requesterId: source ? source.requesterId : me.id,
+      amount: totalAmount(), requesterId: drafterId(), // A-3: 변경과 연장은 원계약의 영업대표(위 drafterId)
       restricted: !!val('restricted'), personalData: val('personalData') === 'YES', sla: val('sla'),
       startDate: formVals.startDate, endDate: formVals.endDate, autoRenew: formVals.autoRenew, noticeDays: formVals.noticeDays,
       template: tp, checklist: checklist, products: products, memo: formVals.memo, files: fileList, form: formVals,
+      quoteInstead: quoteInstead, // B-5 (03 contract.quote_instead 제안)
     };
   }
 
   // 임시 저장: 나만 보는 작성 중 기록(계약번호 없이 임시 키 D-0002 꼴). 이어서 작성하면 같은 기록을 바꿔 씀 (REQ-FLOW-14, 31)
   //   보완 후 재기안은 반려된 계약을 고치는 것이라 임시 저장 없이 바로 기안
+  //   두 단추는 화면 아래에 붙은 단추 줄에 있음(기획자 결정 2026-11-02 D-4). 줄 높이가 고정이라 임시 저장이 숨어도 흔들리지 않음
   if (source && source.status === 'REJECTED') $('#btn-save').hidden = true;
   $('#btn-save').addEventListener('click', function () {
     const key = source && source.status === 'DRAFT' ? source.draftKey : C.newDraftKey();
@@ -930,7 +1065,10 @@
       ['서비스 수준 협약(SLA)', val('sla') === 'YES' ? '있음' : '없음'],
       ['기준 표준계약서', templatePick() ? (templatePick().id === 'OWN' ? '상대방 양식(표준계약서 없음)' : templatePick().label) : '-'], // v0.53
       ['계약 검토', goes.join(', ')],
-      ['재무 알림', val('accounting') === 'YES' ? '재무에 이메일로 알림 (결재선 아님)' : '없음'],
+      // B-5: 체결할 문서. 견적서로 대신하면 ⑦⑧ 이름도 바뀜
+      ['체결 문서', current.qi ? '고객이 날인한 최종 견적서 (견적서로 계약서를 대신함)' : '계약서'],
+      // B-6: 4번 조건의 종류를 함께 보임
+      ['재무 알림', val('accounting') === 'YES' ? '재무에 이메일로 알림 (결재선 아님). 4번 조건: ' + acctKindText(acctKinds()) : '없음'],
       ['기안 차수', round + '차' + (val('restricted') ? ', 열람 제한' : '')],
     ];
     $('#confirm-body').innerHTML = '<p>기안하면 ② 체크리스트 검토부터 시작되고, 기안한 내용은 결재가 끝날 때까지 고칠 수 없습니다.</p>' +
@@ -982,11 +1120,10 @@
     const f = source.form || {};
     setRadio('kind', source.kind || 'NEW');
     // 다시 기안하는 변경, 연장: 원계약과 계약종류는 그대로(같은 번호의 다음 차수라 바꿀 수 없음, v0.58 QA)
+    //   목록은 계약종류에 맞게 채우고, 목록에 없는 원계약은 extraOrigin(보완 후 재기안은 늘, 이어서 작성은 내가 영업대표일 때만, A-3)
     if (source.parentId) {
-      if (!origins.some(function (c) { return c.id === source.parentId; })) {
-        $('#f-origin').insertAdjacentHTML('beforeend', '<option value="' + esc(source.parentId) + '">' + esc(source.parentId + ' ' + source.counterparty) + '</option>');
-      }
-      $('#f-origin').value = source.parentId;
+      renderOrigins(extraOrigin);
+      if (Array.prototype.some.call($('#f-origin').options, function (o) { return o.value === source.parentId; })) $('#f-origin').value = source.parentId;
     }
     if (source.status === 'REJECTED') {
       $('#f-origin').disabled = true;
@@ -1014,6 +1151,7 @@
     setRadio('standard', ck.standard); $('#f-standard-note').value = ck.standardNote || '';
     $('#f-price-note').value = ck.priceNote || ''; $('#f-cap-note').value = ck.capNote || '';
     setRadio('accounting', ck.accounting); $('#f-accounting-note').value = ck.accountingNote || '';
+    $$('[name="acctKinds"]', form).forEach(function (i) { i.checked = (ck.acctKinds || []).indexOf(i.value) > -1; }); // B-6
     const tp = source.template || f.template; // 기준 표준계약서 (v0.53)
     if (tp) $('#f-template').value = tp.id;
     setRadio('ledger', f.ledger); $('#f-tax').value = f.taxInvoice || ''; $('#f-purchase').value = f.purchase || '';
@@ -1025,15 +1163,28 @@
       saved.filter(function (x) { return x.kind === k[1]; }).forEach(function (x) { files[k[0]].push({ name: x.name, size: x.size || 50000 }); });
       renderFiles(k[0]);
     });
-    if (source.status === 'REJECTED' && !files.draft.length) { files.draft.push({ name: source.counterparty + ' 계약서 ' + (round - 1) + '차 기안본.docx', size: 84000 }); renderFiles('draft'); }
+    // B-5: 견적서로 계약서를 대신한 계약은 계약서 초안 대신 최종 견적서를 예로 채우고 체크 칸을 다시 고름(기준은 refresh가 다시 봄)
+    const qiSource = !!(source.quoteInstead || f.quoteInstead);
+    if (source.status === 'REJECTED' && qiSource && !files.quote.length) { files.quote.push({ name: source.counterparty + ' 최종 견적서 ' + (round - 1) + '차.pdf', size: 52000 }); renderFiles('quote'); }
+    if (source.status === 'REJECTED' && !qiSource && !files.draft.length) { files.draft.push({ name: source.counterparty + ' 계약서 ' + (round - 1) + '차 기안본.docx', size: 84000 }); renderFiles('draft'); }
     if (source.status === 'REJECTED' && ck.standard === 'NO' && !files.diff.length) { files.diff.push({ name: source.counterparty + ' 조항 대비표.docx', size: 36000 }); renderFiles('diff'); }
+    $('#f-quote-instead').checked = qiSource;
   }
   // 계약 상세, 만료 예정에서 "변경 기안", "연장 기안"으로 들어오면 구분과 원계약을 미리 고름
   //   new-contract.html?kind=AMEND&origin=2601CL001 (REQ-ARC-02, 05)
   const pre = new URLSearchParams(location.search);
   if (!source && ['AMEND', 'RENEW'].indexOf(pre.get('kind')) > -1) {
     setRadio('kind', pre.get('kind'));
+    renderOrigins(null);
     if (origins.some(function (c) { return c.id === pre.get('origin'); })) $('#f-origin').value = pre.get('origin');
+    else {
+      // A-3: 다른 영업의 계약으로 들어오면 미리 고르지 않고 까닭을 알림(계약 상세 D-5 안내와 같은 말)
+      const po = D.CONTRACTS.find(function (c) { return c.id === pre.get('origin') && !c.parentId; });
+      if (po && po.requesterId !== me.id && !anyOrigin && C.canView(po, me)) {
+        $('#notice').innerHTML = noticeHtml('', '영업대표만 변경과 연장을 기안합니다',
+          '이 계약(' + esc(po.id) + ')의 영업대표는 ' + esc(C.ownerLabel(po.requesterId)) + '입니다. 원계약은 내가 영업대표인 계약 중에서 고릅니다.', '');
+      }
+    }
   }
   if (!$$('#product-list > li').length) addProduct();
   syncOrgAll();

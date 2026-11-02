@@ -86,8 +86,32 @@
 .meter-track { display: block; height: 0.8rem; border-radius: var(--radius-max); background: var(--chart-track); overflow: hidden; }
 .meter-fill { display: block; height: 100%; border-radius: var(--radius-max); background: var(--chart-bar); }
 
+/* ---------- 기간 마감 점검 (기획자 결정 2026-11-02 B-9, CTL-65) ----------
+ * 회색 줄 하나에 기간 말, 앞뒤 날 수, 인쇄와 확인 단추(확인은 재무에게만 있음)
+ * 이 기간 말의 확인 기록은 회색 안내 상자(본문이 아닌 정보, REQ-UI-32). 기록이 없어도 안내 한 줄이 있어 화면이 흔들리지 않음
+ * 숫자 줄과 기간 말 앞뒤 나눔 줄은 C.meta(이름은 흐리게, 값은 진하게) */
+.close-bar {
+  display: grid; grid-template-columns: minmax(0, 18rem) minmax(0, 12rem) minmax(0, 1fr); align-items: end; gap: 1.2rem;
+  margin-bottom: 1.6rem; padding: 1.2rem 1.6rem; border-radius: var(--radius-lg); background: var(--surface-gray-subtler);
+}
+.close-bar .field { margin: 0; }
+.close-acts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.8rem; }
+.close-cond { display: none; }
+.close-sum { margin-bottom: 1.2rem; font-size: var(--fs-body-small); }
+.close-hidden { margin-top: 0.4rem; color: var(--text-subtle); }
+.close-record { padding: 1.2rem 1.6rem; border-radius: var(--radius-lg); background: var(--surface-gray-subtler); font-size: var(--fs-body-small); color: var(--text-subtle); }
+.close-rec + .close-rec { margin-top: 1.2rem; padding-top: 1.2rem; border-top: 1px solid var(--border-gray-light); }
+.close-memo { margin-top: 0.4rem; }
+.close-title { margin: 2.4rem 0 0.4rem; }
+.close-desc { margin-bottom: 0.8rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
+.close-split { margin-bottom: 0.8rem; font-size: var(--fs-body-small); }
+
 /* ---------- 휴대폰 ---------- */
 @media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
+  /* 기간 마감 점검: 윗줄 기간 말과 앞뒤 날 수, 아랫줄 단추(손가락 크기 44px, 폭을 나눠 씀) */
+  .close-bar { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); padding: 1.6rem; }
+  .close-acts { grid-column: 1 / -1; }
+  .close-acts .btn { flex: 1 1 0; }
   .filter-bar--stats { grid-template-columns: 1fr 1fr; }
   .filter-bar--stats .field:first-child, .filter-bar--stats .filter-reset { grid-column: 1 / -1; }
   .stat-row { grid-template-columns: 1fr 1fr; }
@@ -106,4 +130,16 @@
   .chart-table--print summary { display: none; }
   .chart-table--print::details-content { content-visibility: visible; } /* 브라우저 인쇄 미리 보기처럼 beforeprint가 없는 경우에도 펼쳐 찍음 */
   .panel { break-inside: avoid; }
+
+  /* 기간 마감 점검(B-9): "보고서 인쇄"에는 넣지 않고, "마감 점검 인쇄"(body.is-print-close)는 이 묶음만 A4로 */
+  body:not(.is-print-close) .close-panel { display: none !important; }
+  body.is-print-close .page-intro, body.is-print-close .stats-cond, body.is-print-close #content > .panel:not(.close-panel) { display: none !important; }
+  .close-bar { display: none !important; }
+  .close-cond { display: block; margin-bottom: 1.2rem; font-size: var(--fs-body-small); color: var(--text-basic); }
+  .panel.close-panel { break-inside: auto; } /* 길면 쪽을 넘겨 찍음. 표의 한 줄은 잘리지 않음(common.css) */
+  .close-title, .close-desc, .close-split { break-after: avoid; }
+  /* 흑백 인쇄(REQ-UI-35): 회색 안내 상자는 칠 없이 안쪽 회색 선. 확인 때 본 숫자는 펼쳐 찍고 "보기" 글자만 숨김 */
+  .close-record { box-shadow: inset 0 0 0 1px var(--border-gray-light); }
+  .close-record .seen-data summary { display: none; }
+  .close-record .seen-data::details-content { content-visibility: visible; }
 }

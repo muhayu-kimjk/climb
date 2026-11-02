@@ -85,7 +85,7 @@ ch4 = set(int(x) for x in re.findall(r'^(\d+)\. ', ch4_text, re.M))
 ch4 |= set(int(x) for x in re.findall(r'^\| (\d+) \|', ch4_text, re.M))
 missing = defaultdict(set)
 for base, dirs, names in os.walk(ROOT):
-    dirs[:] = [d for d in dirs if d != '.git']
+    dirs[:] = [d for d in dirs if d not in ('.git', '작업기록')]  # 작업기록: 그날의 결정 기록과 앞으로 할 일이라 아직 없는 번호를 가리킬 수 있음
     for n in names:
         if not n.endswith(('.md', '.js', '.html', '.css')):
             continue

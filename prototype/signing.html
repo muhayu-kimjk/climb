@@ -22,7 +22,9 @@
   SCR-31 체결 대기 (docs/02_화면목록.md)
   - 계약 검토가 끝났지만 체결이 끝나지 않은 계약(⑥ 인장 날인, ⑦ 체결본 등록, ⑧ 체결본 확인 중). (REQ-FLOW-04~05, REQ-SIGN-07)
   - 영업은 내가 기안한 계약, 최고관리자와 관리자는 모든 계약을 영업대표 칸과 함께 봅니다.
-  - 승인 후 14일이 지나도 체결이 끝나지 않으면 강조합니다(기안자에게 독촉 이메일, REQ-ENV-10).
+  - ⑥, ⑦ 줄은 승인 후 일수를 세어 14일 이상이면 강조합니다(기안자에게 독촉 이메일, REQ-ENV-10).
+    ⑧ 줄은 그 단계에 온 날부터 센 대기 일수이고 5일 이상이면 강조합니다(개요, 전체 진행 현황과 같은 기준). 독촉 이메일 규칙은 그대로 (기획자 결정 2026-11-02 D-12)
+  - 휴대폰에서는 일수를 고객사 아래 작은 줄에도 씁니다 (기획자 결정 2026-11-02 D-9, PC는 그대로)
   - 체결본 등록(⑦)은 고객사를 눌러 결재 문서의 처리 막대에서 합니다(REQ-SIGN-02).
   - 거르기, 쪽 나누기는 assets/js/signing.js가 처리합니다.
 ====================================================================== -->
@@ -40,7 +42,7 @@
       </div>
       <div class="page-intro">
         <p id="intro">계약 검토가 끝났지만 체결이 끝나지 않은 내 계약입니다. 오래된 승인부터 보여 줍니다.</p>
-        <p class="sub">⑦ 체결본 등록이 내 차례인 건은 고객사를 눌러 결재 문서에서 체결본을 올립니다. ⑥ 인장 날인과 ⑧ 체결본 확인은 총무와 영업지원 차례라 기다리면 됩니다. 승인 후 <span data-rule="signDelayDays">14</span>일이 지나면 강조합니다.</p>
+        <p class="sub">⑦ 체결본 등록이 내 차례인 건은 고객사를 눌러 결재 문서에서 체결본을 올립니다. ⑥ 인장 날인과 ⑧ 체결본 확인은 총무와 영업지원 차례라 기다리면 됩니다. ⑥과 ⑦은 승인 후 일수가 <span data-rule="signDelayDays">14</span>일 이상이면, ⑧은 그 단계에 온 날부터 센 대기 일수가 <span data-rule="approvalDelayDays">5</span>일 이상이면 강조합니다.</p>
       </div>
 
       <div id="notice"></div>
@@ -57,10 +59,11 @@
             <select class="select" id="f-step"></select>
           </div>
           <div class="field">
-            <label class="field-label field-label--sm" for="f-wait">승인 후</label>
+            <!-- D-12: ⑥, ⑦은 승인 후 14일, ⑧은 대기 5일 기준을 함께 거름. 기준은 위 안내에 -->
+            <label class="field-label field-label--sm" for="f-wait">승인 후, ⑧ 대기</label>
             <select class="select" id="f-wait">
               <option value="">전체</option>
-              <option value="LONG">14일 이상</option>
+              <option value="LONG">오래 기다린 건</option>
             </select>
           </div>
           <button type="reset" class="btn btn--tertiary btn--md filter-reset">초기화</button>

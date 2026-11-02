@@ -25,6 +25,7 @@
   - 주소 뒤에 ?id=를 붙이면 이어서 작성(임시 저장 건) 또는 보완 후 재기안(반려 건)으로 열립니다.
       예) new-contract.html?id=D-0001 (임시 저장)  /  new-contract.html?id=2610CL001 (반려)
   - 자동 계산(체크리스트 2, 3번, 결재선), 필수 항목 검사, 기안 확인 창은 assets/js/new-contract.js가 처리합니다.
+  - 기획자 결정 2026-11-02: A-3 원계약은 내가 영업대표인 계약만, B-5 견적서로 계약서를 대신함(5백만 원 미만), B-6 4번 조건의 종류
   - 프로토타입: 임시 저장, 기안, 파일 첨부는 화면만 동작하고 실제로 저장되지 않습니다.
 ====================================================================== -->
 <body data-page="SCR-11">
@@ -77,7 +78,9 @@
           <div class="field" data-field="origin" id="origin-field" hidden>
             <label class="field-label" for="f-origin">원계약<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
             <select class="select" id="f-origin" name="origin"></select>
-            <p class="field-help" id="origin-help">보관함에 있는 계약 중에서 고릅니다. 원계약 번호에 차수가 붙어 함께 묶입니다.</p>
+            <!-- 기획자 결정 2026-11-02 A-3: 변경과 연장도 영업대표 본인만 기안. 도움말은 화면 코드(new-contract.js originHelp)가 사람과 계약종류에 맞게 바꿈
+                 A-11: 연장은 만료되었어도 서비스를 닫기 전(만료 처리 차례, 유예 중)인 계약을 고를 수 있음 -->
+            <p class="field-help" id="origin-help">내가 영업대표인 계약 완료 계약 중에서 고릅니다. 원계약 번호에 차수가 붙어 함께 묶입니다.</p>
             <p class="field-error" hidden></p>
           </div>
 
@@ -168,7 +171,8 @@
             <p class="field-error" hidden></p>
           </fieldset>
 
-          <!-- 계약일은 품의 승인 뒤에야 정해져 적지 않고 계약 시작일과 종료일만 (v0.34). 서비스 기간은 계약 기간과 같다고 봄 -->
+          <!-- 계약일은 품의 승인 뒤에야 정해져 적지 않고 계약 시작일과 종료일만 (v0.34). 서비스 기간은 계약 기간과 같다고 봄
+               휴대폰에서는 시작일, 종료일을 한 줄에 하나씩 (기획자 결정 2026-11-02 D-7, form.css. PC는 나란히 그대로) -->
           <div class="field-row">
             <div class="field" data-field="startDate">
               <label class="field-label" for="f-start">계약 시작일<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
@@ -289,7 +293,7 @@
 
           <fieldset class="field check-q" data-field="standard">
             <legend class="field-label">1. 표준계약서를 사용하나요?<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
-            <p class="field-help">조항이 담긴 일반 사항을 한 줄이라도 바꿨다면 "아니요"입니다.</p><!-- REQ-CHK-03 -->
+            <p class="field-help">조항이 담긴 일반 사항을 한 줄이라도 바꿨다면 "아니요"입니다. 견적서로 계약서를 대신하면 회사 견적서 양식과 조건을 그대로 썼을 때 "예"입니다.</p><!-- REQ-CHK-03. 견적서로 대신할 때의 답은 기획자 결정 2026-11-02 B-5에 맞춘 [가정] -->
             <div class="choice-row">
               <label class="choice"><input type="radio" name="standard" value="YES">예</label>
               <label class="choice"><input type="radio" name="standard" value="NO">아니요</label>
@@ -336,12 +340,21 @@
           <!-- 4번: 회계에 영향을 주는 특수 조건 (REQ-CHK-08, v0.21). 결재선은 바꾸지 않고 재무에 이메일로 알림 -->
           <fieldset class="field check-q" data-field="accounting">
             <legend class="field-label">4. 회계에 영향을 주는 특수 조건이 있나요?<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
-            <p class="field-help">예: 무상 사용 기간이나 무상 추가 제공, 해지할 때 환불, 사용량이나 성과에 따른 대가, 연도별로 다른 금액, 반품 조건</p>
+            <!-- 기획자 결정 2026-11-02 B-6: 예시를 고를 수 있는 종류 다섯 가지에 맞춤(예전 예시의 "연도별로 다른 금액"은 종류에 없어 뺌. 연도별 금액은 2번 묶음의 연도별 금액 칸) [가정] -->
+            <p class="field-help">예: 무상 기간, 무상 추가 제공, 해지할 때 환불, 사용량이나 성과에 따른 대가, 반품이나 취소. "예"이면 아래에서 종류를 고르고 비고를 적습니다.</p>
             <div class="choice-row">
               <label class="choice"><input type="radio" name="accounting" value="YES">예</label>
               <label class="choice"><input type="radio" name="accounting" value="NO">아니요</label>
             </div>
             <p class="check-result" id="q4-result" aria-live="polite"></p>
+            <p class="field-error" hidden></p>
+          </fieldset>
+          <!-- 기획자 결정 2026-11-02 B-6(G-07): 4번이 "예"이면 조건의 종류를 하나 이상 고르고(D.ACCT_KINDS) 아래 비고도 꼭 적음.
+               종류는 계약 기록 checklist.acctKinds에 남아 종류별로 셀 수 있음. 칸은 new-contract.js가 채움 -->
+          <fieldset class="field acct-kinds" data-field="acctKinds" hidden>
+            <legend class="field-label field-label--sm">4번 조건의 종류<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
+            <div class="choice-row" id="acct-kind-choices"></div>
+            <p class="field-help">해당하는 것을 모두 고릅니다. 고른 종류와 비고는 결재 문서에 함께 남습니다.</p>
             <p class="field-error" hidden></p>
           </fieldset>
           <div class="field" data-field="accountingNote" hidden>
@@ -359,7 +372,8 @@
           <p class="section-desc">프로토타입에서는 파일 이름만 표시하고 실제로 올리지 않습니다.</p>
 
           <div class="field" data-field="draftFile">
-            <p class="field-label" id="draft-label">계약서 초안<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></p>
+            <!-- 견적서로 계약서를 대신하면(B-5, 아래) 계약서 초안은 선택. 필수 표시는 new-contract.js가 바꿈 -->
+            <p class="field-label" id="draft-label">계약서 초안<span class="req" aria-hidden="true" id="draft-req">*</span><span class="sr-only" id="draft-req-sr">(필수)</span><span class="opt" id="draft-opt" hidden> (선택, 견적서로 대신함)</span></p>
             <div class="file-drop" data-target="draft">
               <p>파일을 여기에 끌어다 놓거나, 파일 선택 버튼을 누르세요.<span class="file-limits">PDF, Word(doc, docx), 한글(hwp, hwpx), 한 파일 50MB 이하, 여러 개 가능</span></p>
               <label class="btn btn--tertiary" for="f-draft">파일 선택</label>
@@ -405,6 +419,16 @@
             <ul class="file-list" id="quote-list"></ul>
             <p class="field-error" hidden></p>
           </div>
+          <!-- 견적서로 계약서를 대신함 (기획자 결정 2026-11-02 B-5, C-19, REQ-FLOW-24)
+               공급가액 합계(부가세 별도)가 기준(D.QUOTE_INSTEAD.under, 5백만 원) 미만이고 최종 견적서를 첨부했을 때만 고를 수 있음(C.quoteInsteadAllowed)
+               고른 뒤 합계가 기준 이상이 되거나 견적서를 지우면 저절로 풀고 까닭을 알림. 계약 기록 quoteInstead로 남음
+               아래 두 줄은 늘 보임(규칙 한 줄 + 지금 상태 한 줄, 두 줄 높이를 잡아 둠): 고를 수 있는지가 바뀌어도 화면이 흔들리지 않게 -->
+          <div class="field quote-instead" data-field="quoteInstead">
+            <label class="choice"><input type="checkbox" id="f-quote-instead" name="quoteInstead" aria-describedby="quote-instead-rule quote-instead-state" disabled>견적서로 계약서를 대신함</label>
+            <p class="field-help" id="quote-instead-rule"></p>
+            <p class="field-help quote-instead-state" id="quote-instead-state" aria-live="polite"></p>
+            <p class="field-error" hidden></p>
+          </div>
 
           <div class="field">
             <label class="field-label" for="f-memo">검토 요청 사항 <span class="opt">(선택)</span></label>
@@ -419,7 +443,11 @@
           <div id="route" aria-live="polite"></div>
         </section>
 
-        <div class="form-actions">
+        <!-- 임시 저장과 기안하기: 화면 아래에 붙은 단추 줄 (기획자 결정 2026-11-02 D-4, PC와 휴대폰 모두)
+             결재 문서의 처리 막대(REQ-ENV-06)처럼 쓰는 중에도 늘 보이고, 폼 끝에 오면 제자리에 멈춰 결재선 묶음을 가리지 않음.
+             단추는 예전 그대로 한 벌(같은 id, 같은 동작, Tab 순서도 폼 맨 끝). 높이 고정, 인쇄 때 숨김(new-contract.css, form.css)
+             action-bar: 안내 메시지(토스트)가 이 줄 위에 뜨게 함(common.js) -->
+        <div class="form-actions action-bar">
           <button type="button" class="btn btn--tertiary btn--md" id="btn-save">임시 저장</button>
           <button type="submit" class="btn btn--primary btn--md" id="btn-submit">기안하기</button>
         </div>

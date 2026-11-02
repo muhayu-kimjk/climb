@@ -7,9 +7,10 @@
  *      왼쪽 차례(묶음별 쪽 목록), 쪽 위의 위치 표시(이용 안내 › 묶음), 아래 이전과 다음, 오른쪽 "이 쪽에서"(소제목이 둘 이상일 때)
  *      쪽을 바꾸면 화면 맨 위로 가고 초점은 쪽 제목으로(화면낭독기가 바뀐 쪽을 읽음). 뒤로 가기와 앞으로 가기도 쪽을 따라감
  *   2. 이용 안내에서 찾기: 쪽 제목과 내용, 자주 묻는 것의 질문과 답에서 낱말을 찾아 목록으로 보임. 누르면 그 쪽(자주 묻는 것은 그 답을 펼침)
+ *      찾기 칸은 차례 맨 위, 접히는 차례 줄 밖이라 좁은 화면과 휴대폰에서도 늘 보임(기획자 결정 2026-11-02 D-24)
  *   3. 소개 쪽: 쪽 안내 카드, 최근 릴리즈 3건(공지사항 게시판)
  *   4. 역할별 할 일 표에서 지금 내 역할의 줄을 강조 (최고관리자는 강조 없음)
- *   5. 독촉 기준 일수를 결재선 규칙(SCR-52)의 지금 값으로 채움
+ *   5. 독촉 기준 일수를 결재선 규칙(SCR-52)의 지금 값으로 채움. 알림 일수, 무상 충전 기준, 유예 일수, 영업 임원 승인 기준, 견적서 대신 금액도(2026-11-02)
  *   6. 자주 묻는 것: 펼침 화살표. 인쇄할 때는 모든 쪽이 나오고(CSS) 자주 묻는 것도 모두 펼쳐 매뉴얼 한 부로
  * ===================================================================== */
 (function () {
@@ -23,6 +24,8 @@
   const nameOf = function (p) { return p.id.replace(/^p-/, ''); }; // 쪽 요소 id는 p-쪽이름, 주소는 #쪽이름(브라우저가 그 자리로 뛰지 않게)
   pages.forEach(function (p) { byId[nameOf(p)] = p; });
   const navEl = document.getElementById('doc-nav'), tocEl = document.getElementById('doc-toc'), pagerEl = document.getElementById('doc-pager');
+  // 차례가 종이 틀 바깥에 늘 펼쳐지는 넓은 화면(help.css와 같은 조건). 큰 모니터는 화면 전체가 17/15배라 1544px부터(2026-11-02)
+  const WIDE = window.matchMedia('screen and (min-width: 1360px) and (min-resolution: 1.01dppx), screen and (min-width: 1544px)');
 
   // 쪽 설명(차례 카드와 찾기에 씀). 쪽이 늘면 여기와 help.html에 함께 더함
   const BLURB = {
@@ -46,19 +49,22 @@
     grp.pages.push(p);
   });
   navEl.innerHTML =
+    // 기획자 결정 2026-11-02 D-24: "이용 안내에서 찾기"는 차례 맨 위에 두되, 접히는 차례 줄 밖으로 뺌.
+    //   좁은 화면(1360px 미만)과 휴대폰에서도 접힌 차례 줄 위에 늘 보임(예전에는 차례를 펼쳐야 보였음). 넓은 화면은 예전처럼 왼쪽 차례 맨 위
+    '<div class="doc-nav-in">' +
+    '<div class="doc-search" role="search">' +
+      '<label class="sr-only" for="doc-q">이용 안내에서 찾기</label>' +
+      '<div class="doc-search-box">' + C.icon('search') +
+        '<input class="doc-search-input" id="doc-q" type="search" autocomplete="off" placeholder="이용 안내에서 찾기" aria-describedby="doc-q-help"></div>' +
+      '<p class="sr-only" id="doc-q-help">낱말을 넣으면 아래에 찾은 쪽과 질문이 나옵니다.</p>' +
+      '<ul class="doc-search-list" id="doc-search-list" hidden></ul>' +
+      '<p class="sr-only" aria-live="polite" id="doc-search-live"></p>' +
+    '</div>' +
     // 좁은 화면(1360px 미만)과 휴대폰: 차례는 내용 위의 접힌 줄. 누르면 펼침(넓은 화면에서는 이 단추가 보이지 않고 차례가 늘 펼쳐짐)
     '<button type="button" class="doc-nav-toggle" aria-expanded="false" aria-controls="doc-nav-body">' +
       '<span class="doc-nav-toggle-label">이용 안내 차례</span><span class="doc-nav-now"></span>' + C.icon('chevronDown') +
     '</button>' +
     '<div class="doc-nav-body" id="doc-nav-body">' +
-      '<div class="doc-search" role="search">' +
-        '<label class="sr-only" for="doc-q">이용 안내에서 찾기</label>' +
-        '<div class="doc-search-box">' + C.icon('search') +
-          '<input class="doc-search-input" id="doc-q" type="search" autocomplete="off" placeholder="이용 안내에서 찾기" aria-describedby="doc-q-help"></div>' +
-        '<p class="sr-only" id="doc-q-help">낱말을 넣으면 아래에 찾은 쪽과 질문이 나옵니다.</p>' +
-        '<ul class="doc-search-list" id="doc-search-list" hidden></ul>' +
-        '<p class="sr-only" aria-live="polite" id="doc-search-live"></p>' +
-      '</div>' +
       groups.map(function (g) {
         return '<p class="doc-nav-group">' + esc(g.name) + '</p><ul class="doc-nav-list">' +
           g.pages.map(function (p) { return '<li><a class="doc-nav-link" href="#' + nameOf(p) + '" data-page="' + nameOf(p) + '">' + esc(p.getAttribute('data-title')) + '</a></li>'; }).join('') +
@@ -66,6 +72,7 @@
       }).join('') +
       // 새 소식은 공지사항 게시판(릴리즈 글)으로
       '<p class="doc-nav-group">새 소식</p><ul class="doc-nav-list"><li><a class="doc-nav-link" href="notices.html">공지사항과 릴리즈</a></li></ul>' +
+    '</div>' +
     '</div>';
   const toggle = navEl.querySelector('.doc-nav-toggle'), navBody = navEl.querySelector('.doc-nav-body');
   toggle.addEventListener('click', function () {
@@ -98,6 +105,9 @@
       // 좁은 화면에서 펼쳐 둔 차례는 쪽을 고르면 접음
       toggle.setAttribute('aria-expanded', 'false');
       navEl.classList.remove('is-open');
+      // 좁은 화면에서는 찾은 목록도 접음(D-24: 찾기 칸이 차례 줄 밖이라 목록이 새 쪽 위를 밀어내지 않게).
+      //   낱말은 칸에 남기고, 칸을 다시 누르면 목록이 다시 나옴. 넓은 화면은 예전처럼 목록을 그대로 둠
+      if (!WIDE.matches) document.getElementById('doc-search-list').hidden = true;
     }
     const changed = target.page !== current;
     current = target.page;
@@ -158,6 +168,9 @@
     qLive.textContent = hits.length ? hits.length + '개를 찾았습니다.' : '찾는 내용이 없습니다.';
   }
   qIn.addEventListener('input', searchRender);
+  // 좁은 화면에서 접어 둔 찾은 목록을 다시 보임(D-24). 접혀 있을 때만 다시 그림
+  //   (목록에서 위 화살표로 칸에 돌아올 때마다 다시 그리고 "n개를 찾았습니다"를 또 읽지 않게)
+  qIn.addEventListener('focus', function () { if (qIn.value && qList.hidden) searchRender(); });
   qIn.addEventListener('keydown', function (e) {
     const first = qList.querySelector('a');
     if (e.key === 'ArrowDown' && first) { e.preventDefault(); first.focus(); }
@@ -207,8 +220,17 @@
     (row.querySelector('.role-name') || row.querySelector('td')).insertAdjacentHTML('beforeend', '<span class="cell-meta">내 역할</span>');
   }
 
-  // ---------- 5. 독촉 기준 일수 ----------
-  document.querySelectorAll('[data-rule]').forEach(function (el) { el.textContent = D.ALERT_RULES[el.getAttribute('data-rule')]; });
+  // ---------- 5. 독촉 기준 일수와 그 밖의 규칙 값 ----------
+  //   data-rule: ALERT_RULES의 값. 여러 날(해지 통지 기한 이메일 [30, 7] 등)은 "30일 전과 7"로 잇고 뒤의 "일 전"은 글에 둠(기획자 결정 2026-11-02 A-5)
+  //   data-rule-last: 여러 날 가운데 가장 짧은 날(그 유닛 리더가 받는 날, E-12)
+  //   data-rule-of: 다른 규칙 묶음의 값(CHANGE_RULES 무상 충전 기준, EXPIRY_RULES 유예 일수, PRICE_RULES 영업 임원 승인 기준, QUOTE_INSTEAD 견적서 대신 금액)
+  //     금액(1만 이상)은 쉼표를 넣고 뒤의 "원"은 글에 둠
+  function ruleText(v) { return Array.isArray(v) ? v.join('일 전과 ') : typeof v === 'number' && v >= 10000 ? v.toLocaleString('ko-KR') : v; }
+  document.querySelectorAll('[data-rule]').forEach(function (el) {
+    const v = (D[el.getAttribute('data-rule-of') || 'ALERT_RULES'] || {})[el.getAttribute('data-rule')];
+    if (v == null) return; // 값이 없으면 글에 적어 둔 기본값 그대로
+    el.textContent = el.hasAttribute('data-rule-last') && Array.isArray(v) ? Math.min.apply(null, v) : ruleText(v);
+  });
 
   // ---------- 6. 자주 묻는 것: 화살표 아이콘, 인쇄 때 모두 펼치고 끝나면 원래대로 ----------
   document.querySelectorAll('.faq-icon').forEach(function (el) { el.outerHTML = C.icon('chevronDown'); });

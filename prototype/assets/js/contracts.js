@@ -6,6 +6,8 @@
  *   1. 계약 묶음(원계약 + 변경, 연장, 해지)을 한 줄씩 모음 (common.js bundles). 최근 원계약부터
  *   2. 검색, 상태, 서비스, 영업대표로 거르기
  *   3. 열람 제한 계약은 볼 수 없는 사람에게 가림. 한 쪽에 20건
+ *   4. 변경과 연장 칸은 계약 완료된 것만 셈. 진행 중이거나 반려된 기안은 상태 칸 아래 줄에 (기획자 결정 2026-11-02 D-13)
+ *   5. "④에서 반부패 조항 없음을 고른 계약만" 거르기 (기획자 결정 2026-11-02 C-15, 통계의 통제 지표에서 ?ab=NONE으로 이어짐)
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -37,13 +39,20 @@
   // 개요의 "계약 완료"에서 오면 그 상태로 거름 (?status=, v0.63 점검). 정해 둔 값만 받음
   const presetStatus = new URLSearchParams(location.search).get('status');
   if (['WORKING', 'ACTIVE', 'EXPIRED', 'TERMINATED'].indexOf(presetStatus) > -1) $('#f-status').value = presetStatus;
+  // 통계의 통제 지표에서 "없음" 건수를 누르면 반부패 조항 없음으로 거름 (?ab=NONE, 기획자 결정 2026-11-02 C-15)
+  if (new URLSearchParams(location.search).get('ab') === 'NONE') $('#f-ab').checked = true;
+  // 묶음 안에 ④ 법무가 "반부패 조항 없음"을 고른 계약이 있는지(지금 유효한 ④ 승인 기록, C.legalApproval)
+  function abNone(b) { return b.items.some(function (c) { const h = C.legalApproval(c); return !!h && h.antiBribe === 'NONE'; }); }
 
-  // 변경과 연장 칸: "변경 1건, 연장 1건, 해지 기안"
+  // 변경과 연장 칸: "변경 1건, 연장 1건"
+  //   기획자 결정 2026-11-02 D-13: 계약 완료된 변경과 연장만 셈. 진행 중이거나 반려된 기안, 해지 기안은 세지 않고 상태 칸 아래 줄에 보임
+  //   계약 완료된 뒤 만료된 연장도 셈(common.js bundleOf의 "끝난 연장"과 같은 기준). 운영 변경은 예전처럼 세지 않음
+  const DONE = ['ACTIVE', 'EXPIRED'];
   function childText(b) {
+    const done = function (kind) { return b.items.filter(function (c) { return c.kind === kind && DONE.indexOf(c.status) > -1; }).length; };
     const parts = [];
-    if (b.count('AMEND')) parts.push('변경 ' + b.count('AMEND') + '건');
-    if (b.count('RENEW')) parts.push('연장 ' + b.count('RENEW') + '건');
-    if (b.count('TERMINATE')) parts.push('해지 기안');
+    if (done('AMEND')) parts.push('변경 ' + done('AMEND') + '건');
+    if (done('RENEW')) parts.push('연장 ' + done('RENEW') + '건');
     return parts.join(', ') || '-';
   }
 
@@ -58,6 +67,8 @@
       if (status === 'WORKING' ? WORKING.indexOf(b.status) < 0 : status && b.status !== status) return false;
       if (service && (!visible || (b.root.services || []).indexOf(service) < 0)) return false;
       if (owner && b.root.requesterId !== owner) return false;
+      // 볼 수 없는 계약은 이 거르기로도 빼서, 거른 결과로 판단 내용이 드러나지 않게(서비스 거르기와 같음)
+      if ($('#f-ab').checked && (!visible || !abNone(b))) return false;
       return true;
     });
   }
@@ -84,7 +95,9 @@
         : '<span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>';
       const st = D.STATUS[b.status];
       // 진행 중인 변경, 연장, 해지가 있으면 상태 아래에 알림. "해지 검토 중"처럼 종류와 상태로 씀(만료 예정 화면과 같은 말. "진행 중:"은 위 거르기의 진행 중과 헷갈려 뺌)
-      const open = b.open.length ? '<span class="cell-meta">' + esc(b.open.map(function (o) { return C.kindLabel(o) + ' ' + D.STATUS[o.status].label; }).join(', ')) + '</span>' : '';
+      //   기획자 결정 2026-11-02 D-13: 반려되어 다시 기안을 기다리는 기안도 "변경 반려"처럼 함께 보임. 변경과 연장 칸에서 빠져도 목록에서 사라지지 않게. 기안한 순서대로
+      const pending = b.items.filter(function (o) { return b.open.indexOf(o) > -1 || b.rejected.indexOf(o) > -1; });
+      const open = pending.length ? '<span class="cell-meta">' + esc(pending.map(function (o) { return C.kindLabel(o) + ' ' + D.STATUS[o.status].label; }).join(', ')) + '</span>' : '';
       return '<tr' + (b.status === 'REJECTED' ? ' class="is-alert"' : '') + '>' +
         '<td>' + cust + '</td>' +
         '<td class="col-service">' + (visible ? service : '-') + '</td>' +

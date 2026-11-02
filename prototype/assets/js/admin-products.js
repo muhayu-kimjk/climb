@@ -57,8 +57,9 @@
 
   /* ---------- 1. 제품과 기능 표 ---------- */
   function render() {
+    // data-label: 굵은 글자 폭을 미리 잡아 눌러도 단추 폭이 그대로(admin.css, 가격 기준 관리 D-19와 같은 방식, 2026-11-02 화면이 흔들리지 않게)
     $('#services').innerHTML = [['ALL', '전체']].concat(services().map(function (c) { return [c.code, c.label]; })).map(function (s) {
-      return '<button type="button" data-svc="' + esc(s[0]) + '" aria-pressed="' + (s[0] === svc) + '">' + esc(s[1]) + '</button>';
+      return '<button type="button" data-svc="' + esc(s[0]) + '" data-label="' + esc(s[1]) + '" aria-pressed="' + (s[0] === svc) + '">' + esc(s[1]) + '</button>';
     }).join('');
     // 서비스 순서(코드 관리의 순서)로 묶고, 같은 서비스 안에서는 넣은 순서
     const order = services().map(function (c) { return c.code; });
@@ -245,7 +246,8 @@
   $('#content').addEventListener('click', function (e) {
     const b = e.target.closest('button');
     if (!b) return;
-    if (b.getAttribute('data-svc')) { svc = b.getAttribute('data-svc'); render(); }
+    // 표를 다시 그려도 누른 서비스 단추에 초점이 남게 (단추 줄도 다시 그려서 예전에는 초점이 사라졌음, 2026-11-02)
+    if (b.getAttribute('data-svc')) { svc = b.getAttribute('data-svc'); render(); $('#services [data-svc="' + svc + '"]').focus(); }
     else if (b.id === 'btn-add') openAddProduct();
     else if (b.getAttribute('data-edit-product')) openEditProduct(b.getAttribute('data-edit-product'));
     else if (b.getAttribute('data-add-feature')) openAddFeatures(b.getAttribute('data-add-feature'));

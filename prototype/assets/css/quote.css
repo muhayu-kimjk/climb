@@ -28,8 +28,11 @@
 .q-lines td.q-del .btn-text { display: inline-block; min-height: 0; padding: 0 0.4rem; line-height: inherit; white-space: nowrap; } /* 좁은 휴대폰에서 "지우기"가 한 글자씩 꺾이지 않게 (v0.63 점검) */ /* 칸 높이가 줄 높이(입력 칸 높이)라 누르는 영역도 그만큼 */
 /* 표 안의 화면낭독기용 글자(.sr-only, position: absolute)가 표 밖 기준으로 자리 잡아 휴대폰에서 화면을 옆으로 넓혔음 → 밀어 보는 틀을 기준으로 */
 #quote-form .tbl-scroll, .qd-scroll { position: relative; }
-.q-pick { display: flex; flex-wrap: wrap; gap: 0.6rem; }
-.q-pick .select { flex: 1 1 12rem; min-width: 0; }
+/* 서비스 → 제품 → 기능은 PC에서도 한 줄에 하나, 칸 전체 폭 (기획자 결정 2026-11-02 D-8: 계약 등록 v0.58과 같게.
+ * 세 칸이 나란하면 마우스로 고를 때 옆 칸으로 미끄러지듯 너무 민감했음. 예전에는 PC에서 나란히 두고 폭이 모자랄 때만 다음 줄로)
+ * 가장 좁은 폭은 휴대폰과 같은 14rem: 화면이 좁으면 칸이 찌그러지지 않고 표 안에서 옆으로 밀어 봄 */
+.q-pick { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.6rem; }
+.q-pick .select { width: 100%; min-width: 14rem; }
 .q-meta:empty { display: none; }
 .q-lines .input { text-align: right; font-variant-numeric: tabular-nums; }
 .q-qty { width: 7.2rem; }
@@ -87,8 +90,7 @@
   .qd-title { font-size: 2.4rem; letter-spacing: 0.8rem; text-indent: 0.8rem; }
   .q-price { width: 11rem; }
   .q-qty { width: 6rem; }
-  .q-pick { flex-direction: column; }
-  .q-pick .select { flex: none; width: 100%; min-width: 14rem; }
+  /* 서비스, 제품, 기능을 한 줄에 하나씩 두던 휴대폰 규칙은 PC에도 같게 되어 위 .q-pick으로 합침 (D-8) */
 }
 
 /* ---------- 인쇄 ---------- */
