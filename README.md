@@ -5,6 +5,10 @@ climb(Contract Lifecycle Intelligent Management Base, 무하유 계약 관리 �
 
 ## 프로토타입 보는 법
 
+**웹에서 바로 보기:** https://muhayu-kimjk.github.io/climb/ (GitHub Pages. `main`에 올라간 내용이 1~2분 뒤 반영됨. 시연 기록은 보는 사람의 브라우저에만 남고, 화면 맨 위 "시연 기록 지우기"로 처음 상태로 돌림)
+
+내 PC에서 보려면:
+
 1. 이 폴더(`Projects/climb`)에서 아래 명령을 실행합니다.
 
    ```bash
