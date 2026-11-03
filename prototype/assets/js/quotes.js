@@ -9,7 +9,6 @@
  *   3. 한 쪽에 20건씩. 영업에게는 "새 견적" 단추
  * ===================================================================== */
 (function () {
-  const D = window.CLIMB_DATA;
   const C = window.CLIMB;
   const me = C.init();
   const esc = C.esc;

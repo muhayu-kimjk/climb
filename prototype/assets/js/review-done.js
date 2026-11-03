@@ -53,8 +53,7 @@
     (seeAll ? '<th scope="col">처리한 사람</th>' : '') + '<th scope="col" class="col-phone-wide">의견, 사유</th><th scope="col" class="col-status">지금 상태</th></tr>';
 
   // 기획자 결정 2026-11-02 D-3: 단계 칸의 짧은 이름은 처리하는 사람 이름으로("② 영업지원", "③ 영업 리더"). 계약마다 바뀌는 이름은 common.js stepTag가 정함
-  //   stepTag가 아직 없으면 예전처럼 번호와 짧은 이름
-  const stepTag = function (code, c) { return C.stepTag ? C.stepTag(code, c) : D.STEPS[code].no + ' ' + D.STEPS[code].short; };
+  const stepTag = C.stepTag;
 
   // 기획자 결정 2026-11-02 D-11: 이 목록에서만 되풀이되는 확인 문장("확인: 고객사와 사업자등록번호, ...")을 "확인 항목 n개 확인"으로 줄임
   //   ②, ⑥, ⑦, ⑧, ⑨를 처리하면 확인한 항목이 결재 기록에 "확인: 항목, 항목"으로 남음. 항목 이름에는 쉼표를 쓰지 않으므로(mock-data.js) 쉼표로 나눠 셈

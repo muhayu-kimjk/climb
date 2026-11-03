@@ -759,8 +759,7 @@
    * 보류(C-16): 거래처(사업자등록번호)나 계약 묶음(변경과 연장의 원계약, 보완 후 재기안하는 이 계약)에 걸린 보류(C.holdOf)가 있으면 알리고 기안을 막음
    *   임시 저장은 됨. 보류는 컴플라이언스 담당자가 걸고 풂(개선 과제와 보류 SCR-64)
    * 거래처 확인(C-13): 국가와 지자체(가운데 83), 조달, 간접 거래처인데 확인이 없거나 다음 확인일이 지났거나 문제 있음이면 경고만(C.customerCheckNote, 막지 않음)
-   *   기안할 때 보인 경고 문장은 계약 기록 customerCheckWarn으로 남김(경고를 보고 기안했다는 기록)
-   * common.js에 컴플라이언스의 기능이 없으면 아무것도 보이지 않고 막지도 않음 */
+   *   기안할 때 보인 경고 문장은 계약 기록 customerCheckWarn으로 남김(경고를 보고 기안했다는 기록) */
   let guard = { hold: null, check: '' };
   function syncGuards() {
     const kind = val('kind') || 'NEW';
@@ -769,13 +768,11 @@
       parentId: kind !== 'NEW' ? ($('#f-origin').value || (source && source.parentId) || null) : null,
       counterparty: val('counterparty'), form: { bizNo: val('bizNo') },
     };
-    let hold = null, check = '';
-    try { hold = typeof C.holdOf === 'function' ? C.holdOf(target) : null; } catch (e) { hold = null; }
+    const hold = C.holdOf(target);
     const biz = val('bizNo').replace(/\D/g, '');
-    try { check = biz.length === 10 && typeof C.customerCheckNote === 'function' ? C.customerCheckNote(biz, val('method')) || '' : ''; } catch (e) { check = ''; }
+    const check = biz.length === 10 ? C.customerCheckNote(biz, val('method')) || '' : '';
     guard = { hold: hold, check: check };
-    setWarn('#customer-hold', hold ? (typeof C.holdText === 'function' ? C.holdText(hold, me) : '보류가 걸려 있습니다. 사유: ' + (hold.reason || '')) +
-      ' 보류가 풀릴 때까지 기안할 수 없습니다(임시 저장은 됨).' : '');
+    setWarn('#customer-hold', hold ? C.holdText(hold, me) + ' 보류가 풀릴 때까지 기안할 수 없습니다(임시 저장은 됨).' : '');
     setWarn('#customer-check', check);
   }
   form.addEventListener('input', function (e) {
@@ -1235,7 +1232,7 @@
     updateOppLink();
     // 기획자 결정 2026-11-02 E-1 ①: 같은 번호를 쓰는 까닭(보이는지는 refresh의 syncOpp가 정함)
     $('#f-opp-reason').value = f.oppReason || (source.oppDup && source.oppDup.reason) || '';
-    setRadio('method', f.method ? (f.method === 'RESELLER' ? 'INDIRECT' : f.method) : source.form ? '' : C.methodOf(source));
+    setRadio('method', (f.method || !source.form) ? C.methodOf(source) : '');
     $('#f-start').value = f.startDate || fb.startDate || '';
     $('#f-end').value = f.endDate || fb.endDate || '';
     const autoRenew = f.autoRenew || fb.autoRenew;

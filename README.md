@@ -74,10 +74,16 @@ Projects/climb
    ├─ admin-customers.html SCR-55 거래처 관리 (고치기, 합치기)
    ├─ admin-codes.html     SCR-56 코드 관리
    ├─ admin-logs.html      SCR-57 접속 기록 점검 (정보보호 담당자와 리더, 최고관리자)
+   ├─ company-settings.html SCR-59 회사 설정 (회사 정보, 견적서에 찍는 인장 그림. 고치기는 최고관리자, 인장은 총무)
+   ├─ discount-review.html SCR-61 할인 예외 점검 (매월, 재무 임원)
+   ├─ opp-recon.html       SCR-62 영업기회 대사 (매월 판다 수주 목록과 대조, 영업지원)
+   ├─ seal-recon.html      SCR-63 인장 기록 대사 (매월 견적서 인장 기록과 인장 대장 대조, 총무)
+   ├─ remediation.html     SCR-64 개선 과제와 보류 (컴플라이언스 담당자)
+   ├─ config-review.html   SCR-65 설정 변경 확인 (가격 기준, 제품과 기능, 표준계약서 변경 확인. 재무 리더, 법무)
    ├─ help.html            SCR-90 이용 안내
    ├─ notices.html         SCR-91 공지사항 (공지와 릴리즈, 쓰기는 관리자)
    ├─ notice.html          SCR-92 공지 보기 (?id=글 번호)
-   ├─ account.html         SCR-93 내 계정 (머리글의 이름을 누르면, 화면 밝기, 받을 이메일과 미리 보기)
+   ├─ account.html         SCR-93 내 계정 (머리글 계정 아이콘을 눌러 펼친 판에서, 휴대폰은 전체 메뉴판 맨 아래에서도. 화면 밝기, 받을 이메일과 미리 보기)
    └─ assets/
       ├─ css/tokens.css    색, 글자, 크기 값 (회사 컬러는 여기만 바꾸면 됨)
       ├─ css/common.css    모든 화면 공통 스타일 (KRDS 구조)
@@ -87,11 +93,12 @@ Projects/climb
       ├─ css/dashboard.css 개요 화면 전용 스타일
       ├─ css/new-contract.css 등록 양식 스타일: 새 계약 등록과 해지, 연장, 운영 변경 기안 (제품 줄, 결재선 미리 보기)
       ├─ css/admin-users.css 사용자 권한 관리 화면 전용 스타일 (사용자 표 너비, 사용 중지 계정 표시)
-      ├─ css/admin.css     관리자 화면과 표준계약서, 의무 관리, 통계, 공지사항, 내 계정, 계약 상세가 함께 쓰는 스타일 (묶음 상자, 표 안의 글자 버튼, 변경 이력 표)
+      ├─ css/admin.css     관리자 화면과 표준계약서, 의무 관리, 통계, 공지사항, 내 계정, 계약 상세, 만료 예정 계약, 회사 설정, 점검 화면 다섯이 함께 쓰는 스타일 (묶음 상자, 표 안의 글자 버튼, 변경 이력 표)
       ├─ css/help.css      이용 안내 화면 전용 스타일 (차례, 자주 묻는 것)
-      ├─ css/board.css     공지사항, 내 계정, 개요의 최근 공지 한 줄과 이메일 미리 보기
+      ├─ css/board.css     공지사항과 공지 보기(목록, 글, 글쓰기 창), 내 계정(계정 정보, 받을 이메일과 미리 보기)
       ├─ css/stats.css     통계와 보고서 전용 스타일 (막대 그래프, 숫자 상자)
       ├─ css/quote.css     견적 화면 전용 스타일 (제품 줄 표, 고객에게 내는 견적서 모양, 견적서만 찍는 출력)
+      ├─ css/recon.css     회사 설정, 영업기회 대사, 인장 기록 대사 스타일 (올리기 칸, 인장 그림 미리 보기, 대사 표)
       ├─ js/mock-data.js   시연용 예시 데이터 (가상의 사람, 거래처)
       ├─ js/common.js      헤더, 메뉴, 푸터, 결재 흐름 계산, 권한 판단 등 공통 기능 (맨 위에 차례)
       ├─ js/dashboard.js   개요 화면 로직
@@ -104,6 +111,13 @@ Projects/climb
       ├─ js/admin-customers.js 거래처 관리 화면 로직
       ├─ js/admin-codes.js 코드 관리 화면 로직
       ├─ js/admin-logs.js  접속 기록 점검 화면 로직
+      ├─ js/control-checks.js 점검 화면이 함께 쓰는 자료 window.CLIMB_CTL (접속 기록, 설정 변경 묶음과 확인, 내보내기 기록. 접속 기록 점검, 설정 변경 확인, 통계, 개요가 불러옴)
+      ├─ js/company-settings.js 회사 설정 화면 로직
+      ├─ js/discount-review.js 할인 예외 점검 화면 로직
+      ├─ js/opp-recon.js   영업기회 대사 화면 로직
+      ├─ js/seal-recon.js  인장 기록 대사 화면 로직
+      ├─ js/remediation.js 개선 과제와 보류 화면 로직
+      ├─ js/config-review.js 설정 변경 확인 화면 로직
       ├─ js/help.js        이용 안내 화면 로직 (내 역할 강조, 인쇄 때 펼치기)
       ├─ js/notices.js     공지사항 목록 화면 로직
       ├─ js/notice.js      공지 보기 화면 로직 (고치기, 내리기)
@@ -130,6 +144,7 @@ Projects/climb
       ├─ js/obligations.js 의무 관리 화면 로직 (거르기, 기한 순서)
       ├─ js/obligation-ui.js 체결 후 의무 창(더하기, 이행 기록, 끝내기, 기록 보기). 의무 관리와 계약 상세가 함께 씀
       ├─ js/theme.js       밝은 화면과 어두운 화면 (페이지를 그리기 전에 정함, 모든 HTML의 <head>에서 불러옴)
+      ├─ img/seal-sample.svg 시연용 가상 회사 인장 그림 ("견본" 글자)
       └─ img/favicon.svg   브라우저 탭 아이콘 (무하유 심볼 Black 원본. favicon.png는 SVG를 못 읽는 브라우저용)
 ```
 

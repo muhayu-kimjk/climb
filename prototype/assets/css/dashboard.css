@@ -47,7 +47,6 @@
     min-height: 5.6rem; padding: 0 0 0 calc(var(--step-circle) + 1.2rem);
   }
   .step-wrap--count .step-body::before { top: 50%; margin-top: calc(var(--step-circle) / -2); }
-  .step-wrap--count .step-body::after { top: 50%; margin-top: -0.6rem; }
   .step-wrap--count .step-tit { white-space: nowrap; font-size: var(--fs-body-medium); }
   .step-wrap--count .step-count { margin-top: 0; font-size: var(--fs-heading-small); text-align: right; white-space: nowrap; }
 }

@@ -374,18 +374,13 @@
    * 열람 제한 계약 가운데 볼 수 없는 건은 넣지 않음(위 조건의 base와 signed가 이미 뺌). 감사 열람은 모두 셈 */
   const RISK_DAYS = 30, QEND_DAYS = 5;
   function pct1(n) { return (Math.round(n * 1000) / 10).toLocaleString('ko-KR') + '%'; }
-  // 그날 쓰던 가격 기준 줄(없으면 그 기능의 첫 줄)
-  function priceAt(fid, day) {
-    const rows = D.PRICE_ROWS.filter(function (p) { return p.feature === fid; })
-      .sort(function (a, b) { return a.validFrom.localeCompare(b.validFrom) || a.at.localeCompare(b.at); });
-    return rows.filter(function (p) { return p.validFrom <= day; }).pop() || rows[0] || null;
-  }
   // 계약의 할인율(표준 금액 대비). 셀 수 없으면 null
   function discountOf(c) {
     const lines = c.products || (c.form && c.form.products) || [], day = String(c.requestedAt || D.TODAY).slice(0, 10);
+    const price = C.pricesAt(day);
     let std = 0, amt = 0;
     lines.forEach(function (l) {
-      const p = priceAt(l.feature, day), q = Number(l.qty) || 0;
+      const p = price[l.feature], q = Number(l.qty) || 0;
       if (!p || !q) return;
       std += p.listPrice * q; amt += Number(l.amount) || 0;
     });
@@ -394,9 +389,10 @@
   // 한 줄이라도 할인율 한도를 넘은 가장 큰 폭(%p). 셀 수 없으면 null (증빙 내보내기의 ③ 가격 예외)
   function overPpOf(c) {
     const lines = c.products || (c.form && c.form.products) || [], day = String(c.requestedAt || D.TODAY).slice(0, 10);
+    const price = C.pricesAt(day);
     let max = null;
     lines.forEach(function (l) {
-      const p = priceAt(l.feature, day), q = Number(l.qty) || 0;
+      const p = price[l.feature], q = Number(l.qty) || 0;
       if (!p || !q) return;
       const pp = Math.round(((p.listPrice * q - (Number(l.amount) || 0)) / (p.listPrice * q) - (p.discountCap || 0)) * 1000) / 10;
       max = max == null ? pp : Math.max(max, pp);

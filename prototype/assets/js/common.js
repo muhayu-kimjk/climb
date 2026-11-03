@@ -23,12 +23,12 @@ window.CLIMB = (function () {
   const ROLE_KEY = 'climb.demoRole';
 
   /* ---------- 메뉴 구조 (docs/02_화면목록.md 1. 메뉴 구조, REQ-UI-14) ----------
-   * 개요 → 계약 등록 → 계약 현황 → 보관함 (관리자 메뉴는 관리자에게만 맨 뒤에, 그다음 점검(2026-11-03), 공지사항)
+   * 개요 → 견적 → 계약 등록 → 계약 현황 → 보관함 → 관리자 → 점검(2026-11-03) → 공지사항 (누가 보는지는 메뉴마다 roles)
    * roles: 이 메뉴(또는 하위 메뉴)가 보이는 역할. 없으면 전체에게 보임.
    *        최고관리자(SUPER)는 roles와 상관없이 모든 메뉴를 봅니다. (v0.16)
    *        리더와 임원(영업지원 리더, 정보보호 리더, 고객지원 리더, 재무 리더, 재무 임원)은 그 분야 담당자의 메뉴를 함께 봅니다(ROLE_BASE, v0.29)
-   * scr  : 화면 ID. href가 없으면 아직 시안을 만들지 않은 화면입니다. */
-  // 점검 화면마다 그 점검을 맡는 역할 (기획자 결정 2026-11-02). 메뉴, 화면 문(canSeeCheck), 처리(canDoCheck), 개요 "점검할 일"(C-10)이 함께 씀
+   * scr  : 화면 ID. */
+  // 점검 화면마다 그 점검을 맡는 역할 (기획자 결정 2026-11-02). 메뉴, 화면 문(C.gate에 checkOwners와 AUDIT), 처리(canDoCheck), 개요 "점검할 일"(C-10)이 함께 씀
   //   SCR-61 할인 예외 점검: 재무 임원(CFO, C-9) / SCR-62 영업기회 대사: 영업지원(담당자, 리더, E-1 ②) / SCR-63 인장 기록 대사: 총무(E-7 ③)
   //   SCR-64 개선 과제와 보류: 컴플라이언스(C-16) / SCR-65 설정 변경 확인: 가격과 제품 줄은 재무 리더, 표준계약서 줄은 법무(올린 사람이 아닌 법무, C-8)
   const CHECK_OWNERS = {
@@ -74,7 +74,7 @@ window.CLIMB = (function () {
       // 통계와 보고서(v0.53 기획자 요청): 체결 금액과 건수, 결재 단계마다 걸린 날, 체크리스트 예외. 모두 봄(열람 제한 건은 빼고 셈)
       { label: '통계와 보고서', scr: 'SCR-46', href: 'stats.html' },
     ] },
-    // 관리자 메뉴는 관리자(와 최고관리자)에게만 보임 (REQ-AUTH-02)
+    // 관리자 메뉴: 관리자와 최고관리자. 그 아래 화면 일부는 다른 역할도 씀(아래 "관리자가 아닌 사람도" 줄) (REQ-AUTH-02)
     //   접속 기록 점검(SCR-57)만 정보보호 담당자와 리더가 씀. 관리자가 자기 작업 기록을 스스로 점검하지 않게
     //   관리자에게는 보이지 않음 (REQ-SEC-05, 06, 기획자 결정 v0.25)
     //   가격 기준 관리(SCR-54)는 영업지원(세일즈어드민)도 열어 봄(보기만, 기획자 결정 v0.58 C-34)
@@ -516,7 +516,7 @@ window.CLIMB = (function () {
    *   ⑨는 기간 변경과 CK 충전은 고객지원, HR 충전은 재무(수불부, 안정화까지). ②, ④~⑧은 없음
    *   기획자 결정 2026-11-02 B-3(추천과 다름): 운영 변경 모두 ⑩ 재무 확인을 거침(예전에는 ⑩ 없이 ⑨에서 끝남, REQ-CHG-10)
    *     기획자 결정 2026-11-03(C-18 ⑤): HR 충전의 ⑩은 재무 담당자(v0.29 "재무 리더는 결재 단계를 맡지 않음" 그대로).
-   *       ⑨를 ⑩ 담당자(재무 담당자)가 하므로 ⑩은 ⑨를 하지 않은 다른 재무 담당자가 확인(otherFinance). 예전 [가정]의 재무 리더 담당('S10:HR')은 없앰
+   *       ⑨를 ⑩ 담당자(재무 담당자)가 하므로 ⑩은 ⑨를 하지 않은 다른 재무 담당자가 확인(otherFinance)
    *   기획자 결정 2026-11-02 B-4: 무상 충전 50건은 계약 연도마다 더해서 셈(freeChargeUsed)
    *   한 번에 한 가지 변경만 (재무 문서 원칙). 계약서가 바뀌는 변경은 변경 계약(-A)으로 전체 결재 */
   function isChange(c) { return c.kind === 'CHANGE'; }
@@ -691,7 +691,7 @@ window.CLIMB = (function () {
     // 기획자 결정 2026-11-02 A-10: 만료 처리는 고객지원(HR 서비스도). ⑨ 운영 적용 담당
     if (code === 'SXP') return assigneeAt('S09', at);
     if (code === 'S09' && isChange(c) && /^HR_/.test(c.changeType)) return assigneeAt('S10', at);
-    // 기획자 결정 2026-11-03(C-18 ⑤): HR 충전의 ⑩도 보통 ⑩ 담당자(재무 담당자). 재무 리더가 맡던 따로 정한 담당('S10:HR')은 없앰
+    // 기획자 결정 2026-11-03(C-18 ⑤): HR 충전의 ⑩도 보통 ⑩ 담당자(재무 담당자)
     //   ⑨를 ⑩ 담당자가 하므로, 아직 차례가 오지 않은 ⑩(at '9999', 결재선 미리 보기)은 다른 재무 담당자로 미리 보임.
     //   차례가 온 때는 buildReview가 ⑨를 실제로 한 사람과 견줘 정함(같으면 다른 재무 담당자, 다르면 보통 ⑩ 담당자)
     if (code === 'S10' && at === '9999' && isChange(c) && /^HR_/.test(c.changeType)) return otherFinance(assigneeAt('S10', at), at) || assigneeAt('S10', at);
@@ -717,7 +717,6 @@ window.CLIMB = (function () {
    *     ②와 ⑧ 기안자가 그 단계 담당자(영업지원)면 재무가 대신 (REQ-AUTH-16 직무 분리)
    *     ⑨ 운영 변경의 HR 충전은 재무가 수불부에 반영 (REQ-CHG-08)
    *     ③ 만료 유예 확인(SGR, A-11)도 ③과 같음. ③ 영업 임원 승인(S03C, E-3)은 늘 "③ 영업 임원"
-   *     ⑩ 재무 확인을 재무 담당자가 아닌 사람이 맡으면 그 사람의 역할 이름(2026-11-03부터 HR 충전의 ⑩도 재무 담당자라 "⑩ 재무")
    *     ⑦ 기획자 결정 2026-11-03(C-44): 영업대표가 바뀌었으면 "⑦ 영업대표", 사용 중지된 영업대표 대신 영업 리더가 맡으면 "⑦ 영업 리더"(리더 본인 계약은 "⑦ 영업 임원")
    *   그 단계가 차례가 된 때의 규칙으로 판단하고, 아직 차례가 오지 않은 단계는 지금 규칙으로 판단 */
   function stepWho(code, c) {
@@ -735,10 +734,6 @@ window.CLIMB = (function () {
     if (code === 'S07' && c.id) {
       const rep = repActorOf(c);
       if (rep !== c.requesterId) return repNeeded(c) ? roleShort(roleFor(rep, 'S07')) : '영업대표';
-    }
-    if (code === 'S10') {
-      const r = roleFor((a && a.userId) || stepUser('S10', c, at), 'S10');
-      if (r !== 'FINANCE') return roleShort(r);
     }
     return s.short;
   }
@@ -894,7 +889,7 @@ window.CLIMB = (function () {
             s.state = 'PENDING'; s.arrivedAt = at;
             s.userId = stepUser(s.step, c, at); s.role = roleFor(s.userId, s.step);
             // 기획자 결정 2026-11-02 B-3: ⑨를 처리한 사람은 ⑩을 맡지 않음
-            //   기획자 결정 2026-11-03(C-18 ⑤): 같으면 ⑨를 하지 않은 다른 재무 담당자에게(otherFinance. 예전의 재무 리더 담당 'S10:HR'은 없앰)
+            //   기획자 결정 2026-11-03(C-18 ⑤): 같으면 ⑨를 하지 않은 다른 재무 담당자에게(otherFinance)
             if (s.step === 'S10' && by.S09.decidedBy && by.S09.decidedBy === s.userId) {
               const other = otherFinance(s.userId, at);
               if (other) { s.userId = other; s.role = roleFor(other, 'S10'); }
@@ -984,11 +979,6 @@ window.CLIMB = (function () {
 
   function pendingSteps(c) { return (c.approvals || []).filter(function (a) { return a.state === 'PENDING'; }); }
   function currentStep(c) { return pendingSteps(c)[0] || null; }
-  // 체결본을 올린 때(⑦이 끝난 때). 조건 그대로 연장(날인과 체결본 없음)은 계약 완료(⑩)된 때
-  //   buildReview가 차수와 다시 등록 요청을 따져 정한 signedAt, completedAt을 씀(결재 기록을 직접 뒤지지 않음)
-  //   기획자 결정 2026-11-02 B-8, A-2: 통계와 계약 요약서의 체결일은 아래 signedDate(서명본 체결일)로 바뀜. 통계는 ⑧ 반려 차수를 뺌(stats.js)
-  //     이 함수는 화면 코드에서 쓰지 않고 올린 때가 필요한 곳을 위해 남겨 둠
-  function signDate(c) { return (c.renewMode === 'AUTO' ? c.completedAt : c.signedAt) || ''; }
   /* 서명본 체결일과 실제 개통일 (기획자 결정 2026-11-02 B-8, G-09)
    *   signedDate: ⑦에서 받은 서명본 체결일. 지금 차수의 마지막 체결본 등록 기록(S07 REGISTER)의 signDate, 없으면 올린 날(c.signedAt)
    *     ⑦이 끝나지 않았으면(다시 등록 요청 뒤 등) 빈칸. c.signedAt은 지금처럼 올린 시각 그대로(통계는 올린 시각도 남김)
@@ -1948,7 +1938,6 @@ window.CLIMB = (function () {
     });
     // 기획자 결정 2026-11-02 E-3: 영업 임원은 할인 폭이 큰 계약의 ③ 영업 임원 승인도 맡음(리더 본인 계약의 ③ 담당과 같은 사람이라 한 줄로)
     if (assigneeOf('S03') === userId) out.push({ key: 'S03', label: D.STEPS.S03.no + ' ' + D.STEPS.S03.name + '(리더 본인 계약, 할인 폭이 큰 계약의 영업 임원 승인)', role: 'EXEC' });
-    // 기획자 결정 2026-11-03(C-18 ⑤): HR 충전의 ⑩을 따로 맡던 재무 리더 줄('S10:HR')은 없앰. HR 충전도 위 ⑩ 담당(재무 담당자)
     return out;
   }
   // 내가 처리할 차례인지: 담당자 본인이거나, 그 담당자의 대리로 지정된 기간 안
@@ -2001,17 +1990,16 @@ window.CLIMB = (function () {
    *                addSteps: 이번에 맡길 단계 ['S09', 'S03:비즈니스1유닛'], delegateFor: 이번에 대신할 사람 번호(그 사람의 담당을 함께 셈),
    *                label: 이번 일을 부르는 말(까닭 문장에 씀, 없으면 "이번에 맡길 ⑨ 운영 적용" 꼴) }
    *   돌려주는 값: [{ pair: ['S09', 'S10'], text: '⑨ 고객지원과 ⑩ 재무', why: { S09: [까닭...], S10: [...] }, detail: '⑨ 고객지원(역할 고객지원 담당자)과 ⑩ 재무(역할 재무 담당자)' }]
-   *   겹침이 없으면 빈 목록. 정해진 대체 방식(D.ROLE_CONFLICTS.allowed: 재무의 ②⑧⑩, 영업과 영업지원 겸임, HR 충전의 ⑨)은 짝에 들지 않아 나오지 않음
+   *   겹침이 없으면 빈 목록. 정해진 대체 방식(01 REQ-AUTH-22, 03 CODE-ROLE-CONFLICT: 재무의 ②⑧⑩, 영업과 영업지원 겸임(06 R-14), HR 충전의 ⑨)은 짝에 들지 않아 나오지 않음
    * 쓰는 곳: 사용자 권한 관리의 저장(알리고 까닭을 받아 허용), 결재선 규칙의 담당자와 대리 지정 저장(같은 방식), 분기 권한 검토(conflictAccounts) */
   function dutyOf(stepKey) {
     const code = String(stepKey || '').split(':')[0], ds = (D.ROLE_CONFLICTS || {}).duties || {};
     return Object.keys(ds).filter(function (k) { return ds[k].steps.indexOf(code) > -1; })[0] || null;
   }
   // 단계 열쇠의 이름: 'S03:비즈니스1유닛' → '③ 영업 검토(비즈니스1유닛 리더)'
-  //   'S10:HR' → '⑩ 재무 확인(HR 충전)'은 2026-11-03에 없앤 담당이지만 예전 변경 이력의 이름을 읽을 수 있게 남겨 둠
   function stepKeyLabel(key) {
     const p = String(key).split(':'), s = D.STEPS[p[0]];
-    return s ? s.no + ' ' + s.name + (p[1] ? '(' + p[1] + (p[0] === 'S03' ? ' 리더' : ' 충전') + ')' : '') : String(key);
+    return s ? s.no + ' ' + s.name + (p[1] ? '(' + p[1] + ' 리더' + ')' : '') : String(key);
   }
   function roleConflicts(who, ctx) {
     ctx = ctx || {};
@@ -2068,12 +2056,11 @@ window.CLIMB = (function () {
   }
 
   /* 점검 화면과 회사 설정의 문 (기획자 결정 2026-11-02, 맡는 역할은 위 CHECK_OWNERS)
-   * canSeeCheck: 그 점검을 맡은 사람, 최고관리자(시연용), 감사 열람(보기만) / canDoCheck: 확인과 의견을 남길 수 있는지(맡은 사람과 시연용 최고관리자. 읽기만 하는 역할은 false)
+   * canDoCheck: 확인과 의견을 남길 수 있는지(맡은 사람과 시연용 최고관리자. 읽기만 하는 역할은 false)
    *   C-6: 최고관리자는 자기 작업이 든 점검을 승인하지 못함. 줄마다의 판단은 그 화면이 함(예: 설정 변경 확인에서 최고관리자가 바꾼 줄)
    * 회사 설정(SCR-59, E-7, E-9): 볼 수 있는 사람은 최고관리자, 총무, 감사 열람(보기만). 회사 정보는 최고관리자만, 견적서 인장 그림은 총무만 바꿈
    * 컴플라이언스(덧붙임, C-13, C-16): 거래처 확인 결과 남기기, 보류 걸고 풀기, 개선 과제 기록은 컴플라이언스 담당자(시연용 최고관리자)만 */
   function checkOwners(scr) { return (CHECK_OWNERS[scr] || []).slice(); }
-  function canSeeCheck(user, scr) { return user.role === 'SUPER' || isAuditor(user) || hasRole(user, CHECK_OWNERS[scr] || []); }
   function canDoCheck(user, scr) { return !isReadOnly(user) && (user.role === 'SUPER' || hasRole(user, CHECK_OWNERS[scr] || [])); }
   function canSeeCompany(user) { return user.role === 'SUPER' || isAuditor(user) || hasRole(user, ['GA']); }
   function canEditCompany(user) { return !isReadOnly(user) && user.role === 'SUPER'; }
@@ -2092,9 +2079,8 @@ window.CLIMB = (function () {
    *   반려, 보완 요청, 다시 등록 요청, 승인 취소, 보완 완료는 됨. 유예 요청과 유예 확인(서비스를 더 열어 둠)은 막고 유예 반려는 됨
    *   만료 처리(서비스를 닫는 일)는 막지 않음 [가정: 보류는 거래를 멈추려는 것이라 닫는 일까지 막으면 서비스가 계속 열려 있게 됨]
    *   실제 시스템에서는 서버가 막음
-   *   기획자 결정 2026-11-03(CTL-79): 걸 때와 풀 때 막히는 사람 모두에게 이메일(mock-data.js EMAIL_TYPES HOLD_SET, HOLD_RELEASE). 받는 사람은 아래 holdMailTo */
+   *   기획자 결정 2026-11-03(CTL-79): 걸 때와 풀 때 막히는 사람 모두에게 이메일(mock-data.js EMAIL_TYPES HOLD_SET, HOLD_RELEASE). 받는 사람은 아래 holdMailList */
   const HOLD_BLOCKS = ['APPROVE', 'REGISTER', 'GRACE', 'GRACE_OK']; // 보류 중에 막는 결재 기록(만료 처리 SXP의 APPROVE는 뺌)
-  ['CUSTOMER_CHECKS', 'HOLDS', 'REMEDIATIONS'].forEach(function (k) { if (!D[k]) D[k] = []; }); // 예시 자료가 없어도 화면이 멈추지 않게
   function bizKey(v) { return String(v || '').replace(/[^0-9]/g, ''); }
   // 사업자등록번호로 거래처 찾기('-'가 있든 없든). 합쳐진 거래처는 뺌
   function customerByBizNo(bizNo) {
@@ -2147,7 +2133,6 @@ window.CLIMB = (function () {
     return x.overdue ? '거래처 확인의 다음 확인일(' + fmtDate(x.due) + ')이 지났습니다. 기안은 할 수 있습니다. 컴플라이언스 담당자에게 다시 확인을 요청해 주세요.' : '';
   }
   // 보류: 지금 걸린 것(풀지 않은 것)만 막음. 기록은 지우지 않음
-  function holdState(h) { return h.releasedAt ? 'OFF' : 'ON'; }
   function holdsAll() { return (D.HOLDS || []).slice().sort(function (a, b) { return b.at.localeCompare(a.at); }); }
   // 거래처에 걸린 보류(사업자등록번호로). 그 거래처로 합쳐진 거래처에 걸린 보류도 셈
   function customerHold(bizNo) {
@@ -2186,8 +2171,7 @@ window.CLIMB = (function () {
   /* 보류 이메일을 받을 사람 (기획자 결정 2026-11-03, 06 CTL-79: 막히는 사람 모두, 걸 때와 풀 때 모두)
    *   그 보류에 걸린 계약(임시 저장 포함, 해지된 묶음은 뺌)마다: 지금 영업대표(사용 중지면 대신 맡는 영업 리더), 그 유닛의 영업 리더
    *   (리더 본인 계약이면 영업 임원), 그 계약에 지금 결재 차례가 있는 사람(대리 지정 중이면 대신할 사람도)
-   *   h: D.HOLDS의 기록. 풀 때는 푼 기록을 넘겨도 됨(걸린 동안과 같은 계약을 셈). 사용 중지 계정은 뺌. 돌려주는 값: 사람 번호 목록(겹치지 않게)
-   *   [{ id, why: ['영업대표', '영업 리더', '결재 차례'] }]가 필요하면 holdMailList */
+   *   h: D.HOLDS의 기록. 풀 때는 푼 기록을 넘겨도 됨(걸린 동안과 같은 계약을 셈). 사용 중지 계정은 뺌. 돌려주는 값: [{ id, why: ['영업대표', '영업 리더', '결재 차례'] }] (사람은 겹치지 않게) */
   function holdMailList(h) {
     if (!h) return [];
     const by = {}, order = [];
@@ -2217,7 +2201,6 @@ window.CLIMB = (function () {
     });
     return order.map(function (id) { return { id: id, why: by[id] }; });
   }
-  function holdMailTo(h) { return holdMailList(h).map(function (x) { return x.id; }); }
   // 개요 "점검할 일"(C-10)에 더할 컴플라이언스의 일: 개요 화면과 같은 모양 { what, todo, state, due, href }
   function complianceTodo() {
     const cus = (D.CUSTOMERS || []).filter(function (cu) { return cu.use && !cu.mergedInto; }).map(function (cu) { return customerCheck(cu.bizNo); })
@@ -2233,7 +2216,6 @@ window.CLIMB = (function () {
 
   loadDemo('admin').forEach(function (e) { D.ADMIN_LOG.push(e); applyAdmin(e); });
   // 기획자 결정 2026-11-03(C-44): 영업대표 바꾼 기록(예시 D.OWNER_CHANGES + 시연 기록). ⑦ 담당(stepUser)이 이 기록을 보므로 결재 상태 계산 전에 더함
-  if (!D.OWNER_CHANGES) D.OWNER_CHANGES = [];
   loadDemo('ownerChanges').forEach(function (r) { D.OWNER_CHANGES.push(r); });
   // 저장해 둔 시연 기록을 예시 데이터에 더한 뒤, 모든 계약의 결재 상태를 계산
   loadDemoActions().forEach(function (a) {
@@ -2829,7 +2811,7 @@ window.CLIMB = (function () {
      *   1줄: [심볼] climb                              [계정] [메뉴 검색]   (휴대폰은 [계정] [메뉴 검색] [≡])
      *   2줄: 무하유 계약 관리 시스템
      *   (v0.53 기획자 요청: 머리글 둘째 줄은 한글 이름. 영문 이름은 푸터와 로그인에만)
-     * 오른쪽은 아이콘(v0.61 기획자 요청, 휴대폰 먼저, 같은 날 PC와 태블릿도). 아이콘 묶음은 로고 두 줄의 세로 가운데, 오른쪽 끝은 본문 오른쪽 끝.
+     * 오른쪽은 아이콘(v0.61 기획자 요청, 휴대폰 먼저, 같은 날 PC와 태블릿도). 아이콘 묶음은 PC와 태블릿에서 밑단 맞춤(계정 아이콘 그림의 아래 끝 = 둘째 줄 글자의 아래 끝, 2026-11-02 기획자 요청, common.css .user-line), 휴대폰은 둘째 줄이 없어 로고 줄 가운데, 오른쪽 끝은 본문 오른쪽 끝.
      *   예전 오른쪽 한 줄 "조직 이름님 | 로그아웃"(v0.15~v0.60)은 계정 판 안으로 옮김(조직, 이름님, 내 계정, 로그아웃)
      *   ≡(전체 메뉴)은 휴대폰만. PC와 태블릿은 메뉴 줄이 있어 두지 않음(기획자: 휴대폰은 세로 화면을 아끼려는 것)
      * 화면 알림(종 모양, 알림 숫자)은 두지 않습니다. 알림은 이메일로 보냅니다. (REQ-ENV-09) */
@@ -2858,7 +2840,7 @@ window.CLIMB = (function () {
       // 기획자 결정 2026-11-03: 메뉴가 8개(지금은 "점검"을 따로 둔 최고관리자만)여도 메뉴 사이 여백은 그대로.
       //   다 들어가지 않으면 오른쪽 화살표를 눌러 옆으로 밀어 봄(같은 날 기획자 요청으로 여백을 줄이던 gnb--dense를 없앰)
       '<nav class="gnb" aria-label="주 메뉴"><div class="inner">' +
-        // 옆으로 밀어 보는 틀과 양쪽 화살표(v0.43 휴대폰, v0.50부터 PC와 태블릿도). 화살표는 보조라 Tab으로는 가지 않음(메뉴 링크로 바로 감)
+        // 옆으로 밀어 보는 틀과 양쪽 화살표(PC와 태블릿. 휴대폰은 메뉴 줄 없이 ≡ 메뉴판). 화살표는 보조라 Tab으로는 가지 않음(메뉴 링크로 바로 감)
         '<div class="gnb-scroll"><ul class="gnb-list">' + menuHtml + '</ul>' +
           '<button type="button" class="gnb-more gnb-more--left" tabindex="-1" aria-hidden="true">' + icon('chevronLeft') + '</button>' +
           '<button type="button" class="gnb-more gnb-more--right" tabindex="-1" aria-hidden="true">' + icon('chevronRight') + '</button></div>' +
@@ -2878,7 +2860,7 @@ window.CLIMB = (function () {
         '</div>' +
         '<div class="hdr-sheet" id="menu-search" hidden>' + menuSearchHtml('ms') + '</div>');
 
-    // 메뉴 한 줄(v0.42 휴대폰, v0.50 기획자 요청으로 PC와 태블릿도): 다 들어가지 않으면 옆으로 밀어 봄.
+    // 메뉴 한 줄(PC와 태블릿. 휴대폰은 메뉴 줄 없이 ≡ 메뉴판): 다 들어가지 않으면 옆으로 밀어 봄.
     //   지금 화면의 메뉴가 보이게 미리 밀어 두고, 더 있는 쪽 끝을 흐리게 표시
     const gnbList = el.querySelector('.gnb-list');
     // 메뉴가 더 있는 쪽에 그라데이션과 화살표를 보임(v0.43). 하위 메뉴를 열어도 그대로 둠
@@ -3004,8 +2986,8 @@ window.CLIMB = (function () {
       item.addEventListener('focusout', function (e) { if (item.classList.contains('is-open') && leftFor(e, [item])) closeMenus(); });
     });
 
-    // 머리글 판 (v0.61 기획자 요청. 휴대폰 먼저, 같은 날 PC와 태블릿도): 계정 아이콘과 돋보기를 누르면 머리글 바로 아래로 판이 펼쳐짐
-    //   직각, 흰 바탕, 뒤는 어두운 막. PC는 하위 메뉴처럼 메뉴 줄이 아래로 넓어지듯(같은 자리). 한 번에 하나만
+    // 머리글 판 (v0.61 기획자 요청. 휴대폰 먼저, 같은 날 PC와 태블릿도): 계정 아이콘과 돋보기를 누르면 누른 아이콘 바로 아래로 판이 펼쳐짐
+    //   직각, 흰 바탕, 뒤는 어두운 막. PC는 누른 아이콘 바로 아래에서 펼쳐져 메뉴 줄을 덮음(메뉴 줄이 위에 붙어 있으면 메뉴 글자만 감추고 그 아래로 이어짐, 2026-11-02 기획자 요청, common.css .hdr-sheet). 한 번에 하나만
     //   계정 판: 이름님, 조직, 내 계정, 로그아웃 / 메뉴 검색 판: 검색 칸과 최근 검색어(v0.60 PC 메뉴 줄 돋보기의 검색 칸을 합침. 2026-11-03에 자주 찾는 메뉴 → 최근 검색어)
     //   같은 아이콘을 다시 누르거나, 아래 막, Esc로 닫힘(Esc는 그 아이콘으로 돌아옴). Tab으로 판 밖으로 나가도 닫힘
     //   판 높이는 화면 아래를 넘지 않고 넘치면 판 안에서 밀어 봄. 키보드 순서는 보이는 순서대로(판 첫 칸에서 Shift+Tab은 그 아이콘, 끝 칸에서 Tab은 다음 아이콘)
@@ -3044,6 +3026,12 @@ window.CLIMB = (function () {
     // 판 높이: 판 윗변부터 화면 아래까지. PC는 판이 메뉴 줄을 덮으며 시작해(2026-11-02 기획자 요청, common.css .hdr-sheet) 머리글 아래가 아니라 판 자신의 윗변에서 잼
     function fitSheet() {
       if (openSheet) openSheet.sheet.style.maxHeight = Math.max(160, window.innerHeight - Math.max(0, openSheet.sheet.getBoundingClientRect().top)) + 'px';
+      // 계정 판의 오른쪽 끝 = 누른 계정 아이콘 그림의 오른쪽 끝(2026-11-03 기획자 요청: 본문 끝(돋보기 아래)까지 가서 너무 오른쪽에 붙어 보였음).
+      //   판의 오른쪽 안쪽 여백을 그 거리로(common.css .hdr-sheet.acc-sheet). 붙은 메뉴 줄에서 열면 그 줄의 계정 아이콘, 휴대폰은 머리글 계정 아이콘 기준
+      if (openSheet && openSheet.sheet.id === 'acc-sheet') {
+        const g = openerOf(openSheet).querySelector('svg');
+        if (g) openSheet.sheet.style.setProperty('--acc-right', Math.max(0, openSheet.sheet.getBoundingClientRect().right - g.getBoundingClientRect().right).toFixed(1) + 'px');
+      }
     }
     el.querySelectorAll('.hdr-sheet').forEach(function (sheet) {
       const s = { sheet: sheet, btns: [].slice.call(el.querySelectorAll('[aria-controls="' + sheet.id + '"]')) };
@@ -3222,7 +3210,7 @@ window.CLIMB = (function () {
    * 메뉴로 바로 가는 간단한 검색. 게시물이나 계약을 찾는 검색은 아님(목록 화면의 검색 칸을 씀)
    *   찾는 곳: 이 역할에 보이는 메뉴의 이름, 위 메뉴 이름(예: 계약 현황), 하는 일(MENU_KEYWORDS). 초성(예: ㄱㅌㄷㄱ)으로도 찾음
    *   순서: 이름이 검색어로 시작 > 이름에 들어 있음 > 하는 일에 들어 있음. 최대 8개
-   *   자리: PC와 태블릿은 메뉴 줄 돋보기(아래로 넓어지는 검색 칸), 휴대폰은 머리글 돋보기(머리글 아래 검색 판, v0.61)
+   *   자리: 머리글 돋보기(로고 줄 오른쪽. PC와 태블릿은 메뉴 줄이 위에 붙으면 메뉴 줄 오른쪽에도)를 누르면 펼쳐지는 메뉴 검색 판(#menu-search, v0.61). 휴대폰과 PC가 같은 판이고 자리만 다름(PC는 메뉴 줄을 덮고 휴대폰은 로고 줄 아래, common.css 머리글 판)
    *   검색어가 없으면 최근 검색어 10개(2026-11-03 기획자 요청. 그 전에는 정해 둔 "자주 찾는 메뉴" 5개라 검색 기록과 상관없었음). 찾은 것이 없으면 이용 안내로 안내
    *   키보드: 아래 화살표로 결과로, 위아래로 옮김, Enter는 첫 결과로 이동. 찾은 개수는 화면낭독기가 읽음
    *   (요구사항 정의서 8장) 앞으로 이 검색 칸을 AI 에이전트에 묻는 입력 창으로 넓히는 안이 있음. 지금은 AI 기능을 넣지 않음(REQ-ENV-12) */
@@ -3336,7 +3324,7 @@ window.CLIMB = (function () {
   /* ---------- 휴대폰 전체 메뉴판 (v0.60 기획자 요청) ----------
    * Claude 문서 사이트처럼 오른쪽에서 나오는 메뉴판. 위계가 잘 보이게 2단계로 들어감
    *   맨 위 줄: "전체 메뉴"(2단계에서는 "‹ 메뉴 이름" 뒤로 단추) + →| 닫기
-   *   1단계: 개요, 계약 등록 >, 계약 현황 >, 보관함 >, (관리자 >), 공지사항. 하위 메뉴가 있으면 > 를 붙여 누르면 2단계로
+   *   1단계: 이 역할에 보이는 위 메뉴(renderHeader가 역할로 거른 MENU) 그대로. 하위 메뉴가 있으면 > 를 붙여 누르면 2단계로
    *   2단계: 그 메뉴의 하위 메뉴. 지금 화면은 진한 초록 굵은 글자(1단계에서는 지금 화면이 든 메뉴)
    *   맨 아래 묶음(선으로 나눔): 이용 안내, 내 계정. 로그아웃은 머리글 계정 판(v0.61)
    *   메뉴에서 펼쳐지는 것은 평평하게(직각, v0.59). 바탕은 흰색(기획자가 참고한 Claude 문서 사이트처럼) */
@@ -3392,7 +3380,7 @@ window.CLIMB = (function () {
         '<div class="footer-brand"><p class="brand-title">' + brandTitleHtml({ mark: true }) + '</p>' +
           '<span class="brand-en">' + esc(D.BRAND.en) + '</span></div>' +
         '<p class="footer-notice">' + esc(SECURITY_NOTICE) + '</p>' +
-        '<p class="footer-copy">' + meta(['© 2026 ' + D.BRAND.company + ' All rights reserved.', '프로토타입 v0.1']) + '</p>' +
+        '<p class="footer-copy">' + meta(['© 2026 ' + D.BRAND.company + ' All rights reserved.', '프로토타입']) + '</p>' +
       '</div>';
   }
 
@@ -4105,14 +4093,14 @@ window.CLIMB = (function () {
     // 거래처, 영업기회, 제품
     isBizNo: isBizNo, fmtBizNo: fmtBizNo, isUniqueNo: isUniqueNo, ntsStatus: ntsStatus, isNewCustomer: isNewCustomer, searchBusinesses: searchBusinesses,
     isOppNo: isOppNo, pandaUrl: pandaUrl, pandaLink: pandaLink,
-    //   기획자 결정 2026-11-02 E-1 ①: oppOf(계약) 영업기회번호, bizOf(계약) 사업자등록번호 숫자, oppUses(번호, { bizNo, name, exceptId }) 같은 번호를 쓴 계약
-    oppOf: oppOf, bizOf: bizOf, oppUses: oppUses,
+    //   기획자 결정 2026-11-02 E-1 ①: oppOf(계약) 영업기회번호, oppUses(번호, { bizNo, name, exceptId }) 같은 번호를 쓴 계약
+    oppOf: oppOf, oppUses: oppUses,
     serviceLabel: serviceLabel, featureLabel: featureLabel, featureText: featureText,
     // 결재 흐름 (결재선, 지금 상태, 처리)
     // stepWho, stepTag: 단계를 맡는 사람 이름 "③ 영업 리더" (기획자 결정 2026-11-02 D-3)
     reviewRoute: reviewRoute, stepLabel: stepLabel, stepWho: stepWho, stepTag: stepTag, kindLabel: kindLabel, isShort: isShort, isChange: isChange, changeSales: changeSales,
     currentStep: currentStep, pendingSteps: pendingSteps, routedReview: routedReview, isReviewStep: isReviewStep, waitDays: waitDays,
-    stepDots: stepDots, progressText: progressText, progressCells: progressCells, actionLabel: actionLabel, opsChecksFor: opsChecksFor, signDate: signDate, methodOf: methodOf,
+    stepDots: stepDots, progressText: progressText, progressCells: progressCells, actionLabel: actionLabel, opsChecksFor: opsChecksFor, methodOf: methodOf,
     canAct: canAct, canCancel: canCancel, canResubmit: canResubmit, resubmitHref: resubmitHref, resubmitSource: resubmitSource, rejectionNotice: rejectionNotice, resubmitRecord: resubmitRecord, recordAction: recordAction, pendingQueue: pendingQueue, myActions: myActions,
     // 기획자 결정 2026-11-02 (결재 흐름 엔진)
     //   E-3 영업 임원 승인: cooOverPp(기안 일시) 기준 %p, capOver(c) 줄마다 한도를 넘은 폭, capOverPp(c) 그중 가장 큰 값
@@ -4163,31 +4151,29 @@ window.CLIMB = (function () {
     // 기획자 결정 2026-11-02 C-2: 읽기만 하는 역할과 끝나는 날이 있는 역할(감사 열람)
     //   isReadOnly(사람): 관찰자, 감사 열람, 끝난 역할이면 true(처리 단추를 그리지 않음) / isAuditor(사람): 지금 감사 열람인지
     //   roleEnded(사람 번호, 역할), roleUntil(사람 번호, 역할): 끝났는지, 지금 끝나는 날 / activeRoles(계정): 지금 가진 역할
-    //   roleGrantsOf(사람 번호, 역할), roleGrantState(기록) ON, PLANNED, ENDED, WITHDRAWN, REPLACED / grantStateLabel: 그 이름
+    //   roleGrantState(기록) ON, PLANNED, ENDED, WITHDRAWN, REPLACED
     //   auditGrants(기간 { from, to }): 분기 권한 검토의 감사 열람 목록 / roleEndLog(): 끝나는 날이 지나 저절로 풀린 기록(권한 변경 이력에 더함)
     //   designatedViewersAll(): 분기 권한 검토의 지정 열람자 목록(모든 계약 묶음)
     isReadOnly: isReadOnly, isAuditor: isAuditor, roleEnded: roleEnded, roleUntil: roleUntil, activeRoles: activeRoles,
-    roleGrantsOf: roleGrantsOf, roleGrantState: roleGrantState, grantStateLabel: GRANT_STATE, auditGrants: auditGrants, roleEndLog: roleEndLog,
+    roleGrantState: roleGrantState, auditGrants: auditGrants, roleEndLog: roleEndLog,
     designatedViewersAll: designatedViewersAll,
     // 기획자 결정 2026-11-02 C-5: roleConflicts(사람 번호나 역할 목록, { userId, addSteps, delegateFor, label }) 겹침 목록, conflictAccounts() 역할 충돌 계정
-    //   stepKeyLabel('S03:비즈니스1유닛') 단계 열쇠 이름, dutyOf(단계 열쇠) 겹침을 보는 일 묶음(S03, S09, S10, S02 또는 null)
-    roleConflicts: roleConflicts, conflictAccounts: conflictAccounts, stepKeyLabel: stepKeyLabel, dutyOf: dutyOf,
+    roleConflicts: roleConflicts, conflictAccounts: conflictAccounts,
     // 기획자 결정 2026-11-02: 점검 화면(SCR-61~65)과 회사 설정(SCR-59), 컴플라이언스의 일
-    //   checkOwners(화면 번호), canSeeCheck(사람, 화면 번호), canDoCheck(사람, 화면 번호) / canSeeCompany, canEditCompany(회사 정보), canEditSeal(인장 그림)
+    //   checkOwners(화면 번호), canDoCheck(사람, 화면 번호) / canSeeCompany, canEditCompany(회사 정보), canEditSeal(인장 그림)
     //   canComplianceAct(사람): 거래처 확인 결과, 보류 걸고 풀기, 개선 과제 기록
-    checkOwners: checkOwners, canSeeCheck: canSeeCheck, canDoCheck: canDoCheck, canSeeCompany: canSeeCompany, canEditCompany: canEditCompany, canEditSeal: canEditSeal,
+    checkOwners: checkOwners, canDoCheck: canDoCheck, canSeeCompany: canSeeCompany, canEditCompany: canEditCompany, canEditSeal: canEditSeal,
     canComplianceAct: canComplianceAct,
     // 기획자 결정 2026-11-02 C-13 거래처 확인: customerCheck(사업자등록번호, 고르는 중인 계약 방식?) 상태, customerCheckNote(같음) 계약 등록의 경고 한 문장(막지 않음)
-    //   customerChecksOf(거래처 번호) 기록, customerCheckBad(기록) 문제로 본 항목, customerCheckRisk(까닭 목록, 기록) 위험 등급, customerOfContract(c), customerByBizNo(번호)
-    // C-16 보류: holdOf(계약이나 묶음) 지금 걸린 보류 또는 null, customerHold(사업자등록번호), bundleHold(원계약 번호), holdsAll(), holdState(기록) ON, OFF
+    //   customerChecksOf(거래처 번호) 기록, customerCheckRisk(까닭 목록, 기록) 위험 등급
+    // C-16 보류: holdOf(계약이나 묶음) 지금 걸린 보류 또는 null, customerHold(사업자등록번호), bundleHold(원계약 번호), holdsAll()
     //   holdTarget(기록, 사람), holdText(기록, 사람) 보일 문장, holdBadge(기록) "보류 중" 배지, holdBlocksAction(c, 단계, 결재 기록) 막으면 그 보류
     //   complianceTodo(): 개요 점검할 일에 더할 컴플라이언스의 일
-    customerCheck: customerCheck, customerCheckNote: customerCheckNote, customerChecksOf: customerChecksOf, customerCheckBad: checkBad, customerCheckRisk: checkRisk,
-    customerOfContract: customerOfContract, customerByBizNo: customerByBizNo,
-    holdOf: holdOf, customerHold: customerHold, bundleHold: bundleHold, holdsAll: holdsAll, holdState: holdState, holdTarget: holdTarget, holdText: holdText,
+    customerCheck: customerCheck, customerCheckNote: customerCheckNote, customerChecksOf: customerChecksOf, customerCheckRisk: checkRisk,
+    holdOf: holdOf, customerHold: customerHold, bundleHold: bundleHold, holdsAll: holdsAll, holdTarget: holdTarget, holdText: holdText,
     holdBadge: holdBadge, holdBlocksAction: holdBlocksAction, complianceTodo: complianceTodo,
-    //   기획자 결정 2026-11-03(CTL-79): holdMailTo(보류 기록) 걸고 풀 때 이메일 받을 사람 번호들, holdMailList(같음) [{ id, why: ['영업대표', '영업 리더', '결재 차례'] }]
-    holdMailTo: holdMailTo, holdMailList: holdMailList,
+    //   기획자 결정 2026-11-03(CTL-79): holdMailList(보류 기록) 걸고 풀 때 이메일 받을 사람 [{ id, why: ['영업대표', '영업 리더', '결재 차례'] }]
+    holdMailList: holdMailList,
     // 기획자 결정 2026-11-03 C-44 영업대표 바꾸기 (계약이나 묶음 x)
     //   salesRepOf(x) 지금 영업대표, repActorOf(x) 기안자 쪽 일을 지금 하는 사람(맡을 수 없으면 영업 리더), isSalesRep(x, 사람) 그 사람인지,
     //   repNeeded(x) 영업대표가 사용 중지나 영업 역할 없음이라 새로 정해야 하는지, repGoneText(x) 그 까닭('사용 중지', '영업 역할 없음', ''),
@@ -4196,9 +4182,8 @@ window.CLIMB = (function () {
     salesRepOf: salesRepOf, repActorOf: repActorOf, isSalesRep: isSalesRep, repNeeded: repNeeded, repGoneText: repGoneText, repNote: repNote, repLeadOf: repLeadOf,
     salesTeamOf: salesTeamOf, repCoverText: repCoverText,
     canChangeRep: canChangeRep, repCandidates: repCandidates, repChangesOf: repChangesOf, repBundlesOf: repBundlesOf, repTodo: repTodo, openRepChange: openRepChange,
-    //   [가정] repSelfBlock(x, 사람) ③이 내 차례라 나를 새 영업대표로 못 고르는 까닭 또는 '', holdsRepTurn(x, 사람 번호) 그 사람의 ③이 남았는지,
-    //     firstDrafterViews() 분기 권한 검토의 "영업대표가 바뀐 열람 제한 계약의 앞 기안자"
-    repSelfBlock: repSelfBlock, holdsRepTurn: holdsRepTurn, firstDrafterViews: firstDrafterViews,
+    //   [가정] firstDrafterViews() 분기 권한 검토의 "영업대표가 바뀐 열람 제한 계약의 앞 기안자"
+    firstDrafterViews: firstDrafterViews,
     // 기획자 결정 2026-11-03 C-18 ⑤: otherFinance(뺄 사람 번호) ⑨를 한 사람 대신 ⑩을 맡을 다른 재무 담당자
     otherFinance: otherFinance,
     // 기획자 결정 2026-11-02 E-15 바뀐 점 한 줄: changeScreens() 릴리즈 글쓰기에서 고를 화면 묶음, changeScreenLabel(화면 번호) 화면 이름,

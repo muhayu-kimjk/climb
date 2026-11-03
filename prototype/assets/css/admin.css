@@ -77,7 +77,7 @@
 .conflict-note + .field { margin-top: 1.6rem; }
 .modal-form .field:has(+ [data-conflict][hidden]) { margin-bottom: 0; }
 
-/* 코드표 고르기 (코드 관리): 누른 것만 진한 초록. 누르는 영역 44px */
+/* 코드표 고르기 (코드 관리): 누른 것만 진한 초록. 누르는 영역 --touch-min */
 .seg { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1.6rem; }
 .seg button { min-height: var(--touch-min); padding: 0 1.6rem; border: 1px solid var(--border-gray); border-radius: var(--radius-max); background: var(--surface-white); font-size: var(--fs-body-small); color: var(--text-basic); }
 .seg button:hover { background: var(--surface-gray-subtler); }
@@ -88,7 +88,7 @@
 @media print { .seg { display: none; } }
 
 
-/* 표 안의 고르기 칸: 체크 상자만 (누르는 영역 44px) */
+/* 표 안의 고르기 칸: 체크 상자만 (누르는 영역 --touch-min) */
 .choice--only { gap: 0; }
 
 /* 거르기 칸이 둘인 목록 (거래처 관리, 접속 기록): 검색 + 선택 하나 + 초기화를 한 줄에 */

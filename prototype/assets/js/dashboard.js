@@ -7,9 +7,8 @@
  *      + 그 아래 진행 상세 표(고객사, 서비스, 상태, 현재 진행, 대기). 현재 진행은 한 줄(C.progressCells, v0.55)
  *      표 위 회색 안내 한 줄로 단계 표시기와 ①~⑩ 번호의 관계(D-2), 영업이 처리할 줄에는 "내 차례" 배지(D-1) (기획자 결정 2026-11-02)
  *   2. 만료 임박: 만료일이 가까운 순서(A-1), 첫 칸 머리글 "만료까지"(D-14) (기획자 결정 2026-11-02)
- *   3. 가장 최근 공지 한 줄(인사말과 함께 renderGreeting이 그림)
- *   4. 내가 검토할 계약(결재 역할에게만), 챙길 의무(의무를 맡는 분야와 최고관리자에게만)
- *   5. 점검할 일: 정보보호 담당자, 리더와 최고관리자에게만. 이상 행위 알림, 매월 기록 점검, 분기 권한 검토 (v0.27)
+ *   3. 내가 검토할 계약(결재 역할에게만), 챙길 의무(의무를 맡는 분야와 최고관리자에게만)
+ *   4. 점검할 일: 정보보호 담당자, 리더와 최고관리자에게만. 이상 행위 알림, 매월 기록 점검, 분기 권한 검토 (v0.27)
  *      기획자 결정 2026-11-02 C-10: 점검을 맡은 모든 사람에게 넓히고 사람마다 자기 점검만(아래 CHECK_GROUPS)
  *        정보보호(위 셋과 최고관리자 작업 점검 C-6), 재무 임원(할인 예외 점검 C-9), 재무 리더와 법무(설정 변경 확인 C-8),
  *        재무(기간 마감 점검 B-9), 영업지원(영업기회 대사 E-1 ②), 총무(인장 기록 대사 E-7 ③), 컴플라이언스(거래처 확인 C-13, 개선 과제 C-16)
@@ -21,7 +20,7 @@
  *     만료 임박의 담당자 칸은 지금 영업대표
  * 계약명은 따로 두지 않으므로 계약은 고객사와 서비스로 표시합니다. (v0.12)
  * "확인 필요" 상자는 뺐습니다. (REQ-DASH-09, v0.12)
- * 범위 [가정, REQ-DASH-14]: 영업은 내가 등록한 계약, 그 외 역할은 전체 계약
+ * 범위 [가정, REQ-DASH-14, C-44]: 영업은 내가 등록했거나 지금 영업대표인 계약, 그 외 역할은 전체 계약(작성 중 제외)
  * 프로토타입에서는 mock-data.js의 예시 데이터로 계산합니다.
  * 실제 시스템에서는 서버가 집계한 값을 받아 그리면 됩니다.
  * ===================================================================== */
@@ -45,7 +44,6 @@
   const all = D.CONTRACTS;
   const byStatus = function (list, s) { return list.filter(function (c) { return c.status === s; }); };
   const inReview = byStatus(all, 'IN_REVIEW');
-  const active = byStatus(all, 'ACTIVE');
   // 만료 임박: 계약 묶음의 지금 유효한 계약 기준 (조건 그대로 연장한 기록이 있으면 그 기간, common.js expiringBundles)
   //   해지 통지 기한이 90일 안에 오는 자동갱신 계약도 넣음 (v0.53, REQ-FLOW-32). bundle: 통지 기한 계산용
   //   영업은 내가 영업대표인 묶음만 (만료 예정 화면과 같은 범위, v0.58 QA: 건수와 링크한 목록이 달랐음)
@@ -93,12 +91,9 @@
     const open = D.SEC_ALERTS.filter(function (a) { return a.status === 'OPEN'; });
     items.push({ what: '이상 행위 알림 확인', todo: open.length > 0, state: open.length ? '확인 전 ' + open.length + '건' : '모두 확인', due: null });
     // 매월 기록 점검: 끝난 달 중 점검하지 않은 달
-    let y = Number(START.slice(0, 4)), m = Number(START.slice(5, 7));
-    const months = [];
-    for (; (y + '-' + pad(m)) < THIS; [y, m] = next(y, m)) months.push([y, m]);
-    const monthTodo = months.filter(function (x) { return !D.LOG_REVIEWS.some(function (r) { return r.month === x[0] + '-' + pad(x[1]); }); });
-    if (monthTodo.length) monthTodo.forEach(function (x) { const n = next(x[0], x[1]); items.push({ what: x[0] + '년 ' + x[1] + '월 기록 점검', todo: true, state: '점검 전', due: lastDay(n[0], n[1]) }); });
-    else { const n = next(Number(THIS.slice(0, 4)), Number(THIS.slice(5, 7))); items.push({ what: Number(THIS.slice(5, 7)) + '월 기록 점검', todo: false, state: '이달이 끝난 뒤', due: lastDay(n[0], n[1]) }); }
+    const monthTodo = endedMonths().filter(function (ym) { return !D.LOG_REVIEWS.some(function (r) { return r.month === ym; }); });
+    if (monthTodo.length) monthTodo.forEach(function (ym) { items.push({ what: ymLabel(ym) + ' 기록 점검', todo: true, state: '점검 전', due: monthDue(ym) }); });
+    else items.push({ what: Number(THIS_MONTH.slice(5, 7)) + '월 기록 점검', todo: false, state: '이달이 끝난 뒤', due: monthDue(THIS_MONTH) });
     superItems().forEach(function (x) { items.push(x); }); // 매월 기록 점검 바로 다음(C-6)
     // 분기 권한 검토: 끝난 분기 중 검토하지 않은 분기
     const qNow = Math.ceil(Number(THIS.slice(5, 7)) / 3), yNow = Number(THIS.slice(0, 4));
@@ -149,9 +144,9 @@
   /* 기획자 결정 2026-11-02 C-8, C-10: 설정 변경 확인(SCR-65). 재무 리더는 가격 기준과 제품과 기능, 법무는 표준계약서(올린 사람이 아닌 법무)
    *   이 사람이 지금 확인할 수 있는 건수(control-checks.js canConfirm: 맡은 영역, 본인이 바꾼 줄이 아님, 아직 확인 없음)
    *   주기 없이 바뀔 때마다 확인하므로 기한은 비워 둠 [가정]. 결재선 규칙과 회사 설정은 정보보호의 매월 기록 점검에서 봄 */
-  const X = window.CLIMB_CTL || null; // control-checks.js(index.html이 common.js 다음에 불러옴)
+  const X = window.CLIMB_CTL; // control-checks.js(index.html이 common.js 다음에 불러옴)
   function configItems() {
-    const n = X ? X.settingChanges({ areas: ['PRICE', 'PRODUCT', 'TEMPLATE'] }).filter(function (x) { return X.canConfirm(me, x).ok; }).length : 0;
+    const n = X.settingChanges({ areas: ['PRICE', 'PRODUCT', 'TEMPLATE'] }).filter(function (x) { return X.canConfirm(me, x).ok; }).length;
     return [{ what: '설정 변경 확인', todo: n > 0, state: n ? '확인 전 ' + n + '건' : '확인할 것 없음', due: null, noDue: true, href: 'config-review.html' }];
   }
   /* 기획자 결정 2026-11-02 C-13, C-16, C-10: 컴플라이언스의 일(C.complianceTodo: 거래처 확인, 개선 과제)

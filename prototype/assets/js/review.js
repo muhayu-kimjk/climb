@@ -684,13 +684,8 @@
     return (ck.acctKinds || []).map(function (k) { return ((D.ACCT_KINDS || []).filter(function (x) { return x.code === k; })[0] || { label: k }).label; }).join(', ');
   }
   /* ④ 법무의 반부패 조항 판단 (기획자 결정 2026-11-02 C-15, G-21): 1번이 아니요(표준계약서를 바꿈)인 계약만
-   *   ④ 승인이 지금 유효하면(승인 취소 뒤 다시 승인했으면 마지막 승인) 그 기록의 antiBribe와 사유. 아직이면 어느 단계에서 고르는지
+   *   ④ 승인이 지금 유효하면(승인 취소 뒤 다시 승인했으면 마지막 승인, C.legalApproval) 그 기록의 antiBribe와 사유. 아직이면 어느 단계에서 고르는지
    *   간접과 조달은 꼭 고르고, 직접은 고르지 않아도 됨. 이 판단을 두기 전에 승인한 기록은 "기록 없음" */
-  function legalApproval() {
-    const s04 = (c.approvals || []).filter(function (a) { return a.step === 'S04'; })[0];
-    if (!s04 || s04.state !== 'DONE') return null;
-    return (c.history || []).filter(function (h) { return h.step === 'S04' && h.action === 'APPROVE' && (h.round || 1) === round; }).pop() || null;
-  }
   function antiBribeText(h) {
     const opt = D.ANTI_BRIBE.options.filter(function (x) { return x.code === h.antiBribe; })[0];
     return opt ? opt.label + (h.antiBribe === 'NONE' && h.antiBribeNote ? ' (사유: ' + h.antiBribeNote + ')' : '') : '';
@@ -703,7 +698,7 @@
   }
   function antiBribeHtml() {
     if (!legalNote) return '';
-    const h = legalApproval();
+    const h = C.legalApproval(c);
     const need = abRequired ? '간접, 조달 계약이라 꼭 고름' : '직접 계약이라 골라도 되고 안 골라도 됨';
     const v = h ? (antiBribeText(h) ? esc(antiBribeText(h)) : abRequired ? '기록 없음' : '고르지 않음 (' + need + ')')
       : '<span class="check-wait">④ 법무가 승인할 때 고릅니다 (' + need + ')</span>';

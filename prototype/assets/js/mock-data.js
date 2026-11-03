@@ -75,8 +75,7 @@ window.CLIMB_DATA = (function () {
   /* ---------- 겹치면 안 되는 역할 조합 (기획자 결정 2026-11-02 C-5, REQ-AUTH-14, 06 CTL-110, CTL-111) ----------
    * 한 사람이 아래 짝의 두 일을 함께 맡으면 "역할 겹침". 막지 않고, 저장할 때 알리고 까닭을 받아 허용하며 분기 권한 검토에 "역할 충돌 계정"으로 올림
    * duties: 일 묶음. roles는 그 일을 맡는 역할, steps는 그 일에 드는 결재 단계(결재선 규칙의 담당과 대리 지정으로 맡는 것도 셈, common.js roleConflicts)
-   * pairs: 같은 사람이 함께 맡으면 겹치는 짝(③과 ⑨, ③과 ⑩, ⑨와 ⑩, ③과 ②나 ⑧)
-   * allowed: 정해진 대체 방식이라 겹침으로 보지 않는 것(06 R-14 등). 위 짝에 들지 않아 저절로 빠짐(안내 문장용) */
+   * pairs: 같은 사람이 함께 맡으면 겹치는 짝(③과 ⑨, ③과 ⑩, ⑨와 ⑩, ③과 ②나 ⑧) */
   const ROLE_CONFLICTS = {
     duties: {
       S03: { label: '③ 영업 리더, 임원 승인', roles: ['HEAD', 'EXEC'], steps: ['S03', 'S03C', 'SGR'] },
@@ -85,12 +84,6 @@ window.CLIMB_DATA = (function () {
       S02: { label: '②, ⑧ 영업지원', roles: ['SALES_ADMIN', 'SA_LEAD'], steps: ['S02', 'S08'] },
     },
     pairs: [['S03', 'S09'], ['S03', 'S10'], ['S09', 'S10'], ['S03', 'S02']],
-    allowed: [
-      '재무가 영업지원이 기안한 계약의 ②, ⑧, ⑩을 함께 맡는 것(REQ-AUTH-16)',
-      '영업과 영업지원을 함께 맡는 것(06 R-14)',
-      // 기획자 결정 2026-11-03(C-18 ⑤): ⑩도 재무 담당자. 같은 계약의 ⑨와 ⑩은 서로 다른 재무 담당자(예전 문장은 "⑩은 재무 리더가 확인")
-      '운영 변경 HR 충전의 ⑨를 재무 담당자가 하는 것(2026-11-02 B-3). 같은 계약의 ⑩은 ⑨를 하지 않은 다른 재무 담당자가 확인(2026-11-03)',
-    ],
   };
 
   // 2단계 계약 검토의 결재 역할: ② 영업지원, ③ 영업 리더(리더 본인 건은 영업 임원), ④ 법무, ⑤ 정보보호
@@ -442,7 +435,7 @@ window.CLIMB_DATA = (function () {
     S02: 'u_sadmin', S03: 'u_exec', S04: 'u_legal', S05: 'u_privacy',
     S06: 'u_ga', S08: 'u_sadmin', S09: 'u_cem', S10: 'u_finance',
     // 기획자 결정 2026-11-03(C-18 ⑤): 운영 변경의 HR 충전은 ⑨를 재무 담당자(S10)가 수불부에 반영하고, ⑩도 재무 담당자가 확인(재무 리더 아님, v0.29 그대로)
-    //   ⑨를 한 사람은 ⑩을 하지 않으므로 ⑩은 다른 재무 담당자에게 감(common.js otherFinance). 2026-11-02 [가정]의 재무 리더 담당('S10:HR')은 없앰
+    //   ⑨를 한 사람은 ⑩을 하지 않으므로 ⑩은 다른 재무 담당자에게 감(common.js otherFinance)
   };
   // 결재 단계 처리 상태 (데이터 정의서 CODE-APPROVAL-STATE)
   const APPROVAL_STATE = {
@@ -1098,7 +1091,7 @@ window.CLIMB_DATA = (function () {
     {
       // 기획자 결정 2026-11-02 B-3 시연(추천과 다름): 운영 변경도 ⑨ 다음 ⑩ 재무 확인. HR 충전은 ⑨를 재무 담당자(오현우)가 수불부에 반영했으므로
       //   ⑩은 같은 사람이 아닌 다른 재무 담당자(표예준)가 확인할 차례. 유상 충전이라 ③ 영업 검토는 없음
-      //   기획자 결정 2026-11-03(C-18 ⑤): 예전에는 재무 리더(마서진, 'S10:HR')의 차례였음. 이제 ⑩은 재무 담당자(common.js otherFinance)
+      //   기획자 결정 2026-11-03(C-18 ⑤): ⑩은 재무 담당자(common.js otherFinance)
       id: '2512CL001-C01', parentId: '2512CL001', counterparty: '온새미로대학교', services: ['CK', 'HR'], type: 'SaaS 이용계약', kind: 'CHANGE',
       changeType: 'HR_PAID', changeQty: 200, changeAmount: 1600000, amount: 0,
       // B-3 덧붙임 시연: 유상 충전의 기능과 기안한 날(10-14)의 표준 단가. 그날 가격 기준은 "기관, 1년" 단위라(건 단위는 10-19부터)
@@ -1176,7 +1169,6 @@ window.CLIMB_DATA = (function () {
 
   // 강조와 알림 기준 일수. 처음 값은 [가정]이고, 관리자가 결재선 규칙(SCR-52)에서 사유와 함께 바꿈(바꾸면 관리자 변경 이력, common.js applyAdmin ALERT_RULE)
   //   기획자 결정 2026-11-02 A-5(추천과 다름): 해지 통지 기한과 체결 후 의무의 알림 일수 네 칸도 지금 바로 결재선 규칙에서 바꿈
-  //   "확인 필요" 상자(v0.12)와 단계 표시기 아래 설명 글(v0.14)은 뺐고, 지금은 대기 일수 강조에만 씁니다.
   const ALERT_RULES = {
     approvalDelayDays: 5,    // 한 결재 단계에 머문 기간: 내가 검토할 계약의 대기 일수 강조 (REQ-DASH-05)
     signDelayDays: 14,       // 승인 후 체결이 끝나지 않은 기간: 체결 대기 목록 강조, 기안자 독촉 이메일 (REQ-ENV-10)
@@ -1871,7 +1863,6 @@ window.CLIMB_DATA = (function () {
    *   출력할 때마다 누가 언제 어떤 판을 냈는지 기록을 남기는 것이 목적입니다. 견적은 계약과 이어지지 않습니다(계약 등록과 따로).
    *   견적 단계 할인 승인은 하지 않습니다(v0.21 결정 그대로). 할인율 한도를 넘는 줄은 화면에서만 알려 줌(계약할 때 ③ 영업 검토)
    * QUOTE_RULES: 유효기간 기본 일수, 부가세율. 실제 시스템에서는 관리자 설정 [가정]
-   * QUOTE_SUPPLIER: 견적서의 공급자 칸. 기획자 결정 2026-11-02 E-9부터 회사 설정(COMPANY)을 그대로 씀(예전에는 상호만 있고 나머지는 "회사 설정 값" 자리)
    * QUOTES: 견적 한 판이 한 줄. no(견적번호 QT + 연월 + 일련번호), ver(판), 고객사(거래처 번호, 상호, 사업자등록번호), unit(기관 또는 부서명),
    *   opp(판다 영업기회번호, 선택), date(견적일), validUntil(유효기간), lines(기능, 수량, 단가: 표준 단가와 할인율 한도는 그때의 가격 기준),
    *   note(조건과 비고), owner(작성한 영업), savedAt, issues(출력 기록: 일시, 출력한 사람, 합계). 출력한 판은 고칠 수 없고 고치려면 새 판
@@ -1890,7 +1881,6 @@ window.CLIMB_DATA = (function () {
     name: '주식회사 무하유', bizNo: '000-86-00004', ceo: '한도겸', address: '서울특별시 중구 예시로 100, 7층', phone: '02-0000-0000', ethicsUrl: '', reportUrl: '',
     seal: { ver: 1, name: '회사인장_견본.svg', type: 'image/svg+xml', size: 1900, src: 'assets/img/seal-sample.svg', by: 'u_seoyun_tak', at: '2026-09-15 10:00' },
   };
-  const QUOTE_SUPPLIER = COMPANY;
   const QUOTES = [
     // 기획자 결정 2026-11-02 E-7 시연: 9월 견적. 첫 출력(09-14)은 인장 그림을 올리기 전이라 인장 없이, 다시 낸 출력(09-16)은 인장 찍음
     //   인장 기록 대사(SCR-63)의 9월 대조 기록(SEAL_RECON)과 이어짐. 바른출판의 9월 계약(2609CL002)과 같은 영업기회번호
@@ -2347,7 +2337,7 @@ window.CLIMB_DATA = (function () {
     INTEREST_CHECK, SPLIT_CHECK, RECENT_SAME, ANTI_BRIBE, SIGN_DATE_CHECK, // 기획자 결정 2026-11-02 결재 창 확인(C-14, E-2, C-15, B-8)
     ROLE_LIMITS, ROLE_GRANTS, ROLE_CONFLICTS, // 기획자 결정 2026-11-02: 감사 열람의 끝나는 날과 준 기록(C-2), 겹치면 안 되는 역할 조합(C-5)
     CHANGE_TYPES, CHANGE_RULES, OPS_CHECKS_PERIOD, TEAM_LEADERS, OWNER_CHANGES /* 2026-11-03 C-44 영업대표 바꾼 기록 */,
-    PRODUCTS, FEATURES, TEMPLATES, PRICE_ROWS, currentPrices, CUSTOMERS, QUOTE_RULES, QUOTE_SUPPLIER, QUOTES, BIZ_REGISTRY, BIZ_REGISTRY_INFO, NTS_STATUS, CODE_GROUPS, CODES, DELEGATIONS, ASSIGNEE_CHANGES, ADMIN_LOG, RESTRICT_LOG,
+    PRODUCTS, FEATURES, TEMPLATES, PRICE_ROWS, currentPrices, CUSTOMERS, QUOTE_RULES, QUOTES, BIZ_REGISTRY, BIZ_REGISTRY_INFO, NTS_STATUS, CODE_GROUPS, CODES, DELEGATIONS, ASSIGNEE_CHANGES, ADMIN_LOG, RESTRICT_LOG,
     LOG_REVIEWS, ACCESS_REVIEWS, SEC_ALERT_KINDS, SEC_ALERTS, CLOSE_CHECKS /* B-9 기간 마감 점검 확인 */, EXPORT_LOG /* C-3 꺼낸 기록 */, DISCOUNT_REVIEWS /* C-9 할인 예외 점검 기록 */, NOTICE_KINDS, RELEASE_PARTS, NOTICES, EMAIL_TYPES,
     OBLIGATION_KINDS, OBLIGATION_WHEN, OBLIGATION_PRESETS, OBLIGATIONS, SERVICE_START_MONTH,
     COMPANY, OPP_SAMPLE, OPP_RECON, SEAL_RECON, // 기획자 결정 2026-11-02 E-9 회사 설정, E-1 ② 영업기회 대사, E-7 ③ 인장 기록 대사

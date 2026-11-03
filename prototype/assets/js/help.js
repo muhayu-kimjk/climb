@@ -4,10 +4,10 @@
  * 관련 요구사항: REQ-FLOW-13(업무 흐름 5단계), REQ-UI-14(메뉴 줄 오른쪽 끝 이용 안내), REQ-UI-38(문서 형식, v0.61), REQ-UI-39(거래 윤리와 신고 쪽, v0.61 초안)
  * 하는 일
  *   1. 쪽 나누기(v0.61 기획자 요청: Claude 문서 사이트 형식): 한 번에 한 쪽(article.doc-page)만 보이고 주소 뒤 #쪽이름으로 엶.
- *      왼쪽 차례(묶음별 쪽 목록), 쪽 위의 위치 표시(이용 안내 › 묶음), 아래 이전과 다음, 오른쪽 "이 쪽에서"(소제목이 둘 이상일 때)
+ *      내용 위의 접힌 차례(묶음별 쪽 목록), 쪽 위의 위치 표시(이용 안내 › 묶음), 아래 이전과 다음
  *      쪽을 바꾸면 화면 맨 위로 가고 초점은 쪽 제목으로(화면낭독기가 바뀐 쪽을 읽음). 뒤로 가기와 앞으로 가기도 쪽을 따라감
  *   2. 이용 안내에서 찾기: 쪽 제목과 내용, 자주 묻는 것의 질문과 답에서 낱말을 찾아 목록으로 보임. 누르면 그 쪽(자주 묻는 것은 그 답을 펼침)
- *      찾기 칸은 차례 맨 위, 접히는 차례 줄 밖이라 좁은 화면과 휴대폰에서도 늘 보임(기획자 결정 2026-11-02 D-24)
+ *      찾기 칸은 차례 맨 위, 접히는 차례 줄 밖이라 늘 보임(기획자 결정 2026-11-02 D-24)
  *   3. 소개 쪽: 쪽 안내 카드, 최근 릴리즈 3건(공지사항 게시판)
  *      거래 윤리와 신고 쪽: 회사 설정의 윤리 규정과 신고 창구 링크(기획자 결정 2026-11-02 E-9, 비어 있으면 넣는 곳 안내)
  *   4. 역할별 할 일 표에서 지금 내 역할의 줄을 강조 (최고관리자는 강조 없음)
@@ -24,7 +24,7 @@
   const byId = {};
   const nameOf = function (p) { return p.id.replace(/^p-/, ''); }; // 쪽 요소 id는 p-쪽이름, 주소는 #쪽이름(브라우저가 그 자리로 뛰지 않게)
   pages.forEach(function (p) { byId[nameOf(p)] = p; });
-  const navEl = document.getElementById('doc-nav'), tocEl = document.getElementById('doc-toc'), pagerEl = document.getElementById('doc-pager');
+  const navEl = document.getElementById('doc-nav'), pagerEl = document.getElementById('doc-pager');
 
   // 쪽 설명(차례 카드와 찾기에 씀). 쪽이 늘면 여기와 help.html에 함께 더함
   const BLURB = {
@@ -39,7 +39,7 @@
     security: '로그인, 접속 위치, 인쇄, 개인정보, 기록',
   };
 
-  // ---------- 1. 왼쪽 차례 ----------
+  // ---------- 1. 차례 ----------
   const groups = [];
   pages.forEach(function (p) {
     const g = p.getAttribute('data-group');
@@ -50,7 +50,6 @@
   navEl.innerHTML =
     // 기획자 결정 2026-11-02 D-24: "이용 안내에서 찾기"는 차례 맨 위에 두되, 접히는 차례 줄 밖으로 뺌.
     //   모든 화면에서 접힌 차례 줄 위에 늘 보임(예전에는 차례를 펼쳐야 보였음)
-    '<div class="doc-nav-in">' +
     '<div class="doc-search" role="search">' +
       '<label class="sr-only" for="doc-q">이용 안내에서 찾기</label>' +
       '<div class="doc-search-box">' + C.icon('search') +
@@ -71,9 +70,8 @@
       }).join('') +
       // 새 소식은 공지사항 게시판(릴리즈 글)으로
       '<p class="doc-nav-group">새 소식</p><ul class="doc-nav-list"><li><a class="doc-nav-link" href="notices.html">공지사항과 릴리즈</a></li></ul>' +
-    '</div>' +
     '</div>';
-  const toggle = navEl.querySelector('.doc-nav-toggle'), navBody = navEl.querySelector('.doc-nav-body');
+  const toggle = navEl.querySelector('.doc-nav-toggle');
   toggle.addEventListener('click', function () {
     const open = toggle.getAttribute('aria-expanded') !== 'true';
     toggle.setAttribute('aria-expanded', String(open));
@@ -98,7 +96,6 @@
     if (!page.querySelector('.doc-crumb')) {
       page.insertAdjacentHTML('afterbegin', '<p class="doc-crumb"><span>이용 안내</span><span class="doc-crumb-sep" aria-hidden="true">›</span><span>' + esc(page.getAttribute('data-group')) + '</span></p>');
     }
-    renderToc(page);
     renderPager(page);
     if (target.page !== current) {
       // 펼쳐 둔 차례는 쪽을 고르면 접음
@@ -122,15 +119,6 @@
     }
   }
   window.addEventListener('hashchange', function () { show(parseHash(), true); });
-
-  // ---------- 오른쪽 "이 쪽에서" ----------
-  function renderToc(page) {
-    const hs = [].slice.call(page.querySelectorAll('.doc-h2'));
-    tocEl.hidden = hs.length < 2;
-    tocEl.innerHTML = hs.length < 2 ? '' :
-      '<div class="doc-toc-inner"><p class="doc-toc-title">이 쪽에서</p><ul>' +
-      hs.map(function (h) { return '<li><a href="#' + h.id + '">' + esc(h.textContent) + '</a></li>'; }).join('') + '</ul></div>';
-  }
 
   // ---------- 이전과 다음 ----------
   function renderPager(page) {
@@ -167,7 +155,7 @@
     qLive.textContent = hits.length ? hits.length + '개를 찾았습니다.' : '찾는 내용이 없습니다.';
   }
   qIn.addEventListener('input', searchRender);
-  // 좁은 화면에서 접어 둔 찾은 목록을 다시 보임(D-24). 접혀 있을 때만 다시 그림
+  // 접어 둔 찾은 목록을 다시 보임(D-24). 접혀 있을 때만 다시 그림
   //   (목록에서 위 화살표로 칸에 돌아올 때마다 다시 그리고 "n개를 찾았습니다"를 또 읽지 않게)
   qIn.addEventListener('focus', function () { if (qIn.value && qList.hidden) searchRender(); });
   qIn.addEventListener('keydown', function (e) {

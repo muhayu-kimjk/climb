@@ -378,12 +378,6 @@
       return Array.prototype.map.call(new Uint8Array(buf), function (x) { return x.toString(16).padStart(2, '0'); }).join('');
     }).catch(function () { return ''; });
   }
-  // 그날 쓰던 가격 기준 줄(없으면 그 기능의 첫 줄: 시스템 도입 전 계약)
-  function priceAt(fid, day) {
-    const rows = D.PRICE_ROWS.filter(function (p) { return p.feature === fid; })
-      .sort(function (x, y) { return x.validFrom.localeCompare(y.validFrom) || x.at.localeCompare(y.at); });
-    return rows.filter(function (p) { return p.validFrom <= day; }).pop() || rows[0] || null;
-  }
   function featureOf(fid) {
     const f = D.FEATURES.filter(function (x) { return x.id === fid; })[0];
     return C.featureLabel({ product: f ? f.product : '', feature: fid });
@@ -399,6 +393,7 @@
           h.onBehalfOf ? C.ownerLabel(h.onBehalfOf) : '', C.fmtDateTime(h.at), h.comment || '']);
       });
       const day = String(c.requestedAt || D.TODAY).slice(0, 10);
+      const price = C.pricesAt(day);
       if (c === root) {
         // 기획자 결정 2026-11-03(C-44): 영업대표 바뀐 기록도 결재 기록에 한 줄씩(묶음 단위라 원계약 줄 뒤에 한 번만)
         C.repChangesOf(b).forEach(function (r) {
@@ -406,7 +401,7 @@
         });
       }
       (c.products || (c.form && c.form.products) || []).forEach(function (l) {
-        const p = priceAt(l.feature, day);
+        const p = price[l.feature] || null;
         prices.push([c.id, C.fmtDate(day), featureOf(l.feature), p ? p.listPrice : '', p ? p.unit : '', p ? (Math.round((p.discountCap || 0) * 1000) / 10) + '%' : '',
           p ? p.validFrom : '없음', p ? [p.docNo, p.docUrl].filter(Boolean).join(' ') : '']);
       });

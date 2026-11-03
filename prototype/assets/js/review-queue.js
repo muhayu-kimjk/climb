@@ -55,8 +55,7 @@
     (showWho ? '<th scope="col">담당자</th>' : '') + '<th scope="col" class="col-owner">요청자</th><th scope="col">기안일</th><th scope="col" class="col-wait">대기</th></tr>';
 
   // 기획자 결정 2026-11-02 D-3: 짧은 단계 이름은 처리하는 사람 이름으로("⑤ 정보보호"처럼). 계약마다 바뀌는 이름은 common.js stepTag가 정함
-  //   stepTag가 아직 없으면 예전처럼 번호와 짧은 이름
-  const stepTag = function (code, c) { return C.stepTag ? C.stepTag(code, c) : D.STEPS[code].no + ' ' + D.STEPS[code].short; };
+  const stepTag = C.stepTag;
 
   let page = 1;
   function filtered() {

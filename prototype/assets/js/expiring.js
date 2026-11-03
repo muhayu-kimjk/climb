@@ -55,7 +55,6 @@
   function noticeIn(b, days) { const n = noticeDate(b); return !!n && C.daysUntil(n) >= 0 && C.daysUntil(n) <= days; }
   function ended(b) { const x = C.expiryOf(b); return !!x && x.ended; }
   if (location.search.indexOf('view=notice') > -1) $('#f-days').value = 'notice'; // 개요의 "해지 통지 기한" 링크
-  if (location.search.indexOf('view=closing') > -1) $('#f-days').value = 'closing'; // 서비스를 닫기 전인 계약만 (A-10)
   // 연장이나 해지 기안을 할 수 있는 사람: 영업대표 본인 (최고관리자는 시연용으로)
   //   기획자 결정 2026-11-03(C-44): 지금 영업대표(C.isSalesRep: 넘겨받은 새 영업대표, 맡을 수 없으면 대신 맡는 영업 리더). 처음 기안한 사람이 아님
   function canDraft(b) { return C.isSalesRep(b, me) || me.role === 'SUPER'; }

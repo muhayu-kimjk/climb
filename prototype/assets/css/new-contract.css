@@ -47,7 +47,7 @@
 .year-sum { margin-top: 0.8rem; font-size: var(--fs-body-small); color: var(--text-subtle); text-align: right; }
 
 /* ---------- 체크리스트 ---------- */
-/* 문항 사이는 다른 항목과 같은 2.4rem. 바로 아래 비고가 보이면 1.2rem로 붙여 한 묶음으로 (v0.58: 비고는 적어야 할 때만 보임) */
+/* 문항 사이는 다른 항목과 같은 간격(--gap-item). 바로 아래 비고가 보이면 0.8rem로 붙여 한 묶음으로 (v0.58: 비고는 적어야 할 때만 보임) */
 .check-q { margin-bottom: var(--gap-item); }
 .check-q:has(+ .field[data-field$="Note"]:not([hidden])) { margin-bottom: 0.8rem; }
 .check-q--auto .field-label { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.8rem; }
@@ -77,7 +77,7 @@
 .change-box .kv { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.4rem 1.6rem; margin: 0; }
 .change-box dt { color: var(--text-subtle); }
 .change-box dd { margin: 0; text-align: right; color: var(--text-bolder); font-weight: 500; font-variant-numeric: tabular-nums; }
-.change-note { margin-top: 0.8rem; min-height: 3em; color: var(--text-subtle); }
+.change-box .change-note { margin-top: 0.8rem; min-height: 3em; color: var(--text-subtle); } /* 상자 안 비고만. .change-note 혼자는 common.css의 "바뀐 점" 줄(E-15) */
 @media print { .change-box { background: none; box-shadow: inset 0 0 0 1px var(--border-gray-light); } } /* 흑백 인쇄(REQ-UI-35) */
 
 /* ---------- 결재선 (자동) ----------
@@ -129,7 +129,7 @@ html:has(.form-actions.action-bar) { scroll-padding-bottom: calc(var(--height-md
   .product-grid > .field:nth-child(2) { grid-column: auto; }
   .year-row { grid-template-columns: minmax(0, 1fr); gap: 0.4rem; }
   .confirm-list > div { grid-template-columns: minmax(0, 1fr); gap: 0.2rem; }
-  .quote-instead-state, .change-note { min-height: 4.5em; } /* B-5, B-4: 휴대폰은 세 줄 높이를 잡아 둠 */
+  .quote-instead-state, .change-box .change-note { min-height: 4.5em; } /* B-5, B-4: 휴대폰은 세 줄 높이를 잡아 둠 */
   /* 단추 줄(D-4): 처리 막대처럼 화면 폭 끝까지, 단추는 줄을 나눠 채움(form.css). 단추 높이 44px(--height-md)
    * 아이폰 아래 홈 표시줄 자리(safe-area)만큼 아래를 더 띄우고 높이에도 더함(높이는 그대로 고정) */
   .form-actions.action-bar {

@@ -32,7 +32,9 @@ def main():
                 break
             except Exception:
                 time.sleep(0.2)
-        cdp = ds.CDP(ds.ws_connect(page['webSocketDebuggerUrl']))
+        ws = ds.ws_connect(page['webSocketDebuggerUrl'])
+        ws.settimeout(120)  # 답이 오지 않으면 멈춰 있지 않고 끝냄
+        cdp = ds.CDP(ws)
         cdp.call('Page.enable')
         cdp.call('Runtime.enable')
         for ck in checks:
@@ -41,8 +43,19 @@ def main():
             for name in ('forced-colors', 'prefers-contrast', 'prefers-reduced-motion'):
                 feats.append({'name': name, 'value': ck.get('features', {}).get(name, '')})
             cdp.call('Emulation.setEmulatedMedia', media=ck.get('media', 'screen'), features=feats)
+            url = ck['url']
+            if ck.get('urlFrom'):  # 앞 화면에서 식으로 다음 주소를 정함(새로 만든 계약 번호, 그 단계 담당 역할 등)
+                # 앞 단계가 처리 뒤 화면을 다시 열고 있을 수 있어, 다 열릴 때까지 기다린 뒤 식을 셈(열리는 중에 셈하면 답이 오지 않음)
+                for _ in range(3):
+                    time.sleep(1.2)
+                    try:
+                        cdp.js("new Promise(r => { const t = () => document.readyState === 'complete' ? r(1) : setTimeout(t, 100); t(); })")
+                        url = cdp.js(ck['urlFrom']) or url
+                        break
+                    except RuntimeError:
+                        continue
             cdp.errors = []
-            cdp.call('Page.navigate', url=ds.BASE + ck['url'])
+            cdp.call('Page.navigate', url=ds.BASE + url)
             time.sleep(0.6)
             cdp.js("new Promise(r => { const t = () => document.readyState === 'complete' ? document.fonts.ready.then(() => setTimeout(r, 300)) : setTimeout(t, 100); t(); })")
             for w2 in ck.get('resize', []):  # 연 뒤에 창 폭을 차례로 바꿈(창을 줄이는 것처럼)
@@ -60,7 +73,7 @@ def main():
                     raise
                 res = 'NAVIGATED (처리 뒤 화면이 다시 열림)'
                 time.sleep(1.0)
-            print('##', ck['url'], '| errors=', cdp.errors, '|', res)
+            print('##', url, '| errors=', cdp.errors, '|', res)
             if OUT and ck.get('shot'):
                 os.makedirs(OUT, exist_ok=True)
                 opts = dict(format='png', captureBeyondViewport=bool(ck.get('full') or ck.get('sel')))

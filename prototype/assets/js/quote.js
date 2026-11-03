@@ -94,7 +94,7 @@
     form.hidden = false;
     // 새 견적은 오늘 견적일, 유효기간은 견적일 + 30일(QUOTE_RULES.validDays)
     const q = src ? JSON.parse(JSON.stringify(src)) : {
-      no: '', ver: 1, customer: '', name: '', bizNo: '', unit: '', opp: '', date: D.TODAY, validUntil: plusDays(D.TODAY, D.QUOTE_RULES.validDays),
+      no: '', ver: 1, customer: '', name: '', bizNo: '', unit: '', opp: '', date: D.TODAY, validUntil: C.addDays(D.TODAY, D.QUOTE_RULES.validDays),
       owner: me.id, lines: [], note: '', issues: [],
     };
     // 저장된 줄에는 기능만 있어, 고르는 칸을 채우려고 제품과 서비스를 기능에서 다시 찾음(v0.61 검토: 다시 열면 고르는 칸이 비었음)
@@ -324,7 +324,7 @@
     function save(d) {
       const cur = d.no ? C.findQuote(d.no, d.ver) : null;
       if (cur && (cur.issues || []).length) {
-        try { sessionStorage.setItem('climb.flash', d.no + ' ' + d.ver + '판은 이미 출력한 판이라 고칠 수 없습니다. 바꾸려면 새 판을 만드세요.'); } catch (e) { /* 무시 */ }
+        C.flash(d.no + ' ' + d.ver + '판은 이미 출력한 판이라 고칠 수 없습니다. 바꾸려면 새 판을 만드세요.');
         location.href = 'quote.html?no=' + encodeURIComponent(d.no) + '&ver=' + d.ver;
         return null;
       }
@@ -343,7 +343,7 @@
       $('#error-summary').hidden = true;
       const saved = save(d);
       if (!saved) return;
-      try { sessionStorage.setItem('climb.flash', saved.no + ' ' + saved.ver + '판을 저장했습니다. 출력 전이라 고칠 수 있습니다.'); } catch (e) { /* 무시 */ }
+      C.flash(saved.no + ' ' + saved.ver + '판을 저장했습니다. 출력 전이라 고칠 수 있습니다.');
       location.href = 'quote.html?no=' + encodeURIComponent(saved.no) + '&ver=' + saved.ver;
     });
     // 저장하고 견적서 출력: 단추로만(Enter로는 출력하지 않음). 검사 → 저장 → 보기 화면에서 출력
@@ -417,7 +417,7 @@
   function newVersion(q) {
     const latest = C.findQuote(q.no);
     if (latest.ver !== q.ver || !(latest.issues || []).length) {
-      try { sessionStorage.setItem('climb.flash', '이 견적에는 이미 새 판(' + latest.ver + '판)이 있습니다.'); } catch (e) { /* 무시 */ }
+      C.flash('이 견적에는 이미 새 판(' + latest.ver + '판)이 있습니다.');
       location.href = 'quote.html?no=' + encodeURIComponent(latest.no) + '&ver=' + latest.ver;
       return;
     }
@@ -427,10 +427,10 @@
       const p = PRICE[l.feature];
       if (p && (p.listPrice !== l.listPrice || p.discountCap !== l.cap || p.unit !== l.unit)) { changed++; Object.assign(l, { listPrice: p.listPrice, cap: p.discountCap, unit: p.unit }); }
     });
-    Object.assign(copy, { ver: latest.ver + 1, date: D.TODAY, validUntil: plusDays(D.TODAY, D.QUOTE_RULES.validDays), owner: me.id, issues: [], savedAt: C.nowStamp() });
+    Object.assign(copy, { ver: latest.ver + 1, date: D.TODAY, validUntil: C.addDays(D.TODAY, D.QUOTE_RULES.validDays), owner: me.id, issues: [], savedAt: C.nowStamp() });
     C.saveQuote(copy);
     // 표준 단가만이 아니라 한도도 오늘 값으로 바뀜(기획자 결정 2026-11-02 E-4: 남은 시연 한도 20%, 15%가 0%로)
-    try { sessionStorage.setItem('climb.flash', copy.no + ' ' + copy.ver + '판을 만들었습니다.' + (changed ? ' 가격 기준이 바뀐 줄 ' + changed + '개의 표준 단가와 할인율 한도를 오늘 값으로 바꿨습니다.' : '') + ' 고친 뒤 출력합니다.'); } catch (e) { /* 무시 */ }
+    C.flash(copy.no + ' ' + copy.ver + '판을 만들었습니다.' + (changed ? ' 가격 기준이 바뀐 줄 ' + changed + '개의 표준 단가와 할인율 한도를 오늘 값으로 바꿨습니다.' : '') + ' 고친 뒤 출력합니다.');
     location.href = 'quote.html?no=' + encodeURIComponent(copy.no) + '&ver=' + copy.ver;
   }
 
@@ -494,9 +494,9 @@
 
   /* ---------- 고객에게 내는 견적서 (A4 세로, 흑백 인쇄. 줄이 많으면 다음 장으로 이어지고 표 머리글이 다시 나옴) ----------
    * seal: "견적서 출력"으로 인쇄할 때만 넘기는 회사 인장 그림(기획자 결정 2026-11-02 E-7). 없으면 대표자 옆에 "(인)" 글자만
-   * 공급자 칸은 회사 설정 값(E-9, D.COMPANY = D.QUOTE_SUPPLIER). 비어 있는 값은 "회사 설정에 없음"으로 흐리게 */
+   * 공급자 칸은 회사 설정 값(E-9, D.COMPANY). 비어 있는 값은 "회사 설정에 없음"으로 흐리게 */
   function docHtml(q, seal) {
-    const t = C.quoteTotals(q), S = D.COMPANY || D.QUOTE_SUPPLIER;
+    const t = C.quoteTotals(q), S = D.COMPANY;
     const acc = C.accountOf(q.owner);
     const setting = function (v) { return v ? esc(v) : '<span class="qd-setting">회사 설정에 없음</span>'; };
     const sealSpot = '<span class="qd-seal-spot">(인)' + (seal ? '<img class="qd-seal" src="' + esc(seal.src) + '" alt="회사 인장">' : '') + '</span>';
@@ -533,7 +533,6 @@
   }
 
   /* ---------- 도우미 ---------- */
-  function plusDays(iso, n) { const p = iso.split('-').map(Number); const d = new Date(p[0], p[1] - 1, p[2] + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
   function daysBetween(a, b) { const pa = a.split('-').map(Number), pb = b.split('-').map(Number); return Math.round((new Date(pb[0], pb[1] - 1, pb[2]) - new Date(pa[0], pa[1] - 1, pa[2])) / 86400000); }
   // 한글 금액: 일금 일천육백팔십구만육천원정 (견적서에서 흔히 쓰는 표기. 고쳐 쓰지 못하게 일천, 일백, 일십처럼 일을 적음)
   function koreanWon(n) {

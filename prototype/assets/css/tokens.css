@@ -107,7 +107,6 @@
   --button-primary-text: var(--mh-black);
   --button-secondary-fill: var(--green-8);
   --button-secondary-fill-hover: var(--green-14);
-  --button-secondary-border: var(--mh-green);
   --button-secondary-text: var(--mh-dark-green);
   /* 경고 버튼: 반려, 승인 취소처럼 되돌리기 어려운 일. 진한 핑크 바탕 + 흰 글자 (REQ-UI-09) */
   --button-danger-fill: var(--pink-strong);
@@ -143,10 +142,9 @@
   --step-current: var(--mh-dark-green);
   --step-waiting: var(--gray-35);
 
-  /* 계약 상태 배지 [가정]: 연한 바탕 + 브랜드 색 테두리 + Black 글자
+  /* 계약 상태 배지 [가정]: 연한 바탕 + Black 글자(색 테두리 없음, v0.59 REQ-UI-34)
    * 색만으로 구분하지 않도록 항상 글자(예: "반려")를 함께 표시합니다. */
   --status-progress-bg: var(--blue-8);      /* 결재 중 — Blue */
-  --status-progress-line: var(--mh-blue);
   /* 반려, D-30 이내 — Pink. 핑크 바탕에는 흰 글자 (REQ-UI-09)
    * 원래 Pink(#FF258E) 위 흰 글자는 3.6:1로 기준(4.5:1) 미달 → 바탕만 살짝 진한 핑크 사용 */
   --status-danger-fill: var(--pink-strong);
@@ -154,11 +152,8 @@
   --status-danger-line: var(--mh-pink);
   --status-danger-row: var(--pink-5);       /* 반려 건 표 줄 강조 */
   --status-attention-bg: var(--purple-8);   /* 체결본 대기, D-60 이내 — Purple */
-  --status-attention-line: var(--mh-purple);
   --status-success-bg: var(--green-8);      /* 이행 중 — Green */
-  --status-success-line: var(--mh-green);
   --status-neutral-bg: var(--gray-8);       /* 만료·해지, 열람 제한 — Gray */
-  --status-neutral-line: var(--mh-gray);
   --status-notice-bg: var(--mh-beige);      /* 안내 상자(notice) 바탕 — Beige */
   --status-notice-icon: var(--mh-pink);
 
@@ -197,7 +192,6 @@
    * 제목 위계(v0.59 기획자 요청: 개요의 "진행 상세"가 그 아래 표의 고객사 이름보다 작아 보이고, 상자 제목도 약했음):
    *   본문 글자는 그대로 두고 제목만 한 단계씩 올려 제목끼리 두 단계(약 1.25배) 차이
    *   화면 제목 27 > 상자 제목 21(예: "1 기본 정보", "계약 진행 현황") > 작은 제목 17(예: "진행 상세", 결재 기록의 차수) > 본문과 항목 이름 15 > 표 13 */
-  --fs-display-small: 3rem;
   --fs-heading-xlarge: 2.7rem;  /* 화면 제목 (20pt) */
   --fs-heading-large: 2.4rem;   /* 로그인 제목 (18pt) */
   --fs-heading-medium: 2.1rem;  /* 확인 창 제목, 계약 금액 총액 (15.75pt) */
@@ -306,7 +300,7 @@
     /* 결재 단계 점 */
     --step-current: #8CAAAE;            /* Dark Green에 흰색 40% */
     --step-waiting: #3F4F56;            /* 흰색 24% */
-    /* 상태 배지 바탕 (테두리는 브랜드 원색 그대로) */
+    /* 상태 배지 바탕 */
     --status-progress-bg: #022B4D;      /* Blue 20% */
     --status-danger-row: #1B192C;       /* Pink 10% */
     --status-attention-bg: #1F1D4D;     /* Purple 20% */
@@ -358,7 +352,6 @@
     --button-primary-fill: #FFFFFF;
     --button-primary-text: #000000;
     --button-secondary-fill: #FFFFFF;
-    --button-secondary-border: #808080;
     --button-secondary-text: #000000;
     --button-danger-fill: #FFFFFF;
     --button-danger-text: #000000;
@@ -380,17 +373,13 @@
     --step-waiting: #BFBFBF;
     /* 상태 배지와 강조 줄: 칠 없이 글자로. 진한 핑크 자리(반려, 입력 오류 선)는 검정 */
     --status-progress-bg: #FFFFFF;
-    --status-progress-line: #808080;
     --status-danger-fill: #000000;
     --status-danger-text: #FFFFFF;
     --status-danger-line: #000000;
     --status-danger-row: #FFFFFF;
     --status-attention-bg: #FFFFFF;
-    --status-attention-line: #808080;
     --status-success-bg: #FFFFFF;
-    --status-success-line: #808080;
     --status-neutral-bg: #FFFFFF;
-    --status-neutral-line: #808080;
     --status-notice-bg: #FFFFFF;
     --status-notice-icon: #000000;
     --shadow-1: none;
@@ -409,7 +398,6 @@
  * --------------------------------------------------------------- */
 @media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
   :root {
-    --fs-display-small: 3.4rem;   /* Large Title (지금 쓰는 곳 없음) */
     --fs-heading-xlarge: 2.8rem;  /* 화면 제목: Title 1 */
     --fs-heading-large: 2.4rem;   /* 로그인 제목: Title 2와 Title 1 사이 */
     --fs-heading-medium: 2.2rem;  /* 확인 창 제목: Title 2 */

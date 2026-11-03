@@ -55,8 +55,6 @@
       ['S10', '모든 계약(운영 변경 포함). ⑨를 한 사람은 ⑩을 하지 않아, HR 충전처럼 이 담당자가 ⑨를 했으면 다른 재무 담당자가 확인'],
     ];
   }
-  // 단계 코드(예전에는 'S10:HR'처럼 쌍점 뒤에 따로 정한 담당이 있었음. 2026-11-03에 없앰)
-  function stepOf(code) { return code.split(':')[0]; }
 
   function account(id) { return D.ACCOUNTS.filter(function (a) { return a.id === id; })[0] || null; }
   function person(id) {
@@ -68,7 +66,7 @@
     return D.ACCOUNTS.filter(function (a) { return C.canTake(a.roles, role) && a.status !== 'SUSPENDED' && a.id !== exceptId; });
   }
   // 그 줄의 지금 차례 (2026-11-03: HR 충전의 ⑩도 ⑩ 줄에서 셈. ⑨를 해 다른 재무 담당자에게 간 건은 아래 holders에 그 사람 이름으로)
-  function rowQueue(code) { return C.pendingQueue(me, true, [stepOf(code)]); }
+  function rowQueue(code) { return C.pendingQueue(me, true, [code]); }
   function pendingCount(code) { return rowQueue(code).length; }
   // 지금 차례인 건 중 원래 담당자가 처리하는 건 (담당자를 바꾼 뒤): "김지우님 4건"
   function holders(code, cur) {
@@ -76,7 +74,7 @@
     rowQueue(code).forEach(function (x) { if (x.s.userId !== cur) by[x.s.userId] = (by[x.s.userId] || 0) + 1; });
     return Object.keys(by).map(function (id) { return '<span class="cell-meta">' + esc(C.ownerLabel(id)) + ' ' + by[id] + '건</span>'; }).join('');
   }
-  function stepName(code) { const s = D.STEPS[stepOf(code)]; return s.no + ' ' + s.name; }
+  function stepName(code) { const s = D.STEPS[code]; return s.no + ' ' + s.name; }
   // 이 사람이 지금 맡은 결재 담당 (예: 배수아님은 ②와 ⑧, 최민준님은 ③ 비즈니스1유닛 리더)
   function dutyNames(id) { return C.duties(id).map(function (x) { return x.label; }).join(', '); }
   function dutyNos(id) { return C.duties(id).map(function (x) { return x.label.charAt(0) + (x.key.indexOf(':') > -1 ? '(' + x.key.split(':')[1] + ')' : ''); }).join(', '); }
@@ -132,7 +130,7 @@
     }).join('');
   }
   // 단계 줄 아래 흐린 역할 이름 (2026-11-03: HR 충전의 ⑩을 재무 리더가 맡던 줄을 없애 단계의 역할 그대로)
-  function rowRole(code) { return D.STEPS[stepOf(code)].role; }
+  function rowRole(code) { return D.STEPS[code].role; }
   function renderAssignees() {
     $('#assignee-rows').innerHTML = rows().map(function (r) {
       // same: ③ 영업 임원 승인(E-3)은 ③ 줄의 영업 임원(STEP_ASSIGNEE.S03)이 맡아 이 줄에서는 바꾸지 않음
@@ -144,7 +142,7 @@
         (code === 'S03' ? '<span class="cell-meta">구성원 계약은 아래 유닛별 리더</span>' : '') +
         (same ? '<span class="cell-meta">③ 줄의 영업 임원과 같은 사람</span>' : '');
       // 기획자 결정 2026-11-02 D-18: 칸 순서는 단계, 담당자, 지금 차례, 관리, 거치는 조건 (참고 글인 거치는 조건은 맨 뒤)
-      return '<tr><td class="nowrap cell-strong">' + esc(stepName(code)) + '<span class="cell-meta">' + esc(C.roleLabel(rowRole(code, id))) + '</span></td>' +
+      return '<tr><td class="nowrap cell-strong">' + esc(stepName(code)) + '<span class="cell-meta">' + esc(C.roleLabel(rowRole(code))) + '</span></td>' +
         '<td>' + who + '</td>' +
         // ③ 줄은 리더 본인 계약(영업 임원 차례)만 셈. 구성원 계약은 아래 유닛별 리더 표에서
         '<td class="num">' + (code === 'S03'
@@ -233,7 +231,7 @@
   }
   function openChange(code) {
     // ③ 줄은 리더 본인 계약의 담당(영업 임원). 같은 사람이 ③ 영업 임원 승인(S03C, E-3)도 맡음
-    const st = D.STEPS[stepOf(code)], cur = C.assigneeOf(code), role = code === 'S03' ? 'EXEC' : st.role;
+    const st = D.STEPS[code], cur = C.assigneeOf(code), role = code === 'S03' ? 'EXEC' : st.role;
     const n = code === 'S03' ? C.pendingQueue(me, true, ['S03', 'S03C']).filter(function (x) { return x.s.userId === cur; }).length : pendingCount(code);
     // 기획자 결정 2026-11-03(C-18 ⑤): HR 충전의 ⑩을 재무 리더가 맡던 따로 한 줄('S10:HR')을 없애, ⑩ 줄도 다른 줄처럼 재무 담당자만 고름
     //   (2026-11-02에는 ⑩ 줄과 'S10:HR' 줄이 서로의 담당자를 고르지 못하게 뺐음. 이제 ⑨를 한 사람과 겹치면 다른 재무 담당자에게 감, common.js otherFinance)

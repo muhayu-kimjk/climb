@@ -106,7 +106,7 @@
   /* "견적서 출력" 단추로 찍을 때: 고객에게 낼 견적서만(출력 기록을 남겼으므로 사내 인쇄의 머리와 워터마크는 뺌) */
   body.is-quote-print .demo-bar, body.is-quote-print #demo-bar, body.is-quote-print .skip-link, body.is-quote-print .site-header,
   body.is-quote-print .site-footer, body.is-quote-print .page-head, body.is-quote-print .page-intro, body.is-quote-print #notice,
-  body.is-quote-print .q-history, body.is-quote-print .watermark, body.is-quote-print .toast, body.is-quote-print .page-footer { display: none !important; }
+  body.is-quote-print .q-history, body.is-quote-print .watermark, body.is-quote-print .toast { display: none !important; }
   .qd-parties { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .qd-lines tr, .qd-party, .qd-total { break-inside: avoid; }
 }
