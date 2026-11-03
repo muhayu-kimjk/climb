@@ -6,6 +6,7 @@
  *   2. 공지는 문단, 릴리즈는 새 기능, 개선, 바뀐 규칙, 고친 문제(있는 묶음만)
  *   3. 이전 글, 다음 글(올린 순서, 제목 뒤에 올린 날을 흐리게. 기획자 결정 2026-11-02 D-21), 목록으로
  *   4. 관리자와 최고관리자: 고치기(notice-form.js), 내리기(확인 창)
+ *   5. 바뀐 화면을 고른 릴리즈(기획자 결정 2026-11-02 E-15)는 글 정보 줄에 그 화면 이름과 "바뀐 점"이 보이는 끝 날
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -30,10 +31,15 @@
     $('#post').hidden = false;
     $('#post-kind').textContent = D.NOTICE_KINDS[n.kind];
     // 내리기 확인 문구: 릴리즈만 이용 안내의 최근 릴리즈에도 나오므로 종류마다 (v0.63 검토)
-    $('#hide-desc').textContent = (n.kind === 'RELEASE' ? '내리면 공지사항 목록과 이용 안내의 최근 릴리즈에서 보이지 않습니다.' : '내리면 공지사항 목록에서 보이지 않습니다.') +
+    //   바뀐 화면을 고른 릴리즈는 그 화면의 "바뀐 점" 한 줄도 사라짐(E-15)
+    $('#hide-desc').textContent = (n.kind !== 'RELEASE' ? '내리면 공지사항 목록에서 보이지 않습니다.'
+      : C.changeUntil(n) ? '내리면 공지사항 목록, 이용 안내의 최근 릴리즈, 바뀐 화면의 "바뀐 점" 줄에서 보이지 않습니다.' : '내리면 공지사항 목록과 이용 안내의 최근 릴리즈에서 보이지 않습니다.') +
       ' 글은 지우지 않고 변경 이력에 남습니다.';
     $('#post-title').innerHTML = (n.important ? C.badge('danger', '중요') + ' ' : '') + (n.version ? '<span class="board-ver">' + esc(n.version) + '</span>' : '') + esc(n.title);
-    $('#post-meta').innerHTML = C.meta([['올린 일시', C.fmtDateTime(n.at)], ['쓴 사람', esc(C.ownerLabel(n.by))]].concat(n.important ? ['전체 사용자에게 이메일로 알림'] : []));
+    // 기획자 결정 2026-11-02 E-15: 바뀐 화면을 고른 릴리즈는 어느 화면에 언제까지 "바뀐 점"이 보이는지 함께(지났으면 "끝남")
+    const until = C.changeUntil(n);
+    const change = until ? [['바뀐 점', esc(n.changeScreens.map(C.changeScreenLabel).join(', ')) + ' (' + C.fmtDate(until) + (D.TODAY <= until ? '까지 보임' : '에 끝남') + ')']] : [];
+    $('#post-meta').innerHTML = C.meta([['올린 일시', C.fmtDateTime(n.at)], ['쓴 사람', esc(C.ownerLabel(n.by))]].concat(n.important ? ['전체 사용자에게 이메일로 알림'] : [], change));
     if (n.kind === 'RELEASE') {
       $('#post-body').innerHTML = D.RELEASE_PARTS.filter(function (p) { return ((n.items || {})[p[0]] || []).length; }).map(function (p) {
         return '<section class="release-part"><h2>' + C.badge(PART_TONE[p[0]], p[1]) + '</h2><ul>' +

@@ -6,6 +6,7 @@
  *   1. 아직 끝나지 않은 계약(검토 중, 반려, 체결 대기, 운영 검토)을 모음. 오래된 기안부터
  *   2. 검색, 상태, 서비스, 영업대표로 거르기 (?status=REVIEW 또는 ?status=OPS_REVIEW로 미리 거름)
  *   3. 열람 제한 계약은 볼 수 없는 사람에게 가림. 한 쪽에 20건
+ *   4. 보류가 걸린 계약은 상태 칸 아래에 "보류 중" 배지 (기획자 결정 2026-11-02 C-16)
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -27,7 +28,8 @@
   // 상태: REVIEW는 검토 중과 반려를 함께 (개요의 '계약 검토' 단계와 같은 범위)
   $('#f-status').innerHTML = options('전체 상태', [['REVIEW', '검토 중, 보완 중, 반려']].concat(OPEN.map(function (k) { return [k, D.STATUS[k].label]; })));
   $('#f-service').innerHTML = options('전체 서비스', Object.keys(D.SERVICES).map(function (k) { return [k, D.SERVICES[k]]; }));
-  const owners = all.map(function (c) { return c.requesterId; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+  // 기획자 결정 2026-11-03(C-44): 영업대표 거르기는 처음 기안한 사람과 지금 영업대표(C.salesRepOf, 넘겨받은 새 영업대표) 둘 다. 개요의 진행 현황 수(?owner=)와 같은 범위
+  const owners = all.map(function (c) { return c.requesterId; }).concat(all.map(function (c) { return C.salesRepOf(c); })).filter(function (v, i, a) { return v && a.indexOf(v) === i; });
   $('#f-owner').innerHTML = options('전체', owners.map(function (u) { return [u, C.ownerLabel(u)]; }));
   const params = new URLSearchParams(location.search);
   const preset = params.get('status');
@@ -50,7 +52,7 @@
       if (q && (!visible || (c.counterparty.toLowerCase().indexOf(q) < 0 && String(c.id).toLowerCase().indexOf(q) < 0))) return false;
       if (status === 'REVIEW' ? ['IN_REVIEW', 'SUPPLEMENT', 'REJECTED'].indexOf(c.status) < 0 : status && c.status !== status) return false;
       if (service && (!visible || (c.services || []).indexOf(service) < 0)) return false;
-      if (owner && c.requesterId !== owner) return false;
+      if (owner && c.requesterId !== owner && C.salesRepOf(c) !== owner) return false; // 처음 기안한 사람이나 지금 영업대표(C-44)
       return true;
     });
   }
@@ -75,9 +77,11 @@
       return '<tr' + (c.status === 'REJECTED' ? ' class="is-alert"' : '') + '>' +
         '<td>' + cust + '</td>' +
         '<td class="col-service">' + (visible ? service : '-') + '</td>' +
-        '<td class="nowrap">' + C.statusBadge(c) + '</td>' +
+        // 기획자 결정 2026-11-02 C-16: 보류가 걸린 계약은 상태 아래에 "보류 중" 배지(남은 결재의 승인이 막힘. 사유는 결재 문서에서)
+        '<td class="nowrap">' + C.statusBadge(c) + (C.holdOf(c) ? '<span class="cell-meta">' + C.holdBadge(C.holdOf(c)) + '</span>' : '') + '</td>' +
         C.progressCells(c) + // 현재 진행(단계) + 대기(날수) 두 칸 (v0.55)
-        '<td class="center">' + esc(C.ownerLabel(c.requesterId)) + '</td>' +
+        // 영업대표는 지금 영업대표(C-44). 바뀌었으면 작은 줄에 처음 기안한 사람(계약 상세와 같음)
+        '<td class="center">' + esc(C.ownerLabel(C.salesRepOf(c))) + (C.salesRepOf(c) !== c.requesterId ? '<span class="cell-meta">처음 기안 ' + esc(C.ownerLabel(c.requesterId)) + '</span>' : '') + '</td>' +
         '<td class="num-left nowrap">' + C.fmtDate(c.requestedAt) + '</td>' + // 날짜는 한 줄 (첫 사용 점검: 하이픈에서 끊겼음)
       '</tr>';
     }).join('') : '<tr><td class="empty-row" colspan="7">조건에 맞는 계약이 없습니다.</td></tr>';

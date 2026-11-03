@@ -27,7 +27,7 @@
     내가 검토할 계약(REQ-DASH-03, 05)을 보여줍니다. 상자는 한 줄에 하나씩 (REQ-DASH-15)
   - 역할에 따라 구성이 달라집니다. (REQ-AUTH-04)
   - 기획자 결정 2026-11-02: 진행 상세 표 위 회색 안내 한 줄(D-2), 영업이 처리할 줄의 "내 차례" 배지(D-1),
-    만료 임박은 만료일 순서(A-1)와 첫 칸 머리글 "만료까지"(D-14)
+    만료 임박은 만료일 순서(A-1)와 첫 칸 머리글 "만료까지"(D-14), 점검할 일은 점검을 맡은 모든 사람에게 자기 점검만(C-10)
   - 아래 빈 영역은 assets/js/dashboard.js가 예시 데이터로 채웁니다.
 ====================================================================== -->
 <body data-page="SCR-01">
@@ -64,7 +64,8 @@
         <section class="panel" id="my-reviews" aria-labelledby="my-reviews-title" hidden></section>
         <!-- 챙길 의무: 체결 후 의무를 맡는 분야(정보보호, 고객지원, 재무)와 최고관리자에게만 (v0.53, REQ-FLOW-35) -->
         <section class="panel" id="obligations" aria-labelledby="obligations-title" hidden></section>
-        <!-- 점검할 일: 정보보호 담당자, 리더와 최고관리자에게만 (REQ-DASH-16, REQ-SEC-05, 06). 시스템 점검이라 맨 뒤 -->
+        <!-- 점검할 일: 정보보호 담당자, 리더와 최고관리자에게만 (REQ-DASH-16, REQ-SEC-05, 06). 시스템 점검이라 맨 뒤
+             기획자 결정 2026-11-02 C-10: 점검을 맡은 모든 사람에게(재무, 재무 임원, 재무 리더, 법무, 영업지원, 총무, 컴플라이언스), 자기 점검만 -->
         <section class="panel" id="audit" aria-labelledby="audit-title" hidden></section>
       </div>
     </div>
@@ -77,6 +78,8 @@
 
   <script src="assets/js/mock-data.js"></script>
   <script src="assets/js/common.js"></script>
+  <!-- 점검 화면이 함께 쓰는 자료: 점검할 일의 설정 변경 확인 건수(기획자 결정 2026-11-02 C-8, C-10) -->
+  <script src="assets/js/control-checks.js"></script>
   <script src="assets/js/dashboard.js"></script>
 </body>
 </html>

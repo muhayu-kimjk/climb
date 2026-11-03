@@ -14,6 +14,11 @@
 .role-badges { display: inline-flex; gap: 0.4rem; vertical-align: 0.18rem; } /* 배지 묶음도 옆 글자 가운데에 (v0.59 QA 세로 줄맞춤, common.css 6) */
 /* 사용 중지 계정: 글자를 흐리게(줄 전체는 admin.css의 .tbl tr.is-muted) */
 .tbl--users tr.is-muted .cell-name { color: var(--text-subtle); }
+/* 기획자 결정 2026-11-02 C-5: 수정 창의 역할 겹침 알림. 겹친 일 한 줄씩, 아래 안내와 띄움 */
+.conflict-item { display: block; }
+.conflict-item + .conflict-item { margin-top: 0.4rem; }
+.conflict-item + .conflict-tail { margin-top: 0.8rem; color: var(--text-subtle); }
+/* 겹침 알림과 까닭 칸 사이, 겹침 칸이 숨었을 때 사유 칸 아래 여백은 결재선 규칙(SCR-52)도 같게 admin.css로 옮김(2026-11-02) */
 
 /* 이메일 칸 고정: 옆으로 밀어도 누구의 줄인지 보이게 왼쪽에 붙임 */
 .tbl--users .col-email { position: sticky; left: 0; z-index: 1; background: var(--surface-white); box-shadow: inset -1px 0 0 var(--border-gray-light); }

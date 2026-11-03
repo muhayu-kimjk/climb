@@ -12,7 +12,10 @@
  *   6. 체결본 확인 반려 항목(v0.61, 통제와 표준 대응표 G-06): ⑧ 반려 때 고른 어긋난 항목(결재 기록의 mismatch 코드)을 반려 건수 대비로 (REQ-SIGN-04, REQ-DASH-19)
  *   7. 보완 요청 항목(v0.63, 표준 대응표 G-05): ②~⑤ 보완 요청 때 고른 항목(결재 기록의 supplementItems 코드)을 보완 요청 건수 대비로 (REQ-REV-11, REQ-DASH-19)
  *   8. 기간 마감 점검(기획자 결정 2026-11-02 B-9, CTL-65): 기간 말 앞뒤 체결, 승인됐지만 체결 전, ⑨ ⑩ 기다림. 재무가 기간 말마다 확인을 남김(아래 8.)
- *   9. 통제 지표(기획자 결정 2026-11-02 C-1, 리더와 임원만): 4번 조건의 종류마다 건수(B-6, CTL-52), ④ 반부패 조항 판단을 계약 방식마다(C-15, CTL-34)
+ *   9. 통제 지표(기획자 결정 2026-11-02 C-1, 리더와 임원과 감사 열람만): 4번 조건의 종류마다 건수(B-6, CTL-52), ④ 반부패 조항 판단을 계약 방식마다(C-15, CTL-34),
+ *      평균 할인(영업, 유닛, 기관 종류, 계약 방식마다), 대리 결재 건수, 위험 신호(같은 거래처와 30일 안에 두 건 이상, 분기 말 5일 안의 가격 예외)
+ *  10. 통제 증빙 내보내기(기획자 결정 2026-11-02 C-3, 감사 열람과 시연용 최고관리자): 기간을 골라 CSV(엑셀에서 열림) 한 파일, 꺼낸 기록
+ *      파일 맨 위에 실행 시각, 실행한 사람, 조건, 건수, 금액 합계, 파일 지문(SHA-256), 워터마크. 꺼낸 기록은 계약 상세의 결재 기록 묶음과 함께 보임
  * 세는 법
  *   - 체결일: ⑦에서 받은 서명본 체결일(C.signedDate, 없으면 올린 날). 올린 때도 남겨 함께 보임 (기획자 결정 2026-11-02 B-8)
  *     예전에는 체결본을 올린 때(⑦ 마지막 기록)였음. 조건 그대로 연장(날인과 체결본 없음)은 지금처럼 ⑩ 재무 확인일
@@ -21,7 +24,8 @@
  *   - 열람 제한 계약 중 이 사람이 볼 수 없는 건은 어디에도 넣지 않음(합계로도 드러나지 않게)
  * 그래프(dataviz 기준): 막대는 한 색(--chart-bar), 값은 막대 끝에 글자로, 그래프마다 "표로 보기"
  *   색만으로 뜻을 전하지 않음(기준을 넘은 단계는 "기준 넘음" 글자를 붙임)
- * 볼 수 있는 사람: 모두 (전체 계약과 같음). 기간 마감 점검의 확인은 재무(담당자, 리더, 임원)만 남김. 통제 지표 묶음은 리더와 임원만(C-1)
+ * 볼 수 있는 사람: 모두 (전체 계약과 같음). 기간 마감 점검의 확인은 재무(담당자, 리더, 임원)만 남김. 통제 지표 묶음은 리더, 임원, 감사 열람만(C-1)
+ *   통제 증빙 내보내기는 감사 열람(과 시연용 최고관리자)만(C-3). 감사 열람은 열람 제한 계약까지 모두 셈(C.canView, C-2)
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -43,10 +47,15 @@
     ['accounting', 'YES', '4. 회계에 영향을 주는 특수 조건', '⑩ 재무 확인'],
   ];
   // 견적 칸은 견적 목록(SCR-16)을 볼 수 있는 역할에만 (v0.62, quotes.js와 같은 역할)
-  const seeQuotes = me.role === 'SUPER' || C.hasRole(me, ['SALES', 'HEAD', 'EXEC', 'SALES_ADMIN', 'ADMIN']);
-  // 기획자 결정 2026-11-02 C-1: 지금 통계는 모두에게 그대로, 새 통제 지표 묶음(아래 9.)만 리더와 임원에게. 감사 열람 역할(C-2)이 생기면 그 역할도
-  //   리더: 영업, 영업지원, 정보보호, 고객지원, 재무 리더 / 임원: 영업 임원(COO), 재무 임원(CFO). 최고관리자는 시연용
-  const seeControls = ['HEAD', 'EXEC', 'SA_LEAD', 'SEC_LEAD', 'CEM_LEAD', 'FIN_LEAD', 'FIN_EXEC', 'SUPER'].indexOf(me.role) > -1;
+  //   기획자 결정 2026-11-02 C-2: 감사 열람은 "전체 통계"를 보기만 하므로 견적 칸(한도 넘은 견적 비율)도 봄. 견적 목록 화면은 열지 않음
+  const seeQuotes = me.role === 'SUPER' || C.isAuditor(me) || C.hasRole(me, ['SALES', 'HEAD', 'EXEC', 'SALES_ADMIN', 'ADMIN']);
+  // 기획자 결정 2026-11-02 C-1: 지금 통계는 모두에게 그대로, 새 통제 지표 묶음(아래 9.)만 리더, 임원, 감사 열람에게
+  //   리더: 영업, 영업지원, 정보보호, 고객지원, 재무 리더 / 임원: 영업 임원(COO), 재무 임원(CFO) / 감사 열람(C-2): 끝나는 날 안일 때만(C.isAuditor)
+  //   최고관리자는 시연용. 앞선 작업에서는 감사 열람이 빠져 있었음(C-2가 정해진 뒤 더함)
+  const seeControls = me.role === 'SUPER' || C.isAuditor(me) || ['HEAD', 'EXEC', 'SA_LEAD', 'SEC_LEAD', 'CEM_LEAD', 'FIN_LEAD', 'FIN_EXEC'].indexOf(me.role) > -1;
+  // 기획자 결정 2026-11-02 C-3: 기간 전체 통제 증빙 내보내기는 모든 계약을 보는 감사 열람(C-2)이 함. 최고관리자는 시연용
+  const canExport = me.role === 'SUPER' || C.isAuditor(me);
+  const X = window.CLIMB_CTL; // 접속 기록, 꺼낸 기록, 파일 지문, CSV (control-checks.js)
   const PRICE_OF = function (fid) { return D.PRICE_BOOK.filter(function (p) { return p.feature === fid; })[0] || null; };
 
   /* ---------- 세는 법 ---------- */
@@ -271,7 +280,8 @@
     if (seeQuotes) {
       const qs = C.allQuotes().filter(function (q) {
         const first = (q.issues || [])[0];
-        if (!first || !C.canSeeQuote(me, q) || months.indexOf(String(first.at).slice(0, 7)) < 0) return false;
+        // 감사 열람(C-2)은 견적 화면을 열지 않지만 전체 통계로 모든 견적을 셈(아래 범위 글은 "모든 견적")
+        if (!first || !(C.isAuditor(me) || C.canSeeQuote(me, q)) || months.indexOf(String(first.at).slice(0, 7)) < 0) return false;
         if (unit && C.teamOf(q.owner) !== unit) return false;
         return !service || (q.lines || []).some(function (l) { const p = PRICE_OF(l.feature); return p && p.service === service; });
       });
@@ -342,23 +352,168 @@
         '<span class="meter-track" role="img" aria-label="' + esc(x.label + ': 보완 요청 ' + supps + '건 중 ' + n + '건, ' + pct + '%') + '"><span class="meter-fill" style="width:' + pct + '%"></span></span></div>';
     }).join('') : '<p class="chart-empty">이 조건에서 보완을 요청한 계약이 없습니다.</p>';
 
-    // 9. 통제 지표 (기획자 결정 2026-11-02 C-1: 리더와 임원만)
-    if (seeControls) renderControls(withCk, base, months);
+    // 9. 통제 지표 (기획자 결정 2026-11-02 C-1: 리더, 임원, 감사 열람만)
+    if (seeControls) renderControls(withCk, base, months, signed);
   }
 
-  /* ---------- 9. 통제 지표 (기획자 결정 2026-11-02 C-1, 리더와 임원만) ----------
+  /* ---------- 9. 통제 지표 (기획자 결정 2026-11-02 C-1, 리더와 임원과 감사 열람만) ----------
    * 가. 4번 조건의 종류(B-6, CTL-52): 체결한 계약 가운데 4번이 예인 계약을 고른 종류(checklist.acctKinds, D.ACCT_KINDS)마다 셈
    *     한 계약이 여러 종류를 고를 수 있어 합이 4번 예 건수보다 클 수 있음. 종류를 두기 전 기록은 "고르지 않음(예전 기록)"
    * 나. ④ 반부패 조항 판단(C-15, CTL-34): 표준계약서를 바꾼 계약 가운데 기간 안에 ④ 승인이 끝난 계약을 계약 방식마다
    *     있고 약해지지 않음(KEPT), 없음(NONE), 고르지 않음(직접은 선택, 판단을 두기 전 기록)으로 셈(C.legalApproval)
-   *     "없음"은 전체 계약의 거르기(contracts.html?ab=NONE)로 이어짐 */
+   *     "없음"은 전체 계약의 거르기(contracts.html?ab=NONE)로 이어짐
+   * 다. 평균 할인(C-1): 체결한 계약마다 표준 금액(기안일에 쓰던 가격 기준의 표준 단가 x 수량) 대비 할인율을 구해 단순 평균 [가정]
+   *     영업(기안한 영업), 영업 유닛, 기관 종류(사업자등록번호 가운데 두 자리), 계약 방식마다. 제품 줄이 없는 계약은 셀 수 없어 뺌
+   *     시스템 도입 전에 기안한 계약은 도입 때 넣은 첫 가격 기준으로 셈 [가정: 그 전 가격 기준이 시스템에 없음]
+   * 라. 대리 결재(C-1): 기간 안의 결재 기록 가운데 담당자가 아닌 사람이 처리한 것. 대리 지정으로 처리(근거 있음)와
+   *     대리 지정 없이 처리(시연의 최고관리자. 운영에서는 0건이어야 함, C-5 "운영에서 최고관리자는 결재 단계를 처리하지 않음")를 나눔
+   * 마. 위험 신호(C-1) [가정: 날 수는 C-1 답의 30일, 5일]
+   *     같은 거래처와 30일 안에 두 건 이상: 사업자등록번호가 같은 계약(신규, 변경, 바꿔서 연장)을 기안일 순으로 이어, 앞 계약과 30일 안이면 한 묶음.
+   *       두 건 이상이고 한 건이라도 기안일이 기간 안인 묶음. 해지, 조건 그대로 연장, 운영 변경은 넣지 않음(같은 거래처 최근 계약 E-2와 같음)
+   *     분기 말 5일 안의 가격 예외: 체크리스트 2번이나 3번이 아니요인 계약 가운데 ③ 승인일(③을 거치지 않았으면 기안일)이 분기 마지막 날까지 5일 안
+   * 열람 제한 계약 가운데 볼 수 없는 건은 넣지 않음(위 조건의 base와 signed가 이미 뺌). 감사 열람은 모두 셈 */
+  const RISK_DAYS = 30, QEND_DAYS = 5;
+  function pct1(n) { return (Math.round(n * 1000) / 10).toLocaleString('ko-KR') + '%'; }
+  // 그날 쓰던 가격 기준 줄(없으면 그 기능의 첫 줄)
+  function priceAt(fid, day) {
+    const rows = D.PRICE_ROWS.filter(function (p) { return p.feature === fid; })
+      .sort(function (a, b) { return a.validFrom.localeCompare(b.validFrom) || a.at.localeCompare(b.at); });
+    return rows.filter(function (p) { return p.validFrom <= day; }).pop() || rows[0] || null;
+  }
+  // 계약의 할인율(표준 금액 대비). 셀 수 없으면 null
+  function discountOf(c) {
+    const lines = c.products || (c.form && c.form.products) || [], day = String(c.requestedAt || D.TODAY).slice(0, 10);
+    let std = 0, amt = 0;
+    lines.forEach(function (l) {
+      const p = priceAt(l.feature, day), q = Number(l.qty) || 0;
+      if (!p || !q) return;
+      std += p.listPrice * q; amt += Number(l.amount) || 0;
+    });
+    return std ? (std - amt) / std : null;
+  }
+  // 한 줄이라도 할인율 한도를 넘은 가장 큰 폭(%p). 셀 수 없으면 null (증빙 내보내기의 ③ 가격 예외)
+  function overPpOf(c) {
+    const lines = c.products || (c.form && c.form.products) || [], day = String(c.requestedAt || D.TODAY).slice(0, 10);
+    let max = null;
+    lines.forEach(function (l) {
+      const p = priceAt(l.feature, day), q = Number(l.qty) || 0;
+      if (!p || !q) return;
+      const pp = Math.round(((p.listPrice * q - (Number(l.amount) || 0)) / (p.listPrice * q) - (p.discountCap || 0)) * 1000) / 10;
+      max = max == null ? pp : Math.max(max, pp);
+    });
+    return max;
+  }
+  // 사업자등록번호(숫자만): 계약에 적은 번호(후속 기안은 원계약), 없으면 거래처 목록에서 상호가 같은 곳 (결재 문서의 같은 거래처 최근 계약과 같음)
+  function bizDigits(c) {
+    const root = c.parentId ? D.CONTRACTS.filter(function (y) { return y.id === c.parentId; })[0] : null;
+    const no = (c.form && c.form.bizNo) || (root && root.form && root.form.bizNo) ||
+      (D.CUSTOMERS.filter(function (cu) { return cu.name === c.counterparty; })[0] || {}).bizNo || '';
+    return String(no).replace(/\D/g, '');
+  }
+  // 기관 종류 [가정]: 사업자등록번호 가운데 두 자리. 83 국가와 지자체, 82 비영리법인(학교, 재단, 병원 등), 81, 85~88 영리법인, 그 밖은 개인사업자와 단체
+  function orgKind(c) {
+    const d = bizDigits(c), m = d.slice(3, 5);
+    if (d.length !== 10) return '번호 없음';
+    if (m === '83') return '국가와 지자체';
+    if (m === '82') return '비영리법인';
+    return ['81', '85', '86', '87', '88'].indexOf(m) > -1 ? '영리법인' : '개인사업자와 단체';
+  }
+  function renderDiscount(signed) {
+    const rows = signed.map(function (c) { return { c: c, d: discountOf(c) }; }).filter(function (x) { return x.d != null; });
+    const skip = signed.length - rows.length;
+    const groups = [['영업', function (c) { return C.ownerLabel(c.requesterId); }], ['영업 유닛', function (c) { return C.teamOf(c.requesterId) || '조직 없음'; }],
+      ['기관 종류', orgKind], ['계약 방식', function (c) { return D.METHODS[C.methodOf(c)]; }]];
+    $('#disc-rows').innerHTML = rows.length ? groups.map(function (g) {
+      const by = {};
+      rows.forEach(function (x) { const k = g[1](x.c); (by[k] = by[k] || []).push(x.d); });
+      return Object.keys(by).map(function (k) {
+        const list = by[k], avg = list.reduce(function (a, b) { return a + b; }, 0) / list.length;
+        return { k: k, n: list.length, avg: avg, max: Math.max.apply(null, list) };
+      }).sort(function (a, b) { return b.avg - a.avg; }).map(function (r) {
+        return '<tr><td class="center">' + g[0] + '</td><td>' + esc(r.k) + '</td><td class="num">' + r.n + '건</td><td class="num">' + pct1(r.avg) + '</td><td class="num">' + pct1(r.max) + '</td></tr>';
+      }).join('');
+    }).join('') : '<tr><td colspan="5" class="empty-row">이 조건에서 할인을 셀 수 있는 체결 계약이 없습니다.</td></tr>';
+    // 늘 한 줄이 있어 화면이 흔들리지 않음
+    $('#disc-skip').textContent = skip ? '제품 줄이 없어 할인을 셀 수 없는 체결 계약 ' + skip + '건은 넣지 않았습니다.' : '이 조건의 체결 계약은 모두 셌습니다.';
+  }
+  function renderProxy(base, months) {
+    const list = [];
+    base.forEach(function (c) {
+      (c.history || []).forEach(function (h) {
+        if (h.onBehalfOf && months.indexOf(String(h.at).slice(0, 7)) > -1) list.push({ c: c, h: h });
+      });
+    });
+    list.sort(function (a, b) { return String(b.h.at).localeCompare(String(a.h.at)); });
+    const n1 = list.filter(function (x) { return x.h.delegationId; }).length;
+    $('#proxy-sum').innerHTML = C.meta([['대리 지정으로 처리', n1 + '건'], ['대리 지정 없이 담당자가 아닌 사람이 처리', (list.length - n1) + '건']]);
+    $('#proxy-rows').innerHTML = list.length ? list.map(function (x) {
+      return '<tr>' + custCell(x.c) + '<td class="nowrap">' + esc(C.stepTag(x.h.step, x.c)) + '<span class="cell-meta">' + esc(C.actionLabel(x.h, x.c)) + '</span></td>' +
+        '<td class="center">' + esc(C.ownerLabel(x.h.actorId, x.h.actorDept)) + '<span class="cell-meta">' + esc(C.ownerLabel(x.h.onBehalfOf)) + ' 대신</span></td>' +
+        '<td class="num-left">' + C.fmtDateTime(x.h.at) + '</td>' +
+        '<td>' + (x.h.delegationId ? esc(x.h.basis || '-') + '<span class="cell-meta">대리 지정 ' + esc(x.h.delegationId) + '</span>' : C.badge('attention', '대리 지정 없음')) + '</td></tr>';
+    }).join('') : '<tr><td colspan="5" class="empty-row">이 조건에서 담당자가 아닌 사람이 처리한 결재가 없습니다.</td></tr>';
+  }
+  function qEndOf(day) {
+    const y = Number(day.slice(0, 4)), em = Math.ceil(Number(day.slice(5, 7)) / 3) * 3;
+    return y + '-' + String(em).padStart(2, '0') + '-' + String(new Date(y, em, 0).getDate()).padStart(2, '0');
+  }
+  function renderRisk(base, months) {
+    const out = [];
+    // 같은 거래처와 30일 안에 두 건 이상
+    const by = {};
+    base.forEach(function (c) {
+      if (!c.requestedAt || c.kind === 'TERMINATE' || c.kind === 'CHANGE' || c.renewMode === 'AUTO') return;
+      const no = bizDigits(c);
+      if (no) (by[no] = by[no] || []).push(c);
+    });
+    Object.keys(by).forEach(function (no) {
+      const list = by[no].sort(function (a, b) { return String(a.requestedAt).localeCompare(String(b.requestedAt)); });
+      let chain = [];
+      const flush = function () {
+        if (chain.length > 1 && chain.some(function (c) { return months.indexOf(String(c.requestedAt).slice(0, 7)) > -1; })) {
+          out.push({ kind: 'SAME', list: chain, day: String(chain[0].requestedAt).slice(0, 10), last: String(chain[chain.length - 1].requestedAt).slice(0, 10) });
+        }
+        chain = [];
+      };
+      list.forEach(function (c) {
+        if (chain.length && daysFrom(chain[chain.length - 1].requestedAt.slice(0, 10), c.requestedAt.slice(0, 10)) > RISK_DAYS) flush();
+        chain.push(c);
+      });
+      flush();
+    });
+    // 분기 말 5일 안의 가격 예외
+    base.forEach(function (c) {
+      const ck = c.checklist || {};
+      if (ck.price !== 'NO' && ck.cap !== 'NO') return;
+      const s03 = (c.approvals || []).filter(function (a) { return a.step === 'S03' && a.state === 'DONE' && a.decidedAt; })[0];
+      const day = String(s03 ? s03.decidedAt : c.requestedAt || '').slice(0, 10);
+      if (!day || months.indexOf(day.slice(0, 7)) < 0) return;
+      const end = qEndOf(day);
+      if (daysFrom(day, end) < QEND_DAYS) out.push({ kind: 'QEND', list: [c], day: day, end: end, s03: !!s03 });
+    });
+    out.sort(function (a, b) { return b.day.localeCompare(a.day); });
+    const sum = function (list) { return list.reduce(function (n, c) { return n + (counted(c) ? c.amount : 0); }, 0); };
+    $('#risk-rows').innerHTML = out.length ? out.map(function (r) {
+      const c = r.list[0];
+      const name = '<a class="cell-title" href="review.html?id=' + encodeURIComponent(c.id) + '">' + esc(c.counterparty) + '</a>' +
+        '<span class="cell-meta">' + r.list.map(function (x) { return esc(x.id) + (x.restricted ? ' ' + C.icon('lock', 'sm') : ''); }).join(', ') + '</span>';
+      return r.kind === 'SAME'
+        ? '<tr><td>' + C.badge('attention', '같은 거래처') + '<span class="cell-meta">' + RISK_DAYS + '일 안에 ' + r.list.length + '건</span></td><td>' + name + '</td>' +
+          '<td class="num-left">' + C.fmtPeriod(r.day, r.last) + '<span class="cell-meta">기안일</span></td><td class="num">' + C.fmtWon(sum(r.list)) + '</td></tr>'
+        : '<tr><td>' + C.badge('attention', '분기 말 가격 예외') + '<span class="cell-meta">분기 마지막 날 ' + C.fmtDate(r.end) + '</span></td><td>' + name + '</td>' +
+          '<td class="num-left">' + C.fmtDate(r.day) + '<span class="cell-meta">' + (r.s03 ? '③ 승인일' : '기안일') + '</span></td><td class="num">' + C.fmtWon(sum(r.list)) + '</td></tr>';
+    }).join('') : '<tr><td colspan="4" class="empty-row">이 조건에서 위험 신호가 없습니다.</td></tr>';
+  }
   function meterHtml(label, n, of, unit) {
     const pct = of ? Math.round(n / of * 100) : 0;
     return '<div class="meter"><p class="meter-head"><span class="meter-label">' + esc(label) + '</span>' +
       '<span class="meter-val">' + unit + ' ' + of + '건 중 ' + n + '건(' + pct + '%)</span></p>' +
       '<span class="meter-track" role="img" aria-label="' + esc(label + ': ' + unit + ' ' + of + '건 중 ' + n + '건, ' + pct + '%') + '"><span class="meter-fill" style="width:' + pct + '%"></span></span></div>';
   }
-  function renderControls(withCk, base, months) {
+  function renderControls(withCk, base, months, signed) {
+    renderDiscount(signed);
+    renderProxy(base, months);
+    renderRisk(base, months);
     const acc = withCk.filter(function (c) { return c.checklist.accounting === 'YES'; });
     const kinds = (D.ACCT_KINDS || []).concat([{ code: 'NONE', label: '고르지 않음(예전 기록)' }]);
     const cnt = {};
@@ -565,6 +720,143 @@
     });
   }
 
+  /* ---------- 10. 통제 증빙 내보내기 (기획자 결정 2026-11-02 C-3, G-13, REQ-DASH-21, CTL-131) ----------
+   * 감사 열람(과 시연용 최고관리자)만. 위 조건(기간, 서비스, 영업 유닛)과 상관없이 고른 기간의 볼 수 있는 모든 계약(감사 열람은 열람 제한 포함)
+   * 한 파일(CSV, 엑셀에서 열림)에 여러 묶음. 묶음마다 "[이름]" 줄, 머리 줄, 내용 줄
+   *   계약과 차수: 기간 안에 기안했거나 결재 기록이 있는 계약. 체크리스트 1~4번 답(아니요면 사유, 4번은 종류)
+   *   결재 기록: 그 계약들의 기록 가운데 기간 안의 것. 단계마다 처리한 사람, 누구 대신, 시각, 한 일(결과), 의견
+   *   ③ 가격 예외(2번이나 3번 아니요), 4번 예 계약(⑩ 재무 확인 상태), ⑧ 결과(⑧ 기록과 어긋난 항목)
+   *   가격과 권한 변경: 가격 기준 줄, 사용자 권한과 결재선 규칙의 변경 이력, 끝나는 날이 지나 풀린 감사 열람
+   *   접속 기록: 접속 기록 점검과 같은 기록(control-checks.js accessLogs)
+   * 파일 맨 위 머리: 실행 시각, 실행한 사람, 조건, 건수, 금액 합계(신규, 변경, 연장), 파일 지문(빈 줄 아래 본문의 SHA-256), 워터마크
+   * 내려받으면 꺼낸 기록(누가, 언제, 조건, 건수, 지문)이 남음. 실제 시스템은 서버가 엑셀 파일을 만들고 지문과 꺼낸 기록을 남김 [가정: 시안은 CSV] */
+  // 기본 기간: 지난달 1일부터 말일까지 (기간 마감 점검의 기본 기간 말과 같은 달)
+  const EXPORT_DEFAULT = { from: PREV_MONTH_END.slice(0, 8) + '01', to: PREV_MONTH_END };
+  function yesNo(v, note) { return v === 'YES' ? '예' : v === 'NO' ? '아니요' + (note ? '(' + note + ')' : '') : '-'; }
+  function acctKindText(c) {
+    return ((c.checklist || {}).acctKinds || []).map(function (k) { const x = (D.ACCT_KINDS || []).filter(function (y) { return y.code === k; })[0]; return x ? x.label : k; }).join(', ');
+  }
+  // 단계의 지금 상태, 처리한 사람, 일시 (거치지 않는 단계는 "거치지 않음")
+  function stepState(c, code) {
+    const a = (c.approvals || []).filter(function (x) { return x.step === code; })[0];
+    if (!a || a.state === 'SKIPPED') return ['거치지 않음', '', ''];
+    return [(D.APPROVAL_STATE[a.state] || { label: a.state }).label, a.decidedBy ? C.ownerLabel(a.decidedBy) : '', a.decidedAt ? C.fmtDateTime(a.decidedAt) : ''];
+  }
+  function buildEvidence(from, to) {
+    const inP = function (s) { const d = String(s || '').slice(0, 10); return !!d && d >= from && d <= to; };
+    const pool = all.filter(function (c) { return C.canView(c, me); });
+    const hidden = all.length - pool.length;
+    const cs = pool.filter(function (c) { return inP(c.requestedAt) || (c.history || []).some(function (h) { return inP(h.at); }); })
+      .sort(function (a, b) { return String(a.id).localeCompare(String(b.id)); });
+    const ck = function (c) { return c.checklist || {}; };
+    const contractRows = cs.map(function (c) {
+      return [c.id, (c.round || 1) + '차', c.counterparty, C.kindLabel(c), D.METHODS[C.methodOf(c)], D.STATUS[c.status].label, counted(c) ? c.amount : 0,
+        C.fmtDateTime(c.requestedAt), C.ownerLabel(c.requesterId), yesNo(ck(c).standard, ck(c).standardNote), yesNo(ck(c).price, ck(c).priceNote), yesNo(ck(c).cap, ck(c).capNote),
+        yesNo(ck(c).accounting), acctKindText(c), c.restricted ? '예' : '아니요'];
+    });
+    const histRows = [];
+    cs.forEach(function (c) {
+      (c.history || []).slice().sort(function (a, b) { return String(a.at).localeCompare(String(b.at)); }).forEach(function (h) {
+        if (!inP(h.at)) return;
+        histRows.push([c.id, (h.round || 1) + '차', D.STEPS[h.step] ? C.stepLabel(h.step, c) : h.step, C.actionLabel(h, c), C.ownerLabel(h.actorId, h.actorDept),
+          h.onBehalfOf ? C.ownerLabel(h.onBehalfOf) : '', h.basis || '', C.fmtDateTime(h.at), h.comment || '']);
+      });
+    });
+    const exc = cs.filter(function (c) { return ck(c).price === 'NO' || ck(c).cap === 'NO'; });
+    const excRows = exc.map(function (c) {
+      const pp = overPpOf(c), s3 = stepState(c, 'S03'), s3c = stepState(c, 'S03C');
+      return [c.id, c.counterparty, yesNo(ck(c).price, ck(c).priceNote), yesNo(ck(c).cap, ck(c).capNote), pp == null ? '셀 수 없음' : pp + '%p',
+        s3[0], s3[1], s3[2], s3c[0], s3c[1], s3c[2]];
+    });
+    const acc = cs.filter(function (c) { return ck(c).accounting === 'YES'; });
+    const accRows = acc.map(function (c) {
+      const s10 = stepState(c, 'S10');
+      return [c.id, c.counterparty, acctKindText(c), ck(c).accountingNote || '', (c.finOpinions || []).length + '건', s10[0], s10[1], s10[2]];
+    });
+    const s8Rows = [];
+    cs.forEach(function (c) {
+      (c.history || []).forEach(function (h) {
+        if (h.step !== 'S08' || !inP(h.at)) return;
+        const mis = (h.mismatch || []).map(function (k) { const x = D.SIGNED_MISMATCH.filter(function (y) { return y.code === k; })[0]; return x ? x.label : k; }).join(', ');
+        s8Rows.push([c.id, (h.round || 1) + '차', C.actionLabel(h, c), C.ownerLabel(h.actorId, h.actorDept), C.fmtDateTime(h.at), mis, h.comment || '']);
+      });
+    });
+    // 가격과 권한 변경: 가격 줄(가격 기준 관리에서 바꾼 것도 들어 있음), 사용자 권한과 결재선 규칙의 변경 이력, 저절로 풀린 감사 열람(C-2)
+    const chg = [];
+    D.PRICE_ROWS.forEach(function (r) {
+      if (!inP(r.at)) return;
+      chg.push([r.at, '가격 기준', C.featureLabel(r), C.fmtWon(r.listPrice) + '(' + r.unit + '), 한도 ' + pct1(r.discountCap || 0) + ', ' + r.validFrom + '부터', r.reason || '',
+        [r.docNo, r.docUrl].filter(Boolean).join(' '), C.ownerLabel(r.by), '']);
+    });
+    C.adminLog(['USER', 'RULE']).concat(C.roleEndLog()).forEach(function (e) {
+      if (!inP(e.at)) return;
+      const req = e.requestedBy || (e.op && e.op.requestedBy);
+      chg.push([e.at, e.area === 'RULE' ? '결재선 규칙' : '사용자 권한', e.target, e.change, e.reason || '', '', e.byLabel || C.ownerLabel(e.by), req ? C.ownerLabel(req) : '']);
+    });
+    chg.sort(function (a, b) { return String(a[0]).localeCompare(String(b[0])); });
+    const logRows = X.accessLogs([]).filter(function (l) { return inP(l.at); }).reverse()
+      .map(function (l) { return [C.fmtDateTime(l.at), C.ownerLabel(l.userId), X.ACTS[l.act], l.target, l.place]; });
+    const sum = cs.reduce(function (n, c) { return n + (counted(c) ? c.amount : 0); }, 0);
+    const count = '계약 ' + cs.length + '건, 결재 기록 ' + histRows.length + '줄, 가격 예외 ' + exc.length + '건, 4번 예 ' + acc.length + '건, ⑧ 결과 ' + s8Rows.length + '줄, ' +
+      '가격과 권한 변경 ' + chg.length + '줄, 접속 기록 ' + logRows.length + '줄';
+    const L = X.csvLine, NL = X.NL;
+    const sec = function (title, headRow, rows) { return [L(['[' + title + ']']), L(headRow)].concat(rows.length ? rows.map(L) : [L(['해당 없음'])]).join(NL); };
+    const body = [
+      sec('계약과 차수', ['계약번호', '차수', '고객사', '계약종류', '계약 방식', '상태', '금액(원)', '기안 일시', '영업대표', '1번 표준계약서 그대로', '2번 표준단가표 그대로', '3번 할인율 한도 안', '4번 회계 영향 조건', '4번 조건 종류', '열람 제한'], contractRows),
+      sec('결재 기록', ['계약번호', '차수', '단계', '한 일', '처리한 사람', '누구 대신', '대리 근거', '일시', '의견'], histRows),
+      sec('③ 가격 예외', ['계약번호', '고객사', '2번 답', '3번 답', '한도를 넘은 가장 큰 폭', '③ 영업 검토', '③ 처리한 사람', '③ 일시', '③ 영업 임원 승인', '영업 임원', '영업 임원 일시'], excRows),
+      sec('4번 예 계약', ['계약번호', '고객사', '조건 종류', '비고', '재무 의견', '⑩ 재무 확인', '⑩ 처리한 사람', '⑩ 일시'], accRows),
+      sec('⑧ 결과', ['계약번호', '차수', '결과', '처리한 사람', '일시', '어긋난 항목', '의견'], s8Rows),
+      sec('가격과 권한 변경', ['일시', '영역', '대상', '바뀐 내용', '사유', '품의', '바꾼 사람', '요청한 사람'], chg),
+      sec('접속 기록', ['일시', '사람', '한 일', '대상', '접속 위치'], logRows),
+    ].join(NL + NL) + NL;
+    return { body: body, count: count, sum: sum, hidden: hidden,
+      cond: '기간 ' + from + '~' + to + '. 이 기간에 기안했거나 결재 기록이 있는 계약과 이 기간의 기록' +
+        (hidden ? '. 열람 제한으로 볼 수 없는 계약 ' + hidden + '건 뺌' : '. 열람 제한 계약 포함') };
+  }
+  // 파일 맨 위 머리 (빈 줄 다음에 본문)
+  function headBlock(x, at, hash) {
+    const L = X.csvLine;
+    return [L(['통제 증빙 내보내기']), L(['실행 시각', at]), L(['실행한 사람', X.whoText(me)]), L(['조건', x.cond]), L(['건수', x.count]),
+      L(['금액 합계(신규, 변경, 연장)', C.fmtWon(x.sum)]),
+      L(['파일 지문(SHA-256)', hash || '만들 수 없음(이 브라우저는 지문 계산을 지원하지 않음)', '빈 줄 아래 본문의 지문']),
+      L(['워터마크', X.watermark(me, at)])].join(X.NL);
+  }
+  function exportInputs() {
+    const from = $('#ex-from').value, to = $('#ex-to').value;
+    return { from: from, to: to, fromErr: !from ? '시작일을 2026-09-01처럼 넣으세요.' : '',
+      toErr: !to ? '종료일을 넣으세요.' : to > D.TODAY ? '오늘(' + C.fmtDate(D.TODAY) + ') 뒤의 날은 고를 수 없습니다.' : from && to < from ? '종료일은 시작일보다 앞설 수 없습니다.' : '' };
+  }
+  let exporting = false;
+  function runExport() {
+    if (!canExport || exporting) return;
+    const v = exportInputs();
+    C.setFieldError($('#ex-from').closest('.field'), v.fromErr);
+    C.setFieldError($('#ex-to').closest('.field'), v.toErr);
+    if (v.fromErr || v.toErr) return;
+    exporting = true;
+    $('#btn-export').disabled = true;
+    const at = C.nowStamp(), x = buildEvidence(v.from, v.to);
+    const file = '통제증빙_' + v.from + '_' + v.to + '.csv';
+    X.sha256Hex(x.body).then(function (hash) {
+      X.download(file, headBlock(x, at, hash) + X.NL + X.NL + x.body);
+      X.recordExport({ at: at, by: me.id, dept: me.dept || '', kind: 'PERIOD', cond: '기간 ' + v.from + '~' + v.to, count: x.count, sum: x.sum, hash: hash, file: file });
+      renderExports();
+      C.toast('통제 증빙을 내려받았습니다(엑셀에서 열림). 꺼낸 기록이 남았습니다.');
+    }).then(function () { exporting = false; $('#btn-export').disabled = false; }, function () { exporting = false; $('#btn-export').disabled = false; });
+  }
+  // 꺼낸 기록: 통제 증빙(기간 전체)과 계약 상세의 결재 기록 묶음. 최근 것부터. 쌓기만 함
+  function renderExports() {
+    const list = X.exportsAll();
+    $('#export-count').textContent = list.length + '건';
+    $('#export-rows').innerHTML = list.length ? list.map(function (r) {
+      return '<tr><td class="num-left">' + C.fmtDateTime(r.at) + '</td><td class="center">' + esc(C.ownerLabel(r.by, r.dept)) + '</td>' +
+        '<td><span class="cell-strong">' + (r.kind === 'BUNDLE' ? '결재 기록 묶음' : '기간 전체') + '</span><span class="cell-meta">' + esc(r.cond) + '</span><span class="cell-meta">' + esc(r.file) + '</span></td>' +
+        '<td>' + esc(r.count) + '</td><td class="num">' + (r.sum ? C.fmtWon(r.sum) : '-') + '</td>' +
+        '<td class="hash">' + esc(r.hash || '없음') + '</td></tr>';
+    }).join('') : '<tr><td colspan="6" class="empty-row">아직 꺼낸 기록이 없습니다.</td></tr>';
+  }
+
   /* ---------- 마우스를 올리면 보이는 설명 ---------- */
   const tip = $('#chart-tip');
   $('#content').addEventListener('mousemove', function (e) {
@@ -595,8 +887,24 @@
     document.body.classList.remove('is-print-close');
   });
   $('#check-quote-desc').hidden = !seeQuotes;
-  $('#control-panel').hidden = !seeControls; // 통제 지표는 리더와 임원만(C-1). 역할은 화면을 여는 동안 바뀌지 않아 자리가 흔들리지 않음
+  $('#control-panel').hidden = !seeControls; // 통제 지표는 리더, 임원, 감사 열람만(C-1). 역할은 화면을 여는 동안 바뀌지 않아 자리가 흔들리지 않음
+  $('#export-panel').hidden = !canExport;    // 통제 증빙 내보내기는 감사 열람과 시연용 최고관리자만(C-3). 위와 같이 열 때 정해짐
   render();
+
+  // 통제 증빙 내보내기 (C-3): 기본 기간은 지난달, 오늘 뒤의 날은 고를 수 없음. 고칠 때까지 앞서 넣은 값을 그대로 둠
+  if (canExport) {
+    $('#ex-from').setAttribute('max', D.TODAY);
+    $('#ex-to').setAttribute('max', D.TODAY);
+    $('#ex-from').value = EXPORT_DEFAULT.from;
+    $('#ex-to').value = EXPORT_DEFAULT.to;
+    $('#btn-export').addEventListener('click', runExport);
+    $('#export-bar').addEventListener('change', function () {
+      const v = exportInputs();
+      if (!v.fromErr) C.setFieldError($('#ex-from').closest('.field'), '');
+      if (!v.toErr) C.setFieldError($('#ex-to').closest('.field'), '');
+    });
+    renderExports();
+  }
 
   // 기간 마감 점검 (B-9): 기간 말 기본값은 지난달 말일, 오늘 뒤의 날은 달력에서 고를 수 없음. 앞뒤 날 수 기본 5일
   //   넣는 동안(input)은 맞는 값일 때만 다시 그리고, 칸을 떠날 때(change) 맞지 않으면 오류를 보임

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 브라우저 탭 제목: climb (REQ-NAME-02, v0.54 소문자) -->
+  <title>climb</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <!-- 로고 글자 climb만 SUITE 글꼴 (v0.53 기획자 요청, OFL 무료 글꼴) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sun-typeface/SUITE@2/fonts/static/woff2/SUITE.css">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <script src="assets/js/theme.js"></script><!-- 밝은 화면, 어두운 화면 (v0.53) -->
+  <link rel="stylesheet" href="assets/css/common.css">
+  <link rel="stylesheet" href="assets/css/form.css">
+  <link rel="stylesheet" href="assets/css/list.css">
+  <link rel="stylesheet" href="assets/css/admin.css">
+  <link rel="stylesheet" href="assets/css/recon.css"><!-- 회사 설정, 영업기회 대사, 인장 기록 대사 (2026-11-02) -->
+</head>
+<!-- =====================================================================
+  SCR-59 회사 설정 (docs/02_화면목록.md, 기획자 결정 2026-11-02 E-7, E-9)
+  - 견적서 공급자 칸에 쓰는 회사 정보(사업자등록번호, 대표자, 주소, 대표 연락처)를 둡니다. 값은 경영지원에서 받아 운영 시작 전에 최고관리자가 넣습니다(E-9).
+  - 고객용 견적서("견적서 출력")에 늘 찍는 회사 인장 그림을 둡니다. 인장 그림은 총무가 올리고 바꿉니다(E-7 덧붙임 ②).
+  - 바꾸면 사유와 함께 관리자 변경 이력에 남고, 고치거나 지울 수 없습니다.
+  - 볼 수 있는 사람: 최고관리자, 총무, 감사 열람(보기만). 관리자는 보지 않습니다(메뉴 common.js MENU, 문 C.canSeeCompany).
+    회사 정보 바꾸기는 C.canEditCompany(최고관리자), 인장 그림 바꾸기는 C.canEditSeal(총무). 읽기만 하는 역할에는 단추가 없습니다.
+  - 묶음: 회사 정보(공급자 칸에 나가는 값, 윤리 규정과 신고 창구 링크) → 회사 인장 그림(지금 그림, 판, 올린 사람) → 바꾼 기록(관리자 변경 이력의 회사 설정)
+  - 인장 그림은 "견적서 출력"으로 내는 고객용 견적서에만 찍히고 화면과 사내 인쇄에는 찍히지 않습니다(quote.js). 이 화면의 미리 보기는 바꿀 사람이 확인하려는 것
+  - 동작은 assets/js/company-settings.js
+====================================================================== -->
+<body data-page="SCR-59">
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <div id="demo-bar"></div>
+
+  <div class="sheet">
+  <header id="site-header"></header>
+
+  <main id="main" class="page" tabindex="-1">
+    <div class="inner">
+      <div class="page-head page-head--sub">
+        <h1 class="page-title">회사 설정</h1>
+      </div>
+      <div class="page-intro">
+        <p>견적서 공급자 칸에 쓰는 회사 정보와 고객용 견적서에 찍는 회사 인장 그림을 관리합니다.</p>
+        <p class="sub">회사 정보는 최고관리자가, 인장 그림은 총무가 바꿉니다. 바꿀 때는 사유를 꼭 적고, 바꾼 기록은 관리자 변경 이력에 남습니다.</p>
+      </div>
+
+      <div id="notice"></div>
+
+      <div id="content" class="admin-stack">
+        <!-- 회사 정보: 견적서 공급자 칸(E-9). 바꾸기 단추는 최고관리자에게만(company-settings.js) -->
+        <section class="panel" id="app" aria-labelledby="app-title">
+          <div class="panel-head panel-head--act"><h2 class="panel-title" id="app-title">회사 정보</h2><span id="company-act"></span></div>
+          <p class="panel-desc">견적서의 공급자 칸에 그대로 나갑니다. 값은 경영지원에서 받아 최고관리자가 넣습니다(지금 값은 시연용 가상 값).</p>
+          <dl class="company-info" id="company-info"></dl>
+        </section>
+        <!-- 회사 인장 그림: "견적서 출력"에 찍는 그림(E-7). 바꾸기 단추는 총무에게만 -->
+        <section class="panel" aria-labelledby="sec-seal">
+          <div class="panel-head panel-head--act"><h2 class="panel-title" id="sec-seal">회사 인장 그림</h2><span id="seal-act"></span></div>
+          <p class="panel-desc">"견적서 출력"으로 내는 고객용 견적서의 대표자 옆에 늘 찍힙니다. 화면과 브라우저 인쇄(사내 인쇄)에는 찍히지 않습니다.</p>
+          <div class="seal-box" id="seal-box"></div>
+          <p class="step-guide seal-guide">인장 그림을 찍은 출력은 출력 기록에 "인장 찍음"으로 남고, 총무가 매월 인장 대장과 맞춰 봅니다(점검 > 인장 기록 대사). 그림이 없으면 견적서는 인장 없이 나가고 출력한 사람에게 알립니다.</p>
+        </section>
+        <section class="panel" aria-labelledby="sec-history">
+          <div class="panel-head"><h2 class="panel-title" id="sec-history">바꾼 기록</h2></div>
+          <p class="panel-desc">회사 정보와 인장 그림을 바꾼 기록입니다. 고치거나 지울 수 없습니다.</p>
+          <div id="company-history"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+  </div><!-- /.sheet -->
+
+  <script src="assets/js/mock-data.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/company-settings.js"></script>
+</body>
+</html>

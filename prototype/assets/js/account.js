@@ -2,7 +2,7 @@
  * SCR-93 내 계정 화면 로직 (account.js)
  * ---------------------------------------------------------------------
  * 관련: 요구사항 정의서 REQ-UI-30, REQ-ENV-09, 10, v0.45 기획자 요청
- *   1. 계정 정보: 사용자 권한 관리(SCR-51)의 내 줄을 보기만 함
+ *   1. 계정 정보: 사용자 권한 관리(SCR-51)의 내 줄을 보기만 함. 감사 열람은 끝나는 날을 함께(기획자 결정 2026-11-02 C-2)
  *   2. 받을 이메일: EMAIL_TYPES(mock-data.js). 꼭 받는 알림은 켜진 채 잠금(기획자 확인 C-26), 선택 알림만 켜고 끔
  *      기획자 결정 2026-11-02 D-22: "내 역할에 오는 알림"과 "내 역할에는 오지 않는 알림" 두 묶음으로 나눔.
  *        아래 묶음은 접어 두고(펼침 단추), 펼치면 이름은 흐리게, 켜고 끄는 칸 없이 언제 오는지와 미리 보기만
@@ -20,7 +20,12 @@
 
   /* ---------- 1. 계정 정보 ---------- */
   const acc = C.accountOf(me.id) || {};
-  const roles = (acc.roles && acc.roles.length ? acc.roles : [me.role]).map(function (r) { return C.roleLabel(r); });
+  // 기획자 결정 2026-11-02 C-2: 끝나는 날이 있는 역할(감사 열람)은 끝나는 날을 함께("감사 열람(2027-01-11까지)"), 끝났으면 "(끝남)"
+  const roles = (acc.roles && acc.roles.length ? acc.roles : [me.role]).map(function (r) {
+    if (!D.ROLE_LIMITS || !D.ROLE_LIMITS[r]) return C.roleLabel(r);
+    const until = C.roleUntil(me.id, r);
+    return C.roleLabel(r) + (until ? '(' + C.fmtDate(until) + '까지)' : '(끝남)');
+  });
   const info = function (k, v) { return '<dt>' + esc(k) + '</dt><dd>' + v + '</dd>'; };
   $('#account-info').innerHTML =
     info('이름', esc(me.name)) +

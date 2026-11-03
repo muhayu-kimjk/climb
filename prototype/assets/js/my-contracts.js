@@ -8,6 +8,10 @@
  *   2. 검색, 상태, 계약종류로 거르기. 한 쪽에 20건
  *   3. 할 일: 이어서 작성, 임시 저장 삭제(확인 창), 보완 후 재기안, ⑦ 체결본 등록
  *      휴대폰은 고객사 아래에 같은 버튼을 두고 맨 끝 칸을 감춤(기획자 결정 2026-11-02 D-10). PC는 맨 끝 칸 그대로
+ *      기획자 결정 2026-11-02 C-16: 보류가 걸린 반려 기안은 보완 후 재기안 대신 "보류 중이라 기안할 수 없습니다." 한 줄
+ *   4. 기획자 결정 2026-11-03 C-44: 영업 리더가 나를 새 영업대표로 정한 계약도 모음(C.salesRepOf). 고객사 아래 작은 줄에 "이어 맡음"
+ *      할 일 단추는 지금 영업대표에게만(C.isSalesRep). 내가 기안했지만 다른 사람에게 넘어간 계약은 목록에 남고 "영업대표 바뀜: ○○", 할 일은 "-"
+ *      영업대표 칸(최고관리자, 관리자 보기)은 지금 영업대표. 사용 중지라 정하기 전이면 그 아래 "담당 지정 필요 (영업 리더가 맡음)"
  *   표 위 회색 안내 한 줄(D-2)은 my-contracts.html에 있음
  * ===================================================================== */
 (function () {
@@ -32,7 +36,8 @@
   function collect() {
     all = D.CONTRACTS.filter(function (c) {
       if (c.status === 'DRAFT') return c.requesterId === me.id;
-      return seeAll || c.requesterId === me.id;
+      // 기획자 결정 2026-11-03(C-44): 내가 기안한 계약과, 영업 리더가 나를 새 영업대표로 정한 계약
+      return seeAll || c.requesterId === me.id || C.salesRepOf(c) === me.id;
     }).sort(function (a, b) { return dateOf(b).localeCompare(dateOf(a)); });
   }
   collect();
@@ -48,9 +53,9 @@
   $('#thead').innerHTML = '<tr><th scope="col" class="col-customer col-phone-wide">고객사</th><th scope="col" class="col-phone-wide">계약종류</th><th scope="col">상태</th><th scope="col">현재 진행</th><th scope="col" class="col-wait">대기</th>' +
     (seeAll ? '<th scope="col" class="col-phone-mid">영업대표</th>' : '') + '<th scope="col">기안일</th><th scope="col" class="col-todo">할 일</th></tr>'; // 할 일 칸은 휴대폰에서 감춤(D-10)
 
-  // 할 일 버튼 (내 계약일 때만)
+  // 할 일 버튼 (내 계약일 때만). 기획자 결정 2026-11-03(C-44): 지금 영업대표(임시 저장은 작성자)
   function todo(c) {
-    if (c.requesterId !== me.id && me.role !== 'SUPER') return '-';
+    if (!C.isSalesRep(c, me) && me.role !== 'SUPER') return '-';
     if (c.status === 'DRAFT') {
       return '<div class="row-actions"><a class="btn btn--secondary" href="new-contract.html?id=' + encodeURIComponent(c.draftKey) + '">이어서 작성</a>' +
         '<button type="button" class="btn btn--tertiary btn-reject" data-del="' + esc(c.draftKey) + '">삭제</button></div>';
@@ -60,6 +65,8 @@
       return '<div class="row-actions"><a class="btn btn--primary" href="review.html?id=' + encodeURIComponent(c.id) + '">보완하기</a></div>';
     }
     if (C.canResubmit(c)) { // 반려된 기안: 그 종류의 화면에서 같은 번호의 다음 차수로 (v0.58 기획자 결정)
+      // 기획자 결정 2026-11-02 C-16: 거래처나 묶음에 보류가 걸려 있으면 단추 대신 짧은 한 줄(재기안 화면들도 막음). 까닭은 결재 문서와 계약 상세에
+      if (C.holdOf(c)) return '<div class="row-actions"><span class="cell-meta">보류 중이라 기안할 수 없습니다.</span></div>';
       return '<div class="row-actions"><a class="btn btn--secondary" href="' + C.resubmitHref(c) + '">보완 후 재기안</a></div>';
     }
     const p = C.currentStep(c);
@@ -69,6 +76,15 @@
     return '-';
   }
 
+  // 영업대표가 바뀐 계약의 작은 줄(기획자 결정 2026-11-03 C-44): 나에게 넘어온 계약은 "이어 맡음(처음 기안 ○○)",
+  //   내가 기안했지만 넘어간 계약은 "영업대표 바뀜: ○○". 최고관리자, 관리자 보기는 영업대표 칸에서 봄
+  function repLine(c) {
+    if (seeAll || !c.id) return '';
+    const rep = C.salesRepOf(c);
+    if (rep === me.id && c.requesterId !== me.id) return '<span class="cell-meta">이어 맡음(처음 기안 ' + esc(C.ownerLabel(c.requesterId)) + ')</span>';
+    if (rep !== me.id && c.requesterId === me.id) return '<span class="cell-meta">영업대표 바뀜: ' + esc(C.ownerLabel(rep)) + '</span>';
+    return '';
+  }
   let page = 1;
   function filtered() {
     const q = $('#f-q').value.trim().toLowerCase();
@@ -96,7 +112,8 @@
       // 계약번호는 날짜처럼 한 줄로 (2512CL001-R01이 마지막 하이픈에서 끊기지 않게)
       const link = c.status === 'DRAFT'
         ? '<a class="cell-title" href="new-contract.html?id=' + encodeURIComponent(c.draftKey) + '">' + esc(c.counterparty) + '</a><span class="cell-meta">임시 저장</span>'
-        : '<a class="cell-title" href="review.html?id=' + encodeURIComponent(c.id) + '">' + esc(c.counterparty) + '</a><span class="cell-meta"><span class="nowrap">' + esc(c.id) + '</span>' + (c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span>';
+        : '<a class="cell-title" href="review.html?id=' + encodeURIComponent(c.id) + '">' + esc(c.counterparty) + '</a><span class="cell-meta"><span class="nowrap">' + esc(c.id) + '</span>' + (c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span>' +
+          repLine(c);
       // 기획자 결정 2026-11-02 D-10(C-43 ⑤): 휴대폰은 할 일 단추를 고객사 아래에 함께 둠(표를 끝까지 밀지 않아도 보이게)
       //   .cell-sub라 PC에서는 감춰지고, 휴대폰에서는 맨 끝 할 일 칸(col-todo)을 감춤(list.css 끝). 버튼이 없으면 줄도 두지 않음
       const acts = todo(c);
@@ -105,7 +122,8 @@
         '<td>' + esc(C.kindLabel(c)) + '</td>' +
         '<td class="nowrap">' + C.statusBadge(c) + '</td>' +
         C.progressCells(c) + // 현재 진행(단계) + 대기(날수) 두 칸 (v0.55)
-        (seeAll ? '<td class="center">' + esc(C.ownerLabel(c.requesterId)) + '</td>' : '') +
+        // 영업대표 칸은 지금 영업대표(2026-11-03 C-44). 사용 중지라 정하기 전이면 아래 "담당 지정 필요 (영업 리더가 맡음)"
+        (seeAll ? '<td class="center">' + esc(C.ownerLabel(C.salesRepOf(c))) + (C.repNote(c) ? '<span class="cell-meta">' + esc(C.repNote(c)) + '</span>' : '') + '</td>' : '') +
         '<td class="num-left nowrap">' + C.fmtDate(dateOf(c)) + '</td>' + // 날짜가 "2026-10-" 뒤에서 끊기지 않게 한 줄로 (첫 사용 점검)
         '<td class="col-todo">' + acts + '</td>' + // 휴대폰에서는 감춤(D-10, 위 고객사 아래 버튼)
       '</tr>';

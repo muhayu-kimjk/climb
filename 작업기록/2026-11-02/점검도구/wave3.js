@@ -5,6 +5,7 @@ export const meta = {
     { title: 'Foundation', detail: 'roles, permissions, menu and page skeletons' },
     { title: 'Screens', detail: '4 agents in parallel' },
     { title: 'Overview', detail: 'C-10 check box and E-15 change notes' },
+    { title: 'Answers', detail: '2026-11-03 planner answers: 점검 menu, hold mail, owner change, HR ⑩' },
     { title: 'Docs', detail: '01+02 and 03+04+05+06 in parallel' },
     { title: 'Review', detail: 'three lenses, adversarial verify' },
     { title: 'Fix', detail: 'apply confirmed fixes' },
@@ -132,12 +133,24 @@ APIs from this wave: ${API}
 Cross-file requests: ${JSON.stringify(all.flatMap(r => (r.cross_file_requests || []).map(c => ({ from: r.key, ...c }))))}`,
   { label: 'overview', phase: 'Overview', schema: SCHEMA })
 
+// 2026-11-03: 멈춘 셋째 묶음을 이어 감. 위 단계는 일지에서 그대로 다시 쓰고, 기획자가 오늘 답한 네 가지를 반영하는 단계를 더함
+phase('Answers')
+const answers = await agent(COMMON + `
+State now: wave 3 code (foundation, screens, overview above) is merged into the working tree of main, uncommitted, on top of HEAD 8d901cf. Since the wave started, main also got (2026-11-03, keep all of it): 17px text at every window wider than the phone layout on 100%-scale monitors (common.css section 1), the help page keeps one layout (help.js no longer has WIDE), .gnb-sub has a top border, the menu row edge has no blur and its fade and arrow grow with the hidden width (gnbEdge sets --more-l/--more-r/--more-l-a/--more-r-a), and keepCur keeps the current menu item visible on resize. Do not undo any of that.
+The planner answered four open questions today (2026-11-03). They are at the end of ${DEC} ("2026-11-03 기획자 답"). Implement all four in the prototype, recording each in a code comment "// 기획자 결정 2026-11-03: ...". You may edit common.js, common.css (menu only), mock-data.js, admin-rules.js, admin-users.js, contract.js, my-contracts.js, dashboard.js, review.js, and the 점검 pages' JS if needed.
+1) 점검 menu: a separate top-level menu item "점검" (differs from the recommendation). Move SCR-61..65 out of the 관리자 dropdown into it, each child visible to its owners (plus SUPER demo, AUDIT read-only) as now; roles that see none of them do not see "점검". Keep MENU_PARENT / MENU_KEYWORDS / current-item marking correct. SUPER now has 8 top items: make the row fit on one line at full sheet width by narrowing the menu padding only when the row has 8 items (e.g. a class on .gnb set by common.js, with --gnb-pad reduced, comment the measured reasoning); if it still overflows, the existing scroll and fade rules handle it. Do not change other roles' look.
+2) 보류 메일 (CTL-79): when a hold is placed or lifted, email everyone it blocks: the 영업대표 and 영업 리더 of the affected contracts, and whoever has a pending approval step on those contracts. Fill EMAIL_TYPES HOLD_SET and HOLD_RELEASE (recipients, must, sample in MAIL_SAMPLES if that is the pattern) and make 내 계정 show them for the right roles.
+3) C-44 영업대표가 바뀌거나 퇴사: the 영업 리더 of the contract's unit (COO for a leader's own contract, SUPER demo) assigns a new 영업대표 per contract (in progress and archived) on 계약 상세 with a required reason; the change is recorded (who, when, from, to, reason) and shown in the contract's history; the original 기안 records stay as they were. After the change the new 영업대표 sees it in 내 계약 and gets the drafter-side steps (⑦ 체결본 등록, 연장 기안, 유예 요청, notices). If the 영업대표's account is SUSPENDED and no new owner is set, the 영업 리더 handles those steps and the contract shows "담당 지정 필요 (영업 리더가 맡음)"; 사용자 권한 관리 tells the person suspending an account how many contracts the person owns and that the 영업 리더 assigns new owners. Add one demo case. Make AUDIT and OBSERVER unable to do it.
+4) HR 유상 충전 ⑩ (C-18 ⑤): 재무 담당자, not 재무 리더 (keeps the v0.29 rule that 재무 리더 does not handle approval steps). Remove the special 'S10:HR' assignee (data, engine, the 결재선 규칙 row and its dialog) so HR charges use the normal ⑩ assignee; keep the rule that whoever did ⑨ cannot do ⑩ (move ⑩ to the other finance person if needed). Update the demo 2512CL001-C01 so ⑩ is a 재무 담당자's turn.
+Run node --check on edited JS. Report like the other agents.`, { label: 'answers', phase: 'Answers', schema: SCHEMA })
+
 phase('Docs')
-const REPORTS = JSON.stringify(all.concat(overview ? [{ key: 'overview', ...overview }] : []).map(r => ({ key: r.key, done: r.done, api: r.api, doc_requests: r.doc_requests, gaps_filled: r.gaps_filled, not_done: r.not_done })), null, 1)
+const REPORTS = JSON.stringify(all.concat(overview ? [{ key: 'overview', ...overview }] : [], answers ? [{ key: 'answers-2026-11-03', ...answers }] : []).map(r => ({ key: r.key, done: r.done, api: r.api, doc_requests: r.doc_requests, gaps_filled: r.gaps_filled, not_done: r.not_done })), null, 1)
 const DOCRULES = `
 You update planning docs in ${ROOT}\\docs. Rules: plain short Korean, same style as surrounding text. Markdown tables keep the same number of | cells per row (never a raw | inside a cell). "·" sparingly. A planner decision makes the related text confirmed and says "기획자 결정 2026-11-02 (결정 번호)". E-7 differs from the sheet's recommendation: state it plainly. Gaps filled by agents become the chosen detail, marked [가정] when it is a value the planner has not given. Add one changelog row per doc for today: if today's rows already exist from earlier waves, add a new version row (bump the version again). Update the version line at the top. Keep 01 chapter 7 C-table and chapter 8 rows, and 05 chapter 4 / G-items in step: close fully decided items ("해결 (짧은 결정 요약)"), mark waiting parts (B-7 매출 대사 보류, E-5, E-6 보류).
 After editing run python -I tools/doc_check.py (cwd ${ROOT}) and fix problems in lines you touched. Do not commit. Never run "python -" in any form. Do not edit prototype files.
 Decisions in this wave: 컴플라이언스 역할 (planner answer), C-1, C-2, C-3, C-5, C-6, C-7, C-8, C-9, C-10, C-13, C-16, E-1, E-4, E-7, E-9, E-15. Read them in ${DEC} and ${SHEET} ("고르면 바뀌는 곳").
+Also the four answers of 2026-11-03 at the end of ${DEC} (say "기획자 결정 2026-11-03"): 점검 as its own top menu item (differs from the recommendation, state it plainly), 보류 메일 to everyone it blocks, C-44 영업 리더 assigns the new 영업대표 (close C-44), HR 유상 충전 ⑩ = 재무 담당자 (close C-18 ⑤ and remove the earlier [가정] "재무 리더" text and the v0.29 exception wherever docs mention it). Today's date for new changelog rows is 2026-11-03; the docs already have rows for 2026-11-03 (01 v0.66, 02 v0.59, 04 v0.24), so add a new version row after them.
 What the prototype now does (agent reports):\n${REPORTS}`
 
 const docs = await parallel([
@@ -147,14 +160,14 @@ const docs = await parallel([
 
 phase('Review')
 const LENSES = [
-  { key: 'fidelity', prompt: 'Lens: decision fidelity for this wave (컴플라이언스 역할, C-1, C-2, C-3, C-5, C-6, C-7, C-8, C-9, C-10, C-13, C-16, E-1, E-4, E-7, E-9, E-15): prototype does exactly what was chosen and docs 01/02/03/06 agree.' },
+  { key: 'fidelity', prompt: 'Lens: decision fidelity for this wave (컴플라이언스 역할, C-1, C-2, C-3, C-5, C-6, C-7, C-8, C-9, C-10, C-13, C-16, E-1, E-4, E-7, E-9, E-15, and the 2026-11-03 answers: 점검 top menu, 보류 메일, C-44 owner change, HR ⑩ 재무 담당자): prototype does exactly what was chosen and docs 01/02/03/06 agree.' },
   { key: 'access', prompt: 'Lens: access control. For each role (SALES, HEAD, EXEC, SALES_ADMIN, SA_LEAD, LEGAL, PRIVACY, SEC_LEAD, GA, CEM, CEM_LEAD, FINANCE, FIN_LEAD, FIN_EXEC, OBSERVER, ADMIN, SUPER, COMPLIANCE, AUDIT) check menus, page guards (opening a page by URL), action buttons, and restricted-contract visibility. AUDIT must never have an action; expired AUDIT grants must stop working; SUPER cannot approve reviews containing own work; holds really block what they should.' },
   { key: 'ui', prompt: 'Lens: runtime errors and house rules on screens changed or created in this wave (git diff and new untracked files under prototype/). Undefined helpers, null elements, duplicate ids, pages missing a script/style, top menu row breaking into two lines (estimate from label lengths and CSS), screen wobble, 44px touch on phone, print, accessibility, Korean wording.' },
 ]
 const FIND = { type: 'object', properties: { findings: { type: 'array', items: { type: 'object', properties: { title: { type: 'string' }, file: { type: 'string' }, detail: { type: 'string' }, fix: { type: 'string' } }, required: ['title', 'file', 'detail', 'fix'] } } }, required: ['findings'] }
 const VERDICT = { type: 'object', properties: { real: { type: 'boolean' }, reason: { type: 'string' } }, required: ['real', 'reason'] }
 const reviewed = await pipeline(LENSES,
-  l => agent(`Review the uncommitted changes in ${ROOT} (git status and git diff; last commit 89e5583; earlier waves today did D-* and A/B approval-flow items — focus on this wave). ${COMMON}\n${l.prompt}\nReport only concrete, verifiable problems with file, detail and a precise fix. Do not edit files.`, { label: 'review:' + l.key, phase: 'Review', schema: FIND }),
+  l => agent(`Review the uncommitted changes in ${ROOT} (git status, git diff and the untracked files; HEAD is 8d901cf; the uncommitted changes are exactly this wave plus the 2026-11-03 answers — earlier waves and the 2026-11-03 screen changes are committed). ${COMMON}\n${l.prompt}\nReport only concrete, verifiable problems with file, detail and a precise fix. Do not edit files.`, { label: 'review:' + l.key, phase: 'Review', schema: FIND }),
   r => parallel((r ? r.findings : []).map(f => () => agent(`Adversarially verify this review finding in ${ROOT}. Read the actual code/docs. Default to real=false if you cannot confirm it concretely.\nFinding: ${JSON.stringify(f)}`, { label: 'verify:' + f.file.split(/[\\/]/).pop(), phase: 'Review', schema: VERDICT }).then(v => ({ ...f, verdict: v })))))
 const confirmed = reviewed.flat().filter(Boolean).filter(f => f.verdict && f.verdict.real)
 log(confirmed.length + ' confirmed findings')

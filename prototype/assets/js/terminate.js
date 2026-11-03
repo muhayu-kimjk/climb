@@ -5,10 +5,12 @@
  * 하는 일
  *   1. 주소의 원계약 번호로 묶음을 찾고 해지 기안을 할 수 있는지 확인
  *      (지금 유효한 계약이 계약 완료, 영업대표 본인(시연용 최고관리자 포함), 진행 중인 연장이나 해지 없음)
+ *      기획자 결정 2026-11-03 C-44: 영업대표 본인은 지금 영업대표(C.isSalesRep: 바뀐 새 영업대표, 맡을 수 없으면 대신 맡는 영업 리더). 새 기록의 기안자도 그 사람
  *   2. 해지일(오늘부터 계약 종료일 사이), 해지 사유(필수), 환불과 위약금, 해지 관련 서류(선택)
  *   3. 결재선 미리 보기: ③ 영업 리더 → ④ 법무 → ⑨ 고객지원 운영 종료 → ⑩ 재무 확인
  *   4. 기안하면 -T01 번호로 원계약에 묶어 저장(프로토타입은 이 브라우저에만)하고 결재 문서로 이동
  *   5. 보완 후 재기안(v0.58 기획자 결정): terminate.html?id=반려된 해지 번호로 열면 앞 차수 값을 채우고 같은 번호의 다음 차수로 기안
+ *   6. 기획자 결정 2026-11-02 C-16: 거래처나 묶음에 보류가 걸려 있으면(C.holdOf) "보류 중" 배지와 사유를 보이고 기안하지 않음(재기안 포함)
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -31,12 +33,23 @@
   }
   const root = b.root;
   const blocking = b.open.filter(function (o) { return o.kind === 'RENEW' || o.kind === 'TERMINATE'; });
+  // 기획자 결정 2026-11-02 C-16: 거래처나 묶음에 보류가 걸려 있으면 해지를 기안하지 않음(보완 후 재기안 ?id도). 다른 까닭보다 먼저(연장 검토와 같게)
+  //   "보류 중" 배지와 사유를 함께. 보류는 컴플라이언스 담당자가 풂(개선 과제와 보류 SCR-64)
+  const hold = C.holdOf(b);
+  if (hold) {
+    $('#notice').innerHTML = notice('보류 중이라 해지를 기안할 수 없습니다', C.holdBadge(hold) + ' ' + esc(C.holdText(hold, me)) +
+      '<br>보류가 풀릴 때까지 연장, 변경, 해지를 기안할 수 없습니다. <a href="' + back + '">계약 상세로</a>');
+    return;
+  }
   if (b.status !== 'ACTIVE') {
     $('#notice').innerHTML = notice('해지할 수 없는 계약입니다', '지금 유효한 계약이 계약 완료일 때만 해지를 기안합니다. 지금 상태: ' + esc(D.STATUS[b.status].label) + '. <a href="' + back + '">계약 상세로</a>');
     return;
   }
-  if (root.requesterId !== me.id && me.role !== 'SUPER') {
-    $('#notice').innerHTML = notice('영업대표만 해지를 기안합니다', '이 계약의 영업대표는 ' + esc(C.ownerLabel(root.requesterId)) + '입니다. <a href="' + back + '">계약 상세로</a>');
+  // 기획자 결정 2026-11-03(C-44): 지금 영업대표(바뀐 새 영업대표, 맡을 수 없으면 대신 맡는 영업 리더, C.isSalesRep). 계약 상세의 단추와 같은 규칙
+  //   처음 기안한 사람이라도 영업대표가 바뀌었으면 기안하지 않음
+  if (!C.isSalesRep(b, me) && me.role !== 'SUPER') {
+    $('#notice').innerHTML = notice('영업대표만 해지를 기안합니다', '이 계약의 영업대표는 ' + esc(C.ownerLabel(C.salesRepOf(b))) + '입니다.' +
+      (C.repNeeded(b) ? ' ' + esc(C.repCoverText(b)) : '') + ' <a href="' + back + '">계약 상세로</a>');
     return;
   }
   if (blocking.length) {
@@ -70,7 +83,10 @@
     info('서비스', esc(C.serviceLabel(root.services))),
     info('계약 기간', C.fmtPeriod(b.start, b.end)),
     info('계약 금액', Number(cur.amount || 0).toLocaleString('ko-KR') + '원<span class="cell-meta">' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도</span>', 'amount'),
-    info('영업대표', esc(C.ownerLabel(root.requesterId))),
+    // 기획자 결정 2026-11-03(C-44): 지금 영업대표. 바뀌었으면 처음 기안한 사람, 맡을 수 없으면 "담당 지정 필요"(계약 상세와 같음)
+    info('영업대표', esc(C.ownerLabel(C.salesRepOf(b))) +
+      (C.salesRepOf(b) !== root.requesterId ? '<span class="cell-meta">처음 기안 ' + esc(C.ownerLabel(root.requesterId)) + '</span>' : '') +
+      (C.repNote(b) ? '<span class="cell-meta">' + esc(C.repNote(b)) + '</span>' : '')),
   ].join('');
   $('#number-help').textContent = again ? '같은 번호 ' + newId + '의 ' + ((again.round || 1) + 1) + '차로 기안합니다.' : '기안하면 ' + newId + '(해지)로 원계약과 함께 묶입니다.';
   $('#date-help').textContent = '오늘(' + C.fmtDate(D.TODAY) + ')부터 계약 종료일(' + C.fmtDate(b.end) + ') 사이의 날짜';
@@ -79,8 +95,10 @@
   $('#btn-cancel').href = back;
 
   /* ---------- 결재선 미리 보기 ---------- */
+  // 기획자 결정 2026-11-03(C-44): 기안자는 지금 영업대표(repActorOf). ③은 그 사람 유닛의 리더, 리더가 대신 기안하면 영업 임원(C.stepWho)
+  const drafter = { requesterId: C.repActorOf(b) };
   const route = [
-    { no: '③', name: '영업 검토', who: '영업 리더 ' + C.ownerLabel(C.stepUserNow('S03', root)), reason: '해지가 영업상 맞는지 승인' },
+    { no: '③', name: '영업 검토', who: C.stepWho('S03', drafter) + ' ' + C.ownerLabel(C.stepUserNow('S03', drafter)), reason: '해지가 영업상 맞는지 승인' },
     { no: '④', name: '법무 검토', who: '법무 ' + C.ownerLabel(C.stepUserNow('S04', root)), reason: '해지 사유와 위약금 등 법적 위험 검토' },
     { no: '⑨', name: '운영 적용 (운영 종료)', who: '고객지원 ' + C.ownerLabel(C.stepUserNow('S09', root)), reason: '해지일에 라이선스나 도메인을 닫음' },
     { no: '⑩', name: '재무 확인', who: '재무 ' + C.ownerLabel(C.stepUserNow('S10', root)), reason: '환불, 위약금, 매출 조정 확인' },
@@ -165,11 +183,11 @@
     };
     const rec = again ? C.resubmitRecord(again, fields) : Object.assign({
       id: newId, parentId: b.id, counterparty: root.counterparty, services: root.services, type: root.type,
-      kind: 'TERMINATE', amount: 0, requesterId: root.requesterId, requestedAt: C.nowStamp().slice(0, 16),
+      kind: 'TERMINATE', amount: 0, requesterId: C.repActorOf(b), requestedAt: C.nowStamp().slice(0, 16), // 지금 영업대표(2026-11-03 C-44)
       restricted: root.restricted, personalData: false, status: 'IN_REVIEW', round: 1, history: [],
     }, fields);
     C.saveDemoContract(rec);
-    C.flash(newId + ' 해지를 ' + (rec.round || 1) + '차로 기안했습니다. 다음 차례: ③ 영업 검토 (' + C.ownerLabel(C.stepUserNow('S03', root)) + ')');
+    C.flash(newId + ' 해지를 ' + (rec.round || 1) + '차로 기안했습니다. 다음 차례: ③ 영업 검토 (' + C.ownerLabel(C.stepUserNow('S03', rec)) + ')');
     location.href = 'review.html?id=' + encodeURIComponent(newId);
   });
   document.addEventListener('keydown', function (e) { if (!modal.hidden && e.key === 'Escape') modal.hidden = true; });

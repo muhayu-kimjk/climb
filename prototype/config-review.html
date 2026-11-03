@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 브라우저 탭 제목: climb (REQ-NAME-02, v0.54 소문자) -->
+  <title>climb</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <!-- 로고 글자 climb만 SUITE 글꼴 (v0.53 기획자 요청, OFL 무료 글꼴) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sun-typeface/SUITE@2/fonts/static/woff2/SUITE.css">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <script src="assets/js/theme.js"></script><!-- 밝은 화면, 어두운 화면 (v0.53) -->
+  <link rel="stylesheet" href="assets/css/common.css">
+  <link rel="stylesheet" href="assets/css/form.css">
+  <link rel="stylesheet" href="assets/css/list.css">
+  <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<!-- =====================================================================
+  SCR-65 설정 변경 확인 (docs/02_화면목록.md 6장 점검, 기획자 결정 2026-11-02 C-8)
+  - 가격 기준, 제품과 기능, 표준계약서를 바꾼 기록(전후 값, 사유, 품의 링크)을 바꾼 사람이 아닌 사람이 다시 봅니다.
+  - 가격과 제품 줄은 재무 리더가 "품의와 맞음" 또는 "품의와 다름(의견)"을 확인하고, 표준계약서 줄은 올린 법무가 아닌 법무가
+    "근거와 맞음" 또는 "근거와 다름(의견)"을 확인합니다. 본인이 올린 판에는 누를 수 없는 단추와 까닭이 보입니다.
+  - 가격 기준은 같은 때, 같은 사람, 같은 품의로 넣은 줄을 한 건으로 봅니다(기능마다 전후 값은 접어 둠).
+  - 결재선 규칙과 회사 설정의 변경은 정보보호의 매월 기록 점검(SCR-57 "설정 변경")에서 봅니다. 그 화면은 여기 남긴 확인이 있는지도 봅니다.
+  - 남긴 확인은 쌓기만 하고 고치거나 지우지 않습니다(누가, 언제). 아래 "확인 기록"에 모두 보입니다.
+  - 볼 수 있는 사람: 재무 리더, 법무, 최고관리자(시연용), 감사 열람(보기만). 메뉴는 위 메뉴 줄의 "점검"(기획자 결정 2026-11-03, common.js MENU, CHECK_OWNERS).
+    확인을 남길 수 있는지는 줄마다 control-checks.js canConfirm(맡은 영역, 본인이 바꾼 줄이 아님). 읽기만 하는 역할에는 관리 칸이 없습니다.
+    최고관리자는 자기가 바꾼 줄을 확인하지 못합니다(C-6).
+  - 동작은 assets/js/config-review.js, 설정 변경 묶음과 확인 기록은 assets/js/control-checks.js
+====================================================================== -->
+<body data-page="SCR-65">
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <div id="demo-bar"></div>
+
+  <div class="sheet">
+  <header id="site-header"></header>
+
+  <main id="main" class="page" tabindex="-1">
+    <div class="inner">
+      <div class="page-head page-head--sub">
+        <h1 class="page-title">설정 변경 확인</h1>
+      </div>
+      <div class="page-intro">
+        <p>가격 기준, 제품과 기능, 표준계약서를 바꾼 기록을 바꾼 사람이 아닌 사람이 다시 봅니다.</p>
+        <p class="sub" id="intro-sub">가격과 제품 줄은 재무 리더가 품의와 맞는지, 표준계약서 줄은 올린 사람이 아닌 법무가 확인합니다. 남긴 확인은 고치거나 지울 수 없습니다.</p>
+      </div>
+
+      <div id="notice"></div>
+
+      <div id="content" class="admin-stack">
+        <section class="panel" id="app" aria-labelledby="app-title">
+          <div class="panel-head"><h2 class="panel-title" id="app-title">확인할 설정 변경</h2></div>
+          <p class="panel-desc" id="app-desc"></p>
+          <form class="filter-bar filter-bar--two" id="filter" aria-label="설정 변경 거르기">
+            <div class="field">
+              <label class="field-label field-label--sm" for="f-area">영역</label>
+              <select class="select" id="f-area">
+                <option value="">전체</option>
+                <option value="PRICE">가격 기준</option>
+                <option value="PRODUCT">제품과 기능</option>
+                <option value="TEMPLATE">표준계약서</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-label field-label--sm" for="f-state">확인</label>
+              <select class="select" id="f-state">
+                <option value="">전체</option>
+                <option value="WAIT">확인 전</option>
+                <option value="MATCH">맞음</option>
+                <option value="DIFF">다름</option>
+              </select>
+            </div>
+            <button type="reset" class="btn btn--tertiary btn--md filter-reset">초기화</button>
+          </form>
+          <div class="list-head"><p class="list-count" id="list-count" aria-live="polite"></p></div>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="설정 변경 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">설정 변경: 일시, 대상과 영역, 바뀐 내용, 사유와 품의, 바꾼 사람, 확인, 관리</caption>
+              <thead><tr><th scope="col">일시</th><th scope="col" class="col-phone-wide">대상과 영역</th><th scope="col">바뀐 내용</th><th scope="col">사유와 품의</th><th scope="col">바꾼 사람</th><th scope="col">확인</th><th scope="col" class="col-action" id="th-action">관리</th></tr></thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+          <nav class="pagination" id="pagination" aria-label="설정 변경 쪽 이동"></nav>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-log">
+          <div class="panel-head"><h2 class="panel-title" id="sec-log">확인 기록</h2></div>
+          <p class="panel-desc">재무 리더와 법무가 남긴 확인입니다. 쌓기만 하고 고치거나 지울 수 없습니다.</p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="확인 기록 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">확인 기록: 일시, 확인한 사람, 대상과 영역, 결과, 의견</caption>
+              <thead><tr><th scope="col">일시</th><th scope="col">확인한 사람</th><th scope="col" class="col-phone-wide">대상과 영역</th><th scope="col">결과</th><th scope="col">의견</th></tr></thead>
+              <tbody id="log-rows"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+  </div><!-- /.sheet -->
+
+  <script src="assets/js/mock-data.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/control-checks.js"></script>
+  <script src="assets/js/config-review.js"></script>
+</body>
+</html>

@@ -72,6 +72,10 @@
 .role-row::after { content: ""; display: table; clear: both; }
 .role-row-name { float: left; width: 10rem; padding: 1rem 0 0; font-size: var(--fs-body-small); font-weight: 700; color: var(--text-bolder); }
 .role-row-choices { display: flex; flex-wrap: wrap; gap: 0 2rem; margin-left: 10rem; }
+/* 역할 겹침 알림(기획자 결정 2026-11-02 C-5): 사용자 권한 관리와 결재선 규칙의 창이 함께 씀(admin-users.css에서 옮김)
+ *   알림 상자와 "겹쳐도 저장하는 까닭" 칸 사이를 띄움. 겹침 칸이 숨어 있으면 그 앞 칸이 창의 마지막 칸(아래 여백 없음, common.css .modal-form .field:last-child와 같게) */
+.conflict-note + .field { margin-top: 1.6rem; }
+.modal-form .field:has(+ [data-conflict][hidden]) { margin-bottom: 0; }
 
 /* 코드표 고르기 (코드 관리): 누른 것만 진한 초록. 누르는 영역 44px */
 .seg { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1.6rem; }
@@ -120,6 +124,8 @@
 .viewer-line .link-act { min-height: 0; }
 @media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
   .viewer-line .link-act { padding-top: 1.05rem; padding-bottom: 1.05rem; margin-top: -1.05rem; margin-bottom: -1.05rem; } /* 누르는 영역 44px (v0.59 QA) */
+  /* 지정 없음("없음", .cell-meta): 휴대폰에서만 지정 줄과 같은 크기, 위 여백 없이. 옆 칸 첫 줄과 높이가 맞음(2026-11-03 휴대폰 점검). PC는 작은 회색 글자 그대로 */
+  .tbl--restrict .viewer-none { margin-top: 0; font-size: inherit; }
 }
 .tbl--restrict .viewer-add { display: block; min-height: 0; margin: 0.6rem 0 0; padding: 0; }
 @media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
@@ -145,3 +151,22 @@
  *   메일마다 위에 작은 제목, 두 통 사이를 띄움. 메일 모양은 board.css(.mail-head, .mail-body) 그대로 */
 .mail-sample-title { margin: 0 0 0.8rem; font-size: var(--fs-body-small); font-weight: 700; color: var(--text-bolder); text-align: left; }
 .mail-body + .mail-sample-title { margin-top: 2.4rem; }
+
+/* 할인 예외 점검(SCR-61, 기획자 결정 2026-11-02 C-9)
+ *   그달 요약 줄(.dr-sum), 한계값과 점검 마침의 회색 안내 상자(.dr-box: 읽을 안내라 회색, REQ-UI-32. 단추는 오른쪽, 좁으면 아래 줄로)
+ *   표 안의 ③ 승인 줄(.dr-line, 단계 이름은 흐리게)과 남긴 의견(.dr-opinion: 데이터라 진한 글자), 점검 기록 표의 내용 칸 폭 */
+.dr-sum { margin: 0 0 1.2rem; font-size: var(--fs-body-small); }
+.dr-box { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.8rem 1.6rem; margin: 0 0 1.2rem; padding: 1.2rem 1.6rem; border-radius: var(--radius-lg); background: var(--surface-gray-subtler); font-size: var(--fs-body-small); color: var(--text-subtle); }
+.dr-box--end { margin: 2.4rem 0 0; }
+.dr-box-text { flex: 1 1 24rem; min-width: 0; }
+.dr-box-text p + p, .dr-box-text .meta-list + p, .dr-box-text p + .seen-data { margin-top: 0.4rem; }
+.dr-box .btn { flex-shrink: 0; }
+.tbl .dr-line { display: block; color: var(--text-basic); }
+.tbl .dr-step { color: var(--text-subtle); }
+.tbl .dr-opinion { display: block; font-size: var(--fs-body-small); color: var(--text-basic); }
+.tbl * + .dr-opinion { margin-top: 0.4rem; }
+.dr-log td:nth-child(4) { min-width: 20rem; }
+@media print {
+  .dr-box .btn { display: none !important; }
+  .dr-box { box-shadow: inset 0 0 0 1px var(--border-gray-light); } /* 흑백 인쇄: 칠 대신 안쪽 회색 선(REQ-UI-35) */
+}

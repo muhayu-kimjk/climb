@@ -91,7 +91,7 @@ QA = r"""(() => {
   // 메뉴 한 줄(PC) / 휴대폰 탭 막대
   const phone = innerWidth <= 600;
   if (!phone) { const hi = [...document.querySelectorAll('.user-line .hdr-icon')].filter(vis).map(e => e.classList[1]).join(','); if (hi !== 'acc-btn,search-btn') out.push('PC_HDR_ICONS ' + hi); }
-  if (!phone && document.querySelector('.gnb-list').scrollWidth > document.querySelector('.gnb-list').clientWidth + 1) out.push('GNB_OVERFLOW');
+  if (!phone && document.querySelector('.gnb-list').scrollWidth > document.querySelector('.gnb-list').clientWidth + 1 && !/is-more-(left|right)/.test(document.querySelector('.gnb-scroll').className)) out.push('GNB_OVERFLOW'); // 넘쳐도 화살표가 있으면 됨(2026-11-03 기획자: 최고관리자는 화살표로 밀어 봄)
   if (!phone) { const tops = [...document.querySelectorAll('.gnb-list > li')].filter(vis).map(li => li.offsetTop); if (tops.length && new Set(tops).size > 1) out.push('MENU2LINES'); }
   else {
     if (vis(document.querySelector('.gnb'))) out.push('PHONE_GNB_VISIBLE');

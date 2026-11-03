@@ -58,7 +58,10 @@
     info('기준 표준계약서', C.templateLabel(root) === '-' ? '판 기록 없음<span class="cell-meta">표준계약서 판 관리를 시작하기 전에 맺은 계약</span>' : esc(C.templateLabel(root))),
     info('개인정보 처리위탁 계약', yes(root.personalData)),
     info('서비스 수준 협약(SLA)', yes(root.sla === 'YES')),
-    info('영업대표', esc(C.ownerLabel(root.requesterId))),
+    // 기획자 결정 2026-11-03(C-44): 지금 영업대표. 바뀌었으면 처음 기안한 사람, 맡을 수 없으면 "담당 지정 필요"(계약 상세와 같음)
+    info('영업대표', esc(C.ownerLabel(C.salesRepOf(b))) +
+      (C.salesRepOf(b) !== root.requesterId ? '<span class="cell-meta">처음 기안 ' + esc(C.ownerLabel(root.requesterId)) + '</span>' : '') +
+      (C.repNote(b) ? '<span class="cell-meta">' + esc(C.repNote(b)) + '</span>' : '')),
     info('열람 제한', root.restricted ? '있음' + (C.viewerText(root) ? '<span class="cell-meta">지정 열람자: ' + esc(C.viewerText(root)) + '</span>' : '') : '없음'),
     // 기획자 결정 2026-11-02 B-8: 체결일은 ⑦에서 받은 서명본 체결일(견적서로 대신했으면 고객 날인일), 올린 날도 함께. ⑨의 실제 개통일
     //   날인과 체결본을 거치는 계약(신규, 변경, 바꿔서 연장)만. 통계의 체결일과 같은 값(C.signedDate)

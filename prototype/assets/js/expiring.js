@@ -18,6 +18,9 @@
  *      할 일: 영업대표는 유예 요청(끝나기 30일 전부터, 만료 뒤에도), 영업 리더는 유예 확인과 반려, 고객지원은 만료 처리
  *      창과 처리 규칙은 common.js "만료 처리와 유예"(openGraceAsk, openGraceDecide, openExpiryClose). 처리하면 목록을 다시 그림
  *      서비스를 닫은 계약(만료 처리 끝)은 이 목록에서 빠짐. 계약 상세와 결재 문서의 결재 기록에 남음
+ *   5. 기획자 결정 2026-11-02 C-16: 거래처나 묶음에 보류가 걸리면(C.holdOf) 진행 칸 맨 위에 "보류 중"과 사유.
+ *      연장, 해지 기안 단추와 유예 확인 단추 대신 "보류 중이라 ... 할 수 없습니다" 한 줄. 유예 반려와 만료 처리는 그대로
+ *      (흐린 단추 모양이 공통 스타일에 없어, 계약 상세의 "영업대표만 기안합니다"(D-5)처럼 단추 자리에 까닭을 씀)
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -36,7 +39,7 @@
       const x = C.expiryOf(b);
       return !!x && x.ended && (x.state === 'OPEN' || x.state === 'GRACE' || (x.state === 'OFF' && x.block.status !== 'ACTIVE'));
     }).sort(function (a, b) { return a.end.localeCompare(b.end); });
-    return closing.concat(C.expiringBundles(WINDOW, true)).filter(function (b) { return !isSales || b.root.requesterId === me.id; });
+    return closing.concat(C.expiringBundles(WINDOW, true)).filter(function (b) { return !isSales || C.isSalesRep(b, me); }); // 지금 영업대표(2026-11-03 C-44, 개요의 만료 임박과 같은 규칙)
   }
   const SOON = D.ALERT_RULES.noticeSoonDays;
   // 기획자 결정 2026-11-02 A-5, E-12: 해지 통지 기한의 강조 일수와 이메일 날은 결재선 규칙에서 바꾼 값(D.ALERT_RULES). 리더는 가장 짧은 날만
@@ -54,13 +57,15 @@
   if (location.search.indexOf('view=notice') > -1) $('#f-days').value = 'notice'; // 개요의 "해지 통지 기한" 링크
   if (location.search.indexOf('view=closing') > -1) $('#f-days').value = 'closing'; // 서비스를 닫기 전인 계약만 (A-10)
   // 연장이나 해지 기안을 할 수 있는 사람: 영업대표 본인 (최고관리자는 시연용으로)
-  function canDraft(b) { return b.root.requesterId === me.id || me.role === 'SUPER'; }
+  //   기획자 결정 2026-11-03(C-44): 지금 영업대표(C.isSalesRep: 넘겨받은 새 영업대표, 맡을 수 없으면 대신 맡는 영업 리더). 처음 기안한 사람이 아님
+  function canDraft(b) { return C.isSalesRep(b, me) || me.role === 'SUPER'; }
 
   // 만료 처리와 유예 단추 (A-10, A-11). 누가 무엇을 누를 수 있는지는 common.js가 정함
+  //   기획자 결정 2026-11-02 C-16: 보류 중이면 유예 확인 단추를 빼고 유예 반려와 만료 처리만(유예 요청은 C.canAskGrace가 false)
   function expiryButtons(b) {
     const q = ' data-id="' + esc(b.id) + '"';
     return (C.canCloseExpiry(b, me) ? '<button type="button" class="btn btn--secondary" data-ex="close"' + q + '>만료 처리</button>' : '') +
-      (C.canDecideGrace(b, me) ? '<button type="button" class="btn btn--secondary" data-ex="ok"' + q + '>유예 확인</button>' +
+      (C.canDecideGrace(b, me) ? (C.holdOf(b) ? '' : '<button type="button" class="btn btn--secondary" data-ex="ok"' + q + '>유예 확인</button>') +
         '<button type="button" class="btn btn--tertiary btn-reject" data-ex="no"' + q + '>유예 반려</button>' : '') +
       (C.canAskGrace(b, me) ? '<button type="button" class="btn btn--tertiary" data-ex="ask"' + q + '>유예 요청</button>' : '');
   }
@@ -100,7 +105,10 @@
       const open = b.open.map(function (o) { return C.kindLabel(o) + ' ' + D.STATUS[o.status].label; }).join(', ');
       // 만료 처리와 유예의 지금 상태(A-10, A-11): 지난 계약은 "만료, 서비스 닫기 전"처럼 글자로, 끝나기 전에도 요청 중이거나 확인된 유예는 한 줄
       const exText = (over ? C.badge(x.tone || 'neutral', x.label) : '') + (x && x.note ? '<span class="cell-meta">' + esc(x.note) + '</span>' : '');
-      const doing = (exText + (open ? (exText ? '<span class="cell-meta">' + esc(open) + '</span>' : esc(open)) : '')) || '-';
+      // 기획자 결정 2026-11-02 C-16: 거래처나 묶음에 걸린 보류는 진행 칸 맨 위에 "보류 중"과 사유(볼 수 있는 계약만)
+      const hold = visible ? C.holdOf(b) : null;
+      const holdHtml = hold ? C.holdBadge(hold) + '<span class="cell-meta">' + esc(hold.reason) + '</span>' : '';
+      const doing = (holdHtml + exText + (open ? (exText || holdHtml ? '<span class="cell-meta">' + esc(open) + '</span>' : esc(open)) : '')) || '-';
       const blocking = b.open.some(function (o) { return o.kind === 'RENEW' || o.kind === 'TERMINATE'; });
       const periodBusy = b.open.some(function (o) { return o.kind === 'CHANGE' && o.changeType === 'PERIOD'; }); // 기간 변경 중에는 연장 버튼 없음 (v0.58)
       // 반려된 연장, 해지: 같은 종류의 새 기안 대신 그 기안을 보완 후 재기안 (v0.58)
@@ -119,8 +127,11 @@
         draft = rejRenew ? '<a class="btn btn--secondary" href="' + C.resubmitHref(rejRenew) + '">연장 보완 후 재기안</a>'
           : '<a class="btn btn--secondary" href="' + (b.autoRenew === 'YES' ? 'renewal.html?origin=' : 'new-contract.html?kind=RENEW&origin=') + encodeURIComponent(b.id) + '">' + (b.autoRenew === 'YES' ? '연장 검토' : '연장 기안') + '</a>';
       }
+      // 보류 중(C-16)에는 연장, 해지 기안 단추 대신 까닭 한 줄. 유예 확인을 할 사람에게도 같은 줄(유예 반려와 만료 처리 단추는 그대로)
+      const holdMsg = hold && (draft || C.canDecideGrace(b, me)) ? '<span class="cell-meta">보류 중이라 ' + (draft ? '기안할 수 없습니다.' : '유예를 확인할 수 없습니다.') + '</span>' : '';
+      if (hold) draft = '';
       const acts = (visible ? expiryButtons(b) : '') + draft;
-      const todo = acts ? '<div class="row-actions">' + acts + '</div>' : '-';
+      const todo = acts || holdMsg ? (acts ? '<div class="row-actions">' + acts + '</div>' : '') + holdMsg : '-';
       // 기획자 결정 2026-11-02 D-10(C-41 ⑨): 휴대폰은 할 일 단추를 고객사 아래에 함께 둠(표를 끝까지 밀지 않아도 보이게)
       //   .cell-sub라 PC에서는 감춰지고, 휴대폰에서는 맨 끝 할 일 칸(col-todo)을 감춤(list.css 끝). 버튼이 없으면 줄도 두지 않음
       const cust = visible
@@ -137,10 +148,11 @@
         '<td>' + cust + '</td>' +
         // 휴대폰은 담당자 칸을 감추고 만료일 아래에 담당을 보임(개요의 만료 임박과 같게, v0.63 점검에서 고침: 휴대폰에서 담당자가 사라졌음)
         //   담당 줄은 휴대폰에서 줄을 바꿀 수 있게(col-expiry), 날짜는 하이픈에서 끊기지 않게 (v0.63 검토)
-        '<td class="num-left col-expiry"><span class="nowrap">' + C.fmtDate(b.end) + '</span>' + (visible ? '<span class="cell-sub">담당 ' + esc(C.ownerLabel(c.requesterId)) + '</span>' : '') + '</td>' +
+        '<td class="num-left col-expiry"><span class="nowrap">' + C.fmtDate(b.end) + '</span>' + (visible ? '<span class="cell-sub">담당 ' + esc(C.ownerLabel(C.salesRepOf(b))) + '</span>' : '') + '</td>' +
         '<td>' + autoCell + '</td>' +
         '<td>' + (visible ? doing : '-') + '</td>' +
-        '<td class="center col-owner">' + esc(C.ownerLabel(c.requesterId)) + '</td>' +
+        // 담당은 지금 영업대표(2026-11-03 C-44). 맡을 수 없어 영업 리더가 맡는 중이면 작은 줄(볼 수 있는 계약만)
+        '<td class="center col-owner">' + esc(C.ownerLabel(C.salesRepOf(b))) + (visible && C.repNote(b) ? '<span class="cell-meta">' + esc(C.repNote(b)) + '</span>' : '') + '</td>' +
         '<td class="nowrap col-todo">' + todo + '</td>' + // 휴대폰에서는 감춤(D-10, 위 고객사 아래 버튼)
       '</tr>';
     }).join('') : '<tr><td class="empty-row" colspan="7">' + (all.length ? '조건에 맞는 계약이 없습니다.' : WINDOW + '일 안에 끝나거나 해지 통지 기한이 오는 계약, 서비스를 닫기 전인 계약이 없습니다.') + '</td></tr>';

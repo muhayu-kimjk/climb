@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 브라우저 탭 제목: climb (REQ-NAME-02, v0.54 소문자) -->
+  <title>climb</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <!-- 로고 글자 climb만 SUITE 글꼴 (v0.53 기획자 요청, OFL 무료 글꼴) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sun-typeface/SUITE@2/fonts/static/woff2/SUITE.css">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <script src="assets/js/theme.js"></script><!-- 밝은 화면, 어두운 화면 (v0.53) -->
+  <link rel="stylesheet" href="assets/css/common.css">
+  <link rel="stylesheet" href="assets/css/form.css">
+  <link rel="stylesheet" href="assets/css/list.css">
+  <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<!-- =====================================================================
+  SCR-61 할인 예외 점검 (docs/02_화면목록.md 6장 점검, 기획자 결정 2026-11-02 C-9)
+  - ③ 영업 검토에서 승인된 할인 예외를 매월 재무 임원(CFO)이 다시 봅니다. ③ 승인과 떨어진, 결재 단계를 맡지 않는 사람이 보는 점검입니다.
+  - 위에서 아래로: 매월 점검(달마다 기한과 상태) → 고른 달의 점검(한계값, ③ 가격 예외, ⑩이 늦은 계약, 점검 마침) → 점검 기록
+  - 그달 ③을 거친 계약마다 의견과 확인을 남기고, 기한은 다음 달 말일입니다. 점검자가 그달의 한계값을 정하면 넘는 줄은 의견이 필수입니다.
+  - 그달 체크리스트 4번이 예인 계약과 해지 기안 가운데 ⑩ 재무 확인이 늦거나 끝나지 않은 것도 한 줄씩 확인합니다.
+  - 남긴 기록(한계값, 줄 확인, 점검 마침)은 쌓기만 하고 고치거나 지우지 않습니다(누가, 언제).
+  - 열람 제한 계약 가운데 볼 수 없는 것도 목록에 넣되 고객사를 가리고 점검에 필요한 칸만 보입니다.
+  - 볼 수 있는 사람: 재무 임원, 최고관리자(시연용), 감사 열람(보기만). 메뉴는 위 메뉴 줄의 "점검"(기획자 결정 2026-11-03, common.js MENU, CHECK_OWNERS).
+    확인을 남길 수 있는지는 C.canDoCheck(me, 'SCR-61'). 읽기만 하는 역할에는 단추가 없습니다.
+  - 동작은 assets/js/discount-review.js
+====================================================================== -->
+<body data-page="SCR-61">
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <div id="demo-bar"></div>
+
+  <div class="sheet">
+  <header id="site-header"></header>
+
+  <main id="main" class="page" tabindex="-1">
+    <div class="inner">
+      <div class="page-head page-head--sub">
+        <h1 class="page-title">할인 예외 점검</h1>
+      </div>
+      <div class="page-intro">
+        <p>③ 영업 검토에서 승인된 할인 예외를 매월 재무 임원이 다시 봅니다.</p>
+        <p class="sub">그달 ③을 거친 계약마다 의견과 확인을 남깁니다. 기한은 다음 달 말일이고, 남긴 기록은 고치거나 지울 수 없습니다.</p>
+      </div>
+
+      <div id="notice"></div>
+
+      <div id="content" class="admin-stack">
+        <section class="panel" aria-labelledby="sec-months">
+          <div class="panel-head"><h2 class="panel-title" id="sec-months">매월 점검</h2></div>
+          <p class="panel-desc" id="months-desc">달이 끝나면 다음 달 말일까지 점검합니다. 대상 월을 누르면 아래에 그달 목록이 보입니다.</p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="매월 점검 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">매월 점검: 대상 월, 기한, ③ 가격 예외 건수, ⑩ 늦음 건수, 확인한 줄, 상태</caption>
+              <thead><tr><th scope="col">대상 월</th><th scope="col">기한</th><th scope="col" class="num">③ 가격 예외</th><th scope="col" class="num">⑩ 늦음</th><th scope="col" class="num">확인</th><th scope="col">상태</th></tr></thead>
+              <tbody id="month-rows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 고른 달의 점검 (discount-review.js가 채움) -->
+        <section class="panel" id="app" aria-labelledby="app-title">
+          <div class="panel-head"><h2 class="panel-title" id="app-title" tabindex="-1">점검</h2></div>
+          <div class="dr-sum" id="month-sum"></div>
+          <!-- 한계값: 그달 점검자가 정함. 넘는 줄은 의견 필수 -->
+          <div class="dr-box" id="limit-box"></div>
+
+          <h3 class="box-subtitle">③ 가격 예외</h3>
+          <p class="panel-desc" id="disc-desc">그달 ③ 영업 검토에서 할인 예외 승인을 마친 계약입니다. 영업 임원 승인을 거치는 계약은 그 승인까지 마친 달에 넣습니다.</p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="③ 가격 예외 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">③ 가격 예외: 계약, 영업, 가장 큰 줄 할인율, 계약 전체 할인율, ③ 승인, 대리 결재, 확인</caption>
+              <thead><tr><th scope="col" class="col-phone-wide">계약</th><th scope="col">영업</th><th scope="col" class="num">가장 큰 줄</th><th scope="col" class="num">계약 전체</th><th scope="col">③ 승인</th><th scope="col">대리 결재</th><th scope="col">확인</th><th scope="col" class="col-action" data-act-col>관리</th></tr></thead>
+              <tbody id="disc-rows"></tbody>
+            </table>
+          </div>
+
+          <h3 class="box-subtitle">⑩ 재무 확인이 늦거나 끝나지 않은 계약</h3>
+          <p class="panel-desc" id="fin-desc"></p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="⑩ 재무 확인이 늦거나 끝나지 않은 계약 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">⑩ 재무 확인이 늦거나 끝나지 않은 계약: 계약, 종류, ⑩ 차례가 온 날, 처리한 날, 기다린 날, 확인</caption>
+              <thead><tr><th scope="col" class="col-phone-wide">계약</th><th scope="col">종류</th><th scope="col">⑩ 차례 온 날</th><th scope="col">처리한 날</th><th scope="col" class="num">기다린 날</th><th scope="col">확인</th><th scope="col" class="col-action" data-act-col>관리</th></tr></thead>
+              <tbody id="fin-rows"></tbody>
+            </table>
+          </div>
+
+          <!-- 점검 마침: 모든 줄을 확인하면 남김. 마친 뒤에는 마친 사람과 일시, 메모 -->
+          <div class="dr-box dr-box--end" id="done-box"></div>
+        </section>
+
+        <section class="panel" aria-labelledby="sec-log">
+          <div class="panel-head"><h2 class="panel-title" id="sec-log">점검 기록</h2></div>
+          <p class="panel-desc">한계값을 정하고, 줄을 확인하고, 점검을 마친 기록입니다. 고치거나 지울 수 없습니다.</p>
+          <div class="list-head"><p class="list-count" id="log-count" aria-live="polite"></p></div>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="점검 기록 표">
+            <table class="tbl tbl--compact dr-log">
+              <caption class="sr-only">점검 기록: 일시, 대상 월, 한 일, 내용, 남긴 사람</caption>
+              <thead><tr><th scope="col">일시</th><th scope="col">대상 월</th><th scope="col">한 일</th><th scope="col" class="col-phone-wide">내용</th><th scope="col">남긴 사람</th></tr></thead>
+              <tbody id="log-rows"></tbody>
+            </table>
+          </div>
+          <nav class="pagination" id="pagination" aria-label="점검 기록 쪽 이동"></nav>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+  </div><!-- /.sheet -->
+
+  <script src="assets/js/mock-data.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/discount-review.js"></script>
+</body>
+</html>

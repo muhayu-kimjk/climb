@@ -4,6 +4,7 @@
  *   - 보기: 고객에게 내는 견적서(A4 한 장 모양), 출력 기록, 이 견적의 판
  *   - 출력: "견적서 출력" 단추로 찍을 때(body.is-quote-print)는 견적서만 나오고 사내 인쇄의 머리, 워터마크는 뺌(출력 기록을 남겼으므로).
  *     브라우저 인쇄로 찍으면 다른 화면처럼 사내 인쇄(워터마크, 출력자). 인쇄는 늘 흑백(REQ-UI-35)
+ *     기획자 결정 2026-11-02 E-7: "견적서 출력"에만 회사 인장 그림(.qd-seal). E-8: 고객용 견적서의 워터마크 예외는 그대로
  * 관련 요구사항: 요구사항 정의서 3.9 REQ-QUO (v0.61 기획자 결정)
  * ===================================================================== */
 
@@ -73,6 +74,10 @@
 .qd-kv dt, .qd-kv dd { text-align: left; } /* 좁은 칸에서 줄이 바뀌면 양쪽 정렬로 낱말 사이가 벌어졌음(담당 줄, 공급자 칸) */
 .qd-kv dt { color: var(--text-subtle); }
 .qd-setting { color: var(--text-subtle); }
+/* 회사 인장 (기획자 결정 2026-11-02 E-7): 대표자 옆 "(인)" 자리에 겹쳐 찍음. 그림은 "견적서 출력"으로 인쇄하는 동안에만 들어감(quote.js issue)
+ * 화면과 브라우저 인쇄(사내 인쇄)에는 "(인)" 글자만. 겹쳐도 밑 글자가 비치게(multiply). 인쇄는 늘 흑백(common.css img 회색) */
+.qd-seal-spot { position: relative; display: inline-block; color: var(--text-subtle); white-space: nowrap; }
+.qd-seal { position: absolute; left: 50%; top: 50%; width: 6.4rem; height: 6.4rem; max-width: none; transform: translate(-50%, -50%); mix-blend-mode: multiply; pointer-events: none; }
 .qd-total { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 0.4rem 1.6rem; margin-top: 2.4rem; padding: 1.2rem 1.6rem; border-top: 2px solid var(--text-bolder); border-bottom: 1px solid var(--border-gray-light); font-size: var(--fs-body-medium); }
 .qd-total strong { margin-left: auto; text-align: right; font-size: var(--fs-body-large); }
 .qd-scroll { margin-top: 1.6rem; border: 0; border-radius: 0; } /* 견적서 품목 표: 휴대폰에서는 표 안에서 옆으로 밀어 봄 */

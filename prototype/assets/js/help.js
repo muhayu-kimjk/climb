@@ -9,6 +9,7 @@
  *   2. 이용 안내에서 찾기: 쪽 제목과 내용, 자주 묻는 것의 질문과 답에서 낱말을 찾아 목록으로 보임. 누르면 그 쪽(자주 묻는 것은 그 답을 펼침)
  *      찾기 칸은 차례 맨 위, 접히는 차례 줄 밖이라 좁은 화면과 휴대폰에서도 늘 보임(기획자 결정 2026-11-02 D-24)
  *   3. 소개 쪽: 쪽 안내 카드, 최근 릴리즈 3건(공지사항 게시판)
+ *      거래 윤리와 신고 쪽: 회사 설정의 윤리 규정과 신고 창구 링크(기획자 결정 2026-11-02 E-9, 비어 있으면 넣는 곳 안내)
  *   4. 역할별 할 일 표에서 지금 내 역할의 줄을 강조 (최고관리자는 강조 없음)
  *   5. 독촉 기준 일수를 결재선 규칙(SCR-52)의 지금 값으로 채움. 알림 일수, 무상 충전 기준, 유예 일수, 영업 임원 승인 기준, 견적서 대신 금액도(2026-11-02)
  *   6. 자주 묻는 것: 펼침 화살표. 인쇄할 때는 모든 쪽이 나오고(CSS) 자주 묻는 것도 모두 펼쳐 매뉴얼 한 부로
@@ -209,6 +210,16 @@
     return '<li><a href="notice.html?id=' + encodeURIComponent(n.id) + '"><span class="doc-news-ver">' + esc(n.version || '') + '</span>' +
       '<span class="doc-news-title">' + esc(n.title) + '</span><span class="doc-news-date">' + esc(String(n.at).slice(0, 10)) + '</span></a></li>';
   }).join('') + '<li class="doc-news-more"><a href="notices.html">공지사항에서 모두 보기</a></li>';
+
+  // ---------- 3-1. 거래 윤리와 신고의 링크 (기획자 결정 2026-11-02 E-9) ----------
+  //   회사 설정(SCR-59)의 윤리 규정 링크(ethicsUrl)와 신고 창구 링크(reportUrl). 둘 다 비어 있으면 help.html의 글(넣는 곳 안내) 그대로
+  //   링크는 사내 밖 사이트일 수 있어 새 창으로(https만 저장됨, 회사 설정이 검사). 화면낭독기에는 "(새 창)"을 함께 읽힘(회사 설정 화면의 링크와 같음)
+  (function () {
+    const co = D.COMPANY || {}, el = document.getElementById('ethics-links');
+    const link = function (url, label) { return url ? '<a class="doc-link" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(label) + '<span class="sr-only">(새 창)</span></a>' : ''; };
+    const parts = [link(co.ethicsUrl, '회사 윤리 규정'), link(co.reportUrl, '신고 창구')].filter(Boolean);
+    if (el && parts.length) el.innerHTML = '바로 가기: ' + parts.join(', ') + (parts.length < 2 ? '. 다른 링크는 운영을 시작하기 전에 최고관리자가 회사 설정에 넣습니다.' : '');
+  })();
 
   // ---------- 4. 내 역할 강조 ----------
   const row = document.querySelector('tr[data-role="' + me.role + '"]');

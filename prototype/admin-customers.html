@@ -25,6 +25,10 @@
   - 같은 사업자등록번호는 두 번 등록할 수 없습니다. 같은 곳이 다른 이름으로 두 번 등록되면 합칩니다.
   - 합치면 남길 거래처 하나만 두고, 나머지 거래처의 계약은 남길 거래처로 옮기며, 나머지는 지우지 않고 "합쳐짐"으로 남깁니다.
   - 고칠 때와 합칠 때 사유가 필수이고 변경 이력이 남습니다. 동작은 assets/js/admin-customers.js
+  - 기획자 결정 2026-11-02 C-13(덧붙임 "컴플라이언스"): 국가와 지자체(사업자등록번호 가운데 83), 조달, 간접(총판, 리셀러) 거래처의 거래처 확인 묶음.
+    확인 상태, 계산한 위험 등급, 다음 확인일을 목록에 보이고, 컴플라이언스 담당자가 결과(이름 없이), 확인한 사람과 날짜, 다음 확인일, 증빙을 남깁니다.
+    관리자는 보기만 하고, 컴플라이언스 담당자는 거래처를 고치거나 합치지 않습니다. 확인 기록은 쌓기만 합니다.
+  - C-16: 보류가 걸린 거래처는 상태 칸에 "보류 중". 걸고 푸는 곳은 개선 과제와 보류(SCR-64)
 ====================================================================== -->
 <body data-page="SCR-55">
   <a class="skip-link" href="#main">본문 바로가기</a>
@@ -41,6 +45,7 @@
       <div class="page-intro">
         <p>계약 등록에서 고르는 거래처 목록을 관리합니다. 같은 곳이 두 번 등록되면 합쳐서, 계약 묶음과 만료 집계가 어긋나지 않게 합니다.</p>
         <p class="sub">거래처는 지우지 않고 사용 안 함으로 돌립니다. 고치거나 합칠 때는 사유를 꼭 적습니다.</p>
+        <p class="sub">국가와 지자체, 조달, 간접(총판, 리셀러) 거래처는 컴플라이언스 담당자가 반부패와 제재 확인 결과를 남깁니다. 확인이 없어도 계약 등록은 막지 않고 알리기만 합니다.</p>
       </div>
 
       <div id="notice"></div>
@@ -51,10 +56,11 @@
             <h2 class="panel-title" id="sec-list">거래처 목록</h2>
             <button type="button" class="btn btn--primary btn--md" id="btn-add">거래처 추가</button>
           </div>
-          <p class="panel-desc">같은 곳이 두 번 등록되었으면 표 맨 왼쪽 칸에서 둘 이상 고른 뒤 "고른 거래처 합치기"를 누릅니다. 둘 이상 고르기 전에는 눌리지 않습니다.</p>
+          <p class="panel-desc" id="list-desc">같은 곳이 두 번 등록되었으면 표 맨 왼쪽 칸에서 둘 이상 고른 뒤 "고른 거래처 합치기"를 누릅니다. 둘 이상 고르기 전에는 눌리지 않습니다.</p>
           <div id="dup"></div>
 
-          <form class="filter-bar filter-bar--two" id="filter" role="search" aria-label="거래처 거르기">
+          <!-- 거르기: 윗줄 검색과 초기화, 아랫줄 상태와 거래처 확인(C-13). 기본 거르기 줄(list.css) -->
+          <form class="filter-bar" id="filter" role="search" aria-label="거래처 거르기">
             <div class="field">
               <label class="field-label field-label--sm" for="f-q">검색</label>
               <input class="input" id="f-q" type="search" placeholder="상호 또는 사업자등록번호" autocomplete="off">
@@ -68,6 +74,16 @@
                 <option value="MERGED">합쳐짐</option>
               </select>
             </div>
+            <div class="field">
+              <label class="field-label field-label--sm" for="f-check">거래처 확인</label>
+              <select class="select" id="f-check">
+                <option value="">전체</option>
+                <option value="NEED">확인 대상</option>
+                <option value="TODO">확인 전이나 지남</option>
+                <option value="ISSUE">문제 있음</option>
+                <option value="HOLD">보류 중</option>
+              </select>
+            </div>
             <button type="reset" class="btn btn--tertiary btn--md filter-reset">초기화</button>
           </form>
 
@@ -77,12 +93,20 @@
           </div>
           <div class="tbl-scroll" tabindex="0" role="region" aria-label="거래처 목록 표">
             <table class="tbl tbl--compact">
-              <caption class="sr-only">거래처 목록: 고르기, 상호, 사업자등록번호, 계약 수, 등록, 상태, 관리</caption>
-              <thead><tr><th scope="col" class="col-action"><span class="sr-only">합칠 거래처 고르기</span></th><th scope="col">상호</th><th scope="col">사업자등록번호</th><th scope="col" class="num">계약</th><th scope="col">등록</th><th scope="col">상태</th><th scope="col" class="col-action">관리</th></tr></thead>
+              <caption class="sr-only">거래처 목록: 고르기, 상호, 사업자등록번호, 계약 수, 등록, 상태, 거래처 확인, 관리</caption>
+              <thead><tr><th scope="col" class="col-action"><span class="sr-only">합칠 거래처 고르기</span></th><th scope="col">상호</th><th scope="col">사업자등록번호</th><th scope="col" class="num">계약</th><th scope="col">등록</th><th scope="col">상태</th><th scope="col">거래처 확인</th><th scope="col" class="col-action">관리</th></tr></thead>
               <tbody id="rows"></tbody>
             </table>
           </div>
           <nav class="pagination" id="pagination" aria-label="거래처 목록 쪽 이동"></nav>
+        </section>
+
+        <!-- 기획자 결정 2026-11-02 C-13: 거래처 확인 기록(쌓기만 함). 컴플라이언스 담당자가 남기고 모두 봄 -->
+        <section class="panel" aria-labelledby="sec-checks">
+          <div class="panel-head"><h2 class="panel-title" id="sec-checks">거래처 확인 기록</h2></div>
+          <p class="panel-desc">컴플라이언스 담당자가 시스템 밖에서 확인한 결과입니다. 실제 소유자나 공직자의 이름은 남기지 않습니다. 고치거나 지울 수 없고, 다시 확인하면 한 줄 더 남습니다.</p>
+          <div id="checks"></div>
+          <nav class="pagination" id="check-pages" aria-label="거래처 확인 기록 쪽 이동"></nav>
         </section>
 
         <section class="panel" aria-labelledby="sec-history">

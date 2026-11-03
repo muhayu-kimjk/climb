@@ -39,6 +39,9 @@
 /* 이용 안내에서 찾기 (메뉴 검색과 같은 모양) */
 .doc-search-box { position: relative; }
 .doc-search-box .icon { position: absolute; left: 1rem; top: 50%; width: 1.6rem; height: 1.6rem; transform: translateY(-50%); color: var(--text-subtle); pointer-events: none; }
+/* 돋보기를 입력한 글자의 세로 가운데에(2026-11-03 기획자 요청): Noto Sans KR 글자는 칸 가운데보다 글자 크기의 약 8% 아래에 그려져
+ *   돋보기가 1~1.5px 높아 보였음(헤드리스 Chrome 사진의 픽셀로 잼). 칸 글자 크기를 기준으로 같은 비율만큼 내림. common.css .msearch-box와 같은 방법 */
+.doc-search-box .icon { font-size: var(--fs-body-small); top: calc(50% + 0.08em); }
 .doc-search-input {
   width: 100%; height: var(--height-md); padding: 0 1rem 0 3.4rem; border: 1px solid var(--border-gray); border-radius: var(--radius-md);
   background: var(--surface-white); font: inherit; font-size: var(--fs-body-small); color: var(--text-basic);

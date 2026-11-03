@@ -29,7 +29,9 @@
   - 보고서 인쇄: 이 화면을 A4로 인쇄(고른 조건이 맨 위에 찍힘). 기간 마감 점검은 넣지 않음
   - 기간 마감 점검(기획자 결정 2026-11-02 B-9, CTL-65): 기간 말을 골라 앞뒤 체결, 승인됐지만 체결 전, ⑨ ⑩ 기다림을 보고
     재무가 확인을 남김(쌓기만 함). "마감 점검 인쇄"는 이 묶음만 A4로
-  - 동작은 assets/js/stats.js
+  - 통제 지표(기획자 결정 2026-11-02 C-1): 리더, 임원, 감사 열람만. 4번 조건 종류, ④ 반부패 조항 판단, 평균 할인, 대리 결재, 위험 신호
+  - 통제 증빙 내보내기(기획자 결정 2026-11-02 C-3): 감사 열람(과 시연용 최고관리자)만. 기간을 골라 CSV(엑셀에서 열림) 한 파일, 꺼낸 기록. 인쇄에는 넣지 않음
+  - 동작은 assets/js/stats.js. 접속 기록, 꺼낸 기록, 파일 지문은 assets/js/control-checks.js(점검 화면과 함께 씀)
 ====================================================================== -->
 <body data-page="SCR-46">
   <a class="skip-link" href="#main">본문 바로가기</a>
@@ -160,21 +162,86 @@
           <div class="meter-list" id="supplement-meters"></div>
         </section>
 
-        <!-- 9. 통제 지표 (기획자 결정 2026-11-02 C-1): 리더와 임원만 봄(stats.js가 그 밖의 사람에게는 감춤). 위 조건을 따름
-             4번 조건의 종류(B-6, CTL-52)와 ④ 반부패 조항 판단(C-15, CTL-34). 영업기회 대사, 할인 예외 점검 같은 지표는 그 화면이 생기면 더함 -->
+        <!-- 9. 통제 지표 (기획자 결정 2026-11-02 C-1): 리더, 임원, 감사 열람만 봄(stats.js가 그 밖의 사람에게는 감춤). 위 조건을 따름
+             4번 조건의 종류(B-6, CTL-52)와 ④ 반부패 조항 판단(C-15, CTL-34), 평균 할인, 대리 결재, 위험 신호(C-1).
+             영업기회 대사, 할인 예외 점검 같은 지표는 그 화면이 생기면 더함 -->
         <section class="panel" id="control-panel" aria-labelledby="sec-control" hidden>
           <div class="panel-head"><h2 class="panel-title" id="sec-control">통제 지표</h2></div>
-          <p class="panel-desc">리더와 임원만 보는 통제 지표입니다. 위 조건(기간, 서비스, 영업 유닛)을 따릅니다.</p>
-          <h3 class="chart-title">4번 조건의 종류</h3>
+          <p class="panel-desc">리더, 임원, 감사 열람만 보는 통제 지표입니다. 위 조건(기간, 서비스, 영업 유닛)을 따르고, 열람 제한 계약 가운데 볼 수 없는 건은 넣지 않습니다.</p>
+
+          <h3 class="chart-title">평균 할인</h3>
+          <p class="panel-desc">체결한 계약마다 표준 금액(기안일에 쓰던 표준 단가 x 수량) 대비 할인율을 구해 평균을 냅니다. 기관 종류는 사업자등록번호 가운데 두 자리로 나눕니다.</p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="평균 할인 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">평균 할인: 나눈 기준, 이름, 체결 건수, 평균 할인, 가장 큰 할인</caption>
+              <thead><tr><th scope="col">나눈 기준</th><th scope="col">이름</th><th scope="col" class="num">체결</th><th scope="col" class="num">평균 할인</th><th scope="col" class="num">가장 큰 할인</th></tr></thead>
+              <tbody id="disc-rows"></tbody>
+            </table>
+          </div>
+          <p class="panel-desc control-note" id="disc-skip"></p>
+
+          <h3 class="chart-title control-title">대리 결재</h3>
+          <p class="panel-desc">기간 안의 결재 가운데 담당자가 아닌 사람이 처리한 것입니다. 대리 지정 없이 처리한 결재(시연의 최고관리자)는 운영에서는 없어야 합니다.</p>
+          <div class="close-split" id="proxy-sum"></div>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="대리 결재 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">대리 결재: 고객사, 단계, 처리한 사람과 누구 대신, 일시, 근거</caption>
+              <thead><tr><th scope="col">고객사</th><th scope="col">단계</th><th scope="col">처리한 사람</th><th scope="col">일시</th><th scope="col">근거</th></tr></thead>
+              <tbody id="proxy-rows"></tbody>
+            </table>
+          </div>
+
+          <h3 class="chart-title control-title">위험 신호</h3>
+          <p class="panel-desc">같은 거래처와 30일 안에 두 건 이상 기안한 계약(나눠 맺기)과, 분기 마지막 날까지 5일 안에 승인한 가격 예외(체크리스트 2번이나 3번 "아니요")입니다.</p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="위험 신호 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">위험 신호: 신호, 고객사와 계약번호, 날짜, 금액</caption>
+              <thead><tr><th scope="col">신호</th><th scope="col">고객사</th><th scope="col">날짜</th><th scope="col" class="num">금액</th></tr></thead>
+              <tbody id="risk-rows"></tbody>
+            </table>
+          </div>
+
+          <h3 class="chart-title control-title">4번 조건의 종류</h3>
           <p class="panel-desc">체결한 계약 가운데 체크리스트 4번이 "예"인 계약이 고른 조건의 종류입니다. 한 계약이 여러 종류를 고를 수 있습니다.</p>
           <div class="meter-list" id="acct-meters"></div>
-          <h3 class="chart-title">④ 반부패 조항 판단</h3>
+          <h3 class="chart-title control-title">④ 반부패 조항 판단</h3>
           <p class="panel-desc">표준계약서를 바꾼 계약 가운데 기간 안에 ④ 법무가 승인한 계약을 계약 방식마다 셉니다. 간접과 조달은 꼭 고르고, 직접은 골라도 되고 안 골라도 됩니다.</p>
           <div class="tbl-scroll" tabindex="0" role="region" aria-label="반부패 조항 판단 표">
             <table class="tbl tbl--compact">
               <caption class="sr-only">④ 반부패 조항 판단: 계약 방식, ④ 승인, 있고 약해지지 않음, 없음, 고르지 않음</caption>
               <thead><tr><th scope="col">계약 방식</th><th scope="col" class="num">④ 승인</th><th scope="col" class="num">있고 약해지지 않음</th><th scope="col" class="num">없음</th><th scope="col" class="num">고르지 않음</th></tr></thead>
               <tbody id="ab-rows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 10. 통제 증빙 내보내기 (기획자 결정 2026-11-02 C-3, G-13): 감사 열람과 시연용 최고관리자만 봄(stats.js가 그 밖의 사람에게는 감춤)
+             위 조건과 상관없이 고른 기간. CSV(엑셀에서 열림) 한 파일과 꺼낸 기록. 인쇄에는 넣지 않음(no-print) -->
+        <section class="panel export-panel no-print" id="export-panel" aria-labelledby="sec-export" hidden>
+          <div class="panel-head"><h2 class="panel-title" id="sec-export">통제 증빙 내보내기</h2></div>
+          <p class="panel-desc">고른 기간의 계약과 차수(체크리스트 답, 단계마다 처리한 사람과 시각과 결과), ③ 가격 예외, 4번 예 계약, ⑧ 결과, 가격과 권한 변경, 접속 기록을 한 파일(CSV, 엑셀에서 열림)로 내려받습니다. 위 조건과 상관없이 그 기간의 모든 계약을 넣습니다. 파일 맨 위에 실행 시각, 실행한 사람, 조건, 건수, 금액 합계, 파일 지문과 워터마크가 들어가고, 꺼낸 기록이 남습니다. 외부감사인에게는 이 파일을 줍니다.</p>
+          <div class="close-bar export-bar" id="export-bar">
+            <div class="field">
+              <label class="field-label field-label--sm" for="ex-from">시작일</label>
+              <input class="input" type="date" id="ex-from">
+              <p class="field-error" hidden></p>
+            </div>
+            <div class="field">
+              <label class="field-label field-label--sm" for="ex-to">종료일</label>
+              <input class="input" type="date" id="ex-to" data-after="ex-from">
+              <p class="field-error" hidden></p>
+            </div>
+            <div class="close-acts">
+              <button type="button" class="btn btn--primary btn--md" id="btn-export">CSV 내려받기</button>
+            </div>
+          </div>
+          <h3 class="chart-title close-title">꺼낸 기록 <span id="export-count"></span></h3>
+          <p class="close-desc">통제 증빙(기간 전체)과 계약 상세의 결재 기록 묶음을 꺼낸 기록입니다. 쌓기만 하고 고치거나 지울 수 없습니다.</p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="꺼낸 기록 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">꺼낸 기록: 일시, 실행한 사람, 종류와 조건과 파일, 건수, 금액 합계, 파일 지문</caption>
+              <thead><tr><th scope="col">일시</th><th scope="col">실행한 사람</th><th scope="col">종류와 조건</th><th scope="col">건수</th><th scope="col" class="num">금액 합계</th><th scope="col">파일 지문(SHA-256)</th></tr></thead>
+              <tbody id="export-rows"></tbody>
             </table>
           </div>
         </section>
@@ -262,6 +329,7 @@
 
   <script src="assets/js/mock-data.js"></script>
   <script src="assets/js/common.js"></script>
+  <script src="assets/js/control-checks.js"></script>
   <script src="assets/js/stats.js"></script>
 </body>
 </html>

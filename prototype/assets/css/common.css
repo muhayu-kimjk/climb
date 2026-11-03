@@ -214,6 +214,8 @@ a.brand-title:hover { color: var(--text-primary); }
 /* 메뉴 줄 유리 바탕(v0.60): 흐림은 뒤에 깐 ::before에 둠. .gnb 자체에 두면 그 안의 펼친 하위 메뉴가 뒤 본문을 흐리게 비추지 못함(브라우저 규칙) */
 .gnb { --gnb-pad: 1.2rem; position: relative; z-index: 0; border-top: 1px solid var(--border-gray-light); }
 /* --gnb-pad: 메뉴 칸 좌우 안쪽 여백(v0.61에 1.6rem → 1.2rem. 견적 메뉴가 늘어도 최고관리자 메뉴 7개가 한 줄에 다 보이게) */
+/* 기획자 결정 2026-11-03: 위 메뉴 줄에 "점검"을 따로 두어 최고관리자 메뉴가 8개. 메뉴 사이 여백은 그대로 두고(같은 날 기획자 요청:
+ *   8개일 때 여백을 줄이던 gnb--dense를 없앰) 다 들어가지 않으면 오른쪽 화살표(›)를 눌러 옆으로 밀어 봄(원래 규칙, 4장 아래 화살표와 그라데이션) */
 .gnb::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter); }
 /* 하위 메뉴나 머리글 판을 펼치면 메뉴 줄도 펼친 영역과 같은 흰 바탕(v0.61 기획자 요청: 펼친 메뉴가 단단하게 보이게). 유리는 접혀 있을 때만 */
 .site-header:has(.gnb-item.is-open, .hdr-sheet:not([hidden])) .gnb::before { background: var(--surface-white); -webkit-backdrop-filter: none; backdrop-filter: none; }
@@ -239,19 +241,21 @@ a.brand-title:hover { color: var(--text-primary); }
  *   자연스럽게(2026-11-03 기획자 요청): 가린 폭이 6.4rem보다 적으면 그라데이션 폭(--more-l, --more-r)과 화살표 진하기(--more-l-a, --more-r-a)도
  *     그만큼 줄여, 창을 줄이거나 옆으로 밀 때 조금씩 나타나고 사라짐(common.js gnbEdge가 정함. 6.4rem일 때 위 모양, 0이면 없음).
  *     5.2rem = 6.4rem의 0.8125배라 사라지는 곳도 같은 비율로 줄어듦
- *   하위 메뉴는 .gnb-list 안에 있어 가림이 하위 메뉴까지 지우므로, 하위 메뉴를 펼친 동안은 가림을 끄고 화살표 자리를 흰 바탕으로 덮음(그동안 메뉴 줄도 흰 바탕) */
+ *   가림은 메뉴 줄 전체(.gnb-list)가 아니라 메뉴 글자 칸(.gnb-link)마다 겁니다(2026-11-03 기획자 요청: 하위 메뉴를 펼치면 화살표 옆에 픽셀이 튄 것처럼 보였음).
+ *     하위 메뉴는 .gnb-list 안에 있어 줄 전체를 가리면 하위 메뉴까지 지워지므로, 예전에는 펼친 동안 가림을 끄고 화살표 자리를 흰 상자로 덮었는데
+ *     상자가 그라데이션보다 좁고 조금 비쳐 옆 메뉴의 글자 끝과 ∨ 조각이 남았음. 이제 칸마다 같은 그라데이션을 메뉴 줄 자리에 맞춰 놓아(--list-w, --mx는 common.js gnbEdge)
+ *     펼쳐도 닫혀 있을 때와 같은 모양이고 하위 메뉴는 가려지지 않음 */
 .gnb-more--right { right: 0; justify-content: flex-end; opacity: var(--more-r-a, 1); }
 .gnb-more--left { left: 0; justify-content: flex-start; opacity: var(--more-l-a, 1); }
 .gnb-scroll.is-more-right .gnb-more--right, .gnb-scroll.is-more-left .gnb-more--left { display: flex; }
-.gnb-scroll.is-more-left .gnb-list, .gnb-scroll.is-more-right .gnb-list {
+.gnb-scroll.is-more-left .gnb-link, .gnb-scroll.is-more-right .gnb-link {
   --ml: var(--more-l, 0px); --mr: var(--more-r, 0px);
   -webkit-mask-image: linear-gradient(to right, transparent calc(var(--ml) * 0.8125), #000 var(--ml), #000 calc(100% - var(--mr)), transparent calc(100% - var(--mr) * 0.8125));
   mask-image: linear-gradient(to right, transparent calc(var(--ml) * 0.8125), #000 var(--ml), #000 calc(100% - var(--mr)), transparent calc(100% - var(--mr) * 0.8125));
+  -webkit-mask-size: var(--list-w, 100%) 100%; mask-size: var(--list-w, 100%) 100%;
+  -webkit-mask-position: var(--mx, 0px) 0; mask-position: var(--mx, 0px) 0;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
 }
-.gnb-scroll:has(.gnb-item.is-open) .gnb-list { -webkit-mask-image: none; mask-image: none; }
-.gnb-scroll:has(.gnb-item.is-open) .gnb-more { background: var(--surface-white); }
-.gnb-scroll:has(.gnb-item.is-open) .gnb-more--right { width: calc(var(--more-r, 6.4rem) * 0.8125); }
-.gnb-scroll:has(.gnb-item.is-open) .gnb-more--left { width: calc(var(--more-l, 6.4rem) * 0.8125); }
 /* 이용 안내: 중요한 항목이라 글자 15px, 아이콘 약 16px(아이콘은 글자의 1.05배)로 예전 크기 (v0.59 기획자 요청) */
 .gnb-aside { display: inline-flex; align-items: center; gap: 0.4rem; font-size: var(--fs-body-medium); color: var(--text-subtle); white-space: nowrap; }
 /* 세로 줄맞춤(v0.59 기획자 요청): Noto Sans KR 글자는 줄 상자 가운데보다 조금 아래에 그려져, 가운데 맞춤한 아이콘이 글자보다 0.25~0.75px 위에 보였음.
@@ -363,7 +367,7 @@ html.drawer-open { overflow: hidden; }
  *   PC는 메뉴 줄을 덮음(2026-11-02 기획자 요청: 누른 아이콘 바로 아래에서 판이 나와야 무엇을 열었는지 바로 앎. v0.61은 메뉴 줄 아래).
  *     로고 줄 아이콘을 누르면 로고 줄 바로 아래(메뉴 줄 자리, --header-top-h는 common.js)부터 덮음.
  *     화면을 내려 메뉴 줄이 붙어 있으면 아이콘이 메뉴 줄에 있어, 메뉴 글자만 감추고(아이콘 셋은 그대로) 판은 그 아래로 이어짐. 메뉴 줄이 판의 윗부분처럼 보임
- *   글자는 본문 왼쪽 끝에서(애플 웹사이트처럼). 휴대폰은 메뉴 줄이 없어 로고 줄 아래(13장) */
+ *   글자는 본문 왼쪽 끝에서(애플 웹사이트처럼). 계정 판만 오른쪽(아래 .acc-sheet, 2026-11-03). 휴대폰은 메뉴 줄이 없어 로고 줄 아래(13장) */
 .site-header.is-stuck:has(.hdr-sheet:not([hidden])) .gnb-scroll { visibility: hidden; }
 .hdr-sheet {
   position: absolute; top: var(--header-top-h, 100%); left: 0; right: 0; z-index: 30; overflow-y: auto; overscroll-behavior: contain;
@@ -371,11 +375,18 @@ html.drawer-open { overflow: hidden; }
   border-top: 1px solid var(--border-gray-light); border-bottom: 1px solid var(--border-gray-light); box-shadow: var(--shadow-down);
 } /* 높이는 화면 아래를 넘지 않게(common.js fitSheet, 가로 휴대폰). 아래 선은 고대비와 어두운 화면에서도 판 끝이 보이게(v0.61 검토) */
 .site-header.is-stuck .hdr-sheet { top: 100%; }
-.acc-sheet > * { max-width: 40rem; } /* PC에서 줄이 본문 폭 끝까지 늘어나지 않게 */
+/* 계정 판의 내용은 오른쪽(누른 계정 아이콘 아래)에 붙임(2026-11-03 기획자 요청: 아이콘을 누른 뒤 왼쪽 끝까지 손을 옮겨야 했음).
+ *   폭은 32rem까지(v0.61은 40rem, 왼쪽에서 시작). 판보다 좁은 휴대폰은 폭 가득이라 그대로. 줄 안의 글자는 왼쪽 맞춤 그대로 */
+.acc-sheet > * { max-width: 32rem; margin-left: auto; text-align: right; }
+/*   글자도 오른쪽 맞춤(같은 날 기획자 요청: 자리만 옮기지 말고 글자를 오른쪽 끝에). 이름님, 조직은 오른쪽 끝에서,
+ *   내 계정과 로그아웃은 아이콘을 오른쪽 끝(계정 아이콘 아래 세로줄)에 두고 글자는 그 왼쪽 */
+.acc-sheet a { flex-direction: row-reverse; justify-content: flex-start; }
 .acc-name { font-size: var(--fs-body-large); font-weight: 700; color: var(--text-bolder); }
 .acc-org { margin-top: 0.2rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
 .acc-sheet ul { margin-top: 1.2rem; border-top: 1px solid var(--border-gray-light); }
-.acc-sheet a { display: flex; align-items: center; gap: 1.2rem; min-height: var(--touch-min); border-bottom: 1px solid var(--border-gray-light); font-size: var(--fs-body-medium); color: var(--text-basic); }
+/* 줄 높이 4.8rem(2026-11-03 기획자 요청: 줄 사이 선이 있는데 높이가 누르는 최소 크기(PC 32px, 휴대폰 44px)뿐이라 글자와 선이 붙어 보였음).
+ *   휴대폰 메뉴 검색 판의 줄(4.8rem)과 같게 */
+.acc-sheet a { display: flex; align-items: center; gap: 1.2rem; min-height: 4.8rem; border-bottom: 1px solid var(--border-gray-light); font-size: var(--fs-body-medium); color: var(--text-basic); }
 .acc-sheet li:last-child a { border-bottom: 0; }
 .acc-sheet .icon { width: 2.2rem; height: 2.2rem; color: var(--text-subtle); }
 .acc-sheet a[aria-current] { color: var(--text-primary); font-weight: 700; }
@@ -388,6 +399,9 @@ html.drawer-open { overflow: hidden; }
  * (v0.60은 PC 메뉴 줄의 이용 안내 왼쪽 돋보기와 그 아래 검색 칸, 휴대폰은 메뉴판 맨 위 검색 칸이었음) */
 .msearch-box { position: relative; }
 .msearch-box .icon { position: absolute; left: 1.2rem; top: 50%; width: 1.8rem; height: 1.8rem; transform: translateY(-50%); color: var(--text-subtle); pointer-events: none; }
+/* 돋보기를 입력한 글자의 세로 가운데에(2026-11-03 기획자 요청): Noto Sans KR 글자는 칸 가운데보다 글자 크기의 약 8% 아래에 그려져
+ *   돋보기가 약 1px 높아 보였음(헤드리스 Chrome 사진의 픽셀로 잼). 칸 글자 크기(em)를 기준으로 같은 비율만큼 내려 화면 배율과 상관없이 맞음 */
+.msearch-box .icon { font-size: var(--fs-body-medium); top: calc(50% + 0.08em); }
 .msearch-input {
   width: 100%; height: var(--height-md); padding: 0 1.2rem 0 4rem; border: 1px solid var(--border-gray); border-radius: var(--radius-md);
   background: var(--surface-white); font: inherit; font-size: var(--fs-body-medium); color: var(--text-basic);
@@ -395,8 +409,13 @@ html.drawer-open { overflow: hidden; }
 .msearch-input::placeholder { color: var(--text-subtle); }
 .msearch-input:focus-visible { border-color: var(--border-focus); box-shadow: inset 0 0 0 1px var(--border-focus); } /* 칸 안쪽 파란 선(REQ-UI-21) */
 .msearch-head { margin: 1.2rem 0 0.2rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
-.msearch-item { display: flex; align-items: baseline; gap: 0.8rem; min-height: var(--touch-min); margin: 0 -1rem; padding: 0.6rem 1rem; font-size: var(--fs-body-medium); color: var(--text-basic); }
+/* 줄 안의 글자는 세로 가운데(2026-11-03 기획자 요청: 누르면 바탕이 보이는데 글자가 줄 위쪽에 붙어 있었음. 예전에는 기준선 맞춤이라 위로 붙음).
+ *   메뉴 이름과 위 메뉴 이름은 한 덩어리(.msearch-text) 안에서 기준선을 맞추고, 그 덩어리를 줄의 세로 가운데에 둠 */
+.msearch-item { display: flex; align-items: center; min-height: var(--touch-min); margin: 0 -1rem; padding: 0.6rem 1rem; font-size: var(--fs-body-medium); color: var(--text-basic); }
+.msearch-path { margin-left: 0.8rem; }
 .msearch-item:hover { background: var(--action-hover); }
+/* 최근 검색어 줄(2026-11-03): 누르면 그 말로 다시 찾는 단추. 모양은 찾은 메뉴 줄과 같게 */
+.msearch-recent { width: calc(100% + 2rem); border: 0; background: none; text-align: left; font-family: inherit; cursor: pointer; }
 .msearch-item[aria-current] .msearch-label { color: var(--text-primary); font-weight: 700; }
 .msearch-path { font-size: var(--fs-body-small); color: var(--text-subtle); }
 .msearch-empty { padding: 0.8rem 0; font-size: var(--fs-body-small); color: var(--text-subtle); }
@@ -793,6 +812,19 @@ a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: under
 /* 회색 안내 상자 없이 제목 바로 아래 상자가 오는 화면(내 계정, v0.55 기획자 요청): 제목과 첫 상자 사이 간격 */
 .page-head--sub + .admin-stack { margin-top: var(--gap-box); }
 .page-intro .sub { font-size: var(--fs-body-small); color: var(--text-subtle); }
+/* "바뀐 점" 한 줄 (기획자 결정 2026-11-02 E-15, common.js renderChangeNote): 릴리즈에 적은 바뀐 화면에서 보일 기간 동안만
+ *   회색 안내 상자의 맨 끝 줄. 상자가 없는 화면(개요, 내 계정, 결재 문서, 계약 상세 등)은 제목 줄 바로 아래 흐린 한 줄(.change-line)
+ *   이름(바뀐 점)은 흐리게, 값(릴리즈 제목)은 링크로(REQ-UI-32). 화면을 보이기 전에 붙어 흔들리지 않음. 인쇄하지 않음(no-print) */
+.change-note { font-size: var(--fs-body-small); color: var(--text-subtle); }
+.change-note-key { margin-right: 0.8rem; }
+.change-note a { color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; overflow-wrap: anywhere; }
+.change-line { margin: 1.2rem 0 var(--gap-box); }
+.page-head:not(.page-head--sub) + .change-line { margin-top: 0; } /* 개요: 인사말 줄의 아래 여백(1.2rem)이 이미 있음 */
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) {
+  /* 손가락으로 누르는 화면: 줄 높이는 그대로 두고 누르는 영역만 44px(REQ-ENV-06, 이 장 아래 터치 규칙과 같은 방법) */
+  .change-note a { position: relative; }
+  .change-note a::before { content: ""; position: absolute; left: 50%; top: 50%; width: max(100%, var(--touch-min)); height: max(100%, var(--touch-min)); transform: translate(-50%, -50%); }
+}
 /* 진행 상세 표 위 회색 안내 한 줄 (기획자 결정 2026-11-02 D-2): ①은 1단계, ②~⑤는 2단계, ⑥~⑧은 3단계, ⑨와 ⑩은 4단계
  *   개요, 전체 진행 현황, 내 등록 목록이 함께 씀(예전에는 dashboard.css와 list.css에 같은 규칙이 둘). 개요만 아래 여백이 넓음(dashboard.css)
  *   묶음 설명(form.css .section-desc)과 같은 모양. 읽을 안내라 회색 상자(REQ-UI-32). 늘 있는 줄이라 화면이 흔들리지 않음 */
@@ -890,8 +922,11 @@ a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: under
 }
 @media (forced-colors: active) {
   :focus-visible { outline: 0.2rem solid Highlight !important; outline-offset: 0.2rem; }
-  .choice input[type="radio"]::before { forced-color-adjust: none; background: CanvasText !important; }
-  .choice input[type="radio"]:checked { border-color: CanvasText !important; }
+  /* 라디오의 가운데 점은 단추 바탕 그림(form.css, 2026-11-03)이라 고대비에서도 글자색으로 그림 */
+  .choice input[type="radio"]:checked {
+    forced-color-adjust: none; border-color: CanvasText !important; background-color: Canvas !important;
+    background-image: radial-gradient(circle, CanvasText 0 calc(var(--control-size) * 0.25 - 0.5px), transparent calc(var(--control-size) * 0.25 + 0.5px)) !important;
+  }
   .choice input[type="checkbox"]:checked { forced-color-adjust: none; border-color: Highlight !important; background: Highlight !important; }
   .choice input[type="checkbox"]::before { forced-color-adjust: none; background: HighlightText !important; }
   .cal-day.is-selected, .page-btn.is-current, .seg button[aria-pressed="true"] { forced-color-adjust: none; background: Highlight !important; color: HighlightText !important; }

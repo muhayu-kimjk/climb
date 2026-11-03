@@ -14,6 +14,10 @@
  *   7. 임시 저장과 기안: 계약 기록으로 저장하고 결재 문서로 감 (v0.58 QA: 예전에는 안내만 하고 저장하지 않았음)
  *   기획자 결정 2026-11-02: A-3 원계약은 내가 영업대표인 계약만(A-11 만료 뒤 서비스를 닫기 전이면 연장 가능),
  *     B-5 견적서로 계약서를 대신함(quoteInstead), B-6 4번 조건의 종류(checklist.acctKinds), E-3 결재선에 ③ 영업 임원 승인
+ *     E-1 ① 영업기회번호 하나에 계약 하나(syncOpp), C-13 거래처 확인 경고와 C-16 보류 막기(syncGuards)
+ *     E-4 제품 줄에 기안한 날의 표준 단가와 할인율 한도(listPrice, cap)를 남김: 뒤에 한도를 바꿔도 이 계약의 결재선(③, ③ 영업 임원 승인)이 그대로
+ *   기획자 결정 2026-11-03 C-44: "내가 영업대표"는 지금 영업대표(C.isSalesRep: 넘겨받은 새 영업대표, 맡을 수 없으면 대신 맡는 영업 리더).
+ *     원계약 목록, 보완 후 재기안, 변경과 연장의 기안자(C.repActorOf)가 모두 같은 사람. 영업 리더도 그런 계약이 있으면 들어와 변경, 연장만
  * 프로토타입: 임시 저장과 기안은 이 브라우저에만 저장(시연 기록), 파일은 이름만 남습니다. 실제 시스템에서는 서버에 저장하고,
  *   가격 기준 계산과 결재선 결정도 서버에서 다시 검증해야 합니다(화면 값은 바꿀 수 있으므로).
  * ===================================================================== */
@@ -52,8 +56,13 @@
   function addMonths(d, m) { return new Date(d.getFullYear(), d.getMonth() + m, d.getDate()); }
   function iso(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 
-  /* ---------- 1. 영업만 쓸 수 있음 (REQ-AUTH-04, 4.1). 최고관리자는 모든 화면을 볼 수 있음 (v0.16) ---------- */
-  if (me.role !== 'SALES' && me.role !== 'SUPER') {
+  /* ---------- 1. 영업만 쓸 수 있음 (REQ-AUTH-04, 4.1). 최고관리자는 모든 화면을 볼 수 있음 (v0.16) ----------
+   * 기획자 결정 2026-11-03(C-44): 영업 담당자가 아니어도 지금 영업대표인 계약(C.isSalesRep)이 있으면 들어옴(repOnly)
+   *   영업 리더가 맡을 수 없는 영업대표 대신 맡는 계약, 영업 리더가 자기를 새 영업대표로 정한 계약. 이 사람은 그 계약의 변경, 연장과
+   *   보완 후 재기안만 하고 신규는 고르지 못함(아래 "신규 막기"). 계약 상세의 기안 단추와 개요, 결재 문서의 보완 후 재기안 링크와 같은 사람 */
+  const repOnly = me.role !== 'SALES' && me.role !== 'SUPER' &&
+    D.CONTRACTS.some(function (c) { return c.id && !c.parentId && c.status !== 'DRAFT' && C.isSalesRep(c, me); });
+  if (me.role !== 'SALES' && me.role !== 'SUPER' && !repOnly) {
     $('#notice').innerHTML = noticeHtml('', '계약 등록은 영업만 할 수 있습니다',
       '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 화면 맨 위 검은 띠에서 영업 역할로 바꾸면 계약 등록 화면을 볼 수 있습니다.', '');
     form.hidden = true;
@@ -194,9 +203,11 @@
   //     계약 상세의 기안 단추, 만료 예정의 할 일 단추와 같은 규칙(REQ-REG-08, CTL-66). 다른 영업의 계약은 목록에 없고 주소로 와도 미리 고르지 않음
   //   기획자 결정 2026-11-02 A-11(A-10과 함께): 연장은 만료된 계약도 서비스를 닫기 전(만료 처리 차례, 유예 중)이면 고를 수 있음.
   //     유예는 연장 협상 중에 두는 것이라 만료 뒤에도 연장 기안이 이어져야 함. 서비스를 닫은 계약(만료 처리 완료)은 신규로. 변경은 계약 완료만
+  //   기획자 결정 2026-11-03(C-44): 내가 영업대표인 계약 = 지금 영업대표(C.isSalesRep: 넘겨받은 새 영업대표, 맡을 수 없으면 대신 맡는 영업 리더)
+  //     처음 기안했어도 다른 사람에게 넘어간 계약은 목록에 없음(계약 상세의 단추와 같은 사람)
   const anyOrigin = me.role === 'SUPER';
   const mine = D.CONTRACTS.filter(function (c) {
-    return c.id && !c.parentId && (anyOrigin || c.requesterId === me.id) && C.canView(c, me);
+    return c.id && !c.parentId && (anyOrigin || C.isSalesRep(c, me)) && C.canView(c, me);
   });
   function lateRenewable(b) {
     const x = b && b.status === 'EXPIRED' ? C.expiryOf(b) : null;
@@ -227,10 +238,12 @@
   // 기안자(requesterId): 기획자 결정 2026-11-02 A-3: 변경과 연장의 기안자는 원계약의 영업대표
   //   최고관리자는 시연으로 대신 기안(해지, 연장 검토, 운영 변경과 같게). 그래야 ③은 영업대표 유닛의 리더, ⑦은 영업대표에게 가고 E-3도 맞게 정해짐
   //   보완 후 재기안은 반려된 기안의 기안자 그대로. 영업은 자기 계약만 원계약으로 고르므로 늘 본인
+  //   기획자 결정 2026-11-03(C-44): 원계약의 처음 기안자가 아니라 지금 영업대표(C.repActorOf: 넘겨받은 새 영업대표, 맡을 수 없으면 대신 맡는 영업 리더)
+  //     보완 후 재기안도 같음(common.js resubmitRecord가 같은 값으로 저장). ③은 그 사람 유닛의 리더, 리더가 기안하면 영업 임원
   function drafterId() {
-    if (source && source.status === 'REJECTED') return source.requesterId;
+    if (source && source.status === 'REJECTED') return C.repActorOf(source);
     const o = (val('kind') || 'NEW') !== 'NEW' && $('#f-origin').value ? D.CONTRACTS.find(function (x) { return x.id === $('#f-origin').value; }) : null;
-    return o ? o.requesterId : (source && source.requesterId) || me.id;
+    return o ? C.repActorOf(o) : (source && source.requesterId) || me.id;
   }
   function originHelp() {
     const late = val('kind') === 'RENEW' ? ' 연장은 만료되었어도 서비스를 닫기 전이면 고를 수 있습니다.' : '';
@@ -243,14 +256,16 @@
   const srcId = new URLSearchParams(location.search).get('id');
   //   임시 저장한 계약과 다시 기안할 수 있는 반려 계약만(검토 중인 계약을 열어 새 계약으로 또 기안하지 않게, v0.58 QA).
   //   최고관리자는 시연으로 다른 사람 것도 열 수 있음(내 등록 목록에서 버튼이 보이므로)
+  //   기획자 결정 2026-11-03(C-44): 반려 건은 지금 영업대표(C.isSalesRep, 결재 문서와 내 등록 목록의 보완 후 재기안 링크와 같은 사람).
+  //     처음 기안했어도 영업대표가 바뀌었으면 열지 않음. 임시 저장은 쓴 사람만(나만 보는 기록)
   const source = srcId ? D.CONTRACTS.find(function (c) {
-    return (c.id === srcId || c.draftKey === srcId) && (c.requesterId === me.id || me.role === 'SUPER') &&
+    return (c.id === srcId || c.draftKey === srcId) && ((c.status === 'DRAFT' ? c.requesterId === me.id : C.isSalesRep(c, me)) || me.role === 'SUPER') &&
       (c.status === 'DRAFT' || (C.canResubmit(c) && C.resubmitHref(c).indexOf('new-contract.html') === 0)); // 해지, 그대로 연장, 운영 변경은 그 화면에서
   }) : null;
   // 원계약 목록에 없어도 보이는 원계약: 보완 후 재기안은 원계약을 바꿀 수 없어 늘. 이어서 작성은 내가 영업대표인 원계약일 때만(A-3, 시연용 최고관리자는 모두)
   const extraOrigin = source && source.parentId ? (function () {
     const o = D.CONTRACTS.find(function (c) { return c.id === source.parentId; });
-    if (source.status !== 'REJECTED' && !anyOrigin && (!o || o.requesterId !== me.id)) return null;
+    if (source.status !== 'REJECTED' && !anyOrigin && (!o || !C.isSalesRep(o, me))) return null; // 지금 영업대표(C-44)
     return { id: source.parentId, counterparty: source.counterparty };
   })() : null;
   let round = 1;
@@ -532,7 +547,8 @@
     //   맡는 사람 이름은 결재 문서와 같은 규칙(C.stepWho, 기획자 결정 2026-11-02 D-3): 리더 본인 계약의 ③은 "영업 임원", 영업지원이 기안하면 ②⑧은 "재무"
     const req = { requesterId: drafterId(), kind: val('kind') || 'NEW', personalData: personal === 'YES', // A-3: 변경과 연장은 원계약의 영업대표
       checklist: { standard: q1, price: pc.q2, cap: pc.q3 },
-      products: rows.filter(function (r) { return r.product && r.qty && r.amount != null; }).map(function (r) { return { feature: r.feature, qty: r.qty, amount: r.amount }; }),
+      // E-4: 기안할 때 남기는 줄과 같게 오늘의 표준 단가와 한도를 함께 넘김(C.capOver가 이 값으로 셈)
+      products: rows.filter(function (r) { return r.product && r.qty && r.amount != null; }).map(function (r) { return { feature: r.feature, qty: r.qty, amount: r.amount, listPrice: r.product.listPrice, cap: r.product.discountCap }; }),
       amount: totalAmount(), quoteInstead: qi };
     const name = function (code) { return C.ownerLabel(C.stepUserNow(code, req)); };
     const who = function (code) { return C.stepWho(code, req) + ' ' + name(code); };
@@ -542,6 +558,10 @@
       : (function () { const r = C.reviewRoute(req).S03C; return [r[0] ? 'go' : 'skip', r[1]]; })();
     // 기획자 결정 2026-11-02 B-5: 견적서로 계약서를 대신하면 ⑦은 고객 날인 견적서 등록, ⑧은 견적서 확인(이름은 C.stepLabel)
     const stepName = function (code) { return C.stepLabel(code, req).replace(/^\S+\s/, ''); };
+    // ⑦은 기안자 쪽(지금 영업대표). 내가 하면 "영업 (나)", 최고관리자가 시연으로 다른 영업대표 대신 기안하거나 대신 맡는 사람이 따로 있으면 그 이름
+    //   (기획자 결정 2026-11-02 A-3 남은 것: 예전에는 늘 "영업 (나)"라 최고관리자가 대신 기안해도 자기가 ⑦을 하는 것처럼 보였음)
+    const rep7 = C.stepUserNow('S07', req);
+    const who7 = rep7 === me.id ? '영업 (나)' : '영업대표 ' + C.ownerLabel(rep7);
     return [
       { stage: '2단계 계약 검토 (② 다음 ③, 그다음 ④와 ⑤ 동시)', items: [
         { no: '②', name: '체크리스트 검토', who: who('S02'), state: 'go', reason: '어떤 경우에도 생략하지 않음' }, // REQ-CHK-02
@@ -552,8 +572,8 @@
       ] },
       { stage: '3단계 계약 체결', items: [
         { no: '⑥', name: '인장 날인 검토', who: '총무 ' + name('S06'), state: 'go', reason: '기초 정보 확인 후 인장 날인' },
-        qi ? { no: '⑦', name: stepName('S07'), who: '영업 (나)', state: 'go', reason: '고객의 날인이나 서명은 시스템 밖에서' }
-          : { no: '⑦', name: '상대방 서명, 체결본 등록', who: '영업 (나)', state: 'go', reason: '서명은 시스템 밖에서' },
+        qi ? { no: '⑦', name: stepName('S07'), who: who7, state: 'go', reason: '고객의 날인이나 서명은 시스템 밖에서' }
+          : { no: '⑦', name: '상대방 서명, 체결본 등록', who: who7, state: 'go', reason: '서명은 시스템 밖에서' },
         { no: '⑧', name: qi ? stepName('S08') : '체결본 확인', who: who('S08'), state: 'go', reason: qi ? '날인한 견적서가 결재한 견적과 같은지 확인' : '승인된 내용과 같은지 확인' },
       ] },
       { stage: '4단계 운영 검토', items: [
@@ -584,6 +604,8 @@
   /* ---------- 화면 전체 다시 그리기 (입력이 바뀔 때마다) ---------- */
   let current = { route: [], pc: {} };
   function refresh() {
+    // 영업대표 칸: 기안자로 남을 사람(drafterId). 신규는 나, 변경과 연장은 원계약의 지금 영업대표(A-3, 2026-11-03 C-44). 최고관리자가 대신 기안해도 그 영업대표
+    $('#f-owner').value = C.ownerLabel(drafterId());
     const rows = readProducts();
     // 제품 줄마다 표준 금액과 할인율 표시
     rows.forEach(function (r) {
@@ -633,6 +655,8 @@
       : '';
     $('#route').innerHTML = routeHtml(route);
     current = { route: route, pc: pc, q1: q1, total: total, qi: qi };
+    syncOpp();    // 기획자 결정 2026-11-02 E-1 ①: 같은 영업기회번호를 쓴 계약
+    syncGuards(); // C-16 보류, C-13 거래처 확인
   }
 
   /* ---------- 4번 조건의 종류 (기획자 결정 2026-11-02 B-6, G-07, REQ-CHK-08) ----------
@@ -701,6 +725,59 @@
     $('#opp-link').innerHTML = C.isOppNo(v)
       ? '<a class="btn btn--tertiary btn--md ext-btn" href="' + C.pandaUrl(v) + '" target="_blank" rel="noopener noreferrer">' + C.icon('external', 'sm') + '판다에서 열기<span class="sr-only">(새 창)</span></a>' : '';
   }
+  // 칸 아래 알림 한 줄(아이콘 + 글). 글이 같으면 다시 쓰지 않음(입력할 때마다 화면낭독기가 같은 말을 되풀이하지 않게)
+  function setWarn(sel, msg) {
+    const w = $(sel);
+    if (w.dataset.msg === msg) return;
+    w.dataset.msg = msg;
+    w.innerHTML = msg ? C.icon('alert', 'sm') + esc(msg) : '';
+    w.hidden = !msg;
+  }
+
+  /* ---------- 영업기회번호 하나에 계약 하나 (기획자 결정 2026-11-02 E-1 ①, G-02, CTL-02) ----------
+   * 같은 번호를 쓴 다른 계약(C.oppUses): 기안한 계약만 셈. 반려 뒤 다시 기안하는 이 계약은 같은 계약이라 뺌. 변경과 연장은 각자 번호
+   *   다른 고객의 계약이면 기안을 막음(칸 아래에 까닭). 같은 고객의 다른 계약이면 경고하고 까닭을 받음
+   *     까닭은 계약 기록 oppDup { ids: 같은 번호를 쓴 계약, reason }과 form.oppReason으로 남고 결재 문서에 보임
+   *   거래처를 아직 고르지 않았으면 같은 고객인지 모른다고만 알림. 볼 수 없는 열람 제한 계약은 번호와 고객사를 가리고 건수만 */
+  let opp = { all: [], other: [], same: [] };
+  function oppNames(list) {
+    const shown = list.filter(function (c) { return C.canView(c, me); });
+    const hidden = list.length - shown.length;
+    return shown.map(function (c) { return c.id + ' ' + c.counterparty; }).concat(hidden ? ['열람 제한 계약 ' + hidden + '건'] : []).join(', ');
+  }
+  function syncOpp() {
+    const no = val('opportunity'), biz = val('bizNo').replace(/\D/g, ''), name = val('counterparty');
+    opp = C.isOppNo(no) ? C.oppUses(no, { bizNo: biz, name: name, exceptId: source && source.status === 'REJECTED' ? source.id : null }) : { all: [], other: [], same: [] };
+    const known = !!(biz || name);
+    setWarn('#opp-warn', opp.all.length && !known ? '이 번호를 쓴 계약이 있습니다. 거래처를 고르면 같은 고객의 계약인지 봅니다.'
+      : opp.other.length ? '다른 고객의 계약(' + oppNames(opp.other) + ')에 쓴 번호입니다. 번호 하나는 계약 하나에만 쓰므로 이대로는 기안할 수 없습니다. 판다에서 번호를 확인하세요.'
+      : opp.same.length ? '같은 고객의 다른 계약(' + oppNames(opp.same) + ')에 쓴 번호입니다. 같은 번호를 쓰는 까닭을 적으면 기안할 수 있고, 까닭은 결재 문서에 보입니다.' : '');
+    showNote('oppReason', known && !opp.other.length && opp.same.length > 0);
+  }
+
+  /* ---------- 거래처 확인과 보류 (기획자 결정 2026-11-02 C-13, C-16, 컴플라이언스가 남김) ----------
+   * 보류(C-16): 거래처(사업자등록번호)나 계약 묶음(변경과 연장의 원계약, 보완 후 재기안하는 이 계약)에 걸린 보류(C.holdOf)가 있으면 알리고 기안을 막음
+   *   임시 저장은 됨. 보류는 컴플라이언스 담당자가 걸고 풂(개선 과제와 보류 SCR-64)
+   * 거래처 확인(C-13): 국가와 지자체(가운데 83), 조달, 간접 거래처인데 확인이 없거나 다음 확인일이 지났거나 문제 있음이면 경고만(C.customerCheckNote, 막지 않음)
+   *   기안할 때 보인 경고 문장은 계약 기록 customerCheckWarn으로 남김(경고를 보고 기안했다는 기록)
+   * common.js에 컴플라이언스의 기능이 없으면 아무것도 보이지 않고 막지도 않음 */
+  let guard = { hold: null, check: '' };
+  function syncGuards() {
+    const kind = val('kind') || 'NEW';
+    const target = {
+      id: source && source.status === 'REJECTED' ? source.id : null,
+      parentId: kind !== 'NEW' ? ($('#f-origin').value || (source && source.parentId) || null) : null,
+      counterparty: val('counterparty'), form: { bizNo: val('bizNo') },
+    };
+    let hold = null, check = '';
+    try { hold = typeof C.holdOf === 'function' ? C.holdOf(target) : null; } catch (e) { hold = null; }
+    const biz = val('bizNo').replace(/\D/g, '');
+    try { check = biz.length === 10 && typeof C.customerCheckNote === 'function' ? C.customerCheckNote(biz, val('method')) || '' : ''; } catch (e) { check = ''; }
+    guard = { hold: hold, check: check };
+    setWarn('#customer-hold', hold ? (typeof C.holdText === 'function' ? C.holdText(hold, me) : '보류가 걸려 있습니다. 사유: ' + (hold.reason || '')) +
+      ' 보류가 풀릴 때까지 기안할 수 없습니다(임시 저장은 됨).' : '');
+    setWarn('#customer-check', check);
+  }
   form.addEventListener('input', function (e) {
     // 사업자등록번호: 숫자만 넣으면 '-'를 붙여 보여 줌(글자는 지움, v0.34)
     if (e.target.id === 'f-bizno') { e.target.value = C.fmtBizNo(e.target.value); bizWarn(); }
@@ -758,10 +835,11 @@
     const rej = b.rejected.filter(function (o) { return o.kind === kind; })[0];
     if (rej) {
       // 보완 후 재기안 링크는 그 기안을 올린 사람(시연은 최고관리자)에게만. 다른 사람은 기안자에게 요청 (v0.63 검토)
-      const own = rej.requesterId === me.id || me.role === 'SUPER';
+      //   기획자 결정 2026-11-03(C-44): 올린 사람 대신 지금 영업대표(C.isSalesRep). 요청할 사람도 그 사람(C.repActorOf)
+      const own = C.isSalesRep(rej, me) || me.role === 'SUPER';
       //   긴 계약번호는 문장 앞에 둠(양쪽 정렬이라 문장 가운데의 긴 번호 때문에 낱말 사이가 크게 벌어졌음, v0.63 점검)
       return { msg: rej.id + ': 반려된 ' + D.KINDS[kind] + ' 기안이 있습니다. 새로 기안하지 않고 그 기안을 보완해 같은 번호로 다시 올립니다.' +
-        (own ? '' : ' 기안자(' + C.ownerLabel(rej.requesterId) + ')에게 보완을 요청하세요.'), href: own ? C.resubmitHref(rej) : '', short: '반려된 기안을 보완 후 재기안하세요. 새로 기안할 수 없습니다.' };
+        (own ? '' : ' 영업대표(' + C.ownerLabel(C.repActorOf(rej)) + ')에게 보완을 요청하세요.'), href: own ? C.resubmitHref(rej) : '', short: '반려된 기안을 보완 후 재기안하세요. 새로 기안할 수 없습니다.' };
     }
     if (kind === 'RENEW') {
       const busy = b.open.filter(function (o) { return o.kind === 'RENEW' || o.kind === 'TERMINATE' || (o.kind === 'CHANGE' && o.changeType === 'PERIOD'); })[0];
@@ -887,6 +965,13 @@
     // 영업기회번호: 필수, 판다 번호 규칙 (v0.32 기획자 요청)
     need(!!val('opportunity'), 'opportunity', '영업기회번호를 입력하세요.');
     if (val('opportunity')) need(C.isOppNo(val('opportunity')), 'opportunity', '영업기회번호는 연도 2자리, 월 2자리, 영문 2자리, 일련번호 3자리입니다(예: 2610SU067).');
+    // 기획자 결정 2026-11-02 E-1 ①: 다른 고객의 계약에 쓴 번호는 막고, 같은 고객의 다른 계약에 쓴 번호면 까닭을 받음
+    syncOpp();
+    if (opp.other.length) need(false, 'opportunity', '다른 고객의 계약에 쓴 영업기회번호입니다. 번호 하나는 계약 하나에만 씁니다. 판다에서 번호를 확인하세요.');
+    else if (opp.same.length) need(!!val('oppReason'), 'oppReason', '같은 고객의 다른 계약에 쓴 영업기회번호입니다. 같은 번호를 쓰는 까닭을 적으세요.');
+    // 기획자 결정 2026-11-02 C-16: 거래처나 계약 묶음에 보류가 걸려 있으면 기안하지 못함(임시 저장은 됨). 거래처 확인(C-13)은 경고만이라 여기서 막지 않음
+    syncGuards();
+    if (guard.hold) need(false, 'customer', '보류가 걸린 ' + (guard.hold.kind === 'BUNDLE' ? '계약 묶음이라' : '거래처라') + ' 기안할 수 없습니다. 보류가 풀린 뒤 기안합니다.', qInput);
     need(!!val('method'), 'method', '계약 방식을 고르세요.');
     need(!!val('startDate'), 'startDate', '계약 시작일을 입력하세요.');
     need(!!val('endDate'), 'endDate', '계약 종료일을 입력하세요.');
@@ -983,7 +1068,9 @@
     const products = rows.map(function (r) {
       const o = orgOf(r.li);
       // 까닭을 아직 안 고른 미정(true)은 임시 저장에서만 남음(기안은 validate가 막음). 이어서 작성하면 체크한 채로 열림
-      return Object.assign({ feature: r.feature, qty: r.qty, amount: r.amount }, o.org ? { org: o.org } : {},
+      //   기획자 결정 2026-11-02 E-4: 그날의 표준 단가와 할인율 한도(listPrice, cap)도 남김(03 계약 제품의 "쓴 가격 기준과 그때의 한도" 제안, G-03)
+      //     뒤에 한도를 바꿔도 이 계약의 결재선(③, ③ 영업 임원 승인)은 이 값으로 정함(C.capOver). 이어서 작성하면 그날 값으로 다시 셈
+      return Object.assign({ feature: r.feature, qty: r.qty, amount: r.amount }, r.product ? { listPrice: r.product.listPrice, cap: r.product.discountCap } : {}, o.org ? { org: o.org } : {},
         o.orgPending ? { orgPending: o.orgPending } : {}, o.orgPending === 'OTHER' && o.orgNote ? { orgNote: o.orgNote } : {});
     });
     const checklist = {
@@ -1013,6 +1100,7 @@
       products: products, checklist: checklist, yearly: $('#yearly-field').hidden ? [] : yearlyAmounts(),
       ledger: val('ledger'), taxInvoice: val('taxInvoice'), purchase: val('purchase'), memo: val('memo'), template: tp,
       quoteInstead: quoteInstead,
+      oppReason: oppDupOk() ? val('oppReason') : '', // E-1 ①: 같은 고객의 다른 계약과 같은 번호를 쓰는 까닭(보일 때만 저장)
     };
     return {
       counterparty: val('counterparty'), unit: unitValue(), services: services, kind: kind,
@@ -1022,8 +1110,14 @@
       startDate: formVals.startDate, endDate: formVals.endDate, autoRenew: formVals.autoRenew, noticeDays: formVals.noticeDays,
       template: tp, checklist: checklist, products: products, memo: formVals.memo, files: fileList, form: formVals,
       quoteInstead: quoteInstead, // B-5 (03 contract.quote_instead 제안)
+      // 기획자 결정 2026-11-02 E-1 ①: 같은 고객의 다른 계약과 같은 영업기회번호를 쓴 까닭과 그 계약들(결재 문서에 보임). 없으면 null
+      //   C-13: 기안할 때 보인 거래처 확인 경고 문장(없으면 ''). 보완 후 재기안은 그때 값으로 바꿔 씀(앞 차수 값이 남지 않게 늘 넣음)
+      oppDup: oppDupOk() ? { ids: opp.same.map(function (c) { return c.id; }), reason: val('oppReason') } : null,
+      customerCheckWarn: guard.check || '',
     };
   }
+  // 같은 고객의 다른 계약과 같은 번호를 쓰고(다른 고객 계약에는 없음) 까닭을 받는 중인지
+  function oppDupOk() { return !opp.other.length && opp.same.length > 0; }
 
   // 임시 저장: 나만 보는 작성 중 기록(계약번호 없이 임시 키 D-0002 꼴). 이어서 작성하면 같은 기록을 바꿔 씀 (REQ-FLOW-14, 31)
   //   보완 후 재기안은 반려된 계약을 고치는 것이라 임시 저장 없이 바로 기안
@@ -1059,6 +1153,10 @@
     });
     const rows = [
       ['거래처', val('counterparty') + (val('bizNo') ? ' (' + val('bizNo') + ')' : '') + (unitValue() ? ', 기관 또는 부서: ' + unitValue() : '')],
+      // 기획자 결정 2026-11-02 C-13: 거래처 확인 경고가 있으면 기안 전에 한 번 더 보임(막지 않음)
+      guard.check ? ['거래처 확인', guard.check] : null,
+      // E-1 ①: 같은 고객의 다른 계약과 같은 번호면 그 계약과 까닭을 함께
+      ['영업기회번호', val('opportunity') + (oppDupOk() ? ' (같은 고객의 다른 계약 ' + oppNames(opp.same) + '에도 씀. 까닭: ' + val('oppReason') + ')' : '')],
       ['서비스', serviceOfProducts()],
       ['계약 금액', fmtNum(current.total || 0) + '원 (부가세 별도)'],
       ['계약 기간', C.fmtPeriod(val('startDate'), val('endDate'))],
@@ -1072,7 +1170,7 @@
       ['기안 차수', round + '차' + (val('restricted') ? ', 열람 제한' : '')],
     ];
     $('#confirm-body').innerHTML = '<p>기안하면 ② 체크리스트 검토부터 시작되고, 기안한 내용은 결재가 끝날 때까지 고칠 수 없습니다.</p>' +
-      '<dl class="confirm-list">' + rows.map(function (r) { return '<div><dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd></div>'; }).join('') + '</dl>';
+      '<dl class="confirm-list">' + rows.filter(Boolean).map(function (r) { return '<div><dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd></div>'; }).join('') + '</dl>';
     lastFocus = document.activeElement;
     modal.hidden = false;
     C.focusModal(modal); // 제목에 포커스 (KRDS 모달, v0.28)
@@ -1135,6 +1233,8 @@
     const fb = source.form ? {} : source;
     $('#f-opportunity').value = f.opportunity || fb.opportunity || '';
     updateOppLink();
+    // 기획자 결정 2026-11-02 E-1 ①: 같은 번호를 쓰는 까닭(보이는지는 refresh의 syncOpp가 정함)
+    $('#f-opp-reason').value = f.oppReason || (source.oppDup && source.oppDup.reason) || '';
     setRadio('method', f.method ? (f.method === 'RESELLER' ? 'INDIRECT' : f.method) : source.form ? '' : C.methodOf(source));
     $('#f-start').value = f.startDate || fb.startDate || '';
     $('#f-end').value = f.endDate || fb.endDate || '';
@@ -1179,12 +1279,19 @@
     if (origins.some(function (c) { return c.id === pre.get('origin'); })) $('#f-origin').value = pre.get('origin');
     else {
       // A-3: 다른 영업의 계약으로 들어오면 미리 고르지 않고 까닭을 알림(계약 상세 D-5 안내와 같은 말)
+      //   기획자 결정 2026-11-03(C-44): 처음 기안한 사람이 아니라 지금 영업대표(C.isSalesRep, C.salesRepOf). 맡을 수 없으면 대신 맡는 사람도 알림
       const po = D.CONTRACTS.find(function (c) { return c.id === pre.get('origin') && !c.parentId; });
-      if (po && po.requesterId !== me.id && !anyOrigin && C.canView(po, me)) {
+      if (po && !C.isSalesRep(po, me) && !anyOrigin && C.canView(po, me)) {
         $('#notice').innerHTML = noticeHtml('', '영업대표만 변경과 연장을 기안합니다',
-          '이 계약(' + esc(po.id) + ')의 영업대표는 ' + esc(C.ownerLabel(po.requesterId)) + '입니다. 원계약은 내가 영업대표인 계약 중에서 고릅니다.', '');
+          '이 계약(' + esc(po.id) + ')의 영업대표는 ' + esc(C.ownerLabel(C.salesRepOf(po))) + '입니다.' + (C.repNeeded(po) ? ' ' + esc(C.repCoverText(po)) : '') +
+          ' 원계약은 내가 영업대표인 계약 중에서 고릅니다.', '');
       }
     }
+  }
+  // 신규 막기(기획자 결정 2026-11-03 C-44): 영업 담당자가 아닌 사람(위 repOnly)은 지금 영업대표인 계약의 변경과 연장만. 반려된 신규의 보완 후 재기안은 그대로
+  if (repOnly && !(source && source.status === 'REJECTED')) {
+    const nr = form.querySelector('[name="kind"][value="NEW"]');
+    if (nr) { nr.disabled = true; if (nr.checked) setRadio('kind', 'AMEND'); }
   }
   if (!$$('#product-list > li').length) addProduct();
   syncOrgAll();

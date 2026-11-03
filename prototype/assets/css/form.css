@@ -114,9 +114,13 @@
 .choice { display: inline-flex; align-items: center; gap: 0.6rem; min-height: var(--touch-min); font-size: var(--fs-body-medium); color: var(--text-basic); cursor: pointer; }
 .choice input { appearance: none; flex-shrink: 0; display: grid; place-content: center; width: var(--control-size); height: var(--control-size); margin: 0; border: 1px solid var(--border-gray); /* v0.59: 글자 크기에 맞춤(tokens.css) */ background: var(--surface-white); cursor: pointer; }
 .choice input[type="radio"] { border-radius: 50%; }
-.choice input[type="radio"]::before { content: ""; width: calc(var(--control-size) * 0.5); height: calc(var(--control-size) * 0.5); border-radius: 50%; background: var(--control-checked); transform: scale(0); transition: transform 0.1s ease; }
-.choice input[type="radio"]:checked { border: 0.2rem solid var(--control-checked); }
-.choice input[type="radio"]:checked::before { transform: scale(1); }
+/* 가운데 점(2026-11-03 기획자 요청: 누를 때마다 점 자리가 조금씩 달라 보였음): 예전에는 점을 따로 그린 작은 원(::before)이라,
+ *   글자 크기를 키운 화면(17/15배)에서 크기와 자리가 소수 픽셀이 되면 바깥 원과 점이 따로 픽셀에 맞춰져 단추마다 0.5~1px씩 어긋났음.
+ *   이제 점을 단추 자신의 바탕 그림(가운데서 그리는 원)으로 그려 늘 바깥 원과 같은 가운데. 점 지름은 그대로 단추의 절반 */
+.choice input[type="radio"]:checked {
+  border: 0.2rem solid var(--control-checked);
+  background-image: radial-gradient(circle, var(--control-checked) 0 calc(var(--control-size) * 0.25 - 0.5px), transparent calc(var(--control-size) * 0.25 + 0.5px));
+}
 .choice input[type="checkbox"] { border-radius: 0.4rem; }
 .choice input[type="checkbox"]::before {
   content: ""; width: calc(var(--control-size) * 0.66); height: calc(var(--control-size) * 0.66); background: var(--control-checked-text); transform: scale(0); transition: transform 0.1s ease;
@@ -201,6 +205,11 @@
 .input-with-link .input { flex: 1; min-width: 0; }
 .ext-btn { flex-shrink: 0; gap: 0.4rem; }
 .ext-link { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; }
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) {
+  /* 손가락으로 누르는 화면: 누르는 영역만 44px(REQ-ENV-06, 2026-11-03 점검에서 고침: 23px이었음).
+   *   위아래 바깥 여백을 그만큼 빼서 줄 높이와 글자 자리는 그대로(결재 문서의 영업기회번호, 영업기회 대사 표). PC는 그대로 */
+  .ext-link { min-height: var(--touch-min); margin-block: calc((1lh - var(--touch-min)) / 2); }
+}
 @media print { .combo-panel, .combo-icon, #opp-link { display: none !important; } .combo-input { padding-left: 1.6rem; } }
 
 /* ---------- 날짜 입력과 달력 (KRDS 날짜 입력 필드, 달력. v0.35) ----------

@@ -21,6 +21,20 @@ a.board-title:hover { color: var(--text-primary); text-decoration: underline; te
  *   글자 줄 안의 표시만 숨겨 이름 줄 높이는 그대로. 계약 등록의 사용 업체 칸(new-contract.js syncOrg)과 같은 생각 */
 [data-field="pinUntil"]:has(.input:disabled) .req,
 [data-field="pinUntil"]:has(.input:disabled) .req + .sr-only { display: none; }
+/* 릴리즈 글쓰기의 "보일 기간"(기획자 결정 2026-11-02 E-15): 바뀐 화면을 고르기 전에는 위 맨 위 고정 칸과 같은 잠긴 모양 */
+[data-field="changeDays"] .input:disabled { background: var(--surface-gray-subtler); border-color: var(--border-gray-light); color: var(--text-subtle); cursor: not-allowed; }
+[data-field="changeDays"]:has(.input:disabled) .field-label { color: var(--text-subtle); }
+[data-field="changeDays"]:has(.input:disabled) .req,
+[data-field="changeDays"]:has(.input:disabled) .req + .sr-only { display: none; }
+/* 릴리즈 글쓰기의 "바뀐 화면"(E-15): 접어 둔 화면 고르기(창이 길어지지 않게). 펼치면 메뉴 묶음마다 한 줄
+ *   (사용자 권한 관리의 역할 고르기 admin.css .role-row와 같은 모양. 공지 보기 화면은 admin.css를 부르지 않아 여기 둠)
+ *   고른 화면은 아래 한 줄(넘치면 말줄임)이라 고르는 동안 창이 흔들리지 않음. 접기 줄 모양은 아래 내 계정의 .mail-more와 같음 */
+.screen-pick-body { border-top: 1px solid var(--border-gray-light); }
+.screen-row { margin: 0; padding: 0; border: 0; border-bottom: 1px solid var(--border-gray-light); }
+.screen-row::after { content: ""; display: table; clear: both; }
+.screen-row-name { float: left; width: 10rem; padding: 1rem 0 0; font-size: var(--fs-body-small); font-weight: 700; color: var(--text-bolder); }
+.screen-row-choices { display: flex; flex-wrap: wrap; gap: 0 2rem; margin-left: 10rem; }
+.screen-picked { margin-top: 0.4rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--fs-body-small); color: var(--text-basic); }
 
 /* ---------- 글 보기 ---------- */
 .post-head { padding-bottom: 2rem; border-bottom: 1px solid var(--border-gray-light); }
@@ -67,14 +81,15 @@ a.board-title:hover { color: var(--text-primary); text-decoration: underline; te
 .mail-list > li.is-not-mine .mail-when { padding-left: 0; }
 .mail-list > li.is-not-mine .mail-preview-btn { grid-row: 1 / span 2; align-self: center; }
 .mail-more { margin-top: 2.4rem; }
-.mail-more > summary {
+/*   릴리즈 글쓰기의 "화면 고르기"(.screen-pick, 2026-11-02 E-15)도 같은 접기 줄 */
+.mail-more > summary, .screen-pick > summary {
   display: flex; align-items: center; gap: 0.6rem; width: fit-content; min-height: var(--touch-min);
   font-size: var(--fs-body-small); font-weight: 700; color: var(--text-bolder); cursor: pointer; list-style: none;
 }
-.mail-more > summary::-webkit-details-marker { display: none; }
-.mail-more > summary .icon { flex-shrink: 0; color: var(--text-subtle); transition: transform 0.15s ease; }
-.mail-more[open] > summary .icon { transform: rotate(180deg); }
-.mail-more > summary:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
+.mail-more > summary::-webkit-details-marker, .screen-pick > summary::-webkit-details-marker { display: none; }
+.mail-more > summary .icon, .screen-pick > summary .icon { flex-shrink: 0; color: var(--text-subtle); transition: transform 0.15s ease; }
+.mail-more[open] > summary .icon, .screen-pick[open] > summary .icon { transform: rotate(180deg); }
+.mail-more > summary:focus-visible, .screen-pick > summary:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
 .mail-more-desc { margin: 0.4rem 0 1.2rem; }
 /* 받음, 받지 않음, 꼭 받음 배지를 같은 폭으로: 켜고 끌 때 배지 폭이 바뀌어 옆 글이 다시 줄바꿈되며 줄이 흔들리지 않게 (D-23) */
 .mail-state .badge { min-width: 6em; justify-content: center; }
@@ -113,4 +128,6 @@ a.board-title:hover { color: var(--text-primary); text-decoration: underline; te
   .post-nav dt { width: 5.2rem; }
   .post-actions .btn { flex: 1 1 0; }
   .mail-preview-btn { min-height: var(--touch-min); } /* 손가락으로 누르기 쉬운 크기 */
+  .screen-row-name { width: 8rem; } /* 바뀐 화면 고르기(E-15): 역할 고르기와 같게 좁힘 */
+  .screen-row-choices { margin-left: 8rem; gap: 0 1.6rem; }
 }

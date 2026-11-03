@@ -106,12 +106,26 @@
 .close-desc { margin-bottom: 0.8rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
 .close-split { margin-bottom: 0.8rem; font-size: var(--fs-body-small); }
 
+/* ---------- 통제 지표 (기획자 결정 2026-11-02 C-1) ----------
+ * 묶음 안 작은 제목(평균 할인, 대리 결재, 위험 신호, 4번 조건의 종류, ④ 반부패 조항 판단) 사이를 띄움
+ * 평균 할인 표 아래 안내 한 줄은 늘 글이 있어 조건을 바꿔도 화면이 흔들리지 않음 */
+.control-title { margin-top: 2.4rem; }
+.control-note { margin-top: 0.8rem; }
+
+/* ---------- 통제 증빙 내보내기 (기획자 결정 2026-11-02 C-3) ----------
+ * 기간 마감 점검의 회색 줄(.close-bar)을 그대로 쓰고 날짜 칸 둘을 같은 폭으로
+ * 파일 지문(SHA-256)은 64자라 칸 안 어디서나 줄을 바꿈. 숫자 폭을 고르게 */
+.export-bar { grid-template-columns: minmax(0, 18rem) minmax(0, 18rem) minmax(0, 1fr); }
+.tbl td.hash { min-width: 16rem; overflow-wrap: anywhere; word-break: break-all; font-size: var(--fs-body-xsmall); font-variant-numeric: tabular-nums; color: var(--text-basic); }
+
 /* ---------- 휴대폰 ---------- */
 @media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
   /* 기간 마감 점검: 윗줄 기간 말과 앞뒤 날 수, 아랫줄 단추(손가락 크기 44px, 폭을 나눠 씀) */
   .close-bar { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); padding: 1.6rem; }
   .close-acts { grid-column: 1 / -1; }
   .close-acts .btn { flex: 1 1 0; }
+  /* 통제 증빙 내보내기(C-3): 시작일, 종료일은 한 줄에 하나씩(기획자 결정 2026-11-02 D-7과 같음), 아래 단추 */
+  .export-bar { grid-template-columns: minmax(0, 1fr); }
   .filter-bar--stats { grid-template-columns: 1fr 1fr; }
   .filter-bar--stats .field:first-child, .filter-bar--stats .filter-reset { grid-column: 1 / -1; }
   .stat-row { grid-template-columns: 1fr 1fr; }

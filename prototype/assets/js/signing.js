@@ -4,7 +4,7 @@
  * 관련 요구사항: REQ-FLOW-04~05, REQ-SIGN-07, REQ-ENV-10
  * 하는 일
  *   1. 계약 검토가 끝나 체결 중인 계약(⑥ 인장 날인, ⑦ 체결본 등록, ⑧ 체결본 확인)을 모음
- *      영업은 내가 기안한 계약만, 최고관리자와 관리자는 모든 계약을 영업대표 칸과 함께
+ *      영업은 내가 지금 영업대표인 계약만(기획자 결정 2026-11-03 C-44, 넘겨받은 계약 포함), 최고관리자와 관리자는 모든 계약을 영업대표 칸과 함께
  *   2. 검색, 지금 단계, 오래 기다린 건으로 거르기. 오래된 승인부터
  *   3. 한 쪽에 20건씩 쪽 나누기
  *   4. 일수 칸 (기획자 결정 2026-11-02 D-12): ⑥, ⑦ 줄은 승인 후 일수(14일 이상 강조), ⑧ 줄은 그 단계에 온 날부터 센 대기(5일 이상 강조)
@@ -24,7 +24,10 @@
   const SIGN_STEPS = ['S06', 'S07', 'S08'];
 
   const seeAll = me.role === 'SUPER' || me.role === 'ADMIN';
-  if (!seeAll && me.role !== 'SALES') {
+  // 기획자 결정 2026-11-03(C-44): 내 계약은 내가 지금 영업대표인 계약(C.isSalesRep: 넘겨받은 계약, 맡을 수 없는 영업대표 대신 맡는 영업 리더)
+  //   ⑦ 차례가 그 사람에게 가므로(common.js stepUser) 이 목록도 같은 사람에게. 영업 역할이 아니어도 그런 계약이 있으면 들어옴
+  const repOwn = function (c) { return C.isSalesRep(c, me); };
+  if (!seeAll && me.role !== 'SALES' && !D.CONTRACTS.some(function (c) { return c.status === 'APPROVED' && repOwn(c); })) {
     $('#notice').innerHTML = C.noticeBox('', '체결 대기는 영업이 씁니다',
       '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. ⑥ 인장 날인과 ⑧ 체결본 확인 차례는 계약 현황 > 검토 대기에서 봅니다.');
     $('#list').hidden = true;
@@ -36,7 +39,7 @@
   //   ⑧ 줄은 개요, 전체 진행 현황, 내 등록 목록처럼 그 단계에 온 날부터 센 대기(C.waitDays)와 5일 강조. 독촉 이메일 규칙은 그대로
   //   at8: ⑧ 줄인지 / days: 칸에 쓰는 일수 / long: 강조하는지
   const all = D.CONTRACTS.filter(function (c) {
-    return c.status === 'APPROVED' && (seeAll || c.requesterId === me.id);
+    return c.status === 'APPROVED' && (seeAll || repOwn(c));
   }).map(function (c) {
     const s = C.currentStep(c);
     const at8 = !!s && s.step === 'S08';
@@ -99,7 +102,7 @@
         '<td>' + cust + '</td>' +
         '<td class="col-service">' + (visible ? service : '-') + '</td>' +
         '<td class="nowrap">' + stepCell + '</td>' +
-        (seeAll ? '<td class="center">' + esc(C.ownerLabel(x.c.requesterId)) + '</td>' : '') +
+        (seeAll ? '<td class="center">' + esc(C.ownerLabel(C.salesRepOf(x.c))) + (C.repNote(x.c) ? '<span class="cell-meta">' + esc(C.repNote(x.c)) + '</span>' : '') + '</td>' : '') + // 지금 영업대표(C-44)
         '<td class="num-left">' + C.fmtDate(x.c.approvedAt) + '</td>' +
         '<td class="num col-wait">' + days + '</td>' + // ⑥, ⑦은 승인 후, ⑧은 대기 (D-12)
       '</tr>';

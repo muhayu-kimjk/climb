@@ -12,6 +12,9 @@
  *      - 계약 묶음 단위: 원계약에 두고 변경, 연장, 해지, 운영 변경 기안이 이어받음(후속 기안 줄에서 바꿔도 원계약에 반영)
  *      - 기획자 결정 2026-11-02 A-9: 관찰자는 지정되어도 보지 못함(common.js canView). 사람 목록에서 관찰자를 빼고,
  *        조직으로 지정하면 그 조직의 관찰자는 보지 못한다고 도움말에 적음. 예전에 사람으로 지정된 관찰자는 칸에 "관찰자라 보지 못함"
+ *      - 기획자 결정 2026-11-02 C-2: 감사 열람 역할은 지정하지 않아도 모든 열람 제한 계약을 봄(common.js canView). 지정에는 끝나는 날이 없어
+ *        감사 열람인 사람을 사람으로 지정하면 감사 열람이 끝난 뒤에도 계속 봄. 그래서 사람 목록과 칸에 "감사 열람 중"을 붙여 알림(막지는 않음)
+ *        모든 지정 열람자는 분기 권한 검토(SCR-57)에 올라감(common.js designatedViewersAll)
  *   4. 변경 이력: 영업이 등록할 때 건 기록(RESTRICT_LOG), 관리자가 걸고 푼 기록과 열람자를 지정하고 뺀 기록(ADMIN_LOG의 RESTRICT),
  *      인사이동으로 사람 지정이 풀린 기록(계약의 viewers에서 만듦)
  * 열람 제한은 원계약의 변경, 연장, 해지, 운영 변경 기안이 이어받음(D-13 v0.39)
@@ -34,6 +37,8 @@
     const a = C.accountOf(id);
     return a ? a.roles.indexOf('OBSERVER') > -1 : (D.USERS[id] || {}).role === 'OBSERVER';
   }
+  // 지금 감사 열람인 사람인지 (기획자 결정 2026-11-02 C-2: 지정하지 않아도 모두 봄. 끝나는 날이 지나면 false)
+  function isAuditing(id) { return !!C.roleUntil(id, 'AUDIT'); }
 
   // 걸고 푼 기록 (건 때를 찾는 데 씀): 영업이 등록할 때 건 것 + 관리자가 걸고 푼 것. 열람자 지정 기록은 뺌
   function restrictEvents() {
@@ -76,13 +81,16 @@
       const on = C.viewerState(v) === 'ON';
       return '<span class="viewer-line' + (on ? '' : ' is-off') + '">' + esc(C.viewerLabel(v)) + ' <span class="viewer-kind">' + KIND[v.kind] + '</span>' +
         (on && v.kind === 'USER' && isObserver(v.userId) ? ' <span class="viewer-kind">관찰자라 보지 못함</span>' : '') + // A-9
+        (on && v.kind === 'USER' && isAuditing(v.userId) ? ' <span class="viewer-kind">감사 열람 중</span>' : '') + // C-2: 감사 열람이 끝나도 이 지정으로 계속 봄
         (on ? ' <button type="button" class="link-act link-act--danger" data-remove="' + esc(root.id) + '|' + esc(C.viewerKey(v)) + '" aria-label="' + esc(C.viewerLabel(v)) + ' 열람자에서 빼기">빼기</button>'
           : ' ' + C.badge('line', '풀림') + '<span class="cell-meta">조직이 바뀜: ' + esc(v.deptAtGrant) + ' → ' + esc(v.releasedTo || (D.USERS[v.userId] || {}).dept || '-') + '</span>') +
         '</span>';
     }).join('');
     const inherited = c.id !== root.id ? '<span class="cell-meta">원계약 ' + esc(root.id) + '에서 이어받음</span>' : '';
     // 더하기는 이 칸 맨 아래 (표가 A4 폭 안에 들어가게 관리 칸에는 풀기만)
-    return (rows || '<span class="cell-meta">없음</span>') + inherited +
+    //   지정이 없으면 "없음"(작은 회색 글자 .cell-meta, PC는 예전 그대로). 휴대폰에서만 지정 줄과 같은 글자 크기에 위 여백 없이(admin.css .viewer-none)
+    //   작은 글자일 때 휴대폰에서 옆 칸 첫 줄보다 2px 낮았음(2026-11-03 점검, 해솔테크 줄). PC 표는 바꾸지 않음(2026-11-03 검토)
+    return (rows || '<span class="cell-meta viewer-none">없음</span>') + inherited +
       '<button type="button" class="link-act viewer-add" data-viewer="' + esc(root.id) + '" aria-label="' + esc(c.counterparty) + ' 열람자 더하기">열람자 더하기</button>';
   }
 
@@ -110,7 +118,8 @@
       .map(function (c) { return [c.id, label(c) + ' (' + C.kindLabel(c) + ', ' + D.STATUS[c.status].label + ')']; });
     C.formModal({
       title: '열람 제한을 걸까요?',
-      desc: '원계약을 고르면 그 뒤의 변경, 연장, 해지, 운영 변경 기안까지 묶음 전체에 걸립니다. 걸면 영업대표(요청자), 결재선과 단계 담당자, 관리자, 지정한 열람자만 볼 수 있고, 다른 사람에게는 목록에 "열람 제한 계약"으로만 보입니다.',
+      // 기획자 결정 2026-11-02 C-2: 감사 열람 역할도 봄
+      desc: '원계약을 고르면 그 뒤의 변경, 연장, 해지, 운영 변경 기안까지 묶음 전체에 걸립니다. 걸면 영업대표(요청자), 결재선과 단계 담당자, 관리자, 지정한 열람자, 감사 열람 역할만 볼 수 있고, 다른 사람에게는 목록에 "열람 제한 계약"으로만 보입니다.',
       body: C.fieldHtml({ name: 'cid', label: '계약', type: 'select', required: true, options: [['', '고르세요']].concat(opts) }) +
         C.fieldHtml({ name: 'reason', label: '거는 사유', type: 'textarea', required: true, placeholder: '예: 고객사가 계약 사실을 비공개로 해 달라고 요청' }),
       btn: '열람 제한 걸기',
@@ -148,8 +157,9 @@
     const ons = C.viewersOf(root).filter(function (v) { return C.viewerState(v) === 'ON'; }).map(C.viewerKey);
     const depts = C.codeList('DEPT').map(function (d) { return [d.label, d.label]; });
     // 사람: 사용 중인 계정. "조직 이름"으로 (v0.51 표기). 관찰자는 지정되어도 보지 못하므로 목록에서 뺌 (기획자 결정 2026-11-02 A-9)
+    //   기획자 결정 2026-11-02 C-2: 감사 열람 중인 사람은 이름 뒤에 "감사 열람 중"(이미 모두 봄. 지정하면 감사 열람이 끝나도 계속 봄)
     const people = (D.ACCOUNTS || []).filter(function (a) { return a.status !== 'SUSPENDED' && a.roles.indexOf('OBSERVER') < 0; })
-      .map(function (a) { return [a.id, (a.dept ? a.dept + ' ' : '') + a.name]; })
+      .map(function (a) { return [a.id, (a.dept ? a.dept + ' ' : '') + a.name + (isAuditing(a.id) ? ' (감사 열람 중)' : '')]; })
       .sort(function (a, b) { return a[1].localeCompare(b[1], 'ko'); });
     C.formModal({
       title: '열람자를 더할까요?',
@@ -159,7 +169,8 @@
         '<div data-kind="DEPT">' + C.fieldHtml({ name: 'dept', label: '조직', type: 'select', required: true, options: [['', '고르세요']].concat(depts),
           help: '그 조직에 지금 있는 사람이 봅니다. 사람이 옮겨 오거나 떠나면 저절로 반영됩니다. 관찰자는 그 조직에 있어도 보지 못합니다.' }) + '</div>' +
         '<div data-kind="USER">' + C.fieldHtml({ name: 'user', label: '사람', type: 'select', required: true, options: [['', '고르세요']].concat(people),
-          help: '이 사람이 다른 조직으로 옮기면 지정이 저절로 풀리고 관리자에게 이메일로 알립니다. 꼭 필요할 때만 씁니다. 관찰자는 고를 수 없습니다.' }) + '</div>' +
+          help: '이 사람이 다른 조직으로 옮기면 지정이 저절로 풀리고 관리자에게 이메일로 알립니다. 꼭 필요할 때만 씁니다. 관찰자는 고를 수 없습니다. ' +
+            '감사 열람 중인 사람은 지정하지 않아도 보고, 지정하면 감사 열람이 끝나도 계속 봅니다.' }) + '</div>' +
         C.fieldHtml({ name: 'reason', label: '지정하는 사유', type: 'textarea', required: true, placeholder: '예: 총판 계약이라 매출 인식 방법을 재무기획유닛이 미리 검토' }),
       btn: '열람자 더하기',
       open: function (f) {
@@ -194,7 +205,7 @@
     if (!v) return;
     C.formModal({
       title: '열람자에서 뺄까요?',
-      desc: '빼면 ' + (v.kind === 'DEPT' ? '그 조직 사람들은' : '그 사람은') + ' 기본으로 볼 수 있는 경우(영업대표, 결재선과 단계 담당자, 관리자)가 아니면 이 계약 묶음을 볼 수 없습니다.',
+      desc: '빼면 ' + (v.kind === 'DEPT' ? '그 조직 사람들은' : '그 사람은') + ' 기본으로 볼 수 있는 경우(영업대표, 결재선과 단계 담당자, 관리자, 감사 열람)가 아니면 이 계약 묶음을 볼 수 없습니다.',
       body: '<p class="modal-info">' + esc(label(root)) + ': ' + esc(C.viewerLabel(v)) + '(' + KIND[v.kind] + ')</p>' +
         C.fieldHtml({ name: 'reason', label: '빼는 사유', type: 'textarea', required: true, placeholder: '예: 매출 인식 검토가 끝남' }),
       btn: '열람자에서 빼기', tone: 'danger',

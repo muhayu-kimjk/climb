@@ -19,6 +19,14 @@
  *      B-3 운영 변경도 ⑨ 다음 ⑩ 재무 확인(결재란 설명, 변경 내용의 ⑩ 줄, ⑨ ⑩ 창). 유상 충전은 기능, 표준 단가, 표준 금액, 할인율(막지 않음)
  *      A-10, A-11 계약이 끝난 뒤의 차례(⑨ 만료 처리, ③ 만료 유예 확인)는 결재란 셋째 작은 표와 맨 위 안내. 처리는 계약 상세에서
  *      C-15 체크리스트 1번과 ④ 창에 기준 표준계약서 판의 반부패 조항 표시
+ *      C-16 거래처나 계약 묶음에 보류가 걸리면(C.holdOf) 머리에 "보류 중", 맨 위에 까닭. 남은 결재의 승인(날인 완료, 체결본 등록, 확인 완료,
+ *        운영 적용, 재무 확인 포함)은 단추를 빼고 까닭을 보임. 반려, 보완 요청, 다시 등록 요청, 승인 취소, 보완 완료는 그대로. 반려된 계약의 재기안 단추도 뺌
+ *      E-1 ① 영업기회번호 줄에 같은 고객의 다른 계약이 같은 번호를 쓰는 까닭(기안자가 적음), C-13 고객사 줄에 기안 때 거래처 확인 경고
+ *      E-4 제품과 금액의 표준 단가와 한도는 기안 때 줄에 남긴 값, 없으면 기안한 날의 가격 기준(C.pricesAt)
+ *   7. 기획자 결정 2026-11-03
+ *      C-44 영업대표 칸은 지금 영업대표(바뀌었으면 작은 줄에 처음 기안한 사람, 사용 중지라 정하기 전이면 "담당 지정 필요 (영업 리더가 맡음)").
+ *        보완 완료, 보완 후 재기안, 원본 내려받기는 지금 영업대표(C.isSalesRep). 결재란의 기안 칸과 결재 기록의 기안 줄은 처음 기안한 사람 그대로
+ *      C-18 ⑤ HR 충전의 ⑩은 재무 담당자(⑨를 하지 않은 다른 재무 담당자). 결재란 설명과 변경 내용의 ⑩ 줄
  * 결재 상태 계산(누가 차례인지, 반려와 승인 완료)은 common.js(buildReview)가 결재 기록으로 합니다.
  * 프로토타입: 계약 상세 값 중 예시 데이터에 없는 것(사업자등록번호, 제품 줄 등)은 이 파일에서 만들어 보여 줍니다.
  * ===================================================================== */
@@ -53,10 +61,9 @@
   /* ---------- 상세 값 (예시 데이터에 없으면 만들어 보여 줌, 프로토타입 전용) ---------- */
   const f = c.form || {};
   // 가격 기준: 기능마다 하나(v0.49). 이 계약을 기안한 날 적용되던 가격으로 봄(v0.56: 뒤에 가격이 바뀌어도 지난 계약의 할인율이 그대로)
-  //   그날 가격이 없으면(가격 기준을 들이기 전 계약) 오늘 가격으로
-  const PRICE = {};
-  D.PRICE_BOOK.forEach(function (p) { PRICE[p.feature] = p; });
-  D.currentPrices(D.PRICE_ROWS, (c.requestedAt || D.TODAY).slice(0, 10)).forEach(function (p) { PRICE[p.feature] = p; });
+  //   기획자 결정 2026-11-02 E-4: 그날 가격이 없으면(가격 기준을 들이기 전 계약) 오늘 가격이 아니라 그 기능의 첫 가격 줄(C.pricesAt, C.capOver와 같은 기준)
+  //   기안할 때 줄에 남긴 표준 단가와 한도(line.listPrice, line.cap, new-contract.js)가 있으면 그것을 먼저 씀(아래 productRows)
+  const PRICE = C.pricesAt(String(c.requestedAt || D.TODAY).slice(0, 10));
   function num(n) { return Number(n || 0).toLocaleString('ko-KR'); }
   const won = C.fmtWon; // 돈은 반드시 원을 붙임 (REQ-UI-17)
   function pct(r) { return Math.round(r * 1000) / 10 + '%'; }
@@ -131,7 +138,8 @@
       }) : [];
     }
     return list.map(function (r) {
-      const p = PRICE[r.feature];
+      // E-4: 기안 때 줄에 남긴 표준 단가와 한도를 먼저(그 뒤 가격 기준이 바뀌어도 ③이 본 할인율 그대로)
+      const p = Object.assign({}, PRICE[r.feature], r.listPrice != null ? { listPrice: Number(r.listPrice) } : {}, r.cap != null ? { discountCap: Number(r.cap) } : {});
       const std = p.listPrice * r.qty;
       // 할인율은 부호 그대로: 표준보다 높게 받으면 음수 (v0.58 QA: 예전에는 "표준 단가"로 보였음)
       return { product: p, qty: r.qty, amount: r.amount, std: std, discount: (std - r.amount) / std, org: orgText(r) };
@@ -227,15 +235,19 @@
     const upOf = function (kind) { return (up || []).filter(function (x) { return x.kind === kind; }); };
     //   올린 이름은 지금 차수의 기안 판(첫 판)에 붙임. 보완 완료로 다시 올린 판은 시안에 파일이 없어 만든 이름 (v0.63 검토)
     const draftName = function (kind, v, fallback) { const f = upOf(kind)[0]; return up && f && v.round === (c.round || 1) && v === dv.filter(function (x) { return x.round === v.round; })[0] ? { name: f.name, size: f.size || fallback.size } : fallback; };
-    const list = [{ kind: 'DRAFT_DOC', versions: dv.map(function (v) { return Object.assign(draftName('DRAFT_DOC', v, { name: c.counterparty + '_계약서_초안_판' + v.no + '.docx', size: 84000 + seq * 13 + v.no * 977 }), v); }) }];
+    // 기획자 결정 2026-11-02 B-5(남은 것 고침): 견적서로 계약서를 대신한 계약은 계약서 초안이 선택(계약 등록이 그렇게 받음).
+    //   올린 초안이 없으면 만든 초안을 보이지 않고 아래 최종 견적서만. 계약 검토 결재자가 "본 판"으로 본 것도 최종 견적서(renderHistory)
+    const noDraft = quote && !upOf('DRAFT_DOC').length;
+    const list = noDraft ? [] : [{ kind: 'DRAFT_DOC', versions: dv.map(function (v) { return Object.assign(draftName('DRAFT_DOC', v, { name: c.counterparty + '_계약서_초안_판' + v.no + '.docx', size: 84000 + seq * 13 + v.no * 977 }), v); }) }];
     // 조항 대비표: 표준계약서를 바꾼 계약 (v0.27, C-20). 계약서 초안과 같이 판이 바뀜
     if (legalNote) list.push({ kind: 'CLAUSE_DIFF', versions: dv.map(function (v) { return Object.assign(draftName('CLAUSE_DIFF', v, { name: c.counterparty + '_조항대비표_판' + v.no + '.docx', size: 36000 + seq * 5 + v.no * 311 }), v, { approved: false }); }) });
     // 부속 서류: 비밀유지계약서처럼 계약에 딸린 서류 (v0.41)
     if (up) upOf('ANNEX').forEach(function (x) { list.push(one('ANNEX', x.name, x.size || 152000)); });
     else (c.annex || []).forEach(function (name, i) { list.push(one('ANNEX', name, 152000 + seq * 3 + i * 1000)); });
     // 최종 견적서는 선택: 올린 것만(예시 계약은 금액이 있으면 하나 있는 것으로 보여 줌)
-    if (up) upOf('QUOTE').forEach(function (x) { list.push(one('QUOTE', x.name, x.size || 212000)); });
-    else if (c.amount) list.push(one('QUOTE', c.counterparty + '_최종견적서.pdf', 212000 + seq * 7));
+    //   B-5: 견적서로 대신한 계약은 최종 견적서가 꼭 있음(올린 것이 없는 예시 계약도 하나 있는 것으로 보여 줌)
+    if (up && upOf('QUOTE').length) upOf('QUOTE').forEach(function (x) { list.push(one('QUOTE', x.name, x.size || 212000)); });
+    else if ((!up && c.amount) || quote) list.push(one('QUOTE', c.counterparty + '_최종견적서.pdf', 212000 + seq * 7));
     const sv = signedVersions();
     // 견적서로 계약서를 대신한 계약은 ⑦에 올린 문서 이름이 "고객 날인 최종 견적서"(기획자 결정 2026-11-02 B-5, C.signDocLabel)
     if (sv.length) list.push({ kind: 'SIGNED', label: C.signDocLabel(c), versions: sv.map(function (v) { return Object.assign({ size: 1840000 + seq * 11 + v.no * 3000 }, v); }) });
@@ -253,8 +265,12 @@
   const round = c.round || 1;
   const kindText = C.kindLabel(c) + (c.parentId ? ' (원계약 ' + c.parentId + ')' : '');
   $('#doc-title').textContent = c.counterparty;
+  // 기획자 결정 2026-11-02 C-16: 이 계약의 거래처나 묶음에 걸린 보류(C.holdOf). 걸려 있으면 머리에 "보류 중" 배지, 맨 위에 까닭,
+  //   처리 막대에서 승인과 체결본 등록 단추를 빼고 까닭을 보임(반려, 보완 요청, 다시 등록 요청, 승인 취소, 보완 완료는 그대로)
+  const hold = C.holdOf(c);
+  const holdStops = function (action, code) { return !!C.holdBlocksAction(c, code, action); };
   // 계약 묶음 보기: 원계약과 변경, 연장, 해지를 한 장에서 (SCR-42, REQ-ARC-02)
-  $('#doc-meta').innerHTML = C.meta([esc(c.id), esc(C.serviceLabel(c.services)), esc(kindText), round + '차 기안', C.statusBadge(c),
+  $('#doc-meta').innerHTML = C.meta([esc(c.id), esc(C.serviceLabel(c.services)), esc(kindText), round + '차 기안', C.statusBadge(c), C.holdBadge(hold),
     '<a class="doc-link" href="contract.html?id=' + encodeURIComponent(rootId) + '">계약 묶음 보기</a>']);
 
   const actionable = (c.approvals || []).filter(function (s) { return C.canAct(c, s, me); });
@@ -262,7 +278,9 @@
   // 내 차례: 담당자 본인이거나 대리 지정 기간 안의 대신할 사람 (REQ-REV-08)
   const isMine = function (s) { return C.isMyStep(s, me); };
   // 보완 요청을 받은 기안자가 보완 완료를 누를 수 있는지 (최고관리자는 시연용으로 대신)
-  const canResubmit = c.status === 'SUPPLEMENT' && !!c.supplement && (me.id === c.requesterId || me.role === 'SUPER');
+  //   기획자 결정 2026-11-03(C-44): 기안자 대신 지금 영업대표(바뀐 새 영업대표, 사용 중지면 대신 맡는 영업 리더, C.isSalesRep). 읽기만 하는 역할은 false
+  const repMine = C.isSalesRep(c, me);
+  const canResubmit = c.status === 'SUPPLEMENT' && !!c.supplement && (repMine || me.role === 'SUPER') && !C.isReadOnly(me);
   // 대리 지정으로 대신 처리하는 단계면 "최민준님 대신 (대리 지정 10.19 ~ 10.23)" 안내
   function behalfText(s) {
     const dl = s.userId !== me.id ? C.activeDelegation(s.userId, me.id) : null;
@@ -274,7 +292,8 @@
     review: change
       ? '변경 내용(종류, 기간이나 수량, 사유, CRM 영업활동)을 확인한 뒤 화면 아래에서 승인, 보완 요청, 반려 중에 골라 주세요. 승인 의견은 적지 않아도 되고, 보완 요청과 반려는 사유를 꼭 적습니다.'
       : '계약 내용과 체크리스트, 첨부 파일을 확인한 뒤 화면 아래에서 승인, 보완 요청, 반려 중에 골라 주세요. 승인 의견은 적지 않아도 되고, 보완 요청과 반려는 사유를 꼭 적습니다. 보완을 요청하면 기안자가 고친 뒤 이 단계부터 이어서 결재합니다.',
-    S06: '계약서 실물의 고객사명, 체결 제품, 계약 금액, 계약 기간이 이 문서와 같은지 확인한 뒤 날인하고, 화면 아래에서 날인 완료로 처리해 주세요. 인장 사용 기록은 기존 구글 폼에 남깁니다.',
+    // 기획자 결정 2026-11-02 B-5(남은 것 고침): 견적서로 계약서를 대신한 계약은 ⑥이 날인하는 문서가 견적서(⑥ 자체는 그대로, [가정] C-18 ④)
+    S06: (quote ? '견적서' : '계약서 실물') + '의 고객사명, 체결 제품, 계약 금액, 계약 기간이 이 문서와 같은지 확인한 뒤 날인하고, 화면 아래에서 날인 완료로 처리해 주세요. 인장 사용 기록은 기존 구글 폼에 남깁니다.',
     // 기획자 결정 2026-11-02 B-8: ⑦에서 서명본 체결일을 함께 적고 ⑧이 확인. B-5: 견적서로 대신한 계약은 고객 날인 최종 견적서와 고객 날인일
     S07: quote ? '고객 날인 최종 견적서(고객이 날인하거나 서명한 것, PDF나 스캔 이미지, 50MB 이하)를 화면 아래에서 올려 주세요. 견적서에 고객이 날인한 날도 적습니다. 올린 견적서는 고치거나 지울 수 없습니다.'
       : '상대방 서명을 받은 뒤 화면 아래에서 체결본(PDF나 스캔 이미지, 50MB 이하)을 올려 주세요. 서명본에 적힌 체결일도 적습니다. 올린 체결본은 고치거나 지울 수 없습니다.',
@@ -321,15 +340,16 @@
       html = canResubmit
         ? notice('', C.stepLabel(sp.step, c) + '에서 보완을 요청했습니다', head +
           '고친 뒤 화면 아래에서 보완 완료를 누르면 ' + no + '부터 이어서 결재합니다. 금액이나 체크리스트 답을 바꾸면 계약 검토를 처음부터 다시 받습니다.' +
-          (me.id === c.requesterId ? '' : ' (시연: 최고관리자가 기안자 대신 처리해 볼 수 있습니다)'))
+          (repMine ? '' : ' (시연: 최고관리자가 기안자 대신 처리해 볼 수 있습니다)'))
         : notice('', C.stepLabel(sp.step, c) + '에서 보완을 요청해 기안자가 고치는 중입니다', head + '기안자가 고치면 ' + no + '부터 이어서 결재합니다.');
     } else if (c.status === 'REJECTED') {
       // 기안자가 보완해 같은 번호의 다음 차수로 다시 기안(버튼). 해지, 그대로 연장, 운영 변경도 같음 (v0.58 기획자 결정)
-      const mineRej = me.id === c.requesterId || me.role === 'SUPER';
+      const mineRej = repMine || me.role === 'SUPER'; // 지금 영업대표(2026-11-03 C-44)
       html = notice('', C.stepLabel(c.rejection.step, c) + '에서 반려되었습니다',
         '<strong>' + esc(C.ownerLabel(c.rejection.by)) + ' (' + C.fmtDateTime(c.rejection.at) + ')</strong><br>' + esc(c.rejection.reason) +
         '<br>기안자가 보완해 같은 번호의 ' + (round + 1) + '차로 다시 기안합니다.',
-        mineRej ? '<a class="btn btn--primary btn--md" href="' + C.resubmitHref(c) + '">보완 후 재기안</a>' : '');
+        // 보류 중(C-16)에는 다시 기안하지 못해 단추를 두지 않음(까닭은 맨 위 보류 안내)
+        mineRej && !hold ? '<a class="btn btn--primary btn--md" href="' + C.resubmitHref(c) + '">보완 후 재기안</a>' : '');
     } else if (actionable.length && me.role === 'SUPER') {
       html = notice('', '시연: 담당자 대신 처리해 볼 수 있습니다',
         '최고관리자는 모든 결재 문서를 볼 수 있고, 프로토타입에서는 담당자 대신 각 단계를 처리해 볼 수 있습니다. 실제 시스템에서는 담당자 본인과 관리자가 대리로 지정한 사람만 처리합니다(결재선 규칙의 대리 지정).' + ret);
@@ -352,7 +372,18 @@
       html = notice('success', '계약 완료',
         (c.completedAt ? C.fmtDateTime(c.completedAt) + '에 재무 확인까지 끝나 보관함에 들어갔습니다. ' : '') + '계약 기간: ' + C.fmtPeriod(detail.startDate, detail.endDate));
     }
-    $('#notice').innerHTML = html + expiryNoticeHtml();
+    $('#notice').innerHTML = holdNoticeHtml() + html + expiryNoticeHtml();
+  }
+  /* 보류 안내 (기획자 결정 2026-11-02 C-16): 이 계약의 거래처나 묶음에 보류가 걸려 있으면 맨 위에 까닭과 할 수 있는 일
+   *   결재가 남은 계약: 승인(날인 완료, 체결본 등록, 확인 완료, 운영 적용, 재무 확인 포함)은 못 하고 반려, 보완 요청, 다시 등록 요청, 승인 취소는 됨
+   *   끝난 계약과 반려된 계약: 새 기안(변경, 연장, 해지, 운영 변경, 보완 후 재기안)을 못 함 */
+  function holdNoticeHtml() {
+    if (!hold) return '';
+    const going = ['IN_REVIEW', 'APPROVED', 'OPS_REVIEW', 'SUPPLEMENT'].indexOf(c.status) > -1;
+    return notice('', going ? '보류 중이라 남은 결재를 승인할 수 없습니다' : '보류가 걸린 계약입니다', esc(C.holdText(hold, me)) + '<br>' +
+      (going ? '보류가 풀릴 때까지 승인, 날인 완료, 체결본 등록, 확인 완료, 운영 적용, 재무 확인을 할 수 없습니다. 반려, 보완 요청, 다시 등록 요청, 승인 취소는 할 수 있습니다.'
+        : '보류가 풀릴 때까지 이 계약에 이어지는 새 기안(변경, 연장, 해지, 운영 변경, 보완 후 재기안)을 할 수 없습니다.') +
+      ' 보류는 컴플라이언스 담당자가 풉니다.');
   }
   /* 계약이 끝난 뒤의 차례 안내 (기획자 결정 2026-11-02 A-10, A-11)
    *   ⑨ 만료 처리와 ③ 만료 유예 확인은 이 문서가 아니라 계약 상세에서 처리함(C.turnHref). 이 문서에는 지금 상태와 그 화면 링크만
@@ -434,10 +465,11 @@
     const s03 = C.stepTag('S03', c);
     //   E-3: ③ 영업 임원 승인을 거치면 순서 문장에 "③ 영업 리더 다음 ③ 영업 임원"
     const order = routedList.indexOf('S03C') > -1 ? '② 다음 ' + s03 + ', ' + C.stepTag('S03C', c) + ' 차례로, 그다음 ④와 ⑤ 동시' : '② 다음 ③, 그다음 ④와 ⑤ 동시';
-    // 기획자 결정 2026-11-02 B-3(추천과 다름): 운영 변경도 ⑨ 반영 다음 ⑩ 재무 확인까지(HR 충전의 ⑩은 ⑨를 한 재무 담당자가 아닌 재무 리더)
+    // 기획자 결정 2026-11-02 B-3(추천과 다름): 운영 변경도 ⑨ 반영 다음 ⑩ 재무 확인까지
+    //   기획자 결정 2026-11-03(C-18 ⑤): HR 충전의 ⑩도 재무 담당자(재무 리더 아님). ⑨를 하지 않은 다른 재무 담당자
     $('#box-desc').textContent = change
       ? '운영 변경은 ' + (C.changeSales(c)[0] ? C.josa(s03, '이', '가') + ' 승인한 뒤 ' : '') + C.josa(C.stepTag('S09', c), '이', '가') + ' 반영하고 ' +
-        C.josa(C.stepTag('S10', c), '이', '가') + ' 확인하면 끝납니다' + (hrChange ? '(⑩은 ⑨를 한 재무 담당자가 아닌 사람)' : '') + '. 체크리스트, 법무, 날인, 체결본은 없습니다.'
+        C.josa(C.stepTag('S10', c), '이', '가') + ' 확인하면 끝납니다' + (hrChange ? '(⑩은 ⑨를 하지 않은 다른 재무 담당자)' : '') + '. 체크리스트, 법무, 날인, 체결본은 없습니다.'
       : short
       ? C.josa(isTerm ? '해지 기안' : '연장 검토', '은', '는') + ' ' + s03 + ', ④ 법무가 승인한 뒤 ⑨ 고객지원 ' + (isTerm ? '운영 종료' : '기간 연장') + ', ⑩ 재무 확인을 거칩니다. 체크리스트, 날인, 체결본은 없습니다.'
       : '거치는 단계: ' + routed + '. 순서는 ' + order + '이고, 생략한 단계는 건너뜁니다. 무엇을 생략할지는 체크리스트 답과 개인정보 처리위탁 계약 여부로 정해졌습니다. ' +
@@ -446,18 +478,35 @@
 
   /* ---------- 4. 기본 정보, 금액, 체크리스트, 첨부, 결재 기록 ---------- */
   function info(label, value) { return '<div><dt>' + esc(label) + '</dt><dd>' + value + '</dd></div>'; }
+  // 기획자 결정 2026-11-02 E-1 ①: 같은 고객의 다른 계약이 같은 영업기회번호를 쓰면 기안자가 적은 까닭(contract.oppDup { ids, reason })
+  //   주로 ② 영업지원이 봄. 볼 수 없는 열람 제한 계약은 번호 대신 "열람 제한 계약"
+  function oppDupHtml() {
+    const d = c.oppDup;
+    if (!d || !(d.ids || []).length) return '';
+    const ids = d.ids.map(function (x) {
+      const o = D.CONTRACTS.find(function (k) { return k.id === x; });
+      return o && C.canView(o, me) ? '<a class="doc-link" href="review.html?id=' + encodeURIComponent(x) + '">' + esc(x) + '</a>' : '열람 제한 계약';
+    });
+    return '<span class="cell-meta">같은 번호를 쓰는 같은 고객의 다른 계약: ' + ids.join(', ') + '. 까닭: ' + esc(d.reason || '-') + '</span>';
+  }
   function renderBasic() {
     $('#basic').innerHTML = [
       info('계약번호', esc(c.id)),
       info('계약종류', esc(kindText)),
       // 기안하며 직접 입력한 새 거래처는 표시(v0.63, 표준 대응표 G-25 ①): 사업자 정보 DB에 없던 곳이라 번호를 한 번 더 봄
       //   눈에 띄게 배지로(v0.63 검토: 놓치지 않게 하려는 표시라 흐린 글자만으로는 약함)
-      info('고객사', esc(c.counterparty) + (C.isNewCustomer(c) ? ' ' + C.badge('attention', '새 거래처') + '<span class="cell-meta">이 계약을 기안하며 직접 입력해 등록</span>' : '')),
+      info('고객사', esc(c.counterparty) + (C.isNewCustomer(c) ? ' ' + C.badge('attention', '새 거래처') + '<span class="cell-meta">이 계약을 기안하며 직접 입력해 등록</span>' : '') +
+        // 기획자 결정 2026-11-02 C-13: 기안할 때 계약 등록에 보였던 거래처 확인 경고(막지 않음, contract.customerCheckWarn). 결재자가 같은 경고를 봄
+        (c.customerCheckWarn ? '<span class="cell-meta">기안 때 거래처 확인 경고: ' + esc(c.customerCheckWarn) + '</span>' : '')),
     ].concat((c.unit || f.unit) ? [info('기관 또는 부서명', esc(c.unit || f.unit))] : []).concat([ // 계약마다 직접 적은 기관 이름 (C-24 v0.39, 이름 v0.46)
       info('사업자등록번호', esc(C.fmtBizNo(detail.bizNo))), // 000-00-00000 (v0.34)
-      info('영업대표', esc(C.ownerLabel(c.requesterId))), // 조직 이름 (v0.32)
+      // 조직 이름 (v0.32). 기획자 결정 2026-11-03(C-44): 지금 영업대표. 바뀌었으면 처음 기안한 사람을 작은 줄에,
+      //   사용 중지되어 아직 정하지 않았으면 "담당 지정 필요 (영업 리더가 맡음)"
+      info('영업대표', esc(C.ownerLabel(C.salesRepOf(c))) +
+        (C.salesRepOf(c) !== c.requesterId ? '<span class="cell-meta">처음 기안 ' + esc(C.ownerLabel(c.requesterId)) + '</span>' : '') +
+        (C.repNote(c) ? '<span class="cell-meta">' + C.badge('attention', C.repNote(c)) + '</span>' : '')),
       // 판다(CRM) 영업기회번호: 규칙에 맞으면 판다로 가는 링크 (v0.32)
-      info('영업기회번호', detail.opportunity ? C.pandaLink(detail.opportunity) : '-'),
+      info('영업기회번호', (detail.opportunity ? C.pandaLink(detail.opportunity) : '-') + oppDupHtml()),
       info('계약 방식', esc(D.METHODS[detail.method])),
       info('정산 방식', esc(D.SETTLEMENTS[detail.settlement])),
       info('계약 기간', C.fmtPeriod(detail.startDate, detail.endDate)),
@@ -540,8 +589,9 @@
         dd('CRM 영업활동', c.activityUrl ? '<a href="#" class="doc-link" data-activity>' + esc(c.activityUrl) + '</a>' : '-'),
         dd('③ 영업 검토', (sales[0] ? '거침: ' : '생략: ') + esc(sales[1])),
         dd('⑨ 반영', hrChange ? '재무(수불부)' : '고객지원'),
-        // 기획자 결정 2026-11-02 B-3(추천과 다름): 운영 변경도 ⑩ 재무 확인. HR 충전은 ⑨를 한 재무 담당자가 아닌 재무 리더
-        dd('⑩ 재무 확인', hrChange ? '재무 리더(⑨를 한 재무 담당자가 아닌 사람)' : '재무'),
+        // 기획자 결정 2026-11-02 B-3(추천과 다름): 운영 변경도 ⑩ 재무 확인
+        //   기획자 결정 2026-11-03(C-18 ⑤): HR 충전도 재무 담당자. ⑨를 한 사람이 아닌 다른 재무 담당자(예전 "재무 리더")
+        dd('⑩ 재무 확인', hrChange ? '재무(⑨를 하지 않은 다른 재무 담당자)' : '재무'),
       ]).join('') + '</dl>';
       return;
     }
@@ -702,9 +752,10 @@
     if ($('#fin-op-text')) $('#fin-op-text').focus();
   });
 
-  /* 첨부 파일 (REQ-SEC-08): 내려받으면 워터마크 PDF. 고칠 수 있는 원본은 기안자, 법무, 관리자만.
+  /* 첨부 파일 (REQ-SEC-08): 내려받으면 워터마크 PDF. 고칠 수 있는 원본은 지금 영업대표, 법무, 관리자만.
    * 휴대폰에서는 미리보기만 (내려받기 버튼은 review.css에서 감춤) */
-  const canOriginal = me.id === c.requesterId || ['LEGAL', 'ADMIN', 'SUPER'].indexOf(me.role) > -1;
+  // 기획자 결정 2026-11-03(C-44): 원본의 "기안자"는 지금 영업대표(repMine). 영업대표가 바뀌면 처음 기안한 사람은 받지 않음(계약 상세와 같음)
+  const canOriginal = repMine || ['LEGAL', 'ADMIN', 'SUPER'].indexOf(me.role) > -1;
   function renderFiles() {
     const fmtSize = function (b) { return b >= 1048576 ? (b / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(b / 1024)) + 'KB'; };
     const acts = '<span class="file-acts"><button type="button" class="btn-text" data-file="preview">미리보기</button>' +
@@ -733,6 +784,8 @@
 
   function renderHistory() {
     // 지금 차수의 기안 줄을 더해 일시 순서로. 앞 차수의 기안은 다시 기안할 때 결재 기록에 남김 (v0.58)
+    // 계약 검토 결재자가 본 문서: 계약서 초안. 견적서로 대신하고 초안을 올리지 않은 계약은 최종 견적서(B-5 남은 것, 위 files)
+    const reviewKind = files().some(function (g) { return g.kind === 'DRAFT_DOC'; }) ? 'DRAFT_DOC' : 'QUOTE';
     const rows = [{ at: c.requestedAt, step: 'S01', action: 'SUBMIT', actorId: c.requesterId, comment: '', round: c.round || 1 }].concat(c.history || [])
       .sort(function (a, b) { return (a.at || '').slice(0, 16).localeCompare((b.at || '').slice(0, 16)) || (a.round || 1) - (b.round || 1); }); // 분 단위로, 같은 때면 앞 차수 먼저
     $('#history').innerHTML =
@@ -747,7 +800,7 @@
         // 체결본 등록은 올린 파일 이름도 함께
         // 결재자가 그때 본 판 (v0.53): 계약 검토(②~⑤)는 계약서 초안, ⑧ 체결본 확인은 체결본
         //   계약 검토 단계는 ③ 영업 임원 승인(S03C, 2026-11-02 E-3)도 포함. 견적서로 대신한 계약의 ⑧은 최종 견적서(B-5)
-        const seenKind = C.isReviewStep(h.step) && h.action !== 'RESUBMIT' ? 'DRAFT_DOC' : h.step === 'S08' ? 'SIGNED' : '';
+        const seenKind = C.isReviewStep(h.step) && h.action !== 'RESUBMIT' ? reviewKind : h.step === 'S08' ? 'SIGNED' : '';
         const seen = seenKind ? versionAt(seenKind, h.at) : null;
         // 기획자 결정 2026-11-02: 결재 창에서 받은 값도 기록 칸에 보임. ⑦ 서명본 체결일, ⑨ 실제 개통일(B-8), ② 그때 같은 거래처 최근 계약 건수(E-2)
         const extra = [seen ? '본 판: ' + (seenKind === 'SIGNED' ? DOC : D.FILE_KINDS[seenKind]) + ' 판 ' + seen.no + '(지문 ' + seen.hash + ')' : '',
@@ -777,10 +830,19 @@
     return D.APPROVAL_ACTIONS[action].label;
   }
   const BTN_CLASS = { APPROVE: 'btn--primary', REGISTER: 'btn--primary', REJECT: 'btn--tertiary btn-reject', RETURN: 'btn--tertiary', SUPPLEMENT: 'btn--tertiary' };
+  //   기획자 결정 2026-11-02 C-16: 보류 중에는 승인과 체결본 등록 단추를 빼고(holdStops), 그 자리에 까닭 한 줄(holdNote)
   function buttonsHtml(code) {
-    return actionsOf(code).map(function (a) {
+    return actionsOf(code).filter(function (a) { return !holdStops(a, code); }).map(function (a) {
       return '<button type="button" class="btn ' + BTN_CLASS[a] + ' btn--md" data-open="' + a + '" data-step="' + code + '">' + esc(buttonLabel(a, code)) + '</button>';
     }).join('');
+  }
+  // 예: "보류 중이라 승인은 할 수 없습니다. 반려, 보완 요청은 할 수 있습니다." 막는 단추가 없는 단계면 ''
+  function holdNote(code) {
+    const all = actionsOf(code), off = all.filter(function (a) { return holdStops(a, code); });
+    if (!off.length) return '';
+    const name = function (list) { return list.map(function (a) { return buttonLabel(a, code); }).join(', '); };
+    const left = all.filter(function (a) { return off.indexOf(a) < 0; });
+    return '보류 중이라 ' + C.josa(name(off), '은', '는') + ' 할 수 없습니다.' + (left.length ? ' ' + C.josa(name(left), '은', '는') + ' 할 수 있습니다.' : '');
   }
   function renderActions() {
     const bar = $('#action-bar');
@@ -789,7 +851,7 @@
     if (canResubmit) {
       // 보완 완료: 기안자(시연에서는 최고관리자도)
       html += '<div class="act-row"><p class="act-target"><strong>' + esc(C.stepLabel(c.supplement.step, c)) + ' 보완 요청</strong>' +
-        (me.id === c.requesterId ? '' : ' <span class="behalf">' + esc(C.ownerLabel(c.requesterId)) + ' 대신 (시연)</span>') + '</p>' +
+        (repMine ? '' : ' <span class="behalf">' + esc(C.ownerLabel(C.repActorOf(c))) + ' 대신 (시연)</span>') + '</p>' + // 지금 영업대표 대신(2026-11-03 C-44)
         '<div class="act-btns"><button type="button" class="btn btn--primary btn--md" data-open="RESUBMIT" data-step="S01">보완 완료</button></div></div>';
     }
     if (actionable.length) {
@@ -800,7 +862,9 @@
           }).join('') + '</select></label>'
         : '<p class="act-target"><strong>' + esc(C.stepLabel(actionable[0].step, c)) + '</strong>' +
           (actionable[0].userId === me.id ? '' : ' <span class="behalf">' + (behalfText(actionable[0]) || esc(C.ownerLabel(actionable[0].userId)) + ' 대신 (시연)') + '</span>') + '</p>';
-      html += '<div class="act-row">' + pick + '<div class="act-btns" id="act-btns">' + buttonsHtml(actionable[0].step) + '</div></div>';
+      // 보류 중이면 단추 앞에 까닭 한 줄(C-16). 고르는 단계가 바뀌면 아래에서 다시 씀
+      const why = hold ? '<p class="act-target"><span class="behalf" id="act-hold">' + esc(holdNote(actionable[0].step)) + '</span></p>' : '';
+      html += '<div class="act-row">' + pick + why + '<div class="act-btns" id="act-btns">' + buttonsHtml(actionable[0].step) + '</div></div>';
     }
     if (cancelable.length) {
       html += '<div class="act-row act-row--cancel">' + cancelable.map(function (s) {
@@ -811,7 +875,10 @@
     bar.innerHTML = html;
     bar.hidden = false;
     const sel = $('#act-step');
-    if (sel) sel.addEventListener('change', function () { $('#act-btns').innerHTML = buttonsHtml(sel.value); });
+    if (sel) sel.addEventListener('change', function () {
+      $('#act-btns').innerHTML = buttonsHtml(sel.value);
+      if ($('#act-hold')) $('#act-hold').textContent = holdNote(sel.value); // 보류 까닭도 그 단계에 맞게(C-16)
+    });
   }
 
   const modal = $('#act-modal');
@@ -827,7 +894,7 @@
       // ⑧ 반려는 어긋난 항목을 하나 이상 고름(코드로 남아 항목별로 셈, v0.61 표준 대응표 G-06)
       reasons: code === 'S08' ? D.SIGNED_MISMATCH : null, reasonsLegend: '어긋난 항목 (하나 이상)', reasonsPrefix: '어긋난 항목', reasonsKey: 'mismatch',
       desc: code === 'S08' ? '계약 내용이 승인본과 다를 때 씁니다. 서명이나 날인만 빠졌으면 반려하지 않고 다시 등록 요청을 씁니다. 반려하면 기안자에게 돌아가고, 기안자가 보완해 다음 차수로 다시 기안해 결재를 처음부터 받습니다.'
-        : code === 'S06' ? '계약서 실물이 이 문서와 다를 때 씁니다. 반려하면 기안자에게 돌아가고, 기안자가 보완해 다음 차수로 다시 기안합니다.'
+        : code === 'S06' ? (quote ? '견적서가' : '계약서 실물이') + ' 이 문서와 다를 때 씁니다. 반려하면 기안자에게 돌아가고, 기안자가 보완해 다음 차수로 다시 기안합니다.'
         : '반려하면 기안자에게 돌아가고, 기안자가 보완해 다음 차수로 다시 기안합니다.' };
     // 보완 요청은 보완할 항목을 하나 이상 고름(코드로 남아 통계에서 셈, v0.63 표준 대응표 G-05)
     if (action === 'SUPPLEMENT') return { title: '보완을 요청할까요?', label: '보완할 내용 (필수)', btn: '보완 요청', required: true, tone: 'secondary',
@@ -880,7 +947,7 @@
       S06: { title: '날인 완료로 처리할까요?', label: '메모 (선택)', btn: '날인 완료', required: false, tone: 'primary',
         desc: (quote ? '처리하면 영업이 고객 날인을 받아 최종 견적서를 올릴 차례가 됩니다. ' : '처리하면 영업이 상대방 서명을 받아 체결본을 올릴 차례가 됩니다. ') + // B-5
           '인장 사용 기록은 기존 구글 폼에 따로 남겨 주세요.',
-        legend: '계약서 실물과 같은지 확인한 항목 (모두 확인)', checks: D.SEAL_CHECKS },
+        legend: (quote ? '견적서와' : '계약서 실물과') + ' 같은지 확인한 항목 (모두 확인)', checks: D.SEAL_CHECKS }, // B-5: 견적서로 대신한 계약은 견적서
       S08: { title: (quote ? '견적서' : '체결본') + ' 확인을 완료할까요?', label: '메모 (선택)', btn: '확인 완료', required: false, tone: 'primary',
         desc: '완료하면 운영 검토로 넘어가 고객지원이 운영에 적용할 차례가 됩니다.',
         // 체결본을 승인된 내용과 항목별로 맞춰 봄(⑥처럼, v0.61 표준 대응표 G-06. 예전에는 일반 항목 두 줄)과 계약서 밖 약정 없음
@@ -917,8 +984,11 @@
     }[code];
   }
   function openModal(action, stepCode) {
+    // 보류 중(C-16)에 막는 일은 창을 열지 않음(단추를 그리지 않는 것과 겹으로)
+    if (holdStops(action, stepCode)) { C.toast(holdNote(stepCode), true); return; }
     // 보완 완료는 결재 단계가 아닌 기안(①)에서 하는 일
-    const s = stepCode === 'S01' ? { step: 'S01', userId: c.requesterId } : c.approvals.find(function (x) { return x.step === stepCode; });
+    //   보완 완료의 차례는 지금 영업대표(기획자 결정 2026-11-03 C-44). 최고관리자가 시연으로 누르면 "누구 대신"에 그 사람이 남음
+    const s = stepCode === 'S01' ? { step: 'S01', userId: C.repActorOf(c) } : c.approvals.find(function (x) { return x.step === stepCode; });
     const t = modalText(action, stepCode);
     pending = { action: action, step: s, t: t };
     fileName = '';
@@ -1078,6 +1148,8 @@
     }
     if (!ok) { const bad = modal.querySelector('.is-invalid input, .is-invalid textarea'); if (bad) bad.focus(); return; }
     const s = pending.step;
+    // 보류 중(C-16)에 막는 일은 남기지 않음(단추와 창에서 막는 것과 겹으로). common.js recordAction도 같은 판단으로 막음
+    if (holdStops(pending.action, s.step)) { closeModal(); C.toast(holdNote(s.step), true); return; }
     const pickedText = picked ? t.reasonsPrefix + ': ' + picked.map(function (k) { return t.reasons.filter(function (x) { return x.code === k; })[0].label; }).join(', ') : '';
     // 반부패 조항 판단은 의견 문장에도 남김(계약 요약서 등 의견만 보이는 화면에서도 보이게, 기획자 결정 2026-11-02 C-15)
     const abOpt = ab ? D.ANTI_BRIBE.options.filter(function (x) { return x.code === ab; })[0] : null;
@@ -1139,7 +1211,7 @@
     const kind = b.getAttribute('data-file');
     // 한 문장으로 (KRDS 토스트, v0.28)
     C.toast(kind === 'pdf' ? '실제 시스템에서는 이름과 일시 워터마크를 찍은 PDF로 받고, 받은 기록이 남습니다(시안).'
-      : kind === 'original' ? '원본은 기안자, 법무, 관리자만 받고, 받은 기록이 남습니다(시안).'
+      : kind === 'original' ? '원본은 지금 영업대표, 법무, 관리자만 받고, 받은 기록이 남습니다(시안).'
       : '실제 시스템에서는 새 창에서 미리보기가 열립니다(시안).');
   });
 

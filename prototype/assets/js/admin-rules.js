@@ -7,18 +7,21 @@
  *   1. 단계별 담당자: 단계, 담당자, 지금 차례인 건 수, 바꾸기, 거치는 조건(보여 주기만)
  *      (기획자 결정 2026-11-02 D-18: 담당자를 보고 바꾸는 칸을 앞으로, 참고 글인 거치는 조건은 맨 뒤로)
  *      바꾸면 아직 차례가 오지 않은 단계부터 새 담당자에게 감. 지금 차례인 건은 원래 담당자가 처리 (기획자 결정 v0.25)
- *      ⑦ 체결본 등록은 기안한 영업이 하므로 바꿀 수 없음
+ *      ⑦ 체결본 등록은 영업대표가 하므로 이 화면에서 바꿀 수 없음(기획자 결정 2026-11-03 C-44: 영업대표는 계약 상세에서 영업 리더가 바꿈)
  *      ③ 영업 검토는 유닛별 리더(구성원 계약)와 영업 임원(리더 본인 계약)으로 나눠 정함 (v0.26 재무 문서 반영)
  *   2. 대리 지정: 자리를 비우는 담당자, 대신할 사람(같은 역할. 영업 리더는 영업 임원도), 기간, 근거 (기획자 결정 v0.25)
  *      기간 안에는 대신할 사람이 처리하고 결재 기록에 "누구 대신"과 근거가 남음(common.js recordAction)
  *      기획자 결정 2026-11-02 E-3(A안, 추천과 다름): ③ 영업 임원 승인(S03C) 줄. 담당은 ③ 줄의 영업 임원과 같은 사람이라 그 줄에서 바꿈
- *      기획자 결정 2026-11-02 B-3: 운영 변경도 ⑩을 거침. HR 충전의 ⑩ 담당(재무 리더, 'S10:HR')을 따로 한 줄로 두고 바꿈
+ *      기획자 결정 2026-11-02 B-3: 운영 변경도 ⑩을 거침
+ *      기획자 결정 2026-11-03(C-18 ⑤): HR 충전의 ⑩도 ⑩ 줄의 담당자(재무 담당자). 재무 리더가 맡던 따로 한 줄('S10:HR')과 그 창의 고르기는 없앰.
+ *        ⑨를 한 사람은 ⑩을 하지 않으므로 HR 충전처럼 ⑩ 담당자가 ⑨를 했으면 다른 재무 담당자에게 감(common.js otherFinance)
  *   2-1. 승인 기준과 근거 (기획자 결정 2026-11-02 E-3)
  *      영업 임원(COO)도 승인하는 기준: 할인율 한도를 n%p 넘게 넘김(PRICE_RULES.cooOverPp, [가정] 10%p는 실제 한도가 온 뒤 정함)
  *      위임전결 근거: 결재선 규칙이 따르는 회사 규정의 이름과 판(D.RULE_BASIS). 처음에는 비어 있고 운영 시작 전에 넣음
  *   3. 독촉과 알림 일수: 결재 대기 강조, 체결 지연 독촉, 해지 통지 기한 강조와 이메일, 의무 기한 강조와 이메일
  *      기획자 결정 2026-11-02 A-5(추천과 다름): 고정값이던 알림 일수 네 칸을 지금 바로 둠. 바꾸는 방식(사유 필수, 변경 이력)은 앞의 둘과 같음
  *   4. 변경 이력: 누가, 언제, 무엇을, 사유. 고치거나 지울 수 없음
+ *   기획자 결정 2026-11-02 C-5: 담당자, 유닛 리더, 대리 지정을 저장할 때 겹치면 안 되는 일이 생기면 알리고 까닭을 받아 저장(아래 "역할 겹침 확인")
  * 프로토타입: 바꾼 내용은 이 브라우저에만 저장(시연 기록). 실제 시스템은 서버에 저장하고 사내망에서만 씀(REQ-SEC-04)
  * ===================================================================== */
 (function () {
@@ -33,7 +36,7 @@
   function val(f, n) { return (f.elements[n].value || '').trim(); }
 
   /* ---------- 단계마다 거치는 조건 (REQ-CHK-05, REQ-SIGN-01, REQ-ARC-06, 07) ---------- */
-  //   'S10:HR'처럼 쌍점이 붙은 줄은 그 단계 안에서 따로 정한 담당자(B-3). ③ 영업 임원 승인의 기준 %p는 지금 값으로 보여 줌(E-3)
+  //   ③ 영업 임원 승인의 기준 %p는 지금 값으로 보여 줌(E-3)
   function rows() {
     return [
       ['S02', '모든 계약 (해지, 그대로 연장, 운영 변경은 없음). 기안자가 담당자면 재무 담당자가 대신 검토'],
@@ -43,17 +46,17 @@
       ['S04', '표준계약서를 바꾼 계약, 해지, 그대로 연장'],
       ['S05', '개인정보 처리위탁 계약이 있는 계약 (해지, 그대로 연장, 운영 변경은 없음)'], // v0.36 항목 이름에 맞춤(v0.63 이용 안내 점검)
       ['S06', '모든 계약 (해지, 그대로 연장, 운영 변경은 없음)'],
-      ['S07', '모든 계약 (해지, 그대로 연장, 운영 변경은 없음)'],
+      // 기획자 결정 2026-11-03(C-44): 영업대표가 바뀌면 새 영업대표, 영업대표 계정이 사용 중지되고 아직 정하지 않았으면 영업 리더
+      ['S07', '모든 계약 (해지, 그대로 연장, 운영 변경은 없음). 영업대표가 바뀌면 새 영업대표, 사용 중지되고 새 영업대표를 정하기 전에는 영업 리더'],
       ['S08', '모든 계약 (해지, 그대로 연장, 운영 변경은 없음). 기안자가 담당자면 재무 담당자가 대신 확인'],
       ['S09', '모든 계약. 운영 변경의 HR 충전은 재무 담당자(⑩ 담당자)가 반영. 종료일이 지난 계약의 만료 처리도 이 담당자'],
       // 기획자 결정 2026-11-02 B-3(추천과 다름): 운영 변경도 ⑩ 재무 확인을 거침(예전에는 "운영 변경은 없음")
-      ['S10', '모든 계약(운영 변경 포함). 운영 변경의 HR 충전은 다음 줄의 담당자'],
-      ['S10:HR', '운영 변경의 HR 충전. ⑨를 재무 담당자가 하므로 다른 사람이 확인'],
+      // 기획자 결정 2026-11-03(C-18 ⑤): HR 충전의 ⑩도 이 줄의 담당자. ⑨를 한 사람이면 다른 재무 담당자에게(예전 'S10:HR' 줄은 없앰)
+      ['S10', '모든 계약(운영 변경 포함). ⑨를 한 사람은 ⑩을 하지 않아, HR 충전처럼 이 담당자가 ⑨를 했으면 다른 재무 담당자가 확인'],
     ];
   }
+  // 단계 코드(예전에는 'S10:HR'처럼 쌍점 뒤에 따로 정한 담당이 있었음. 2026-11-03에 없앰)
   function stepOf(code) { return code.split(':')[0]; }
-  // HR 충전(운영 변경)인지: 그 ⑩은 'S10:HR' 줄에서 셈 (B-3)
-  function isHrCharge(c) { return c.kind === 'CHANGE' && /^HR_/.test(c.changeType || ''); }
 
   function account(id) { return D.ACCOUNTS.filter(function (a) { return a.id === id; })[0] || null; }
   function person(id) {
@@ -64,13 +67,8 @@
   function candidates(role, exceptId) {
     return D.ACCOUNTS.filter(function (a) { return C.canTake(a.roles, role) && a.status !== 'SUSPENDED' && a.id !== exceptId; });
   }
-  // 그 줄의 지금 차례: ⑩ 줄은 HR 충전을 빼고, 'S10:HR' 줄은 HR 충전의 ⑩만 (B-3)
-  function rowQueue(code) {
-    const list = C.pendingQueue(me, true, [stepOf(code)]);
-    if (code === 'S10') return list.filter(function (x) { return !isHrCharge(x.c); });
-    if (code === 'S10:HR') return list.filter(function (x) { return isHrCharge(x.c); });
-    return list;
-  }
+  // 그 줄의 지금 차례 (2026-11-03: HR 충전의 ⑩도 ⑩ 줄에서 셈. ⑨를 해 다른 재무 담당자에게 간 건은 아래 holders에 그 사람 이름으로)
+  function rowQueue(code) { return C.pendingQueue(me, true, [stepOf(code)]); }
   function pendingCount(code) { return rowQueue(code).length; }
   // 지금 차례인 건 중 원래 담당자가 처리하는 건 (담당자를 바꾼 뒤): "김지우님 4건"
   function holders(code, cur) {
@@ -78,7 +76,7 @@
     rowQueue(code).forEach(function (x) { if (x.s.userId !== cur) by[x.s.userId] = (by[x.s.userId] || 0) + 1; });
     return Object.keys(by).map(function (id) { return '<span class="cell-meta">' + esc(C.ownerLabel(id)) + ' ' + by[id] + '건</span>'; }).join('');
   }
-  function stepName(code) { const s = D.STEPS[stepOf(code)]; return s.no + ' ' + s.name + (code === 'S10:HR' ? '(HR 충전)' : ''); }
+  function stepName(code) { const s = D.STEPS[stepOf(code)]; return s.no + ' ' + s.name; }
   // 이 사람이 지금 맡은 결재 담당 (예: 배수아님은 ②와 ⑧, 최민준님은 ③ 비즈니스1유닛 리더)
   function dutyNames(id) { return C.duties(id).map(function (x) { return x.label; }).join(', '); }
   function dutyNos(id) { return C.duties(id).map(function (x) { return x.label.charAt(0) + (x.key.indexOf(':') > -1 ? '(' + x.key.split(':')[1] + ')' : ''); }).join(', '); }
@@ -94,6 +92,38 @@
   function period(d) { return C.fmtPeriod(d.from, d.to); }
   const DL_STATE = { PLANNED: ['line', '예정'], ACTIVE: ['progress', '대리 중'], ENDED: ['neutral', '끝남'] };
 
+  /* ---------- 역할 겹침 확인 (기획자 결정 2026-11-02 C-5, G-11, CTL-110, CTL-111) ----------
+   * 담당자, 유닛 리더, 대리 지정을 저장할 때 새로 맡는 사람에게 겹치면 안 되는 일(③과 ⑨, ③과 ⑩, ⑨와 ⑩, ③과 ②나 ⑧)이 있으면
+   *   알림 상자로 보이고 "겹쳐도 저장하는 까닭"을 받아 저장함(막지 않음). 사용자 권한 관리(SCR-51)와 같은 방식
+   *   겹침은 그 사람의 역할, 결재선 규칙의 지금 담당, 끝나지 않은 대리 지정에 이번에 맡길 것을 더해 셈(C.roleConflicts)
+   *     담당자와 유닛 리더: C.roleConflicts(새 사람, { addSteps: [단계] }) / 대리 지정: C.roleConflicts(대신할 사람, { delegateFor: 자리를 비우는 사람 })
+   *   기록의 op.conflict = { userId, list, reason }: 분기 권한 검토의 "역할 충돌 계정"(C.conflictAccounts)이 이 까닭을 찾아 보임
+   *   알림과 까닭 칸은 창 맨 아래에만 생겨 위 칸은 움직이지 않음 */
+  function conflictHtml() {
+    return '<div data-conflict hidden><div class="conflict-note"></div>' +
+      C.fieldHtml({ name: 'conflictReason', label: '겹쳐도 저장하는 까닭', type: 'textarea', required: true,
+        placeholder: '예: 결산 기간에만 대신함. 같은 계약의 ⑨와 ⑩은 시스템이 한 사람에게 주지 않음' }) + '</div>';
+  }
+  // 고르는 칸이 바뀔 때마다 겹침을 다시 셈. listOf(f): 지금 고른 사람으로 셈한 겹침 목록
+  function watchConflict(f, listOf) {
+    const sync = function () {
+      const list = listOf(f), wrap = f.querySelector('[data-conflict]');
+      wrap.hidden = !list.length;
+      wrap.querySelector('.conflict-note').innerHTML = list.length ? C.noticeBox('', '함께 맡으면 안 되는 일이 겹칩니다',
+        list.map(function (x) { return esc(x.detail); }).join('<br>') +
+        '<br>저장할 수는 있지만 까닭을 꼭 적습니다. 분기 권한 검토에서 "역할 충돌 계정"으로 다시 봅니다.') : '';
+    };
+    f.addEventListener('change', sync);
+    sync();
+  }
+  function conflictError(f, list) { return list.length && !val(f, 'conflictReason') ? '역할이 겹쳐도 저장하는 까닭을 적으세요.' : ''; }
+  // 저장할 바뀐 내용과 사유에 겹침을 덧붙이고 op.conflict를 남김 (사용자 권한 관리와 같은 글: "역할 겹침을 알고 저장(...)", "/ 역할 겹침 까닭: ...")
+  function withConflict(f, list, userId, change, reason, op) {
+    if (!list.length) return { change: change, reason: reason };
+    op.conflict = { userId: userId, list: list.map(function (x) { return x.text; }), reason: val(f, 'conflictReason') };
+    return { change: change + ', 역할 겹침을 알고 저장(' + op.conflict.list.join(', ') + ')', reason: reason + ' / 역할 겹침 까닭: ' + op.conflict.reason };
+  }
+
   /* ---------- 1. 단계별 담당자 ---------- */
   function delegNote(id) {
     return D.DELEGATIONS.filter(function (d) { return d.absentId === id && C.delegationState(d) !== 'ENDED'; }).map(function (d) {
@@ -101,19 +131,16 @@
         esc(C.ownerLabel(d.delegateId)) + ' (<span class="keep">' + C.fmtDate(d.from) + '~</span><wbr><span class="keep">' + C.fmtDate(d.to) + '</span>)</span>';
     }).join('');
   }
-  // 단계 줄 아래 흐린 역할 이름. HR 충전의 ⑩은 맡은 사람의 역할(재무 리더 등, B-3)
-  function rowRole(code, id) {
-    if (code !== 'S10:HR') return D.STEPS[stepOf(code)].role;
-    const a = account(id);
-    return a && a.roles.indexOf('FINANCE') < 0 && a.roles.indexOf('FIN_LEAD') > -1 ? 'FIN_LEAD' : 'FINANCE';
-  }
+  // 단계 줄 아래 흐린 역할 이름 (2026-11-03: HR 충전의 ⑩을 재무 리더가 맡던 줄을 없애 단계의 역할 그대로)
+  function rowRole(code) { return D.STEPS[stepOf(code)].role; }
   function renderAssignees() {
     $('#assignee-rows').innerHTML = rows().map(function (r) {
       // same: ③ 영업 임원 승인(E-3)은 ③ 줄의 영업 임원(STEP_ASSIGNEE.S03)이 맡아 이 줄에서는 바꾸지 않음
       const code = r[0], fixed = code === 'S07', same = code === 'S03C';
       const id = fixed ? null : C.assigneeOf(same ? 'S03' : code);
       // ③은 리더 본인 계약의 영업 임원만 이 줄에서 바꾸고, 구성원 계약은 아래 유닛별 리더 표에서 바꿈
-      const who = fixed ? '기안한 영업' : (code === 'S03' ? '<span class="cell-meta">리더 본인 계약</span>' : '') + person(id) + delegNote(id) +
+      // ⑦은 영업대표(기획자 결정 2026-11-03 C-44: 바뀌면 새 영업대표, 영업대표 계정이 사용 중지면 영업 리더. 바꾸는 곳은 계약 상세)
+      const who = fixed ? '영업대표<span class="cell-meta">바꾸는 곳: 계약 상세(영업 리더)</span>' : (code === 'S03' ? '<span class="cell-meta">리더 본인 계약</span>' : '') + person(id) + delegNote(id) +
         (code === 'S03' ? '<span class="cell-meta">구성원 계약은 아래 유닛별 리더</span>' : '') +
         (same ? '<span class="cell-meta">③ 줄의 영업 임원과 같은 사람</span>' : '');
       // 기획자 결정 2026-11-02 D-18: 칸 순서는 단계, 담당자, 지금 차례, 관리, 거치는 조건 (참고 글인 거치는 조건은 맨 뒤)
@@ -142,18 +169,24 @@
     const cur = C.leaderAt(team, '9999');
     const opts = candidates('HEAD', cur).map(function (a) { return [a.id, (a.dept ? a.dept + ' ' : '') + a.name]; });
     const n = C.pendingQueue(me, true, ['S03']).filter(function (x) { return C.teamOf(x.c.requesterId) === team; }).length;
+    // 기획자 결정 2026-11-02 C-5: 새 리더에게 겹치는 일이 생기면 알리고 까닭을 받음
+    const listFor = function (f) { const to = val(f, 'to'); return to ? C.roleConflicts(to, { addSteps: ['S03:' + team] }) : []; };
     C.formModal({
       title: team + ' 리더를 바꿀까요?',
       desc: '바꾸면 ' + team + ' 계약 중 아직 ③ 영업 검토 차례가 오지 않은 것부터 새 리더에게 갑니다.' + (n ? ' 지금 차례인 ' + n + '건은 ' + C.josa(C.ownerLabel(cur), '이', '가') + ' 그대로 처리합니다.' : ''),
       body: '<p class="modal-info">지금 리더: ' + (cur ? esc(C.ownerLabel(cur)) : '없음') + '</p>' +
         C.fieldHtml({ name: 'to', label: '새 리더', type: 'select', required: true, options: [['', '고르세요']].concat(opts), help: '영업 리더 역할이 있는 사람만 고를 수 있습니다.' }) +
-        C.fieldHtml({ name: 'reason', label: '바꾸는 사유', type: 'textarea', required: true, placeholder: '예: 10월 20일 비즈니스2유닛 리더 발령' }),
+        C.fieldHtml({ name: 'reason', label: '바꾸는 사유', type: 'textarea', required: true, placeholder: '예: 10월 20일 비즈니스2유닛 리더 발령' }) +
+        conflictHtml(),
       btn: '리더 바꾸기',
-      check: function (f) { return { to: val(f, 'to') ? '' : '새 리더를 고르세요.', reason: val(f, 'reason') ? '' : '바꾸는 사유를 적으세요.' }; },
+      open: function (f) { watchConflict(f, listFor); },
+      check: function (f) {
+        return { to: val(f, 'to') ? '' : '새 리더를 고르세요.', reason: val(f, 'reason') ? '' : '바꾸는 사유를 적으세요.', conflictReason: conflictError(f, listFor(f)) };
+      },
       done: function (f) {
-        const to = val(f, 'to');
-        C.adminSave('RULE', stepName('S03') + '(' + team + ' 리더)', '리더: ' + (cur ? C.ownerLabel(cur) : '없음') + ' → ' + C.ownerLabel(to), val(f, 'reason'),
-          { k: 'ASSIGNEE', step: 'S03:' + team, to: to });
+        const to = val(f, 'to'), op = { k: 'ASSIGNEE', step: 'S03:' + team, to: to };
+        const x = withConflict(f, listFor(f), to, '리더: ' + (cur ? C.ownerLabel(cur) : '없음') + ' → ' + C.ownerLabel(to), val(f, 'reason'), op);
+        C.adminSave('RULE', stepName('S03') + '(' + team + ' 리더)', x.change, x.reason, op);
         render();
         C.toast(team + ' 리더를 ' + C.josa(C.ownerLabel(to), '으로', '로') + ' 바꿨습니다.');
       },
@@ -173,20 +206,26 @@
     const units = C.codeList('DEPT').filter(function (x) { return x.level === 2 && cur.indexOf(x.label) < 0 && hasSales(x.label); });
     if (!units.length) { C.toast('더할 수 있는 유닛이 없습니다. 새 유닛은 코드 관리에서 2단계로 만들고, 사용자 권한 관리에서 영업을 옮긴 뒤 더하세요.', true); return; }
     const opts = candidates('HEAD').map(function (a) { return [a.id, (a.dept ? a.dept + ' ' : '') + a.name]; });
+    // 기획자 결정 2026-11-02 C-5: 고른 리더에게 겹치는 일이 생기면 알리고 까닭을 받음(유닛과 리더를 모두 고른 뒤에 셈)
+    const listFor = function (f) { const unit = val(f, 'unit'), to = val(f, 'to'); return unit && to ? C.roleConflicts(to, { addSteps: ['S03:' + unit] }) : []; };
     C.formModal({
       title: '유닛별 리더 표에 유닛을 더할까요?',
       desc: '더하면 그 유닛 사람이 기안하는 계약의 ③ 영업 검토가 정한 리더에게 갑니다. 표에 없는 유닛의 계약은 영업 임원이 검토합니다.',
       body: C.fieldHtml({ name: 'unit', label: '유닛', type: 'select', required: true, options: [['', '고르세요']].concat(units.map(function (x) { return [x.label, x.label]; })),
           help: '2단계 유닛 중 영업 담당자나 영업 리더가 있고 아직 표에 없는 유닛만 고를 수 있습니다.' }) +
         C.fieldHtml({ name: 'to', label: '리더', type: 'select', required: true, options: [['', '고르세요']].concat(opts), help: '영업 리더 역할이 있는 사람만 고를 수 있습니다.' }) +
-        C.fieldHtml({ name: 'reason', label: '더하는 사유', type: 'textarea', required: true, placeholder: '예: 2027년 1월 조직 개편으로 비즈니스4유닛 신설' }),
+        C.fieldHtml({ name: 'reason', label: '더하는 사유', type: 'textarea', required: true, placeholder: '예: 2027년 1월 조직 개편으로 비즈니스4유닛 신설' }) +
+        conflictHtml(),
       btn: '유닛 추가',
+      open: function (f) { watchConflict(f, listFor); },
       check: function (f) {
-        return { unit: val(f, 'unit') ? '' : '유닛을 고르세요.', to: val(f, 'to') ? '' : '리더를 고르세요.', reason: val(f, 'reason') ? '' : '더하는 사유를 적으세요.' };
+        return { unit: val(f, 'unit') ? '' : '유닛을 고르세요.', to: val(f, 'to') ? '' : '리더를 고르세요.', reason: val(f, 'reason') ? '' : '더하는 사유를 적으세요.',
+          conflictReason: conflictError(f, listFor(f)) };
       },
       done: function (f) {
-        const unit = val(f, 'unit'), to = val(f, 'to');
-        C.adminSave('RULE', stepName('S03') + '(' + unit + ' 리더)', '유닛 추가, 리더: ' + C.ownerLabel(to), val(f, 'reason'), { k: 'ASSIGNEE', step: 'S03:' + unit, to: to });
+        const unit = val(f, 'unit'), to = val(f, 'to'), op = { k: 'ASSIGNEE', step: 'S03:' + unit, to: to };
+        const x = withConflict(f, listFor(f), to, '유닛 추가, 리더: ' + C.ownerLabel(to), val(f, 'reason'), op);
+        C.adminSave('RULE', stepName('S03') + '(' + unit + ' 리더)', x.change, x.reason, op);
         render();
         C.toast(C.josa(unit, '을', '를') + ' 더하고 리더를 ' + C.josa(C.ownerLabel(to), '으로', '로') + ' 정했습니다.');
       },
@@ -196,33 +235,32 @@
     // ③ 줄은 리더 본인 계약의 담당(영업 임원). 같은 사람이 ③ 영업 임원 승인(S03C, E-3)도 맡음
     const st = D.STEPS[stepOf(code)], cur = C.assigneeOf(code), role = code === 'S03' ? 'EXEC' : st.role;
     const n = code === 'S03' ? C.pendingQueue(me, true, ['S03', 'S03C']).filter(function (x) { return x.s.userId === cur; }).length : pendingCount(code);
-    // 기획자 결정 2026-11-02 B-3: HR 충전의 ⑩은 재무 담당자나 재무 리더. ⑨를 하는 ⑩ 줄의 담당자와 같은 사람이면 ⑨와 ⑩을 한 사람이 하게 되므로
-    //   ⑩ 줄과 'S10:HR' 줄에는 서로의 담당자를 고를 수 없게 뺌
-    const clash = code === 'S10:HR' ? C.assigneeOf('S10') : code === 'S10' ? C.assigneeOf('S10:HR') : null;
-    const pool = code === 'S10:HR'
-      ? D.ACCOUNTS.filter(function (a) { return (a.roles.indexOf('FINANCE') > -1 || a.roles.indexOf('FIN_LEAD') > -1) && a.status !== 'SUSPENDED' && a.id !== cur; })
-      : candidates(role, cur);
-    const opts = pool.filter(function (a) { return a.id !== clash; }).map(function (a) { return [a.id, (a.dept ? a.dept + ' ' : '') + a.name]; });
+    // 기획자 결정 2026-11-03(C-18 ⑤): HR 충전의 ⑩을 재무 리더가 맡던 따로 한 줄('S10:HR')을 없애, ⑩ 줄도 다른 줄처럼 재무 담당자만 고름
+    //   (2026-11-02에는 ⑩ 줄과 'S10:HR' 줄이 서로의 담당자를 고르지 못하게 뺐음. 이제 ⑨를 한 사람과 겹치면 다른 재무 담당자에게 감, common.js otherFinance)
+    const opts = candidates(role, cur).map(function (a) { return [a.id, (a.dept ? a.dept + ' ' : '') + a.name]; });
     if (!opts.length) { C.toast('바꿀 수 있는 ' + C.roleLabel(role) + ' 역할의 사람이 없으니 사용자 권한 관리에서 먼저 역할을 주세요.', true); return; }
-    // 그 분야 리더도 고를 수 있음 (v0.29 가정, C.canTake). HR 충전의 ⑩은 재무 리더도 (B-3)
-    const help = code === 'S10:HR' ? '재무 담당자나 재무 리더 역할이 있는 사람만 고를 수 있습니다.'
-      : C.roleLabel(role) + ' 역할' + (D.STEP_LEADS.some(function (r) { return D.ROLE_BASE[r] === role; }) ? '이나 그 분야 리더 역할' : '') + '이 있는 사람만 고를 수 있습니다.';
-    const clashNote = !clash ? '' : code === 'S10:HR' ? ' HR 충전의 ⑨를 하는 ⑩ 담당자(' + C.ownerLabel(clash) + ')는 고를 수 없습니다.'
-      : ' HR 충전의 ⑩ 담당자(' + C.ownerLabel(clash) + ')는 고를 수 없습니다.';
+    // 그 분야 리더도 고를 수 있음 (v0.29 가정, C.canTake)
+    const help = C.roleLabel(role) + ' 역할' + (D.STEP_LEADS.some(function (r) { return D.ROLE_BASE[r] === role; }) ? '이나 그 분야 리더 역할' : '') + '이 있는 사람만 고를 수 있습니다.' +
+      (code === 'S10' ? ' HR 충전은 이 담당자가 ⑨를 하므로 그 ⑩은 다른 재무 담당자가 확인합니다.' : '');
+    // 기획자 결정 2026-11-02 C-5: 새 담당자에게 겹치는 일이 생기면 알리고 까닭을 받음(③ 줄은 영업 임원의 ③으로 셈)
+    const listFor = function (f) { const to = val(f, 'to'); return to ? C.roleConflicts(to, { addSteps: [code] }) : []; };
     C.formModal({
       title: stepName(code) + ' 담당자를 바꿀까요?',
       desc: '바꾸면 아직 차례가 오지 않은 계약부터 새 담당자에게 갑니다.' + (n ? ' 지금 차례인 ' + n + '건은 ' + C.josa(C.ownerLabel(cur), '이', '가') + ' 그대로 처리합니다.' : '') +
         (code === 'S03' ? ' 할인 폭이 큰 계약의 ③ 영업 임원 승인도 새 담당자가 맡습니다.' : ''),
       body: '<p class="modal-info">지금 담당자: ' + esc(C.ownerLabel(cur)) + '</p>' +
-        C.fieldHtml({ name: 'to', label: '새 담당자', type: 'select', required: true, options: [['', '고르세요']].concat(opts), help: help + clashNote }) +
-        C.fieldHtml({ name: 'reason', label: '바꾸는 사유', type: 'textarea', required: true, placeholder: '예: 인사 이동으로 담당 변경' }),
+        C.fieldHtml({ name: 'to', label: '새 담당자', type: 'select', required: true, options: [['', '고르세요']].concat(opts), help: help }) +
+        C.fieldHtml({ name: 'reason', label: '바꾸는 사유', type: 'textarea', required: true, placeholder: '예: 인사 이동으로 담당 변경' }) +
+        conflictHtml(),
       btn: '담당자 바꾸기',
+      open: function (f) { watchConflict(f, listFor); },
       check: function (f) {
-        return { to: val(f, 'to') ? '' : '새 담당자를 고르세요.', reason: val(f, 'reason') ? '' : '바꾸는 사유를 적으세요.' };
+        return { to: val(f, 'to') ? '' : '새 담당자를 고르세요.', reason: val(f, 'reason') ? '' : '바꾸는 사유를 적으세요.', conflictReason: conflictError(f, listFor(f)) };
       },
       done: function (f) {
-        const to = val(f, 'to');
-        C.adminSave('RULE', stepName(code) + ' 담당자', '담당자: ' + C.ownerLabel(cur) + ' → ' + C.ownerLabel(to), val(f, 'reason'), { k: 'ASSIGNEE', step: code, to: to });
+        const to = val(f, 'to'), op = { k: 'ASSIGNEE', step: code, to: to };
+        const x = withConflict(f, listFor(f), to, '담당자: ' + C.ownerLabel(cur) + ' → ' + C.ownerLabel(to), val(f, 'reason'), op);
+        C.adminSave('RULE', stepName(code) + ' 담당자', x.change, x.reason, op);
         render();
         C.toast(stepName(code) + ' 담당자를 ' + C.josa(C.ownerLabel(to), '으로', '로') + ' 바꿨습니다.');
       },
@@ -261,6 +299,8 @@
     // 지금 결재 담당이 있는 사람 (단계 담당자, 유닛 리더, 영업 임원)
     const ids = D.ACCOUNTS.filter(function (a) { return C.duties(a.id).length; }).map(function (a) { return a.id; });
     const absentOpts = ids.map(function (id) { return [id, C.ownerLabel(id) + ' (' + dutyNos(id) + ' ' + C.roleLabel(C.duties(id)[0].role) + ')']; });
+    // 기획자 결정 2026-11-02 C-5: 대신할 사람이 자리를 비우는 담당자의 일을 맡아 겹치는 일이 생기면 알리고 까닭을 받음
+    const listFor = function (f) { const a = val(f, 'absent'), s = val(f, 'sub'); return a && s ? C.roleConflicts(s, { delegateFor: a }) : []; };
     C.formModal({
       title: '대리 지정을 추가할까요?',
       desc: '기간 안에는 대신할 사람이 이 담당자의 차례를 처리하고, 결재 기록에 누구 대신인지와 근거가 남습니다.',
@@ -272,7 +312,8 @@
           C.fieldHtml({ name: 'to', label: '종료일', type: 'date', required: true, attrs: ' min="' + D.TODAY + '" data-after="fm-from" data-after-msg="종료일은 시작일보다 앞설 수 없습니다."' }) +
         '</div>' +
         C.fieldHtml({ name: 'reason', label: '근거', type: 'textarea', required: true,
-          placeholder: '예: 비즈니스2유닛 고은성 해외 출장(2026-10-19~2026-10-23). 위임전결규정에 따라 영업 임원이 대신 결재', help: '휴가, 출장 같은 사유와 대신 결재하는 근거를 적습니다. 결재 기록에 함께 남습니다.' }),
+          placeholder: '예: 비즈니스2유닛 고은성 해외 출장(2026-10-19~2026-10-23). 위임전결규정에 따라 영업 임원이 대신 결재', help: '휴가, 출장 같은 사유와 대신 결재하는 근거를 적습니다. 결재 기록에 함께 남습니다.' }) +
+        conflictHtml(),
       btn: '대리 지정',
       open: function (f) {
         f.elements.absent.addEventListener('change', function () {
@@ -281,6 +322,8 @@
             return '<option value="' + esc(a.id) + '">' + esc((a.dept ? a.dept + ' ' : '') + a.name + ' (' + C.roleLabel(a.roles.indexOf('EXEC') > -1 ? 'EXEC' : a.roles[0]) + ')') + '</option>';
           }).join('');
         });
+        // 담당자 칸의 위 처리(대신할 사람 목록 다시 만들기) 뒤에 겹침을 셈: 창에 건 것이 칸에 건 것보다 나중에 불림
+        watchConflict(f, listFor);
       },
       check: function (f) {
         const absent = val(f, 'absent'), from = val(f, 'from'), to = val(f, 'to');
@@ -293,13 +336,16 @@
           from: !from ? '시작일을 고르세요.' : from < D.TODAY ? '시작일은 오늘(' + C.fmtDate(D.TODAY) + ') 이후여야 합니다.' : '',
           to: !to ? '종료일을 고르세요.' : from && to < from ? '종료일은 시작일보다 앞설 수 없습니다.' : overlap ? '이 기간에 이미 이 담당자의 대리 지정이 있습니다.' : '',
           reason: val(f, 'reason') ? '' : '근거를 적으세요.',
+          conflictReason: conflictError(f, listFor(f)),
         };
       },
       done: function (f) {
         const d = { id: 'DL-' + String(D.DELEGATIONS.length + 1).padStart(3, '0'), absentId: val(f, 'absent'), delegateId: val(f, 'sub'),
           from: val(f, 'from'), to: val(f, 'to'), reason: val(f, 'reason') };
-        C.adminSave('RULE', dutyNames(d.absentId) + ' 대리 지정',
-          '대리 지정: ' + C.ownerLabel(d.absentId) + ' → ' + C.ownerLabel(d.delegateId) + ' (' + period(d) + ')', d.reason, { k: 'DELEGATE', d: d });
+        // 대리 지정의 근거(d.reason)는 결재 기록에 그대로 남고, 겹침 까닭은 변경 이력의 사유에만 덧붙임(C-5)
+        const op = { k: 'DELEGATE', d: d };
+        const x = withConflict(f, listFor(f), d.delegateId, '대리 지정: ' + C.ownerLabel(d.absentId) + ' → ' + C.ownerLabel(d.delegateId) + ' (' + period(d) + ')', d.reason, op);
+        C.adminSave('RULE', dutyNames(d.absentId) + ' 대리 지정', x.change, x.reason, op);
         render();
         C.toast(C.josa(C.ownerLabel(d.delegateId), '을', '를') + ' ' + C.ownerLabel(d.absentId) + '의 대리로 지정했습니다.');
       },

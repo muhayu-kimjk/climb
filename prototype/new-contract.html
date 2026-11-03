@@ -26,6 +26,8 @@
       예) new-contract.html?id=D-0001 (임시 저장)  /  new-contract.html?id=2610CL001 (반려)
   - 자동 계산(체크리스트 2, 3번, 결재선), 필수 항목 검사, 기안 확인 창은 assets/js/new-contract.js가 처리합니다.
   - 기획자 결정 2026-11-02: A-3 원계약은 내가 영업대표인 계약만, B-5 견적서로 계약서를 대신함(5백만 원 미만), B-6 4번 조건의 종류
+    E-1 ① 영업기회번호 하나에 계약 하나(다른 고객 계약에 쓴 번호는 기안을 막고, 같은 고객의 다른 계약이면 경고하고 까닭을 받음),
+    C-13 거래처 확인이 없거나 지났거나 문제 있음이면 경고만, C-16 거래처나 계약 묶음에 보류가 걸려 있으면 기안을 막음
   - 프로토타입: 임시 저장, 기안, 파일 첨부는 화면만 동작하고 실제로 저장되지 않습니다.
 ====================================================================== -->
 <body data-page="SCR-11">
@@ -107,6 +109,11 @@
             <input type="hidden" name="customer" id="f-customer">
             <p class="field-help" id="customer-help"></p>
             <p class="sr-only" id="customer-status" aria-live="polite"></p>
+            <!-- 기획자 결정 2026-11-02 C-16: 거래처나 계약 묶음에 보류가 걸려 있으면 알리고 기안을 막음(임시 저장은 됨). C.holdOf, C.holdText
+                 C-13: 국가와 지자체(가운데 83), 조달, 간접 거래처의 반부패와 제재 확인이 없거나 지났거나 문제 있음이면 경고만(막지 않음). C.customerCheckNote
+                 두 줄 모두 거래처, 계약 방식, 원계약을 바꿀 때마다 다시 봄(new-contract.js syncGuards) -->
+            <p class="field-warn" id="customer-hold" role="status" hidden></p>
+            <p class="field-warn" id="customer-check" role="status" hidden></p>
             <p class="field-error" hidden></p>
           </div>
 
@@ -140,12 +147,12 @@
             </div>
           </div>
 
-          <!-- 영업대표: 로그인한 사람, "조직 이름"으로 (님 없이, v0.32) -->
+          <!-- 영업대표: 로그인한 사람, "조직 이름"으로 (님 없이, v0.32). 변경과 연장은 원계약의 지금 영업대표(A-3, 기획자 결정 2026-11-03 C-44, new-contract.js drafterId) -->
           <div class="field-row">
             <div class="field">
               <label class="field-label" for="f-owner">영업대표</label>
               <input class="input" id="f-owner" type="text" readonly>
-              <p class="field-help">로그인한 사람으로 자동 입력됩니다.</p>
+              <p class="field-help">로그인한 사람으로 자동 입력됩니다. 변경과 연장은 원계약의 지금 영업대표입니다.</p>
             </div>
           </div>
           <!-- 영업기회번호(붙여 씀, 필수): 영업대표 아래 줄. 판다(CRM) 번호 규칙 연도 2자리, 월 2자리, 영문 2자리, 일련번호 3자리 (v0.32)
@@ -157,7 +164,15 @@
                 <input class="input" id="f-opportunity" name="opportunity" type="text" placeholder="예: 2610SU067" maxlength="9" autocomplete="off">
                 <span id="opp-link"></span>
               </div>
-              <p class="field-help">기존 판다(CRM)의 영업기회번호를 넣으면 연결됩니다.</p>
+              <p class="field-help">기존 판다(CRM)의 영업기회번호를 넣으면 연결됩니다. 번호 하나는 계약 하나에만 씁니다(반려 뒤 다시 기안하는 것은 같은 계약, 변경과 연장은 각자 번호).</p>
+              <!-- 기획자 결정 2026-11-02 E-1 ①(G-02): 같은 번호를 쓴 다른 계약이 있으면 알림(C.oppUses)
+                   다른 고객의 계약이면 기안을 막고, 같은 고객의 다른 계약이면 경고하고 까닭을 받음(계약 기록 oppDup, 결재 문서에 보임) -->
+              <p class="field-warn" id="opp-warn" role="status" hidden></p>
+              <div class="sub-fields" id="opp-reason-field" data-field="oppReason" hidden>
+                <label class="field-label field-label--sm" for="f-opp-reason">같은 번호를 쓰는 까닭<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+                <textarea class="textarea textarea--sm" id="f-opp-reason" name="oppReason" maxlength="200" placeholder="예: 같은 판다 영업기회에서 서비스를 나눠 계약함" aria-describedby="opp-warn opp-reason-err"></textarea>
+                <p class="field-error" id="opp-reason-err" hidden></p>
+              </div>
               <p class="field-error" hidden></p>
             </div>
           </div>

@@ -10,8 +10,15 @@
  *   3. 가장 최근 공지 한 줄(인사말과 함께 renderGreeting이 그림)
  *   4. 내가 검토할 계약(결재 역할에게만), 챙길 의무(의무를 맡는 분야와 최고관리자에게만)
  *   5. 점검할 일: 정보보호 담당자, 리더와 최고관리자에게만. 이상 행위 알림, 매월 기록 점검, 분기 권한 검토 (v0.27)
- *      기획자 결정 2026-11-02 C-10: 점검을 맡은 사람마다 자기 점검만. 재무(담당자, 리더, 임원)는 기간 마감 점검(B-9)
+ *      기획자 결정 2026-11-02 C-10: 점검을 맡은 모든 사람에게 넓히고 사람마다 자기 점검만(아래 CHECK_GROUPS)
+ *        정보보호(위 셋과 최고관리자 작업 점검 C-6), 재무 임원(할인 예외 점검 C-9), 재무 리더와 법무(설정 변경 확인 C-8),
+ *        재무(기간 마감 점검 B-9), 영업지원(영업기회 대사 E-1 ②), 총무(인장 기록 대사 E-7 ③), 컴플라이언스(거래처 확인 C-13, 개선 과제 C-16)
+ *        매출 대사(B-7)는 재무와 상의 뒤 정하므로 아직 없음. 읽기만 하는 역할(감사 열람, 관찰자)은 점검할 일이 없음
  *   내가 검토할 계약의 줄은 C.turnHref로: 만료 처리와 유예 확인(A-10, A-11)은 계약 상세로
+ *   기획자 결정 2026-11-03 C-44 영업대표 바꾸기
+ *     영업의 범위(진행 현황, 계약 완료 건수, 만료 임박)는 내가 지금 영업대표인 계약도 넣음(C.salesRepOf, 나에게 넘어온 계약). 넘어간 계약의 만료 임박은 새 영업대표에게
+ *     영업 리더(리더 본인 계약은 영업 임원)의 "내가 검토할 계약"에 영업대표 계정이 사용 중지되어 새 영업대표를 정할 계약(C.repTodo)을 함께. 누르면 계약 상세
+ *     만료 임박의 담당자 칸은 지금 영업대표
  * 계약명은 따로 두지 않으므로 계약은 고객사와 서비스로 표시합니다. (v0.12)
  * "확인 필요" 상자는 뺐습니다. (REQ-DASH-09, v0.12)
  * 범위 [가정, REQ-DASH-14]: 영업은 내가 등록한 계약, 그 외 역할은 전체 계약
@@ -44,21 +51,39 @@
   //   영업은 내가 영업대표인 묶음만 (만료 예정 화면과 같은 범위, v0.58 QA: 건수와 링크한 목록이 달랐음)
   //   기획자 결정 2026-11-02 A-1(C-37 ①): 개요는 만료일이 가까운 순서. 표에는 만료까지 남은 D-n만 보여 그 순서여야 읽기 쉬움
   //     다음에 오는 날(통지 기한이나 만료일) 순서는 만료 예정 화면(SCR-43)에서만 씀(expiringBundles가 주는 순서)
-  const expiring = C.expiringBundles(R.expiryWindowDays, true).filter(function (b) { return !isSales || b.root.requesterId === me.id; })
+  //   기획자 결정 2026-11-03(C-44): 영업대표는 지금 영업대표(나에게 넘어온 계약 포함, 넘어간 계약은 뺌)
+  const expiring = C.expiringBundles(R.expiryWindowDays, true).filter(function (b) { return !isSales || C.isSalesRep(b, me); })
     .map(function (b) { return Object.assign({}, b.root, { endDate: b.end, bundle: b }); })
     .sort(function (a, b) { return a.endDate.localeCompare(b.endDate) || a.id.localeCompare(b.id); });
   const restricted = all.filter(function (c) { return c.restricted && c.status !== 'DRAFT'; });
   const myActions = C.myActions(me);
+  // 기획자 결정 2026-11-03(C-44): 영업대표 계정이 사용 중지되어 내가(영업 리더, 리더 본인 계약은 영업 임원) 새 영업대표를 정할 계약 묶음
+  const repTodo = C.repTodo(me);
 
   // 진행 현황의 범위: 영업은 내가 등록한 계약, 그 외는 전체(작성 중 제외: 작성자만 봄)
+  //   기획자 결정 2026-11-03(C-44): 영업 리더가 나를 새 영업대표로 정한 계약도(내 등록 목록과 같은 범위)
   const scope = isSales
-    ? all.filter(function (c) { return c.requesterId === me.id; })
+    ? all.filter(function (c) { return c.requesterId === me.id || C.salesRepOf(c) === me.id; })
     : all.filter(function (c) { return c.status !== 'DRAFT'; });
+  const takenOver = isSales && scope.some(function (c) { return c.requesterId !== me.id; }); // 넘어온 계약이 있으면 진행 현황 머리 글을 맞춤
 
   /* ---------- 점검할 일 (REQ-DASH-16, REQ-SEC-05, 06, REQ-ADM-19~21) ----------
    * 접속 기록 점검(SCR-57)과 같은 기준: 이 시스템을 쓰기 시작한 달(D.SERVICE_START_MONTH, 2026-09)부터,
-   * [가정] 매월 점검 기한은 다음 달 말일, 분기 권한 검토 기한은 분기가 끝난 다음 달 말일 */
-  const isAuditor = C.hasRole(me, ['PRIVACY']) || me.role === 'SUPER'; // 정보보호 담당자와 리더(v0.29)
+   * [가정] 매월 점검 기한은 다음 달 말일, 분기 권한 검토 기한은 분기가 끝난 다음 달 말일
+   * 한 줄의 모양: { what 할 일, todo 할 일인지, state 상태 글, due 기한(없으면 null), noDue 기한을 정하지 않음, href 누르면 갈 곳 }
+   * 기획자 결정 2026-11-02 C-2: 읽기만 하는 역할(감사 열람, 관찰자, 끝난 역할)은 점검을 보기만 하므로 할 일을 만들지 않음 */
+  const readOnly = C.isReadOnly(me);
+  // 정보보호 담당자와 리더(v0.29). 예전 이름 isAuditor는 감사 열람(C.isAuditor)과 헷갈려 바꿈(2026-11-02)
+  const isPrivacy = !readOnly && (C.hasRole(me, ['PRIVACY']) || me.role === 'SUPER');
+  const THIS_MONTH = D.TODAY.slice(0, 7);
+  // 'YYYY-MM' → "2026년 9월", 기한(다음 달 말일), 이 시스템을 쓰기 시작한 달부터 끝난 달까지
+  function ymLabel(ym) { return Number(ym.slice(0, 4)) + '년 ' + Number(ym.slice(5, 7)) + '월'; }
+  function monthDue(ym) { return C.addDays(C.monthsLater(ym + '-01', 2), -1); }
+  function endedMonths() {
+    const out = [];
+    for (let ym = D.SERVICE_START_MONTH; ym < THIS_MONTH; ym = C.monthsLater(ym + '-01', 1).slice(0, 7)) out.push(ym);
+    return out;
+  }
   function auditItems() {
     const START = D.SERVICE_START_MONTH, THIS = D.TODAY.slice(0, 7);
     const pad = function (n) { return String(n).padStart(2, '0'); };
@@ -74,6 +99,7 @@
     const monthTodo = months.filter(function (x) { return !D.LOG_REVIEWS.some(function (r) { return r.month === x[0] + '-' + pad(x[1]); }); });
     if (monthTodo.length) monthTodo.forEach(function (x) { const n = next(x[0], x[1]); items.push({ what: x[0] + '년 ' + x[1] + '월 기록 점검', todo: true, state: '점검 전', due: lastDay(n[0], n[1]) }); });
     else { const n = next(Number(THIS.slice(0, 4)), Number(THIS.slice(5, 7))); items.push({ what: Number(THIS.slice(5, 7)) + '월 기록 점검', todo: false, state: '이달이 끝난 뒤', due: lastDay(n[0], n[1]) }); }
+    superItems().forEach(function (x) { items.push(x); }); // 매월 기록 점검 바로 다음(C-6)
     // 분기 권한 검토: 끝난 분기 중 검토하지 않은 분기
     const qNow = Math.ceil(Number(THIS.slice(5, 7)) / 3), yNow = Number(THIS.slice(0, 4));
     const quarters = [];
@@ -83,13 +109,22 @@
     if (!qTodo.length) { const n = next(yNow, qNow * 3); items.push({ what: yNow + '년 ' + qNow + '분기 권한 검토', todo: false, state: '분기가 끝난 뒤', due: lastDay(n[0], n[1]) }); }
     return items;
   }
+  /* 기획자 결정 2026-11-02 C-6, C-10: 최고관리자 작업 점검(접속 기록 점검의 "최고관리자 작업" 묶음)
+   *   매월 기록 점검과 따로 정보보호(담당자, 리더)만 결과를 남김. 기한은 매월 기록 점검과 같은 다음 달 말일
+   *   끝난 달 중 남긴 결과(관리자 변경 이력의 점검 기록, op.k SUPER_REVIEW)가 없는 달마다 한 줄. 모두 남겼으면 이달 한 줄(이달이 끝난 뒤) */
+  const SUPER_HREF = 'admin-logs.html#sec-super';
+  function superItems() {
+    const done = D.ADMIN_LOG.filter(function (e) { return e.op && e.op.k === 'SUPER_REVIEW' && e.op.r; }).map(function (e) { return e.op.r.month; });
+    const todo = endedMonths().filter(function (ym) { return done.indexOf(ym) < 0; });
+    return todo.length
+      ? todo.map(function (ym) { return { what: ymLabel(ym) + ' 최고관리자 작업 점검', todo: true, state: '점검 전', due: monthDue(ym), href: SUPER_HREF }; })
+      : [{ what: Number(THIS_MONTH.slice(5, 7)) + '월 최고관리자 작업 점검', todo: false, state: '이달이 끝난 뒤', due: monthDue(THIS_MONTH), href: SUPER_HREF }];
+  }
   /* 기획자 결정 2026-11-02 C-10: 점검할 일 상자를 점검을 맡은 사람에게 넓히고, 사람마다 자기가 맡은 점검만 보임
-   *   지금 시안에 화면이 있는 점검: 정보보호(위 세 가지), 재무(기간 마감 점검 B-9, 통계와 보고서의 맨 아래)
-   *   영업기회 대사, 매출 대사, 설정 변경 점검, 할인 예외 점검, 인장 기록 대사는 그 화면이 생길 때 여기에 더함
    *   기간 마감: 지난달 말일의 확인(D.CLOSE_CHECKS + 시연 기록 closeChecks, 기록의 end가 기간 말)이 없으면 할 일
    *     기한은 아직 정하지 않아 비워 둠 [가정: 재무와 정함]. 최고관리자는 시연용으로 모두 봄 */
   const CLOSE_HREF = 'stats.html#close-panel';
-  const isCloser = C.hasRole(me, ['FINANCE']) || me.role === 'SUPER';
+  const isCloser = !readOnly && (C.hasRole(me, ['FINANCE']) || me.role === 'SUPER');
   function closeItems() {
     const prevEnd = C.addDays(D.TODAY.slice(0, 8) + '01', -1);
     const ym = function (s) { return Number(s.slice(0, 4)) + '년 ' + Number(s.slice(5, 7)) + '월'; };
@@ -97,7 +132,48 @@
     return done ? [{ what: ym(D.TODAY) + ' 기간 마감 점검', todo: false, state: '이달이 끝난 뒤', due: null, href: CLOSE_HREF }]
       : [{ what: ym(prevEnd) + ' 기간 마감 점검', todo: true, state: '확인 전', due: null, noDue: true, href: CLOSE_HREF }];
   }
-  const audits = (isAuditor ? auditItems() : []).concat(isCloser ? closeItems() : []);
+  /* 기획자 결정 2026-11-02 C-9, C-10: 할인 예외 점검(SCR-61, 재무 임원). 끝난 달 중 "점검 마침" 기록이 없는 달마다 한 줄, 기한은 다음 달 말일
+   *   그달 기록(한계값, 줄 확인)이 있으면 "점검 중", 없으면 "점검 전". 모두 마쳤으면 이달 한 줄(이달이 끝난 뒤)
+   *   기록은 D.DISCOUNT_REVIEWS(예시) + 시연 기록(discountReviews). 누르면 그달 점검으로 */
+  function discountItems() {
+    const recs = (D.DISCOUNT_REVIEWS || []).concat(C.loadDemo('discountReviews'));
+    const done = recs.filter(function (r) { return r.type === 'DONE'; }).map(function (r) { return r.month; });
+    const todo = endedMonths().filter(function (ym) { return done.indexOf(ym) < 0; });
+    return todo.length
+      ? todo.map(function (ym) {
+        const started = recs.some(function (r) { return r.month === ym; });
+        return { what: ymLabel(ym) + ' 할인 예외 점검', todo: true, state: started ? '점검 중' : '점검 전', due: monthDue(ym), href: 'discount-review.html?month=' + ym };
+      })
+      : [{ what: ymLabel(THIS_MONTH) + ' 할인 예외 점검', todo: false, state: '이달이 끝난 뒤', due: monthDue(THIS_MONTH), href: 'discount-review.html' }];
+  }
+  /* 기획자 결정 2026-11-02 C-8, C-10: 설정 변경 확인(SCR-65). 재무 리더는 가격 기준과 제품과 기능, 법무는 표준계약서(올린 사람이 아닌 법무)
+   *   이 사람이 지금 확인할 수 있는 건수(control-checks.js canConfirm: 맡은 영역, 본인이 바꾼 줄이 아님, 아직 확인 없음)
+   *   주기 없이 바뀔 때마다 확인하므로 기한은 비워 둠 [가정]. 결재선 규칙과 회사 설정은 정보보호의 매월 기록 점검에서 봄 */
+  const X = window.CLIMB_CTL || null; // control-checks.js(index.html이 common.js 다음에 불러옴)
+  function configItems() {
+    const n = X ? X.settingChanges({ areas: ['PRICE', 'PRODUCT', 'TEMPLATE'] }).filter(function (x) { return X.canConfirm(me, x).ok; }).length : 0;
+    return [{ what: '설정 변경 확인', todo: n > 0, state: n ? '확인 전 ' + n + '건' : '확인할 것 없음', due: null, noDue: true, href: 'config-review.html' }];
+  }
+  /* 기획자 결정 2026-11-02 C-13, C-16, C-10: 컴플라이언스의 일(C.complianceTodo: 거래처 확인, 개선 과제)
+   *   거래처 확인은 거래처마다 다음 확인일이 달라 한 기한이 없음("-"). 개선 과제는 끝나지 않은 과제 가운데 가장 이른 기한 */
+  function complianceItems() {
+    return C.complianceTodo().map(function (x) { return Object.assign({ noDue: !x.due }, x); });
+  }
+  /* 점검을 맡는 묶음(맡는 역할은 common.js CHECK_OWNERS, 처리할 수 있는지는 C.canDoCheck: 읽기만 하는 역할은 false, 최고관리자는 시연용)
+   *   on: 이 사람이 맡는지 / items: 할 일 줄 / who: 상자 설명 / more: 상자 머리 오른쪽 링크(맡은 묶음 가운데 첫째) / owner: 최고관리자에게 보일 맡은 사람
+   *   차례: 정보보호(예전 그대로 맨 앞), 재무 임원, 재무 리더와 법무, 재무, 영업지원, 총무, 컴플라이언스 */
+  const CHECK_GROUPS = [
+    { on: isPrivacy, items: auditItems, who: '접속 기록 점검은 정보보호 담당자가', more: ['접속 기록 점검으로', 'admin-logs.html'], owner: '정보보호' },
+    { on: C.canDoCheck(me, 'SCR-61'), items: discountItems, who: '할인 예외 점검은 재무 임원이', more: ['할인 예외 점검으로', 'discount-review.html'], owner: '재무 임원' },
+    { on: C.canDoCheck(me, 'SCR-65'), items: configItems, who: '설정 변경 확인은 재무 리더와 법무가', more: ['설정 변경 확인으로', 'config-review.html'], owner: '재무 리더, 법무' },
+    { on: isCloser, items: closeItems, who: '기간 마감 점검은 재무가', more: ['기간 마감 점검으로', CLOSE_HREF], owner: '재무' },
+    { on: C.canDoCheck(me, 'SCR-62'), items: function () { return C.reconTodo('SCR-62'); }, who: '영업기회 대사는 영업지원이', more: ['영업기회 대사로', 'opp-recon.html'], owner: '영업지원' },
+    { on: C.canDoCheck(me, 'SCR-63'), items: function () { return C.reconTodo('SCR-63'); }, who: '인장 기록 대사는 총무가', more: ['인장 기록 대사로', 'seal-recon.html'], owner: '총무' },
+    { on: C.canDoCheck(me, 'SCR-64'), items: complianceItems, who: '거래처 확인과 개선 과제는 컴플라이언스 담당자가', more: ['개선 과제와 보류로', 'remediation.html'], owner: '컴플라이언스' },
+  ].filter(function (g) { return g.on; });
+  const audits = CHECK_GROUPS.reduce(function (out, g) {
+    return out.concat(g.items().map(function (a) { return Object.assign({ owner: g.owner }, a); }));
+  }, []);
 
   /* ---------- 공통 조각 ---------- */
   // 고객사 칸과 서비스 칸: 계약명 대신 고객사와 서비스로 계약을 구분 (v0.12)
@@ -137,8 +213,10 @@
     const name = '<strong>' + esc(me.name) + '님</strong>, ';
     let msg;
     if (isProcessor) {
-      msg = myActions.length
-        ? name + '지금 ' + doWord + ' 계약이 <strong class="em">' + myActions.length + '건</strong> 있습니다.'
+      // 영업 리더는 새 영업대표를 정할 계약도 셈(2026-11-03 C-44, 아래 내가 검토할 계약 표와 같은 수)
+      const n = myActions.length + repTodo.length;
+      msg = n
+        ? name + '지금 ' + doWord + ' 계약이 <strong class="em">' + n + '건</strong> 있습니다.'
         : name + '지금 ' + doWord + ' 계약이 없습니다.';
     } else if (isSales) {
       msg = myActions.length
@@ -149,8 +227,9 @@
     }
     // 정보보호: 점검할 일도 함께 (REQ-DASH-16)
     const auditCount = audits.filter(function (a) { return a.todo; }).length;
-    //   재무도 기간 마감 점검(C-10, 2026-11-02)
-    if (C.hasRole(me, ['PRIVACY', 'FINANCE']) && auditCount) msg += ' 점검할 일도 <strong class="em">' + auditCount + '건</strong> 있습니다.';
+    //   기획자 결정 2026-11-02 C-10: 점검을 맡은 모든 사람(재무, 재무 임원, 재무 리더, 법무, 영업지원, 총무, 컴플라이언스)도 셈
+    //   최고관리자는 시연으로 모든 점검을 보므로 인사말에는 넣지 않음(예전과 같음)
+    if (me.role !== 'SUPER' && auditCount) msg += ' 점검할 일도 <strong class="em">' + auditCount + '건</strong> 있습니다.';
     document.getElementById('greeting').innerHTML = msg;
     document.getElementById('today').textContent = C.fmtToday() + ' 기준';
     // 최근 공지 한 줄은 없앰(v0.59 기획자 요청, REQ-UI-29). 공지와 릴리즈는 공지사항 게시판에서, 중요 공지는 이메일로(REQ-ENV-10).
@@ -178,7 +257,7 @@
   function renderProgress() {
     const stepsHtml = STEPS.map(function (s, i) {
       const list = s.bundles
-        ? C.bundles().filter(function (b) { return b.status === 'ACTIVE' && (!isSales || b.root.requesterId === me.id); })
+        ? C.bundles().filter(function (b) { return b.status === 'ACTIVE' && (!isSales || C.salesRepOf(b) === me.id); }) // 지금 영업대표(2026-11-03 C-44)
         : scope.filter(function (c) { return s.statuses.indexOf(c.status) > -1; });
       const unknown = i === 0 && !isSales; // 작성 중 계약은 작성자 본인만 셀 수 있음
       const count = unknown ? '-' : list.length;
@@ -199,7 +278,7 @@
       .filter(function (c) { return order[c.status] != null; })
       .sort(function (a, b) { return order[a.status] - order[b.status] || dateOf(a).localeCompare(dateOf(b)); });
 
-    const sub = (isSales ? '내가 등록한 계약 ' : '전체 계약 ') + scope.length + '건';
+    const sub = (isSales ? (takenOver ? '내가 등록하거나 이어 맡은 계약 ' : '내가 등록한 계약 ') : '전체 계약 ') + scope.length + '건';
     // 기획자 결정 2026-11-02 D-1(C-40 ①): 인사말의 "처리가 필요한 내 계약 n건"이 어느 줄인지 "내 차례" 배지로 알림
     //   영업만. n건과 같은 계약(C.myActions: 반려, 보완 요청, ⑦ 체결본 등록 차례)에만 붙임
     //   배지는 체결 대기 화면이 ⑦에 쓰는 것과 같은 모양(C.badge progress). 색이 아닌 글자라 분홍인 반려 줄, 흑백 인쇄에서도 보임
@@ -243,10 +322,23 @@
     // 고객지원과 재무는 운영 검토 대기로, 그 외는 검토 대기로
     const ops = C.hasRole(me, ['CEM', 'FINANCE']);
     // 영업은 검토 대기를 쓰지 않으므로 내 등록 목록으로 (v0.58 QA)
-    const head = panelHead('my-reviews-title', '내가 ' + doWord + ' 계약', rows.length + '건',
+    const head = panelHead('my-reviews-title', '내가 ' + doWord + ' 계약', (rows.length + repTodo.length) + '건',
       isSales ? '내 등록 목록 전체 보기' : ops ? '운영 검토 대기 전체 보기' : '검토 대기 전체 보기',
       isSales ? 'my-contracts.html' : ops ? 'ops-queue.html' : 'review-queue.html');
-    if (!rows.length) { el.innerHTML = head + '<p class="empty">지금 ' + doWord + ' 계약이 없습니다.</p>'; return; } // 상자 제목과 같은 말(총무, 고객지원, 재무는 "처리할", v0.63 점검)
+    if (!rows.length && !repTodo.length) { el.innerHTML = head + '<p class="empty">지금 ' + doWord + ' 계약이 없습니다.</p>'; return; } // 상자 제목과 같은 말(총무, 고객지원, 재무는 "처리할", v0.63 점검)
+    /* 기획자 결정 2026-11-03(C-44): 새 영업대표를 정할 계약(영업대표 계정이 사용 중지되었거나 영업 역할이 없어짐). 결재 줄 아래에 붙임
+     *   요청자 칸은 맡을 수 없게 된 영업대표와 그 까닭, 대기는 그 계정의 권한 변경일(사용 중지나 역할 변경)부터, 내 단계는 "영업대표 지정". 누르면 계약 상세(영업대표 바꾸기 단추) */
+    const repRows = repTodo.map(function (b) {
+      const acc = C.accountOf(C.salesRepOf(b)), wait = acc && acc.roleChangedAt ? C.daysSince(acc.roleChangedAt) : 0;
+      return '<tr>' +
+        '<td><a class="cell-title" href="contract.html?id=' + encodeURIComponent(b.id) + '">' + esc(b.root.counterparty) + '</a>' +
+          '<span class="cell-sub">' + esc(C.serviceLabel(b.root.services)) + '</span></td>' +
+        '<td class="col-service">' + esc(C.serviceLabel(b.root.services)) + '</td>' +
+        '<td class="center">' + esc(C.ownerLabel(C.salesRepOf(b))) + '<span class="cell-meta">' + esc(C.repGoneText(b)) + '</span></td>' + // 사용 중지나 영업 역할 없음(C-44)
+        '<td class="num col-wait"><span' + (wait >= R.approvalDelayDays ? ' class="wait-long"' : '') + '>' + wait + '일</span></td>' +
+        '<td class="nowrap col-steps">' + C.badge('attention', '영업대표 지정') + '</td>' +
+      '</tr>';
+    }).join('');
     el.innerHTML = head +
       '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
         '<caption class="sr-only">내가 ' + doWord + ' 계약: 고객사, 서비스, 요청자, 대기 일수, 내 단계</caption>' +
@@ -265,28 +357,33 @@
             '<td class="num col-wait"><span' + (wait >= R.approvalDelayDays ? ' class="wait-long"' : '') + '>' + wait + '일</span></td>' +
             '<td class="nowrap col-steps">' + (s ? (C.isReviewStep(s.step) ? stepDots(c) : '') + esc(C.stepLabel(s.step, c)) : C.statusBadge(c)) + '</td>' +
           '</tr>';
-        }).join('') + '</tbody>' +
+        }).join('') + repRows + '</tbody>' +
       '</table></div>';
   }
 
-  /* ---------- 3-1. 점검할 일 (정보보호, REQ-DASH-16) ---------- */
+  /* ---------- 3-1. 점검할 일 (정보보호, REQ-DASH-16. 2026-11-02 C-10: 점검을 맡은 모든 사람) ---------- */
   function renderAudit() {
     const el = document.getElementById('audit');
     if (!audits.length) return; // 점검을 맡은 사람에게만(C-10)
     el.hidden = false;
     const todo = audits.filter(function (a) { return a.todo; }).length;
-    // 오른쪽 링크와 설명은 맡은 점검에 맞춰: 정보보호는 접속 기록 점검, 재무는 기간 마감 점검(C-10)
-    const who = [isAuditor ? '접속 기록 점검은 정보보호 담당자가' : '', isCloser ? '기간 마감 점검은 재무가' : ''].filter(Boolean).join(', ');
-    el.innerHTML = panelHead('audit-title', '점검할 일', todo + '건', isAuditor ? '접속 기록 점검으로' : '기간 마감 점검으로', isAuditor ? 'admin-logs.html' : CLOSE_HREF) +
-      '<p class="panel-desc">' + who + ' 합니다. 기한이 지나면 강조합니다.</p>' +
+    // 오른쪽 링크와 설명은 맡은 점검에 맞춰(C-10): 링크는 맡은 묶음 가운데 첫째 화면, 설명은 맡은 묶음마다 누가 하는지
+    //   최고관리자는 모든 묶음이라 설명을 짧게 하고, 줄마다 맡은 사람을 작은 글자로 붙임
+    const first = CHECK_GROUPS[0];
+    const isSuper = me.role === 'SUPER';
+    const who = isSuper ? '점검마다 맡은 사람이 합니다. 최고관리자는 시연으로 모든 점검을 봅니다.'
+      : CHECK_GROUPS.map(function (g) { return g.who; }).join(', ') + ' 합니다.';
+    el.innerHTML = panelHead('audit-title', '점검할 일', todo + '건', first.more[0], first.more[1]) +
+      '<p class="panel-desc">' + who + ' 기한이 지나면 강조합니다.</p>' +
       '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
         '<caption class="sr-only">점검할 일: 할 일, 상태, 기한</caption>' +
         '<thead><tr><th scope="col">할 일</th><th scope="col">상태</th><th scope="col">기한</th></tr></thead>' +
         '<tbody>' + audits.map(function (a) {
           const late = a.todo && a.due && C.daysUntil(a.due) < 0;
-          // 기한을 정하지 않은 점검(noDue, 기간 마감)은 "-"
+          // 기한을 정하지 않은 점검(noDue: 기간 마감, 설정 변경 확인, 거래처 확인)은 "-"
           const dueText = !a.due ? (a.todo && !a.noDue ? '바로' : '-') : C.fmtDate(a.due) + (a.todo ? ' (' + (late ? '기한 지남' : 'D-' + C.daysUntil(a.due)) + ')' : '');
-          return '<tr' + (late ? ' class="is-alert"' : '') + '><td><a class="cell-title" href="' + (a.href || 'admin-logs.html') + '">' + esc(a.what) + '</a></td>' +
+          return '<tr' + (late ? ' class="is-alert"' : '') + '><td><a class="cell-title" href="' + (a.href || 'admin-logs.html') + '">' + esc(a.what) + '</a>' +
+              (isSuper ? '<span class="cell-meta">' + esc(a.owner) + '</span>' : '') + '</td>' +
             '<td class="nowrap">' + C.badge(a.todo ? (a.what.indexOf('알림') > -1 ? 'danger' : 'attention') : 'line', a.state) + '</td>' +
             '<td class="num-left">' + dueText + '</td></tr>';
         }).join('') + '</tbody></table></div>';
@@ -349,7 +446,7 @@
       const tone = C.ddayTone(d); // 30일 이내 Pink, 60일 이내 Purple, 그 외 Blue (REQ-DASH-07)
       const dday = '<span class="badge badge--' + tone + '" aria-label="만료까지 ' + d + '일">D-' + d + '</span>';
       // 열람 제한 계약은 고객사, 서비스, 담당자를 가림 (REQ-AUTH-09)
-      const owner = C.canView(c, me) ? esc(C.ownerLabel(c.requesterId)) : '-';
+      const owner = C.canView(c, me) ? esc(C.ownerLabel(C.salesRepOf(c))) : '-'; // 지금 영업대표(2026-11-03 C-44)
       return '<tr>' +
         '<td class="center">' + dday + '</td>' + // 날짜에 딸린 값이라 가운데 (v0.55 기획자 요청, REQ-UI-16)
         customerCells(c) +

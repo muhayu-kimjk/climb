@@ -15,6 +15,15 @@
  *   6. 출력은 단추로만 기록이 남는 고객용 견적서가 나옴. 브라우저 인쇄는 다른 화면처럼 워터마크가 있는 사내 인쇄
  *   출력 기록 지키기(v0.61 검토): 저장과 출력과 새 판은 늘 저장된 기록을 다시 읽고 함. 출력한 판은 내용을 바꾸지 못하고 기록은 덧붙이기만
  *     (예전 탭이나 뒤로 가기로 남은 화면에서 눌러도 출력 기록이 지워지거나 판이 풀리지 않게. C.saveQuote도 같은 규칙)
+ *   기획자 결정 2026-11-02
+ *     E-7(추천과 다름) 덧붙임 ①: "견적서 출력"으로 내는 고객용 견적서에는 회사 인장 그림을 늘 찍음(공급자 칸 대표자 옆 "(인)" 자리)
+ *       인장 그림은 회사 설정(SCR-59, D.COMPANY.seal, 총무가 올림). 없으면 인장 없이 출력하고 출력한 사람에게 알림(출력은 막지 않음)
+ *       화면과 브라우저 인쇄(사내 인쇄)에는 찍지 않음: 인장 그림은 "견적서 출력"으로 인쇄하는 동안에만 견적서에 넣고 끝나면 뺌
+ *     E-7 ③: 출력 기록에 sealed(인장 찍음), sealVer(찍은 그림의 판)를 남김. 총무가 매월 인장 대장과 맞춰 봄(인장 기록 대사 SCR-63)
+ *     E-7 ④: 견적서 외부 전자서명은 하지 않음으로 닫음(만들지 않음)
+ *     E-8: 고객용 견적서는 사내 워터마크(REQ-SEC-07)의 예외 그대로. 출력 기록을 먼저 남긴 뒤에만 견적서가 나옴(아래 issue)
+ *     E-9: 공급자 칸의 사업자등록번호, 대표자, 주소, 대표 연락처는 회사 설정 값(D.COMPANY). 예전 "회사 설정 값" 자리를 바꿈
+ *     E-4: 새 줄과 새 판은 오늘의 할인율 한도(남은 시연 한도도 0%)로 채움. 이미 저장한 줄의 한도는 그대로
  * 프로토타입: 저장과 출력 기록은 이 브라우저에만(시연 기록). 실제 시스템은 서버에 저장하고, 단가와 합계도 서버에서 다시 계산하며
  *   출력 기록을 먼저 남긴 뒤에만 고객용 PDF를 만들어 줌
  * ===================================================================== */
@@ -370,7 +379,8 @@
     if (latest.ver > q.ver) intro.push('이 견적에는 새 판(' + latest.ver + '판)이 있어 이 판은 출력할 수 없습니다.');
     if (st.code === 'EXPIRED') intro.push('유효기간(' + C.fmtDate(q.validUntil) + ')이 지나 출력할 수 없습니다. 다시 내려면 새 판을 만듭니다.');
     // 고객용 견적서는 단추로만(REQ-QUO-05). 처음 쓰는 사람이 브라우저 인쇄로 찍지 않게 이용 안내와 같은 말로 알림
-    if (canIssue(q)) intro.push('고객에게 낼 견적서는 "견적서 출력"으로 냅니다(PDF로 저장해 보낼 수 있음). 브라우저의 인쇄 메뉴로 찍으면 워터마크가 든 사내 인쇄가 됩니다.');
+    //   기획자 결정 2026-11-02 E-7: "견적서 출력"에만 회사 인장이 찍힘을 함께 알림(화면과 사내 인쇄에는 없음)
+    if (canIssue(q)) intro.push('고객에게 낼 견적서는 "견적서 출력"으로 냅니다(회사 인장이 찍히고, PDF로 저장해 보낼 수 있음). 브라우저의 인쇄 메뉴로 찍으면 워터마크가 든 사내 인쇄가 되고 인장은 찍히지 않습니다.');
     const overs = q.lines.filter(overCap);
     $('#page-intro').innerHTML = '<p>' + esc(intro.join(' ')) + '</p><p class="sub">작성 ' + esc(C.ownerLabel(q.owner)) + ', 저장 ' + esc(C.fmtDateTime(q.savedAt)) +
       (overs.length ? '. 할인율 한도를 넘는 줄이 ' + overs.length + '개 있어 이 가격으로 계약하면 영업 리더의 할인 승인이 필요합니다' : '') + '.</p>';
@@ -394,10 +404,15 @@
     const nv = $('#q-newver');
     if (nv) nv.addEventListener('click', function () { newVersion(q); });
     // 출력할 수 없는 까닭(작성한 영업이 보는 맨 마지막 판인데 검사에 걸림)
+    //   기획자 결정 2026-11-02 E-7: 출력할 수 있는데 회사 인장 그림이 없으면 누르기 전에 알림(인장 없이 나가고 기록에 "인장 없음". 막지는 않음)
     const why = problems(q);
     $('#notice').innerHTML = (mine || me.role === 'SUPER') && latest.ver === q.ver && why.length && C.quoteStatus(q).code !== 'EXPIRED'
-      ? C.noticeBox('', '이 판은 아직 출력할 수 없습니다', why.map(function (x) { return x[1]; }).join(' ')) : '';
+      ? C.noticeBox('', '이 판은 아직 출력할 수 없습니다', why.map(function (x) { return x[1]; }).join(' '))
+      : canIssue(q) && !sealNow() ? C.noticeBox('', '회사 인장 그림이 없습니다',
+        '회사 설정에 인장 그림이 없어 "견적서 출력"을 누르면 인장 없이 나가고, 출력 기록에 "인장 없음"이 남습니다. 총무에게 인장 그림을 올려 달라고 알려 주세요.') : '';
   }
+  // 지금 회사 인장 그림(회사 설정, 총무가 올림). 없으면 null (기획자 결정 2026-11-02 E-7)
+  function sealNow() { const s = D.COMPANY && D.COMPANY.seal; return s && s.src ? s : null; }
   // 새 판: 저장된 맨 마지막 판을 다시 읽고 그 다음 판으로. 표준 단가와 한도, 단위는 오늘의 가격 기준으로 다시 채움(v0.61 검토)
   function newVersion(q) {
     const latest = C.findQuote(q.no);
@@ -414,34 +429,54 @@
     });
     Object.assign(copy, { ver: latest.ver + 1, date: D.TODAY, validUntil: plusDays(D.TODAY, D.QUOTE_RULES.validDays), owner: me.id, issues: [], savedAt: C.nowStamp() });
     C.saveQuote(copy);
-    try { sessionStorage.setItem('climb.flash', copy.no + ' ' + copy.ver + '판을 만들었습니다.' + (changed ? ' 가격 기준이 바뀐 줄 ' + changed + '개의 표준 단가를 오늘 값으로 바꿨습니다.' : '') + ' 고친 뒤 출력합니다.'); } catch (e) { /* 무시 */ }
+    // 표준 단가만이 아니라 한도도 오늘 값으로 바뀜(기획자 결정 2026-11-02 E-4: 남은 시연 한도 20%, 15%가 0%로)
+    try { sessionStorage.setItem('climb.flash', copy.no + ' ' + copy.ver + '판을 만들었습니다.' + (changed ? ' 가격 기준이 바뀐 줄 ' + changed + '개의 표준 단가와 할인율 한도를 오늘 값으로 바꿨습니다.' : '') + ' 고친 뒤 출력합니다.'); } catch (e) { /* 무시 */ }
     location.href = 'quote.html?no=' + encodeURIComponent(copy.no) + '&ver=' + copy.ver;
   }
 
   // 견적서 출력: 저장된 기록을 다시 읽어 출력 기록을 덧붙이고(다른 탭에서 남긴 기록도 지키며), 고객용 견적서만 인쇄(body.is-quote-print, quote.css)
+  //   기획자 결정 2026-11-02 E-7: 출력 기록에 인장을 찍었는지(sealed)와 그 그림의 판(sealVer)을 함께 남긴 뒤, 인장 그림을 넣은 견적서로 인쇄
+  //     인장 그림은 인쇄하는 동안에만 넣고 인쇄 창을 닫으면 뺌(화면과 사내 인쇄에는 찍히지 않게). 그림이 없으면 인장 없이 출력하고 알림
   function issue(q) {
     const cur = C.findQuote(q.no, q.ver);
     if (!cur || !canIssue(cur)) { renderHead(cur || q); C.toast('이 판은 지금 출력할 수 없습니다.'); return; }
     const t = C.quoteTotals(cur);
-    cur.issues = (cur.issues || []).concat([{ at: C.nowStamp(), by: me.id, total: t.total }]);
+    const seal = sealNow();
+    cur.issues = (cur.issues || []).concat([Object.assign({ at: C.nowStamp(), by: me.id, total: t.total, sealed: !!seal }, seal ? { sealVer: seal.ver } : {})]);
     const saved = C.saveQuote(cur);
     renderHead(saved);
-    $('#quote-doc').innerHTML = docHtml(saved);
+    $('#quote-doc').innerHTML = docHtml(saved, seal);
     renderIssues(saved);
     renderVersions(saved);
     window.scrollTo(0, 0);
     if ($('#q-out')) $('#q-out').focus({ preventScroll: true });
     document.body.classList.add('is-quote-print');
-    const done = function () { document.body.classList.remove('is-quote-print'); window.removeEventListener('afterprint', done); };
+    const done = function () {
+      document.body.classList.remove('is-quote-print');
+      $('#quote-doc').innerHTML = docHtml(saved); // 인장 그림을 뺀 화면 모양으로 되돌림
+      window.removeEventListener('afterprint', done);
+    };
     window.addEventListener('afterprint', done);
-    C.toast('출력 기록을 남겼습니다(' + saved.no + ' ' + saved.ver + '판, ' + saved.issues.length + '번째).');
-    setTimeout(function () { window.print(); }, 50);
+    C.toast(seal ? '출력 기록을 남겼습니다(' + saved.no + ' ' + saved.ver + '판, ' + saved.issues.length + '번째, 인장 찍음).'
+      : '회사 인장 그림이 없어 인장 없이 출력합니다. 총무에게 알려 주세요.', !seal);
+    // 인장 그림을 다 읽은 뒤에 인쇄 창을 엶(그림 자리가 비어 찍히지 않게)
+    const img = $('#quote-doc .qd-seal');
+    const go = function () { window.print(); };
+    setTimeout(function () { if (img && img.decode) img.decode().then(go, go); else go(); }, 50);
+  }
+  // 출력 기록: 일시, 출력한 사람, 인장(기획자 결정 2026-11-02 E-7 ③. 인장 찍음과 그림의 판, 인장 없음. 이 결정 앞의 기록은 "-"), 합계
+  function sealText(x) {
+    return x.sealed === true ? '인장 찍음' + (x.sealVer ? '<span class="cell-meta">그림 ' + x.sealVer + '판</span>' : '')
+      : x.sealed === false ? C.badge('attention', '인장 없음') : '-';
   }
   function renderIssues(q) {
     const list = (q.issues || []).slice().reverse();
-    $('#q-issues').innerHTML = list.length ? '<div class="tbl-scroll"><table class="tbl tbl--compact"><caption class="sr-only">출력 기록: 일시, 출력한 사람, 합계</caption>' +
-      '<thead><tr><th scope="col">출력 일시</th><th scope="col">출력한 사람</th><th scope="col" class="num">합계</th></tr></thead><tbody>' +
-      list.map(function (x) { return '<tr><td class="num-left">' + esc(C.fmtDateTime(x.at)) + '</td><td class="center">' + esc(C.ownerLabel(x.by)) + '</td><td class="num">' + C.fmtWon(x.total) + '</td></tr>'; }).join('') +
+    $('#q-issues').innerHTML = list.length ? '<div class="tbl-scroll"><table class="tbl tbl--compact"><caption class="sr-only">출력 기록: 일시, 출력한 사람, 인장, 합계</caption>' +
+      '<thead><tr><th scope="col">출력 일시</th><th scope="col">출력한 사람</th><th scope="col">인장</th><th scope="col" class="num">합계</th></tr></thead><tbody>' +
+      list.map(function (x) {
+        return '<tr><td class="num-left">' + esc(C.fmtDateTime(x.at)) + '</td><td class="center">' + esc(C.ownerLabel(x.by)) + '</td>' +
+          '<td class="center nowrap">' + sealText(x) + '</td><td class="num">' + C.fmtWon(x.total) + '</td></tr>';
+      }).join('') +
       '</tbody></table></div>' : '<p class="empty-note">아직 출력하지 않았습니다.</p>';
   }
   function renderVersions(q) {
@@ -457,10 +492,14 @@
       }).join('') + '</tbody></table></div>';
   }
 
-  /* ---------- 고객에게 내는 견적서 (A4 세로, 흑백 인쇄. 줄이 많으면 다음 장으로 이어지고 표 머리글이 다시 나옴) ---------- */
-  function docHtml(q) {
-    const t = C.quoteTotals(q), S = D.QUOTE_SUPPLIER;
+  /* ---------- 고객에게 내는 견적서 (A4 세로, 흑백 인쇄. 줄이 많으면 다음 장으로 이어지고 표 머리글이 다시 나옴) ----------
+   * seal: "견적서 출력"으로 인쇄할 때만 넘기는 회사 인장 그림(기획자 결정 2026-11-02 E-7). 없으면 대표자 옆에 "(인)" 글자만
+   * 공급자 칸은 회사 설정 값(E-9, D.COMPANY = D.QUOTE_SUPPLIER). 비어 있는 값은 "회사 설정에 없음"으로 흐리게 */
+  function docHtml(q, seal) {
+    const t = C.quoteTotals(q), S = D.COMPANY || D.QUOTE_SUPPLIER;
     const acc = C.accountOf(q.owner);
+    const setting = function (v) { return v ? esc(v) : '<span class="qd-setting">회사 설정에 없음</span>'; };
+    const sealSpot = '<span class="qd-seal-spot">(인)' + (seal ? '<img class="qd-seal" src="' + esc(seal.src) + '" alt="회사 인장">' : '') + '</span>';
     return '<article class="quote-doc" aria-label="견적서 미리 보기">' +
       '<header class="qd-head"><h2 class="qd-title">견적서</h2>' +
         '<dl class="qd-meta"><div><dt>견적번호</dt><dd>' + esc(q.no) + ' (' + q.ver + '판)</dd></div>' +
@@ -470,7 +509,11 @@
           (q.bizNo ? '<p class="qd-small">사업자등록번호 ' + esc(q.bizNo) + '</p>' : '') + '<p class="qd-small">아래와 같이 견적합니다.</p></section>' +
         '<section class="qd-party"><h3 class="qd-h3">공급자</h3><dl class="qd-kv">' +
           '<div><dt>상호</dt><dd>' + esc(S.name) + '</dd></div>' +
-          ['사업자등록번호', '대표자', '주소', '대표 연락처'].map(function (k) { return '<div><dt>' + k + '</dt><dd class="qd-setting">회사 설정 값</dd></div>'; }).join('') + // 실제 시스템은 회사 설정 값(REQ-QUO-08), 시안에는 넣지 않음
+          // 기획자 결정 2026-11-02 E-9: 회사 설정 값(REQ-QUO-08). 예전에는 "회사 설정 값" 자리만 있었음. 인장은 대표자 옆 "(인)" 자리에(E-7)
+          '<div><dt>사업자등록번호</dt><dd>' + setting(S.bizNo) + '</dd></div>' +
+          '<div><dt>대표자</dt><dd>' + setting(S.ceo) + ' ' + sealSpot + '</dd></div>' +
+          '<div><dt>주소</dt><dd>' + setting(S.address) + '</dd></div>' +
+          '<div><dt>대표 연락처</dt><dd>' + setting(S.phone) + '</dd></div>' +
           '<div><dt>담당</dt><dd>' + esc(C.ownerLabel(q.owner)) + (acc && acc.email ? ' <span class="nowrap">' + esc(acc.email) + '</span>' : '') + '</dd></div></dl></section>' +
       '</div>' +
       '<p class="qd-total"><span>합계 금액(부가세 포함)</span><strong>' + esc(koreanWon(t.total)) + ' <span class="nowrap">(' + C.fmtWon(t.total) + ')</span></strong></p>' +

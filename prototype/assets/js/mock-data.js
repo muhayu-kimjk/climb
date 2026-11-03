@@ -32,7 +32,11 @@ window.CLIMB_DATA = (function () {
    * 화면 맨 위에는 역할 대신 조직명을 보여 줍니다. 역할은 관리자 화면(사용자 권한 관리)에서 봅니다. (v0.29)
    * 코드는 예전 그대로 두고(SALES, HEAD 등) 표시 이름만 2단계로 바꿨습니다. 새 등급만 새 코드(SA_LEAD 등)입니다.
    * 역할과 조직은 서로 묶지 않습니다(v0.31 기획자 결정). 관리자가 사람마다 역할을 주고, 어느 조직 사람인지와 상관없습니다.
-   *   예: 총무 담당자 역할은 경영지원유닛 사람에게 주지만, 조직 때문에 역할이 정해지지는 않음 */
+   *   예: 총무 담당자 역할은 경영지원유닛 사람에게 주지만, 조직 때문에 역할이 정해지지는 않음
+   * 기획자 결정 2026-11-02 (덧붙임, C-13, C-16): 새 분야 "컴플라이언스"에 담당자(COMPLIANCE)를 둠.
+   *   거래처 확인 결과(C-13), 보류 걸고 풀기와 개선 과제 기록(C-16)을 맡고 결재 단계는 맡지 않음. 열람 제한 계약까지 보려면 감사 열람을 따로 받음
+   * 기획자 결정 2026-11-02 C-2: "감사 열람"(AUDIT)은 관찰자처럼 분야 없이 한 단계. 모든 계약(열람 제한 포함), 전체 통계, 관리자 변경 이력,
+   *   접속 기록 점검을 보기만 함. 최고관리자만 사유와 끝나는 날을 정해 주고 끝나는 날이 지나면 저절로 풀림(아래 ROLE_LIMITS, ROLE_GRANTS) */
   const ROLE_AREAS = [
     { name: '시스템 관리', solo: true, roles: { SUPER: '최고관리자', ADMIN: '관리자' } },
     { name: '영업', roles: { SALES: '담당자', HEAD: '리더', EXEC: '임원' } },
@@ -42,7 +46,9 @@ window.CLIMB_DATA = (function () {
     { name: '총무', roles: { GA: '담당자' } },
     { name: '고객지원', roles: { CEM: '담당자', CEM_LEAD: '리더' } },
     { name: '재무', roles: { FINANCE: '담당자', FIN_LEAD: '리더', FIN_EXEC: '임원' } },
+    { name: '컴플라이언스', roles: { COMPLIANCE: '담당자' } }, // 2026-11-02 덧붙임: 짧은 이름 "컴플라이언스"
     { name: '관찰', solo: true, roles: { OBSERVER: '관찰자' } },
+    { name: '감사', solo: true, roles: { AUDIT: '감사 열람' } }, // 2026-11-02 C-2: 읽기만, 끝나는 날이 있는 역할
   ];
   // 역할 코드 → 표시 이름("영업 담당자", "영업 리더"), 짧은 이름(결재란과 현재 진행 칸: 담당자는 분야 이름만, "영업", "법무")
   const ROLES = {}, ROLE_SHORT = {}, ROLE_AREA = {};
@@ -58,7 +64,34 @@ window.CLIMB_DATA = (function () {
   //   재무 리더와 재무 임원은 결재 단계를 맡지 않고 재무 담당자의 화면을 보기만 합니다(기획자 결정 v0.29)
   const ROLE_BASE = { SA_LEAD: 'SALES_ADMIN', SEC_LEAD: 'PRIVACY', CEM_LEAD: 'CEM', FIN_LEAD: 'FINANCE', FIN_EXEC: 'FINANCE' };
   // 결재선 규칙에서 단계 담당자나 대신할 사람으로 고를 수 있는 리더 [가정]. 재무 리더, 재무 임원, 관찰자는 열람만
+  //   컴플라이언스 담당자와 감사 열람도 결재 단계를 맡지 않음(2026-11-02)
   const STEP_LEADS = ['SA_LEAD', 'SEC_LEAD', 'CEM_LEAD'];
+
+  /* ---------- 끝나는 날이 있는 역할 (기획자 결정 2026-11-02 C-2) ----------
+   * maxDays: 줄 때 고를 수 있는 가장 긴 기간(오늘부터) [가정 1년]. 최고관리자만 주고 뺌(사용자 권한 관리 SCR-51)
+   * 끝나는 날이 지나면 그 역할은 없는 것으로 봄(common.js hasRole, roleEnded). 실제 시스템은 끝나는 날 다음 날 서버가 역할을 빼고 기록을 남김 */
+  const ROLE_LIMITS = { AUDIT: { maxDays: 365 } };
+
+  /* ---------- 겹치면 안 되는 역할 조합 (기획자 결정 2026-11-02 C-5, REQ-AUTH-14, 06 CTL-110, CTL-111) ----------
+   * 한 사람이 아래 짝의 두 일을 함께 맡으면 "역할 겹침". 막지 않고, 저장할 때 알리고 까닭을 받아 허용하며 분기 권한 검토에 "역할 충돌 계정"으로 올림
+   * duties: 일 묶음. roles는 그 일을 맡는 역할, steps는 그 일에 드는 결재 단계(결재선 규칙의 담당과 대리 지정으로 맡는 것도 셈, common.js roleConflicts)
+   * pairs: 같은 사람이 함께 맡으면 겹치는 짝(③과 ⑨, ③과 ⑩, ⑨와 ⑩, ③과 ②나 ⑧)
+   * allowed: 정해진 대체 방식이라 겹침으로 보지 않는 것(06 R-14 등). 위 짝에 들지 않아 저절로 빠짐(안내 문장용) */
+  const ROLE_CONFLICTS = {
+    duties: {
+      S03: { label: '③ 영업 리더, 임원 승인', roles: ['HEAD', 'EXEC'], steps: ['S03', 'S03C', 'SGR'] },
+      S09: { label: '⑨ 고객지원', roles: ['CEM', 'CEM_LEAD'], steps: ['S09', 'SXP'] },
+      S10: { label: '⑩ 재무', roles: ['FINANCE'], steps: ['S10'] },
+      S02: { label: '②, ⑧ 영업지원', roles: ['SALES_ADMIN', 'SA_LEAD'], steps: ['S02', 'S08'] },
+    },
+    pairs: [['S03', 'S09'], ['S03', 'S10'], ['S09', 'S10'], ['S03', 'S02']],
+    allowed: [
+      '재무가 영업지원이 기안한 계약의 ②, ⑧, ⑩을 함께 맡는 것(REQ-AUTH-16)',
+      '영업과 영업지원을 함께 맡는 것(06 R-14)',
+      // 기획자 결정 2026-11-03(C-18 ⑤): ⑩도 재무 담당자. 같은 계약의 ⑨와 ⑩은 서로 다른 재무 담당자(예전 문장은 "⑩은 재무 리더가 확인")
+      '운영 변경 HR 충전의 ⑨를 재무 담당자가 하는 것(2026-11-02 B-3). 같은 계약의 ⑩은 ⑨를 하지 않은 다른 재무 담당자가 확인(2026-11-03)',
+    ],
+  };
 
   // 2단계 계약 검토의 결재 역할: ② 영업지원, ③ 영업 리더(리더 본인 건은 영업 임원), ④ 법무, ⑤ 정보보호
   // 재무는 결재선에 들어가지 않고 체결 뒤 회계 인식만 확인합니다. (C-15 확정, REQ-FLOW-26)
@@ -100,7 +133,9 @@ window.CLIMB_DATA = (function () {
     FINANCE: 'u_finance',
     FIN_LEAD: 'u_seojin_ma',
     FIN_EXEC: 'u_jaewon_kook',
+    COMPLIANCE: 'u_seoyul_ban', // 2026-11-02 덧붙임: 컴플라이언스 담당자(가상 인물). 지난 감사 열람은 끝남(ROLE_GRANTS RG-0001)
     OBSERVER: 'u_daon_yong',
+    AUDIT: 'u_chaeyul_in',      // 2026-11-02 C-2: 감사 열람(가상 인물, 내부감사). 끝나는 날 2027-01-11(ROLE_GRANTS RG-0002)
   };
 
   // 계약 상태 [가정]. tone은 배지 색 종류입니다. (tokens.css '계약 상태 배지')
@@ -176,6 +211,8 @@ window.CLIMB_DATA = (function () {
     ] },
     { id: 'TPL-SLA', name: '서비스 수준 협약서(SLA)', service: '', versions: [
       { no: 1, from: '2026-09-01', summary: '시스템 도입: 지금 쓰는 표준 협약서를 그대로 올림', basis: '법무 검토 기록 2026-08-28', by: 'u_legal', at: '2026-09-01 09:00' },
+      // 기획자 결정 2026-11-02 C-8 시연: 다른 법무(송민재)가 올린 새 판. 설정 변경 확인(SCR-65)에서 올린 사람이 아닌 법무(김지우)가 확인할 차례
+      { no: 2, from: '2026-11-01', summary: '제4조 장애 등급마다 복구 목표 시간을 표로 정리, 제6조 서비스 크레딧 상한을 월 이용료의 10%로 적음', basis: '법무 검토 기록 2026-10-13', by: 'u_minjae_song', at: '2026-10-14 15:00' },
     ] },
   ];
   // 기획자 결정 2026-11-02 C-15: 판마다 반부패 조항 표시(antiBribery: true 있음, false 없음). 새 판을 올릴 때 꼭 고름(templates.js)
@@ -339,6 +376,11 @@ window.CLIMB_DATA = (function () {
     { feature: 'HR_CROSS_PRISM_MCT', product: 'HR_CROSS', service: 'HR', unit: '건', listPrice: 10000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
     { feature: 'HR_CROSS_MONSTER_MCT', product: 'HR_CROSS', service: 'HR', unit: '건', listPrice: 10000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
     { feature: 'HR_CROSS_PRISM_MONSTER', product: 'HR_CROSS', service: 'HR', unit: '건', listPrice: 10000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '기획자 서비스 정리표(2026-10-23)', by: 'u_super', at: '2026-10-19 09:00' },
+    // 기획자 결정 2026-11-02 E-4(C-33 ③): 남은 시연 한도(카피킬러 캠퍼스 표절검사 20%, GPT Killer 15%)도 다른 기능처럼 0% [가정]
+    //   실제 한도는 운영 시작 전에 품의 문서와 함께 기능마다 넣음. 단가는 그대로. 기존 줄은 고치지 않고 새 줄을 더함(이력)
+    //   이미 기안한 계약은 기안한 날의 한도(20%, 15%)로 결재선을 정함(common.js capOver, pricesAt). 새로 기안하는 계약부터 0%
+    { feature: 'CK_CAMPUS_PLAG', product: 'CK_CAMPUS', service: 'CK', unit: '기관, 1년', listPrice: 12000000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '남은 시연 한도 20%를 다른 기능처럼 0%로(실제 한도는 운영 시작 전에 품의와 함께)', by: 'u_super', at: '2026-10-19 09:00' },
+    { feature: 'CK_CAMPUS_GPTK', product: 'CK_CAMPUS', service: 'CK', unit: '기관, 1년', listPrice: 2400000, discountCap: 0, validFrom: '2026-10-19', docUrl: PRICE_DOC + '2026-1023', docNo: '기획-2026-1023', reason: '남은 시연 한도 15%를 다른 기능처럼 0%로(실제 한도는 운영 시작 전에 품의와 함께)', by: 'u_super', at: '2026-10-19 09:00' },
   ];
   // 오늘 적용되는 줄: 기능마다 적용 시작일이 오늘 이전인 줄 중 가장 늦은 것
   function currentPrices(rows, today) {
@@ -399,9 +441,8 @@ window.CLIMB_DATA = (function () {
     // S03: 리더 본인이 기안한 계약의 ③ 영업 검토(영업 임원). 팀원 계약은 TEAM_LEADERS의 유닛 리더 (재무 문서 반영 v0.26)
     S02: 'u_sadmin', S03: 'u_exec', S04: 'u_legal', S05: 'u_privacy',
     S06: 'u_ga', S08: 'u_sadmin', S09: 'u_cem', S10: 'u_finance',
-    // 기획자 결정 2026-11-02 B-3: 운영 변경의 HR 충전은 ⑨를 재무 담당자(S10)가 수불부에 반영하므로, ⑩은 같은 사람이 아닌 재무 리더가 확인
-    //   재무 리더는 결재 단계를 맡지 않는다는 v0.29 결정의 예외(이 경우만). 결재선 규칙에서 바꿀 수 있게 따로 둠 [가정]
-    'S10:HR': 'u_seojin_ma',
+    // 기획자 결정 2026-11-03(C-18 ⑤): 운영 변경의 HR 충전은 ⑨를 재무 담당자(S10)가 수불부에 반영하고, ⑩도 재무 담당자가 확인(재무 리더 아님, v0.29 그대로)
+    //   ⑨를 한 사람은 ⑩을 하지 않으므로 ⑩은 다른 재무 담당자에게 감(common.js otherFinance). 2026-11-02 [가정]의 재무 리더 담당('S10:HR')은 없앰
   };
   // 결재 단계 처리 상태 (데이터 정의서 CODE-APPROVAL-STATE)
   const APPROVAL_STATE = {
@@ -651,6 +692,7 @@ window.CLIMB_DATA = (function () {
     {
       // 기획자 결정 2026-11-02 E-3 시연: 할인율이 한도(20%)를 15%p 넘어(35% 할인) ③ 영업 리더 다음에 영업 임원(COO)도 승인
       //   비즈니스1유닛 이도윤의 계약이라 ③은 리더 최민준이 승인했고, 지금 ③ 영업 임원(문태호) 차례. 기준 %p는 PRICE_RULES.cooOverPp [가정]
+      //   한도 20%는 기안한 10-18의 값. 10-19부터 0%(E-4)여도 이 계약의 결재선은 그대로(common.js capOver). 영업 임원 승인 시연은 이 계약 하나
       id: '2610CL009', counterparty: '별가람대학교', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
       amount: 31200000, requesterId: 'u_sales1', requestedAt: '2026-10-18 15:00', restricted: false, personalData: false,
       status: 'IN_REVIEW',
@@ -746,6 +788,17 @@ window.CLIMB_DATA = (function () {
       products: [{ feature: 'CK_CAMPUS_GPTK', qty: 1, amount: 2400000 }],
       startDate: '2026-11-01', endDate: '2027-10-31',
     },
+    {
+      // 기획자 결정 2026-11-03(C-44) 시연: 영업대표가 바뀐 계약. 기태민(9월 30일 퇴사, 사용 중지)이 기안했고 고객 서명을 받기 전에 떠남
+      //   비즈니스1유닛 리더 최민준이 10-06에 이도윤을 새 영업대표로 정함(OWNER_CHANGES OC-0001). ⑦ 체결본 등록이 이도윤의 차례가 됨
+      //   기안 기록(requesterId, 결재 기록의 기안)은 기태민 그대로. 이도윤의 내 등록 목록과 개요에 보이고, 계약 상세에 바뀐 기록이 보임
+      id: '2609CL011', counterparty: '새빛정보통신', services: ['HR'], type: 'SaaS 이용계약', kind: 'NEW',
+      //   ⑤ 개인정보 검토가 10-01에 끝나 9월 말 기간 마감 점검(B-9)의 "승인됐지만 체결 전"에는 들지 않음(그때 확인한 목록 그대로)
+      amount: 14400000, requesterId: 'u_taemin_ki', requestedAt: '2026-09-21 10:00', restricted: false, personalData: true,
+      status: 'APPROVED', approvedAt: '2026-10-01 15:00', autoHistory: true, postAt: 'S07',
+      checklist: { standard: 'YES', price: 'YES', cap: 'YES' },
+      startDate: '2026-11-01', endDate: '2027-10-31',
+    },
 
     /* ----- 운영 검토 (OPS_REVIEW): ⑧ 체결본 확인 뒤 ⑨ 운영 적용(고객지원) → ⑩ 재무 확인 ----- */
     {
@@ -839,6 +892,15 @@ window.CLIMB_DATA = (function () {
       checklist: { standard: 'NO', price: 'YES', cap: 'YES' },
       notes: [{ type: 'ISSUE', at: '2026-08-20 11:00', by: 'u_sales1', content: '병원 정보보호팀 감사로 접속 기록 사본을 요청받아 CEM유닛이 제공함' }],
     },
+    {
+      // 기획자 결정 2026-11-03(C-44) 시연: 영업대표(기태민)가 퇴사해 계정이 사용 중지되었고 아직 새 영업대표를 정하지 않은 계약
+      //   계약 상세에 "담당 지정 필요 (영업 리더가 맡음)". 새 영업대표를 정할 때까지 비즈니스1유닛 리더 최민준이 연장, 변경, 해지 기안과 알림을 맡고,
+      //   계약 상세의 "영업대표 바꾸기"로 계약마다 정함. 최민준의 개요 "내가 검토할 계약"에 보임
+      id: '2609CL010', counterparty: '라온디자인', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
+      amount: 18000000, requesterId: 'u_taemin_ki', requestedAt: '2026-09-08 10:00', restricted: false, personalData: false,
+      status: 'ACTIVE', approvedAt: '2026-09-11 15:00', autoHistory: true, startDate: '2026-10-01', endDate: '2027-09-30',
+      checklist: { standard: 'YES', price: 'YES', cap: 'YES' },
+    },
     /* ----- 연장 검토와 해지 기안 (짧은 결재: ③ 영업 리더 → ④ 법무 → ⑨ 운영 → ⑩ 재무, REQ-ARC-06, 07) ----- */
     {
       // 연장 검토 "그대로 자동갱신" 예시: ③ 영업 리더 승인, ④ 법무 차례
@@ -863,6 +925,15 @@ window.CLIMB_DATA = (function () {
       checklist: { standard: 'YES', price: 'YES', cap: 'YES' }, // 표준계약서 그대로 (v0.53)
     },
     {
+      // 기획자 결정 2026-11-02 C-1 시연: 통계 통제 지표의 위험 신호 "분기 말 5일 안의 가격 예외". 분기 말(06-30) 전날 ③에서 할인을 승인
+      //   결재 기록은 autoHistory가 만듦(③이 마지막 검토라 승인일 06-29에 ③ 승인). 할인 25%로 한도 20%를 5%p 넘어 영업 임원 승인은 없음
+      id: '2606CL002', counterparty: '바른출판', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
+      amount: 9000000, requesterId: 'u_sales2', requestedAt: '2026-06-26 10:00', restricted: false, personalData: false,
+      status: 'ACTIVE', approvedAt: '2026-06-29 15:00', autoHistory: true, startDate: '2026-07-01', endDate: '2027-06-30',
+      checklist: { standard: 'YES', price: 'NO', priceNote: '분기 안에 계약하는 조건으로 기관 라이선스 할인', cap: 'NO', capNote: '6월 안에 계약하면 25% 할인해 달라는 요청' },
+      products: [{ feature: 'CK_CAMPUS_PLAG', qty: 1, amount: 9000000 }],
+    },
+    {
       // 기획자 결정 2026-11-02 B-9 시연: 9월 말(기간 말) 앞뒤에 체결하고 ⑨를 기다리던 계약. 통계의 기간 마감 점검(기본 기간 말 2026-09-30)에서
       //   "기간 말 앞뒤 체결"과 "⑨ ⑩을 기다리던 계약"에 함께 보임. 결재 기록은 autoHistory가 만듦:
       //   ⑦ 09-28 올림(서명본 체결일 09-27, B-8), ⑧ 09-29, ⑨ 10-01(실제 개통일 10-01), ⑩ 10-02. 표준 단가 그대로라 ③ 생략
@@ -872,6 +943,70 @@ window.CLIMB_DATA = (function () {
       checklist: { standard: 'YES', price: 'YES', cap: 'YES' },
       form: { bizNo: '214-82-77313', method: 'DIRECT' },
       products: [{ feature: 'HR_PRISM_PLAG', qty: 1, amount: 3600000 }, { feature: 'HR_PRISM_GPTK', qty: 1, amount: 4800000 }],
+    },
+    /* 기획자 결정 2026-11-02 C-9 시연: 9월에 ③ 가격 예외 승인을 마친 계약 셋. 할인 예외 점검(SCR-61)의 기본 대상 월(지난달 9월)에 보임
+     *   결재 기록을 날짜에 맞춰 직접 적음(③ 승인자, 대리 결재, ⑩이 늦은 것을 보이려고). 모두 9월 24일 전에 체결과 ⑨를 마쳐
+     *   통계의 기간 마감 점검(9월 말 앞뒤 5일) 목록에는 들지 않음. 거래처는 사업자 정보 DB에서 골라 기안할 때 등록(새 거래처 표시 없음) */
+    {
+      // 할인 폭이 커서 ③ 영업 리더(최민준) 다음에 ③ 영업 임원(문태호)도 승인(E-3). 한 줄 35% 할인(한도 20%, 15%p 넘음)
+      //   4번이 예(무상 기간)이고 ⑩ 재무 확인이 차례가 온 지 11일 만에 끝나 늦음(결재 대기 독촉 5일 넘음) → 점검의 ⑩ 줄에도 보임
+      id: '2609CL007', counterparty: '한누리대학교', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
+      amount: 36000000, requesterId: 'u_taeyun_kim', requestedAt: '2026-09-01 10:00', restricted: false, personalData: false,
+      status: 'ACTIVE', startDate: '2026-10-01', endDate: '2027-09-30',
+      checklist: { standard: 'YES', price: 'NO', priceNote: '단과대학 3곳 묶음 계약', cap: 'NO', capNote: '처음 도입하는 조건으로 기관 라이선스 35% 할인 요청',
+        accounting: 'YES', acctKinds: ['FREE_PERIOD'], accountingNote: '계약 시작 전 9월 한 달은 무상으로 써 봄' },
+      form: { bizNo: '134-82-61500', method: 'DIRECT' }, opportunity: '2609CK027', // 판다 영업기회번호(E-1, 가상 번호)
+      products: [{ feature: 'CK_CAMPUS_PLAG', qty: 3, amount: 23400000 }, { feature: 'CK_CAMPUS_USER', qty: 10, amount: 12600000 }],
+      history: [
+        ev('S02', 'APPROVE', '2026-09-01 16:00'),
+        Object.assign(ev('S03', 'APPROVE', '2026-09-03 10:30', '확인: ' + INTEREST_CHECK + '. 단과대학 3곳 첫 도입이라 할인 승인. 한도를 크게 넘어 영업 임원 승인을 이어서 받음', 'u_head'), { noInterest: true }),
+        Object.assign(ev('S03C', 'APPROVE', '2026-09-04 09:40', '확인: ' + INTEREST_CHECK + '. 같은 지역 대학 레퍼런스를 고려해 승인', 'u_exec'), { noInterest: true }),
+        ev('S06', 'APPROVE', '2026-09-07 10:00', '확인: ' + SEAL_CHECKS.join(', ')),
+        Object.assign(ev('S07', 'REGISTER', '2026-09-09 14:00', '확인: ' + SIDE_DEAL_CHECK.S07, 'u_taeyun_kim'), { fileName: '한누리대학교_체결본.pdf', signDate: '2026-09-08' }),
+        ev('S08', 'APPROVE', '2026-09-10 11:00', '확인: ' + SIGNED_CHECKS.concat([SIGN_DATE_CHECK.SIGNED, SIDE_DEAL_CHECK.S08]).join(', ')),
+        Object.assign(ev('S09', 'APPROVE', '2026-09-11 15:00', '확인: ' + OPS_CHECKS.CK.join(', ')), { openDate: '2026-09-11' }),
+        ev('S10', 'APPROVE', '2026-09-22 16:00', '무상 사용 9월분은 계약 기간 전체에 나눠 매출로 잡음. 9월 결산 자료 준비로 확인이 늦어짐'),
+      ],
+    },
+    {
+      // 열람 제한 계약: 재무 임원은 4번이 예가 아니라 계약을 볼 수 없어 점검에서는 고객사를 가리고 점검에 필요한 칸만 보임
+      //   ③ 영업 리더(고은성) 승인. 한 줄 25% 할인(한도 20%, 5%p 넘음)이라 영업 임원 승인은 없음
+      id: '2609CL008', counterparty: '해솔테크', services: ['HR'], type: 'SaaS 이용계약', kind: 'NEW',
+      amount: 14400000, requesterId: 'u_sales2', requestedAt: '2026-09-07 10:00', restricted: true, personalData: false,
+      status: 'ACTIVE', startDate: '2026-10-01', endDate: '2027-09-30',
+      checklist: { standard: 'YES', price: 'NO', priceNote: '계열사 2곳 묶음 계약', cap: 'NO', capNote: '계열사 두 곳을 함께 계약해 25% 할인 요청' },
+      form: { bizNo: '220-81-55239', method: 'DIRECT' }, opportunity: '2609HR016',
+      products: [{ feature: 'HR_PRISM_DEFECT', qty: 2, amount: 14400000 }],
+      memo: '계열사 임원 채용 검사 계약이라 열람 제한을 걸었습니다.',
+      history: [
+        ev('S02', 'APPROVE', '2026-09-07 16:00'),
+        Object.assign(ev('S03', 'APPROVE', '2026-09-08 10:00', '확인: ' + INTEREST_CHECK + '. 계열사 두 곳 묶음이라 할인 승인', 'u_eunseong_ko'), { noInterest: true }),
+        ev('S06', 'APPROVE', '2026-09-09 10:00', '확인: ' + SEAL_CHECKS.join(', ')),
+        Object.assign(ev('S07', 'REGISTER', '2026-09-14 14:00', '확인: ' + SIDE_DEAL_CHECK.S07, 'u_sales2'), { fileName: '해솔테크_체결본.pdf', signDate: '2026-09-11' }),
+        ev('S08', 'APPROVE', '2026-09-15 11:00', '확인: ' + SIGNED_CHECKS.concat([SIGN_DATE_CHECK.SIGNED, SIDE_DEAL_CHECK.S08]).join(', ')),
+        Object.assign(ev('S09', 'APPROVE', '2026-09-16 15:00', '확인: ' + OPS_CHECKS.HR.join(', ')), { openDate: '2026-09-16' }),
+        ev('S10', 'APPROVE', '2026-09-17 16:00', ''),
+      ],
+    },
+    {
+      // 대리 결재: 비즈니스1유닛 리더(최민준) 연차 동안 대리 지정(DL-003)에 따라 영업 임원(문태호)이 ③을 대신 승인
+      //   한 줄 24% 할인(한도 20%, 4%p 넘음), 계약 전체 20% 할인
+      id: '2609CL009', counterparty: '솔빛평생교육원', services: ['CK'], type: 'SaaS 이용계약', kind: 'NEW',
+      amount: 11520000, requesterId: 'u_seohyun_park', requestedAt: '2026-09-14 10:00', restricted: false, personalData: false,
+      status: 'ACTIVE', startDate: '2026-10-01', endDate: '2027-09-30',
+      checklist: { standard: 'YES', price: 'NO', priceNote: '평생교육원 첫 계약', cap: 'NO', capNote: '첫 계약 조건으로 기관 라이선스 24% 할인 요청' },
+      form: { bizNo: '403-82-30714', method: 'DIRECT' }, opportunity: '2609CK029',
+      products: [{ feature: 'CK_CAMPUS_PLAG', qty: 1, amount: 9120000 }, { feature: 'CK_CAMPUS_GPTK', qty: 1, amount: 2400000 }],
+      history: [
+        ev('S02', 'APPROVE', '2026-09-14 16:00'),
+        Object.assign(ev('S03', 'APPROVE', '2026-09-16 10:20', '확인: ' + INTEREST_CHECK + '. 첫 계약이고 한도를 조금 넘어 할인 승인', 'u_exec'),
+          { noInterest: true, onBehalfOf: 'u_head', delegationId: 'DL-003', basis: '최민준님 연차(2026-09-16~2026-09-18). 비즈니스1유닛 계약의 영업 검토를 영업 임원이 대신 결재(위임전결규정 대결)' }),
+        ev('S06', 'APPROVE', '2026-09-17 10:00', '확인: ' + SEAL_CHECKS.join(', ')),
+        Object.assign(ev('S07', 'REGISTER', '2026-09-18 14:00', '확인: ' + SIDE_DEAL_CHECK.S07, 'u_seohyun_park'), { fileName: '솔빛평생교육원_체결본.pdf', signDate: '2026-09-17' }),
+        ev('S08', 'APPROVE', '2026-09-21 11:00', '확인: ' + SIGNED_CHECKS.concat([SIGN_DATE_CHECK.SIGNED, SIDE_DEAL_CHECK.S08]).join(', ')),
+        Object.assign(ev('S09', 'APPROVE', '2026-09-22 15:00', '확인: ' + OPS_CHECKS.CK.join(', ')), { openDate: '2026-09-22' }),
+        ev('S10', 'APPROVE', '2026-09-23 11:00', ''),
+      ],
     },
 
     /* ----- 만료 (EXPIRED) -----
@@ -962,7 +1097,8 @@ window.CLIMB_DATA = (function () {
     },
     {
       // 기획자 결정 2026-11-02 B-3 시연(추천과 다름): 운영 변경도 ⑨ 다음 ⑩ 재무 확인. HR 충전은 ⑨를 재무 담당자(오현우)가 수불부에 반영했으므로
-      //   ⑩은 같은 사람이 아닌 재무 리더(마서진, STEP_ASSIGNEE 'S10:HR')가 확인할 차례. 유상 충전이라 ③ 영업 검토는 없음
+      //   ⑩은 같은 사람이 아닌 다른 재무 담당자(표예준)가 확인할 차례. 유상 충전이라 ③ 영업 검토는 없음
+      //   기획자 결정 2026-11-03(C-18 ⑤): 예전에는 재무 리더(마서진, 'S10:HR')의 차례였음. 이제 ⑩은 재무 담당자(common.js otherFinance)
       id: '2512CL001-C01', parentId: '2512CL001', counterparty: '온새미로대학교', services: ['CK', 'HR'], type: 'SaaS 이용계약', kind: 'CHANGE',
       changeType: 'HR_PAID', changeQty: 200, changeAmount: 1600000, amount: 0,
       // B-3 덧붙임 시연: 유상 충전의 기능과 기안한 날(10-14)의 표준 단가. 그날 가격 기준은 "기관, 1년" 단위라(건 단위는 10-19부터)
@@ -1020,6 +1156,23 @@ window.CLIMB_DATA = (function () {
   ];
   // 시연용: 체크리스트 4번(v0.21)을 따로 적지 않은 예시는 "아니요"로 채움
   CONTRACTS.forEach(function (c) { if (c.checklist && !c.checklist.accounting) c.checklist.accounting = 'NO'; });
+  // 기획자 결정 2026-11-02 E-1(G-02): 운영 시작(2026-09) 뒤 계약 등록에서 기안한 예시 계약의 판다 영업기회번호(가상 번호). 번호 하나에 계약 하나
+  //   변경(2601CL001-A01, 2606CL001-A01)은 원계약과 따로 번호. 시안에서 기안한 계약과 반려된 2610CL001은 form.opportunity
+  //   영업기회 대사(SCR-62) 시연: 2609CL004는 8월(운영 시작 전) 수주라 9월 수주 목록에 없음. 9월 목록의 도담고등학교(2609CK024)는 아직 계약이 없음
+  //   2610CL010은 같은 고객의 9월 계약(2609CL005)과 같은 번호라 기안할 때 사유를 받음(oppDup { ids, reason }, 결재 문서에 보임)
+  //   D-0002(소담에듀, 임시 저장)는 반려된 2610CL001과 같은 번호라 계약 등록에서 경고하고 사유를 받는 예시(form.oppReason)
+  const OPP_OF = {
+    '2609CL001': '2609HR003', '2609CL002': '2609CK005', '2609CL003': '2609CK011', '2609CL004': '2608CK021', '2609CL005': '2609CK019', '2609CL006': '2609HR014',
+    '2610CL002': '2610HR007', '2610CL003': '2610CK002', '2610CL004': '2610HR001', '2610CL005': '2610CK009', '2610CL006': '2610CK015', '2610CL007': '2610CK018',
+    '2610CL008': '2610HR011', '2610CL009': '2610CK020', '2610CL010': '2609CK019', '2601CL001-A01': '2610CK006', '2606CL001-A01': '2610CK004',
+    // 기획자 결정 2026-11-03(C-44) 시연 계약 둘(기태민 기안): 9월 수주 목록(OPP_SAMPLE)에도 넣어 영업기회 대사의 9월 예외는 처음 이야기대로 둠
+    '2609CL010': '2609CK031', '2609CL011': '2609HR021',
+  };
+  CONTRACTS.forEach(function (c) {
+    if (OPP_OF[c.id] && !(c.form && c.form.opportunity)) c.opportunity = OPP_OF[c.id];
+    if (c.id === '2610CL010') c.oppDup = { ids: ['2609CL005'], reason: '9월 GPT Killer 계약과 같은 판다 영업기회(학교 전체 도입)라 같은 번호를 씀. 판다에 추가 이용자 영업기회를 따로 만들지 않았음' };
+    if (c.draftKey === 'D-0002') Object.assign(c.form, { opportunity: '2610SU031', oppReason: '반려된 2610CL001은 다시 기안하지 않고, 같은 영업기회의 GPT Killer만 먼저 견적서로 계약함' });
+  });
 
   // 강조와 알림 기준 일수. 처음 값은 [가정]이고, 관리자가 결재선 규칙(SCR-52)에서 사유와 함께 바꿈(바꾸면 관리자 변경 이력, common.js applyAdmin ALERT_RULE)
   //   기획자 결정 2026-11-02 A-5(추천과 다름): 해지 통지 기한과 체결 후 의무의 알림 일수 네 칸도 지금 바로 결재선 규칙에서 바꿈
@@ -1118,7 +1271,9 @@ window.CLIMB_DATA = (function () {
    * important: 중요 공지. 올리면 전체 사용자에게 이메일로 알림(REQ-ENV-10 ⑧). 개요에는 가장 최근 글 한 줄(진행 현황, 만료 임박 다음 세 번째, v0.55)
    * 아래 릴리즈는 이 시안에서 실제로 바뀐 내용과 날짜입니다(요구사항 정의서 변경 이력과 같은 날짜)
    * v0.47 기획자 요청: "릴리즈 노트"를 "릴리즈"로 줄임. 제목은 휴대폰(아이폰 18 Pro) 개요 한 줄에 다 보이게 짧게
-   *   (10자 안팎. 릴리즈는 버전을 빼고. 중요 공지는 "중요" 표시가 붙어 공지보다 짧아야 함) */
+   *   (10자 안팎. 릴리즈는 버전을 빼고. 중요 공지는 "중요" 표시가 붙어 공지보다 짧아야 함)
+   * 기획자 결정 2026-11-02 E-15: 릴리즈만 changeScreens(바뀐 화면 번호들)와 changeDays(보일 날 수, 처음 값 14)를 둘 수 있음.
+   *   올린 날 + 날 수까지 그 화면의 회색 안내 상자(없으면 제목 아래)에 "바뀐 점" 한 줄(common.js renderChangeNote). 없으면 어느 화면에도 안 보임 */
   const NOTICE_KINDS = { NOTICE: '공지', RELEASE: '릴리즈' };
   const RELEASE_PARTS = [['added', '새 기능'], ['improved', '개선'], ['changed', '바뀐 규칙'], ['fixed', '고친 문제']];
   const NOTICES = [
@@ -1387,6 +1542,9 @@ window.CLIMB_DATA = (function () {
       } },
     // v0.13.3 (요구사항 정의서 v0.63, 통제와 표준 대응표 G-05 ①③, G-25 ①, G-23 ②③ 일부): ② 확인 항목, 보완 요청 항목, 새 거래처 표시, 분기 검토의 대리 지정과 본 자료
     { id: 'N-0030', kind: 'RELEASE', version: 'v0.13.3', title: '결재 확인 항목', at: '2026-11-01 01:00', by: 'u_super',
+      // 기획자 결정 2026-11-02 E-15 시연: 바뀐 화면(결재 문서, 통계와 보고서, 접속 기록 점검, 내 계정)에 14일 동안(2026-11-15까지) "바뀐 점" 한 줄
+      //   회색 안내 상자가 있는 화면(통계, 접속 기록 점검)과 없는 화면(결재 문서, 내 계정)을 함께 볼 수 있게 고름. 03 notice 표의 새 칸(제안)
+      changeScreens: ['SCR-23', 'SCR-46', 'SCR-57', 'SCR-93'], changeDays: 14,
       items: {
         added: ['② 체크리스트 검토는 승인할 때 확인한 항목 다섯(고객사와 사업자등록번호, 제품 수량과 금액, 1번 답과 표준계약서 판, 4번 답과 계약서 조건, 필수 첨부)을 모두 표시합니다. 결재 기록에 남습니다.',
           '보완을 요청할 때 보완할 항목(체크리스트 답, 제품과 수량과 금액, 계약서 내용, 첨부 파일, 그 밖의 것)을 하나 이상 고릅니다.',
@@ -1436,6 +1594,33 @@ window.CLIMB_DATA = (function () {
           '화면을 내려 메뉴 줄이 위에 붙으면 오른쪽에는 계정, 메뉴 검색, 이용 안내 아이콘 셋만 보입니다.',
           '체크리스트 4번(회계 영향 조건)에서 해당하는 종류를 고릅니다.']
       } },
+    { id: 'N-0032', kind: 'RELEASE', version: 'v0.15.0', title: '보안과 통제 점검, 화면 다듬기', at: '2026-11-03 13:00', by: 'u_super',
+      // 기획자 결정 2026-11-02 셋째 묶음(C, E)과 2026-11-03 기획자 답 넷, 같은 날 화면 요청
+      items: {
+        added: ['위 메뉴에 "점검"을 두었습니다. 할인 예외 점검(재무 임원), 영업기회 대사(영업지원), 인장 기록 대사(총무), 개선 과제와 보류(컴플라이언스), 설정 변경 확인(재무 리더, 법무)은 맡은 사람에게만 보입니다.',
+          '컴플라이언스 담당자 역할: 거래처 확인, 보류 걸기와 풀기, 개선 과제를 기록합니다. 결재 단계는 맡지 않습니다.',
+          '감사 열람 역할: 최고관리자가 끝나는 날을 정해 주고, 그날까지 모든 계약과 통계, 변경 이력, 접속 기록 점검을 보기만 합니다. 끝나는 날이 지나면 저절로 풀립니다.',
+          '보류: 거래처나 계약 묶음에 보류를 걸면 새 기안과 남은 승인이 멈춥니다(반려와 보완 요청은 됨). 걸 때와 풀 때 막히는 사람에게 이메일이 갑니다.',
+          '거래처 확인: 국가와 지자체, 조달, 간접(총판, 리셀러) 거래처는 확인 결과와 다음 확인일을 남깁니다. 확인이 필요한 거래처로 기안하면 계약 등록에 안내가 보입니다.',
+          '영업기회번호는 계약 하나에만 씁니다. 다른 고객사 계약에 같은 번호가 있으면 기안할 수 없습니다.',
+          '견적서 출력에 회사 인장이 찍힙니다. 회사 설정에서 사업자 정보를 바꾸고(최고관리자), 인장 그림을 올립니다(총무).',
+          '영업대표 바꾸기: 영업대표가 퇴사하거나 다른 곳으로 가면 영업 리더가 계약마다 새 영업대표를 정합니다. 정하기 전에는 영업 리더가 맡습니다.',
+          '통계와 보고서에 통제 지표(리더, 임원, 감사 열람)와 통제 증빙 내보내기(감사 열람)를, 계약 상세에 결재 기록 묶음을 더했습니다.',
+          '접속 기록 점검에 최고관리자 작업 묶음(정보보호가 확인), 역할이 겹치는 계정, 그달의 설정 변경, 유닛 리더에게 계정 목록 보내기를 더했습니다.',
+          '개요의 점검할 일에 내가 맡은 점검과 기한이 보입니다. 공지에 바뀐 화면과 보일 기간을 정하면 그 화면에 "바뀐 점" 한 줄이 보입니다.'],
+        improved: ['사용자 권한 관리: 겹치면 안 되는 역할을 함께 주면 까닭을 적어야 저장되고, 요청한 사람을 남길 수 있습니다.',
+          'HR 유상 충전의 ⑩ 재무 확인은 재무 담당자가 맡습니다(⑨를 한 사람은 ⑩을 하지 않음).',
+          '화면 배율 100% 모니터는 휴대폰 화면보다 넓은 창이면 모두 글자가 한 단계 큽니다(본문 17px).',
+          '이용 안내는 화면이 넓어도 찾기 칸과 접힌 차례 줄을 내용 위에 둡니다.',
+          '하위 메뉴를 펼치면 메뉴 줄과의 사이에 선이 보입니다. 메뉴 줄 끝은 흐림 없이 글자가 화살표 앞에서 사라지고, 가린 만큼 조금씩 나타납니다. 창을 줄여도 지금 화면의 메뉴는 늘 보입니다.',
+          '카피킬러 캠퍼스 표절검사와 GPT Killer의 할인 한도를 0%로 맞췄습니다(실제 한도가 정해지면 바꿈). 이미 기안한 계약은 그대로입니다.',
+          '계정 아이콘을 누르면 이름과 내 계정, 로그아웃이 오른쪽 끝(아이콘 아래)에 오른쪽 맞춤으로 보이고, 줄 사이가 넉넉해졌습니다.',
+          '메뉴 검색에서 검색어가 없으면 최근 검색어 10개가 보입니다(누르면 다시 찾음). 예전의 자주 찾는 메뉴는 없앴습니다.',
+          '검색 칸의 돋보기와 입력한 글자, 찾은 메뉴 줄의 글자가 세로 가운데로 맞습니다. 라디오 단추의 가운데 점이 어느 단추에서나 같은 자리에 보입니다.'],
+        fixed: ['결재란 담당 칸의 조직 이름이 좁은 창에서 칸 밖으로 나오던 것을 고쳤습니다.',
+          '견적서로 계약서를 대신한 계약의 결재 문서에 없는 계약서 초안이 보이고 ⑥ 안내가 "계약서 실물"이던 것을 고쳤습니다.',
+          '최고관리자가 다른 영업대표 대신 기안할 때 결재선 미리보기의 ⑦에 그 영업대표 이름이 나옵니다.']
+      } },
   ];
 
   /* ---------- 이메일 알림 (내 계정 SCR-93, v0.45 기획자 요청. 보내는 때는 요구사항 정의서 REQ-ENV-10) ----------
@@ -1462,6 +1647,13 @@ window.CLIMB_DATA = (function () {
     //   exceptRoles: 받지 않는 역할. 기획자 결정 2026-11-02 A-9: 관찰자는 지정되어도 볼 수 없으므로 조직 지정 알림도 보내지 않음
     { code: 'VIEWER', name: '열람자 지정', when: '내가, 또는 내 조직이 열람 제한 계약의 열람자로 지정됐을 때', must: true, exceptRoles: ['OBSERVER'] },
     { code: 'VIEWER_RELEASED', name: '열람자 지정 풀림', when: '사람으로 지정한 열람자가 다른 조직으로 옮겨 지정이 저절로 풀렸을 때', must: true, roles: ['ADMIN'] },
+    // 기획자 결정 2026-11-03(06 CTL-79): 보류를 걸 때와 풀 때 막히는 사람 모두에게(꼭 받음). 받는 사람은 common.js holdMailList:
+    //   그 보류에 걸린 계약의 영업대표(사용 중지면 대신 맡는 영업 리더), 그 유닛의 영업 리더(리더 본인 계약은 영업 임원), 그 계약에 결재 차례가 있는 사람
+    //   roles는 그 사람들이 가질 수 있는 역할(결재 차례 알림과 같음). 보류 사유는 이메일에 넣지 않고 시스템에서 봄(C-4 이메일에 넣지 않는 것)
+    { code: 'HOLD_SET', name: '보류 걸림', when: '내가 맡은 계약이나 내 결재 차례인 계약의 거래처나 계약 묶음에 보류가 걸렸을 때', must: true, roles: ['SALES', 'SALES_ADMIN', 'HEAD', 'LEGAL', 'PRIVACY', 'GA', 'CEM', 'FINANCE', 'EXEC'] },
+    { code: 'HOLD_RELEASE', name: '보류 풀림', when: '내가 맡은 계약이나 내 결재 차례인 계약에 걸렸던 보류가 풀렸을 때', must: true, roles: ['SALES', 'SALES_ADMIN', 'HEAD', 'LEGAL', 'PRIVACY', 'GA', 'CEM', 'FINANCE', 'EXEC'] },
+    // 기획자 결정 2026-11-03(01 C-44): 영업 리더가 계약의 새 영업대표를 정하면 새 영업대표에게(꼭 받음). 영업 리더도 자기를 새 영업대표로 정할 수 있어 리더도 받음
+    { code: 'OWNER_SET', name: '영업대표 지정', when: '영업 리더가 나를 계약의 새 영업대표로 정했을 때', must: true, roles: ['SALES', 'HEAD'] },
     { code: 'PROGRESS', name: '내 기안 진행 소식', when: '내가 기안한 계약이 다음 결재 단계로 넘어갈 때마다', must: false, on: false, roles: ['SALES'] },
     { code: 'NOTICE_ALL', name: '일반 공지와 릴리즈', when: '중요 공지가 아닌 공지와 릴리즈가 올라왔을 때', must: false, on: false },
   ];
@@ -1528,6 +1720,22 @@ window.CLIMB_DATA = (function () {
       intro: '사람으로 지정한 열람자가 다른 조직으로 옮겨 지정이 저절로 풀렸습니다. 계속 봐야 하면 열람 제한 관리에서 다시 지정해 주세요.',
       facts: [['계약번호', '2511CL002'], ['풀린 사람', '@u_dain_seok'], ['옮긴 조직', '비즈니스2유닛에서 세일즈어드민유닛으로'], ['풀린 때', '2026-10-12 11:00']],
       button: ['열람 제한 관리 열기', 'admin-restrict.html'] },
+    // 기획자 결정 2026-11-03(06 CTL-79): 보류 걸림(HD-0001 가람전자)과 보류 풀림(HD-0002 이음병원 묶음). 열람 제한 계약은 고객사 대신 계약번호만
+    //   보류 사유는 이메일에 넣지 않고 시스템에서 보게 함. 이 영업대표가 받는 것과 같은 메일이 영업 리더와 결재 차례인 사람에게도 감(common.js holdMailList)
+    //   거래처 보류라도 받는 사람의 걸린 계약이 열람 제한이면 계약번호만 적고 상호와 사업자등록번호는 적지 않음(REQ-ENV-14. 거래처 이름으로 그 계약의 고객사가 드러나지 않게)
+    HOLD_SET: { to: 'u_sales1', at: '2026-10-18 16:30', subject: '보류 걸림: 계약 2610CL007의 새 기안과 남은 결재가 멈춥니다',
+      intro: '컴플라이언스 담당자가 거래처에 보류를 걸었습니다. 풀릴 때까지 새 기안, 남은 결재의 승인, 체결본 등록, 유예 요청과 확인을 할 수 없습니다. 반려와 보완 요청은 할 수 있습니다. 사유는 시스템에서 확인해 주세요.',
+      facts: [['보류 대상', '거래처 보류(열람 제한 계약이라 상호와 사업자등록번호는 적지 않음)'], ['걸린 계약', '2610CL007(열람 제한이라 고객사는 적지 않음)'], ['받는 까닭', '영업대표'], ['건 사람', '@u_seoyul_ban'], ['건 때', '2026-10-18 16:30']],
+      button: ['계약 상세 열기', 'contract.html?id=2610CL007'] },
+    HOLD_RELEASE: { to: 'u_sales1', at: '2026-10-19 09:40', subject: '보류 풀림: 이음병원 계약 묶음 2604CL001',
+      intro: '컴플라이언스 담당자가 보류를 풀었습니다. 멈췄던 기안과 결재를 다시 할 수 있습니다. 푼 사유는 시스템에서 확인해 주세요.',
+      facts: [['보류 대상', '계약 묶음 2604CL001 이음병원'], ['걸린 계약', '2604CL001, 2604CL001-C01(③ 영업 검토 차례)'], ['받는 까닭', '영업대표'], ['푼 사람', '@u_seoyul_ban'], ['걸린 동안', '2026-10-18 17:30~2026-10-19 09:40']],
+      button: ['계약 상세 열기', 'contract.html?id=2604CL001'] },
+    // 기획자 결정 2026-11-03(01 C-44): 사용 중지된 영업대표(기태민)의 계약을 영업 리더가 이도윤에게 넘긴 예(OWNER_CHANGES OC-0001)
+    OWNER_SET: { to: 'u_sales1', at: '2026-10-06 14:00', subject: '영업대표 지정: 새빛정보통신 계약을 이어 맡습니다',
+      intro: '영업 리더가 이 계약의 새 영업대표로 정했습니다. 이제부터 체결본 등록, 보완 후 재기안, 변경, 연장, 해지 기안과 만료 알림을 맡습니다. 처음 기안 기록은 그대로 남습니다.',
+      facts: [['계약번호', '2609CL011'], ['고객사', '새빛정보통신'], ['서비스', 'HR'], ['이전 영업대표', '@u_taemin_ki'], ['정한 사람', '@u_head'], ['지금 할 일', '⑦ 체결본 등록']],
+      button: ['계약 상세 열기', 'contract.html?id=2609CL011'] },
     PROGRESS: { to: 'u_sales1', at: '2026-10-15 09:40', subject: '진행 소식: 한빛대학교 계약이 ④ 법무 검토와 ⑤ 개인정보 검토로 넘어갔습니다',
       intro: '기안한 계약이 다음 단계로 넘어갔습니다. 이 메일은 내 계정에서 끌 수 있습니다.',
       facts: [['계약번호', '2610CL005'], ['고객사', '한빛대학교(중앙도서관)'], ['끝난 단계', '② 체크리스트 검토(@u_sadmin)'], ['지금 단계', '④ 법무 검토, ⑤ 개인정보 검토(동시)']],
@@ -1591,7 +1799,8 @@ window.CLIMB_DATA = (function () {
     ['hajun.lim@muhayu.com', '임하준', 'CEM유닛', ['CEM'], 'ACTIVE', '2026-09-26', '2026-09-28 11:47', '2026-10-19 10:44', '2026-10-19 14:14', '2026-09-26'],
     ['yeonwoo.joo@muhayu.com', '주연우', 'CEM유닛', ['CEM_LEAD'], 'ACTIVE', '2026-09-17', '2026-09-20 09:03', '2026-10-17 12:47', '2026-10-17 17:13', '2026-09-17'],
     ['harin.pyeon@muhayu.com', '편하린', 'CEM유닛', ['CEM'], 'ACTIVE', '2026-09-04', '2026-09-04 12:34', '2026-10-18 13:42', '2026-10-18 20:50', '2026-09-04'],
-    ['sihyun.bang@muhayu.com', '방시현', 'CEM유닛', ['CEM'], 'ACTIVE', '2026-09-13', '2026-09-13 09:55', '2026-10-18 08:55', '2026-10-18 16:05', '2026-09-13'],
+    // 2026-11-02 C-5 시연: 결산 동안 재무 담당자 역할도 받아 ⑨와 ⑩이 겹침(역할 충돌 계정). 까닭을 받고 저장한 기록은 ADMIN_LOG 2026-10-14
+    ['sihyun.bang@muhayu.com', '방시현', 'CEM유닛', ['CEM', 'FINANCE'], 'ACTIVE', '2026-09-13', '2026-09-13 09:55', '2026-10-18 08:55', '2026-10-18 16:05', '2026-10-14'],
     ['sihwan.jin@muhayu.com', '진시환', 'CEM유닛', ['CEM'], 'ACTIVE', '2026-09-08', '2026-09-11 15:34', '2026-10-13 09:53', '2026-10-13 13:21', '2026-09-08'],
     ['jua.yeon@muhayu.com', '연주아', 'CEM유닛', ['CEM'], 'INVITED', '2026-10-16', null, null, null, '2026-10-16'],
     ['hyunwoo.oh@muhayu.com', '오현우', '재무기획유닛', ['FINANCE'], 'ACTIVE', '2026-09-22', '2026-09-25 11:47', '2026-10-18 14:20', '2026-10-18 23:08', '2026-09-22'],
@@ -1599,6 +1808,10 @@ window.CLIMB_DATA = (function () {
     ['yejun.pyo@muhayu.com', '표예준', '재무기획유닛', ['FINANCE'], 'ACTIVE', '2026-09-04', '2026-09-05 10:03', '2026-10-19 08:35', '2026-10-19 10:27', '2026-09-04'],
     ['jaewon.kook@muhayu.com', '국재원', '경영지원실', ['FIN_EXEC'], 'ACTIVE', '2026-09-15', '2026-09-16 10:20', '2026-10-17 16:40', '2026-10-17 18:12', '2026-09-15'],
     ['daon.yong@muhayu.com', '용다온', '경영지원유닛', ['OBSERVER'], 'ACTIVE', '2026-10-05', '2026-10-06 09:40', '2026-10-16 15:02', '2026-10-16 15:30', '2026-10-05'],
+    // 2026-11-02 덧붙임과 C-2 시연(가상 인물): 컴플라이언스 담당자(지난 감사 열람은 2026-10-15에 끝남), 감사 열람(내부감사, 2027-01-11까지)
+    //   끝난 감사 열람은 역할 목록에 남아 있어도 없는 것으로 봄(common.js roleEnded). 실제 시스템은 끝나는 날 다음 날 서버가 뺌
+    ['seoyul.ban@muhayu.com', '반서율', '경영지원유닛', ['COMPLIANCE', 'AUDIT'], 'ACTIVE', '2026-09-14', '2026-09-15 09:10', '2026-10-19 09:20', '2026-10-19 12:05', '2026-09-15'],
+    ['chaeyul.in@muhayu.com', '인채율', '경영지원실', ['AUDIT'], 'ACTIVE', '2026-10-12', '2026-10-13 09:05', '2026-10-19 10:15', '2026-10-19 11:40', '2026-10-12'],
   ].map(function (a) {
     return {
       email: a[0], name: a[1], dept: a[2], roles: a[3], status: a[4], registeredAt: a[5],
@@ -1618,10 +1831,32 @@ window.CLIMB_DATA = (function () {
     a.id = id;
   });
 
+  /* ---------- 끝나는 날이 있는 역할을 준 기록 (기획자 결정 2026-11-02 C-2, C-7) ----------
+   * 감사 열람을 줄 때마다 한 줄. 쌓기만 하고 고치거나 지우지 않음. 끝나는 날을 바꾸면 새 줄, 끝나기 전에 빼면 그 줄에 뺀 때와 사람(endedAt, endedBy, endReason)
+   * userId, role / from, until: 주는 날과 끝나는 날(이틀 다 포함) / by, at: 준 최고관리자와 일시 / reason: 주는 사유 / requestedBy: 요청한 사람(선택, C-7)
+   * 분기 권한 검토(SCR-57)는 common.js auditGrants로 누가, 왜, 언제까지를 봄. 바꾼 기록은 ADMIN_LOG의 USER에도 같은 줄 */
+  const ROLE_GRANTS = [
+    { id: 'RG-0001', userId: 'u_seoyul_ban', role: 'AUDIT', from: '2026-09-15', until: '2026-10-15', by: 'u_super', at: '2026-09-15 09:30',
+      reason: '3분기 내부회계 운영평가 준비: 열람 제한 계약을 포함해 7~9월 체결 계약 표본을 확인', requestedBy: 'u_jaewon_kook' },
+    { id: 'RG-0002', userId: 'u_chaeyul_in', role: 'AUDIT', from: '2026-10-12', until: '2027-01-11', by: 'u_super', at: '2026-10-12 10:00',
+      reason: '하반기 내부감사: 열람 제한 계약을 포함한 전체 계약과 관리자 변경 이력, 접속 기록 점검 결과를 확인', requestedBy: 'u_jaewon_kook' },
+  ];
+
   /* ---------- 영업 팀 리더: ③ 영업 검토 담당 (재무 문서 반영 v0.26) ----------
    * 유닛 담당자가 기안한 계약은 그 유닛의 리더가, 리더 본인이 기안한 계약은 영업 임원(COO, STEP_ASSIGNEE.S03)이 검토합니다.
    * 키는 비즈니스 유닛 이름(조직). 관리자가 결재선 규칙(SCR-52)에서 바꿉니다. (v0.29 조직 개편: 영업1~3팀 → 비즈니스1~3유닛) */
   const TEAM_LEADERS = { '비즈니스1유닛': 'u_head', '비즈니스2유닛': 'u_eunseong_ko', '비즈니스3유닛': 'u_yuna_cha' };
+
+  /* ---------- 영업대표 바꾼 기록 (기획자 결정 2026-11-03, 01 C-44) ----------
+   * 영업대표가 바뀌거나 퇴사하면 그 유닛의 영업 리더(리더 본인 계약은 영업 임원)가 계약 묶음마다 새 영업대표를 정함. 쌓기만 하고 고치거나 지우지 않음
+   * bundleId: 계약 묶음(원계약 번호) / from, to: 바꾸기 전과 뒤의 영업대표 / by, byDept: 정한 사람과 그때 조직 / at / reason: 바꾸는 사유(필수)
+   * 마지막 줄의 to가 지금 영업대표(common.js salesRepOf). 계약의 requesterId(처음 기안한 사람)는 그대로 둠. 시연으로 남긴 것은 common.js가 더함
+   * 시연: 기태민(2026-09-30 퇴사, 10-02 사용 중지)의 계약 둘 중 2609CL011은 최민준이 이도윤에게 넘겼고, 2609CL010은 아직 정하지 않음(담당 지정 필요) */
+  const OWNER_CHANGES = [
+    // salesTeam: 바꾼 뒤 계약의 유닛(새 영업대표의 그때 조직). 영업대표가 뒤에 옮겨도 이 유닛의 리더가 정함(2026-11-03 C-44, common.js salesTeamOf)
+    { id: 'OC-0001', bundleId: '2609CL011', from: 'u_taemin_ki', to: 'u_sales1', by: 'u_head', byDept: '비즈니스1유닛', at: '2026-10-06 14:00',
+      reason: '9월 30일 퇴사로 같은 유닛 이도윤이 이어 맡음. 고객 서명을 받아 체결본을 올릴 차례라 먼저 넘김', salesTeam: '비즈니스1유닛' },
+  ];
 
   /* ---------- 거래처 목록: 거래처 관리(SCR-55), 계약 등록의 고객사 고르기 (REQ-REG-18, 데이터 정의서 6장, D-01) ----------
    * 가상의 거래처와 가상의 사업자등록번호입니다.
@@ -1636,32 +1871,52 @@ window.CLIMB_DATA = (function () {
    *   출력할 때마다 누가 언제 어떤 판을 냈는지 기록을 남기는 것이 목적입니다. 견적은 계약과 이어지지 않습니다(계약 등록과 따로).
    *   견적 단계 할인 승인은 하지 않습니다(v0.21 결정 그대로). 할인율 한도를 넘는 줄은 화면에서만 알려 줌(계약할 때 ③ 영업 검토)
    * QUOTE_RULES: 유효기간 기본 일수, 부가세율. 실제 시스템에서는 관리자 설정 [가정]
-   * QUOTE_SUPPLIER: 견적서의 공급자 칸. 사업자등록번호, 대표자, 주소, 대표 연락처는 실제 시스템의 회사 설정 값을 씀(시안에는 넣지 않음, 03 8-9)
+   * QUOTE_SUPPLIER: 견적서의 공급자 칸. 기획자 결정 2026-11-02 E-9부터 회사 설정(COMPANY)을 그대로 씀(예전에는 상호만 있고 나머지는 "회사 설정 값" 자리)
    * QUOTES: 견적 한 판이 한 줄. no(견적번호 QT + 연월 + 일련번호), ver(판), 고객사(거래처 번호, 상호, 사업자등록번호), unit(기관 또는 부서명),
    *   opp(판다 영업기회번호, 선택), date(견적일), validUntil(유효기간), lines(기능, 수량, 단가: 표준 단가와 할인율 한도는 그때의 가격 기준),
    *   note(조건과 비고), owner(작성한 영업), savedAt, issues(출력 기록: 일시, 출력한 사람, 합계). 출력한 판은 고칠 수 없고 고치려면 새 판
+   *   기획자 결정 2026-11-02 E-7(추천과 다름): "견적서 출력"에는 회사 인장 그림을 늘 찍고, 출력 기록에 sealed(인장 찍음), sealVer(찍은 인장 그림의 판)를 남김
+   *     인장 그림이 없으면 인장 없이 출력하고(sealed: false) 출력한 사람에게 알림. 총무가 매월 인장 대장과 맞춰 봄(SEAL_RECON). 예시 기록도 같은 모양
    *   고객 담당자 이름과 연락처는 적지 않음(REQ-SEC: 개인정보는 CRM에) */
   const QUOTE_RULES = { validDays: 30, vat: 0.1 };
-  const QUOTE_SUPPLIER = { name: '주식회사 무하유', note: '사업자등록번호, 대표자, 주소, 대표 연락처는 실제 시스템의 회사 설정 값' };
+  /* ---------- 회사 설정: SCR-59 (기획자 결정 2026-11-02 E-9, E-7 덧붙임 ②, 03 8-9 company_setting) ----------
+   * 견적서 공급자 칸의 회사 정보와 "견적서 출력"에 찍는 회사 인장 그림. 회사 정보는 최고관리자가, 인장 그림은 총무가 사유와 함께 바꾸고
+   *   관리자 변경 이력(영역 COMPANY)에 남김(common.js applyAdmin COMPANY, SEAL). 값은 운영 시작 전에 경영지원에서 받아 넣음
+   * 아래 값은 시연용 가상 값입니다(사업자등록번호, 대표자, 주소, 연락처 모두 실제가 아님)
+   * ethicsUrl, reportUrl: 이용 안내 "거래 윤리와 신고"에서 여는 회사 윤리 규정과 신고 창구 링크(선택, 03 8-9). 아직 받지 않아 비어 있음
+   * seal: 지금 인장 그림 { ver: 판, name: 파일 이름, type, size, src: 그림 주소, by, at }. 시연 그림은 "견본" 글자가 든 가상 인장(assets/img/seal-sample.svg)
+   *   9월 15일 총무 탁서윤이 올림(그 앞 9월 14일 출력은 인장 없이 나감, QT2609-001 1판의 첫 출력) */
+  const COMPANY = {
+    name: '주식회사 무하유', bizNo: '000-86-00004', ceo: '한도겸', address: '서울특별시 중구 예시로 100, 7층', phone: '02-0000-0000', ethicsUrl: '', reportUrl: '',
+    seal: { ver: 1, name: '회사인장_견본.svg', type: 'image/svg+xml', size: 1900, src: 'assets/img/seal-sample.svg', by: 'u_seoyun_tak', at: '2026-09-15 10:00' },
+  };
+  const QUOTE_SUPPLIER = COMPANY;
   const QUOTES = [
+    // 기획자 결정 2026-11-02 E-7 시연: 9월 견적. 첫 출력(09-14)은 인장 그림을 올리기 전이라 인장 없이, 다시 낸 출력(09-16)은 인장 찍음
+    //   인장 기록 대사(SCR-63)의 9월 대조 기록(SEAL_RECON)과 이어짐. 바른출판의 9월 계약(2609CL002)과 같은 영업기회번호
+    { no: 'QT2609-001', ver: 1, customer: 'C-0011', name: '바른출판', bizNo: '105-87-44129', unit: '', opp: '2609CK005',
+      date: '2026-09-14', validUntil: '2026-10-14', owner: 'u_sales2', savedAt: '2026-09-14 15:50',
+      lines: [{ feature: 'CK_CAMPUS_PLAG', qty: 2, unitPrice: 12000000, listPrice: 12000000, cap: 0.20, unit: '기관, 1년' }],
+      note: '이용 기간: 계약일부터 1년\n결제: 세금계산서 발행 후 30일 이내',
+      issues: [{ at: '2026-09-14 16:10', by: 'u_sales2', total: 26400000, sealed: false }, { at: '2026-09-16 11:20', by: 'u_sales2', total: 26400000, sealed: true, sealVer: 1 }] },
     { no: 'QT2610-001', ver: 1, customer: 'C-0001', name: '한결대학교', bizNo: '119-82-04515', unit: '교무처', opp: '2610CK012',
       date: '2026-10-05', validUntil: '2026-11-04', owner: 'u_sales1', savedAt: '2026-10-05 14:02',
       lines: [{ feature: 'CK_CAMPUS_PLAG', qty: 1, unitPrice: 12000000, listPrice: 12000000, cap: 0.20, unit: '기관, 1년' },
         { feature: 'CK_CAMPUS_GPTK', qty: 1, unitPrice: 2160000, listPrice: 2400000, cap: 0.15, unit: '기관, 1년' }],
       note: '이용 기간: 계약일부터 1년\n결제: 세금계산서 발행 후 30일 이내',
-      issues: [{ at: '2026-10-05 14:20', by: 'u_sales1', total: 15576000 }] },
+      issues: [{ at: '2026-10-05 14:20', by: 'u_sales1', total: 15576000, sealed: true, sealVer: 1 }] },
     { no: 'QT2610-001', ver: 2, customer: 'C-0001', name: '한결대학교', bizNo: '119-82-04515', unit: '교무처', opp: '2610CK012',
       date: '2026-10-12', validUntil: '2026-11-11', owner: 'u_sales1', savedAt: '2026-10-12 10:31',
       lines: [{ feature: 'CK_CAMPUS_PLAG', qty: 1, unitPrice: 12000000, listPrice: 12000000, cap: 0.20, unit: '기관, 1년' },
         { feature: 'CK_CAMPUS_GPTK', qty: 1, unitPrice: 2160000, listPrice: 2400000, cap: 0.15, unit: '기관, 1년' },
         { feature: 'CK_CAMPUS_CITE', qty: 1, unitPrice: 1200000, listPrice: 1200000, cap: 0, unit: '기관, 1년' }],
       note: '이용 기간: 계약일부터 1년\n결제: 세금계산서 발행 후 30일 이내\n1판에서 출처 표기법 검사를 더함',
-      issues: [{ at: '2026-10-12 10:40', by: 'u_sales1', total: 16896000 }, { at: '2026-10-15 16:05', by: 'u_sales1', total: 16896000 }] },
+      issues: [{ at: '2026-10-12 10:40', by: 'u_sales1', total: 16896000, sealed: true, sealVer: 1 }, { at: '2026-10-15 16:05', by: 'u_sales1', total: 16896000, sealed: true, sealVer: 1 }] },
     { no: 'QT2610-002', ver: 1, customer: 'C-0002', name: '푸른솔아카데미', bizNo: '220-87-31409', unit: '', opp: '',
       date: '2026-10-08', validUntil: '2026-10-18', owner: 'u_sales2', savedAt: '2026-10-08 09:12',
       lines: [{ feature: 'HR_PRISM_DEFECT', qty: 1, unitPrice: 7200000, listPrice: 9600000, cap: 0.20, unit: '기관, 1년' }],
       note: '연간 이용권. 유효기간 10일(행사 가격)',
-      issues: [{ at: '2026-10-08 09:20', by: 'u_sales2', total: 7920000 }] },
+      issues: [{ at: '2026-10-08 09:20', by: 'u_sales2', total: 7920000, sealed: true, sealVer: 1 }] },
     { no: 'QT2610-003', ver: 1, customer: 'C-0003', name: '별빛어학원', bizNo: '305-91-18271', unit: '', opp: '2610HR004',
       date: '2026-10-19', validUntil: '2026-11-18', owner: 'u_sales2', savedAt: '2026-10-19 08:55',
       lines: [{ feature: 'HR_PRISM_PLAG', qty: 1, unitPrice: 3600000, listPrice: 3600000, cap: 0.15, unit: '기관, 1년' }],
@@ -1703,6 +1958,13 @@ window.CLIMB_DATA = (function () {
     // 기획자 결정 2026-11-02 A-10, A-11 시연 계약(2509CL003 유예가 끝남, 2510CL001 연장 진행 중)의 거래처: 시스템 도입 때 옮긴 거래처
     ['C-0027', '늘봄어학원', '305-91-27412', 'u_super', '2026-09-01'],
     ['C-0028', '푸른숲중학교', '403-83-20514', 'u_super', '2026-09-01'],
+    // 기획자 결정 2026-11-02 C-9 시연 계약(2609CL007~009, 할인 예외 점검)의 거래처: 사업자 정보 DB에서 골라 기안할 때 등록(새 거래처 표시 없음)
+    ['C-0029', '한누리대학교', '134-82-61500', 'u_taeyun_kim', '2026-09-01'],
+    ['C-0030', '해솔테크', '220-81-55239', 'u_sales2', '2026-09-07'],
+    ['C-0031', '솔빛평생교육원', '403-82-30714', 'u_seohyun_park', '2026-09-14'],
+    // 기획자 결정 2026-11-03(C-44) 시연 계약(2609CL010 담당 지정 필요, 2609CL011 영업대표 바뀜)의 거래처: 시스템 도입 때 옮긴 거래처(가상)
+    ['C-0032', '라온디자인', '120-87-35202', 'u_super', '2026-09-01'],
+    ['C-0033', '새빛정보통신', '214-86-51908', 'u_super', '2026-09-01'],
   ].map(function (r) {
     return { id: r[0], name: r[1], bizNo: r[2], registeredBy: r[3], registeredAt: r[4], use: true, mergedInto: null };
   });
@@ -1723,6 +1985,7 @@ window.CLIMB_DATA = (function () {
     ['가람중학교', '403-83-12090'], ['누리솔 주식회사', '119-87-23142'], ['하늬바람학원', '305-91-34024'],
     ['청솔대학교', '134-82-45102'], ['이룸의료재단 이룸병원', '506-82-56347'], ['마루고등학교', '403-83-67450'],
     ['별빛초등학교', '305-83-78503'],
+    ['한누리대학교', '134-82-61500'], ['해솔테크', '220-81-55239'], ['솔빛평생교육원', '403-82-30714'], // 2026-11-02 C-9 시연 계약의 거래처
   ].map(function (r) { return { name: r[0], bizNo: r[1] }; });
 
   /* ---------- 관리자가 관리하는 코드표: 코드 관리(SCR-56) (데이터 정의서 9장) ----------
@@ -1762,6 +2025,9 @@ window.CLIMB_DATA = (function () {
     //   날짜는 두 사람의 계정이 생긴 뒤(송민재 2026-09-24 등록), 관리자 변경 이력에도 같은 줄 (v0.63 검토)
     { id: 'DL-000', absentId: 'u_legal', delegateId: 'u_minjae_song', from: '2026-09-29', to: '2026-09-30',
       reason: '김지우님 외부 교육(2026-09-29~2026-09-30). 같은 법무 담당자 송민재님이 법무 검토를 대신함', by: 'u_admin', at: '2026-09-28 10:00', endedAt: null },
+    // 기획자 결정 2026-11-02 C-9 시연: 이 기간에 영업 임원이 ③을 대신 승인한 계약(2609CL009)이 할인 예외 점검에 "대리 결재"로 보임. 관리자 변경 이력에도 같은 줄
+    { id: 'DL-003', absentId: 'u_head', delegateId: 'u_exec', from: '2026-09-16', to: '2026-09-18',
+      reason: '최민준님 연차(2026-09-16~2026-09-18). 비즈니스1유닛 계약의 영업 검토를 영업 임원이 대신 결재(위임전결규정 대결)', by: 'u_admin', at: '2026-09-15 17:00', endedAt: null },
     { id: 'DL-001', absentId: 'u_legal', delegateId: 'u_minjae_song', from: '2026-10-05', to: '2026-10-07',
       reason: '김지우님 연차(2026-10-05~2026-10-07). 같은 법무 담당자 송민재님이 법무 검토를 대신함', by: 'u_admin', at: '2026-10-02 10:20', endedAt: null },
     { id: 'DL-002', absentId: 'u_eunseong_ko', delegateId: 'u_exec', from: '2026-10-19', to: '2026-10-23',
@@ -1774,11 +2040,14 @@ window.CLIMB_DATA = (function () {
   /* ---------- 관리자 변경 이력 (SCR-51~56, REQ-SEC-05, REQ-AUTH-10, REQ-CHK-07) ----------
    * 관리자 화면에서 바꾼 것은 모두 한 줄씩 남기고 고치거나 지우지 않습니다(영구 보관). 사유는 필수입니다.
    * area: USER 사용자 권한 / RULE 결재선 규칙 / RESTRICT 열람 제한 / CUSTOMER 거래처 / CODE 코드 / PRODUCT 제품과 기능(v0.47) / AUDIT 기록 점검
+   *   / COMPLIANCE 거래처 확인, 보류, 개선 과제(2026-11-02 C-13, C-16. 예시 줄은 맨 아래 "거래처 확인, 보류, 개선 과제"에서 더함)
    * 아래는 이미 반영된 예시 기록입니다(시연으로 바꾼 것은 common.js가 이 브라우저에 저장해 더함). 가격 기준 이력은 PRICE_ROWS에 있습니다. */
   const ADMIN_LOG = [
     { at: '2026-09-01 09:00', by: 'u_super', area: 'RULE', target: '결재선 규칙', change: '처음 설정: ② 배수아, ③ 유닛 리더(비즈니스1유닛 최민준, 비즈니스2유닛 고은성, 비즈니스3유닛 차유나, 리더 본인 계약은 문태호), ④ 김지우, ⑤ 한서연, ⑥ 노은채, ⑧ 배수아, ⑨ 임하준, ⑩ 오현우, 결재 대기 독촉 5일, 체결 지연 독촉 14일', reason: '시스템 도입' },
     { at: '2026-09-01 09:00', by: 'u_super', area: 'CUSTOMER', target: '거래처 15곳', change: '거래처 추가: 한결대학교 외 14곳', reason: '시스템 도입: 기존 계약관리대장에서 옮김' }, // 2026-11-02 만료 처리 시연 거래처 둘(C-0023, C-0024)을 더해 15곳
     { at: '2026-09-01 09:00', by: 'u_super', area: 'CODE', target: '코드표 5개', change: '처음 등록: 조직, 서비스, 계약 방식, 정산 방식, 사후관리 기록 종류', reason: '시스템 도입' },
+    // 기획자 결정 2026-11-02 C-9 시연: 대리 지정 DL-003(위 DELEGATIONS와 같은 줄)
+    { at: '2026-09-15 17:00', by: 'u_admin', area: 'RULE', target: '③ 영업 검토(비즈니스1유닛 리더) 대리 지정', change: '대리 지정: 최민준 → 문태호 (2026-09-16~2026-09-18)', reason: '최민준님 연차(2026-09-16~2026-09-18). 비즈니스1유닛 계약의 영업 검토를 영업 임원이 대신 결재(위임전결규정 대결)' },
     { at: '2026-09-28 10:00', by: 'u_admin', area: 'RULE', target: '④ 법무 검토 대리 지정', change: '대리 지정: 김지우 → 송민재 (2026-09-29~2026-09-30)', reason: '김지우님 외부 교육(2026-09-29~2026-09-30). 같은 법무 담당자 송민재님이 법무 검토를 대신함' },
     { at: '2026-10-02 09:30', by: 'u_admin', area: 'USER', target: '기태민 (taemin.ki@muhayu.com)', change: '상태: 사용 중 → 사용 중지', reason: '9월 30일 퇴사(인사 담당 퇴사 통보 2026-10-01)' },
     { at: '2026-10-02 10:20', by: 'u_admin', area: 'RULE', target: '④ 법무 검토 대리 지정', change: '대리 지정: 김지우 → 송민재 (2026-10-05~2026-10-07)', reason: '김지우님 연차(2026-10-05~2026-10-07). 같은 법무 담당자 송민재님이 법무 검토를 대신함' },
@@ -1794,7 +2063,43 @@ window.CLIMB_DATA = (function () {
     { at: '2026-10-15 10:00', by: 'u_admin', area: 'USER', target: '설은우 (eunwoo.seol@muhayu.com)', change: '사용자 추가: 비즈니스3유닛, 영업 담당자', reason: '10월 15일 입사' },
     { at: '2026-10-16 10:00', by: 'u_admin', area: 'USER', target: '연주아 (jua.yeon@muhayu.com)', change: '사용자 추가: CEM유닛, 고객지원 담당자', reason: '10월 16일 입사' },
     { at: '2026-10-16 17:40', by: 'u_admin', area: 'RULE', target: '③ 영업 검토(비즈니스2유닛 리더) 대리 지정', change: '대리 지정: 고은성 → 문태호 (2026-10-19~2026-10-23)', reason: '고은성님 해외 출장(2026-10-19~2026-10-23). 비즈니스2유닛 계약의 영업 검토를 영업 임원이 대신 결재(위임전결규정 대결)' },
+    // 기획자 결정 2026-11-02 시연 기록(가상 인물): 컴플라이언스 담당자 추가(덧붙임), 감사 열람을 줌(C-2, ROLE_GRANTS와 같은 줄), 역할 겹침을 알고 저장(C-5)
+    //   requestedBy: 요청한 사람(C-7, 선택). conflict: 저장할 때 알린 겹침과 받은 까닭(분기 권한 검토의 역할 충돌 계정에 보임)
+    { at: '2026-09-14 10:00', by: 'u_admin', area: 'USER', target: '반서율 (seoyul.ban@muhayu.com)', change: '사용자 추가: 경영지원유닛, 컴플라이언스 담당자', reason: '9월 15일 컴플라이언스 담당으로 배치' },
+    { at: '2026-09-15 09:30', by: 'u_super', area: 'USER', target: '반서율 (seoyul.ban@muhayu.com)', change: '권한: 컴플라이언스 담당자 → 컴플라이언스 담당자, 감사 열람(2026-10-15까지)',
+      reason: '3분기 내부회계 운영평가 준비: 열람 제한 계약을 포함해 7~9월 체결 계약 표본을 확인', requestedBy: 'u_jaewon_kook' },
+    { at: '2026-10-12 10:00', by: 'u_super', area: 'USER', target: '인채율 (chaeyul.in@muhayu.com)', change: '사용자 추가: 경영지원실, 감사 열람(2027-01-11까지)',
+      reason: '하반기 내부감사: 열람 제한 계약을 포함한 전체 계약과 관리자 변경 이력, 접속 기록 점검 결과를 확인', requestedBy: 'u_jaewon_kook' },
+    { at: '2026-10-14 10:30', by: 'u_admin', area: 'USER', target: '방시현 (sihyun.bang@muhayu.com)', change: '권한: 고객지원 담당자 → 고객지원 담당자, 재무 담당자, 역할 겹침을 알고 저장(⑨ 고객지원과 ⑩ 재무)',
+      reason: '10월 결산 동안 재무기획유닛 일손이 모자라 ⑩ 재무 확인을 대신할 수 있게 재무 담당자 역할을 함께 줌 / 역할 겹침 까닭: 같은 계약의 ⑨와 ⑩은 시스템이 한 사람에게 주지 않음. 11월 분기 권한 검토에서 다시 봄',
+      requestedBy: 'u_seojin_ma', conflict: { list: ['⑨ 고객지원과 ⑩ 재무'], reason: '같은 계약의 ⑨와 ⑩은 시스템이 한 사람에게 주지 않음. 11월 분기 권한 검토에서 다시 봄' } },
     { at: '2026-10-19 09:00', by: 'u_super', area: 'CODE', target: '조직 코드표', change: '조직 개편: 부서 12개를 실과 유닛 10개로 바꿈(영업1~3팀 → 비즈니스1~3유닛, 법무팀과 경영지원팀 → 경영지원유닛 등), 사람마다 새 조직으로 옮김', reason: '2026년 10월 조직 개편' },
+    // 기획자 결정 2026-11-02 E-9, E-7 ②: 회사 설정(SCR-59)의 처음 값. 회사 정보는 최고관리자, 인장 그림은 총무(가상 값, 위 COMPANY와 같은 줄)
+    { at: '2026-09-01 09:00', by: 'u_super', area: 'COMPANY', target: '회사 정보', change: '처음 넣음: 사업자등록번호, 대표자, 주소, 대표 연락처(윤리 규정과 신고 창구 링크는 아직 없음)', reason: '시스템 도입: 경영지원유닛에서 받은 값' },
+    { at: '2026-09-15 10:00', by: 'u_seoyun_tak', area: 'COMPANY', target: '회사 인장 그림', change: '인장 그림 올림: 회사인장_견본.svg (1판)', reason: '견적서 출력에 찍을 회사 인장 그림. 인장 대장에 등록한 회사 인장과 같은 것' },
+    // 기획자 결정 2026-11-02 C-8 시연(가상 기록): 제품과 기능을 바꾼 기록 하나(FEATURES의 HR_PRISM_PLAG 사용 안 함과 같은 내용)
+    //   설정 변경 확인(SCR-65)에서 재무 리더가 확인할 차례. 바꾼 사람이 최고관리자라 최고관리자는 확인하지 못함(C-6)
+    { at: '2026-10-19 09:10', by: 'u_super', area: 'PRODUCT', target: '프리즘 (HR_PRISM)', change: '기능 표절검사: 사용 → 사용 안 함', reason: '기획자 서비스 정리표(2026-10-23): 결함·표절검사로 합쳐짐' },
+    // 기획자 결정 2026-11-02 C-8 시연: 설정 변경 확인(SCR-65)에 남긴 확인. 쌓기만 함. op.id는 control-checks.js가 만드는 변경 한 건의 번호
+    //   가격 기준은 같은 때, 같은 사람, 같은 품의로 넣은 줄을 한 건으로 봄. 품의와 맞음(재무 리더), 품의와 다름(재무 리더), 근거와 맞음(올린 사람이 아닌 법무)
+    { at: '2026-10-05 11:00', by: 'u_seojin_ma', area: 'AUDIT', target: '설정 변경 확인: 가격 기준 카피킬러 캠퍼스 추가 이용자', change: '품의와 맞음',
+      reason: '품의 경영지원-2026-0915의 단가 150만 원, 10월 1일 적용과 맞음',
+      op: { k: 'CONFIG_CHECK', id: 'PRICE:2026-09-24 15:10|u_admin|경영지원-2026-0915', area: 'PRICE', result: 'MATCH', note: '품의 경영지원-2026-0915의 단가 150만 원, 10월 1일 적용과 맞음' } },
+    { at: '2026-10-19 11:30', by: 'u_seojin_ma', area: 'AUDIT', target: '설정 변경 확인: 가격 기준 카피킬러 캠퍼스 출처 표기법 검사 외 기능 45개', change: '품의와 다름',
+      reason: '연결한 문서가 가격 품의가 아니라 기획자 정리표이고, 카피킬러 단가는 임의 값임. 운영 시작 전에 가격 품의를 받아 다시 넣어야 함',
+      op: { k: 'CONFIG_CHECK', id: 'PRICE:2026-10-19 09:00|u_super|기획-2026-1023', area: 'PRICE', result: 'DIFF', note: '연결한 문서가 가격 품의가 아니라 기획자 정리표이고, 카피킬러 단가는 임의 값임. 운영 시작 전에 가격 품의를 받아 다시 넣어야 함' } },
+    { at: '2026-09-26 18:00', by: 'u_minjae_song', area: 'AUDIT', target: '설정 변경 확인: 표준계약서 카피킬러 SaaS 이용계약서 판 2', change: '근거와 맞음',
+      reason: '법무 검토 기록 2026-09-24의 제12조, 제15조 고친 문구와 같음',
+      op: { k: 'CONFIG_CHECK', id: 'TPL:TPL-CK:2', area: 'TEMPLATE', result: 'MATCH', note: '법무 검토 기록 2026-09-24의 제12조, 제15조 고친 문구와 같음' } },
+    // 기획자 결정 2026-11-02 C-7 시연: 3분기 권한 검토 때 유닛마다 계정 목록을 유닛 리더에게 보낸 기록(보내기만 하고 답은 받지 않음)
+    //   units: 유닛, 받은 리더, 그때 계정 수. 리더 역할이 없는 유닛(경영지원유닛)은 상위 조직의 임원(재무 임원)에게 [가정]
+    { at: '2026-10-16 15:00', by: 'u_privacy', area: 'AUDIT', target: '2026년 3분기 유닛별 계정 목록', change: '유닛 리더 9명에게 보냄(유닛 10곳, 계정 47개)',
+      reason: '분기 권한 검토 때 유닛마다 계정 목록을 유닛 리더에게 보냄(답은 받지 않음)',
+      op: { k: 'UNIT_LIST_SENT', r: { quarter: '2026-Q3', units: [
+        { unit: '경영지원실', to: 'u_jaewon_kook', n: 2 }, { unit: '경영지원유닛', to: 'u_jaewon_kook', n: 8 }, { unit: '재무기획유닛', to: 'u_seojin_ma', n: 3 },
+        { unit: '비즈니스유닛', to: 'u_exec', n: 1 }, { unit: '비즈니스1유닛', to: 'u_head', n: 7 }, { unit: '비즈니스2유닛', to: 'u_eunseong_ko', n: 7 },
+        { unit: '비즈니스3유닛', to: 'u_yuna_cha', n: 8 }, { unit: '세일즈어드민유닛', to: 'u_jihoon_eom', n: 3 }, { unit: 'CEM유닛', to: 'u_yeonwoo_joo', n: 6 },
+        { unit: '정보보호유닛', to: 'u_seungho_yeo', n: 2 }] } } },
   ];
   // 기획자 결정 2026-11-02 A-6: 공지는 사유 칸 없이 "공지 올림", "공지 고침", "공지 내림"을 사유로 남김(REQ-ADM-10의 예외. 예전에는 "-")
   //   위 공지사항 예시 글(NOTICES)을 올린 기록. 바뀐 내용은 공지 쓰기(notice-form.js)가 남기는 글과 같은 모양
@@ -1807,6 +2112,7 @@ window.CLIMB_DATA = (function () {
     { at: '2026-09-01 09:00', by: 'u_super', id: '2511CL002', on: true, reason: '시스템 도입 때 기존 계약을 옮기며 설정(기존 계약관리대장의 비공개 표시)' },
     { at: '2026-09-01 09:00', by: 'u_super', id: '2606CL001', on: true, reason: '시스템 도입 때 기존 계약을 옮기며 설정(기존 계약관리대장의 비공개 표시)' },
     { at: '2026-10-17 14:00', by: 'u_sales1', id: '2610CL007', on: true, reason: '계약을 등록하며 영업이 설정' },
+    { at: '2026-09-07 10:00', by: 'u_sales2', id: '2609CL008', on: true, reason: '계약을 등록하며 영업이 설정' }, // 2026-11-02 C-9 시연 계약
   ];
 
   /* ---------- 접속 기록 점검: SCR-57 (REQ-SEC-05, REQ-SEC-06, 기획자 결정 v0.25) ----------
@@ -1842,13 +2148,208 @@ window.CLIMB_DATA = (function () {
         sig: 'a:2609CL006=8400000|b:2609CL001=19200000,2609CL002=24000000,2609CL004=13200000|c:2609CL006=8400000' } },
   ];
 
+  /* ---------- 할인 예외 점검: SCR-61 (기획자 결정 2026-11-02 C-9, G-14) ----------
+   * 재무 임원이 매월 남기는 점검 기록. 쌓기만 하고 고치거나 지우지 않음. 기한은 다음 달 말일
+   * 공통: month 대상 월('2026-09') / type / at, by, dept: 남긴 때와 사람, 그때 조직
+   *   LIMIT 한계값: limit(가장 큰 줄 할인율이 이 % 이상이면 의견 필수), reason(바꿀 때 까닭). 마지막 것이 그달 한계값. 줄 확인을 남긴 뒤에는 남기지 않음
+   *   ROW 줄 확인: key('DISC:계약번호#차수' ③ 가격 예외, 'FIN:계약번호#차수' ⑩ 늦음), contractId, part(DISC, FIN), over(한계값을 넘어 의견 필수였는지),
+   *     limit(그때 한계값), opinion(의견), seen(확인 때 본 내용 글: 할인율과 ③ 승인, 또는 ⑩ 날짜. 고객사 이름은 넣지 않음). 줄마다 한 번
+   *   DONE 점검 마침: memo(선택), seen { disc, fin, over, limit, sig: 그때 줄 목록 }. 지금 목록과 다르면 "마친 뒤 바뀜"
+   * 시연: 9월 한계값 25%를 10-14에 정하고 대리 결재 줄(2609CL009) 하나만 확인함. 나머지 세 줄은 확인 전(기한 10-31)
+   *   시연으로 남긴 것은 이 브라우저에만(C.pushDemo 'discountReviews'). 실제 시스템은 서버의 점검 기록 */
+  const DISCOUNT_REVIEWS = [
+    { month: '2026-09', type: 'LIMIT', limit: 25, at: '2026-10-14 10:10', by: 'u_jaewon_kook', dept: '경영지원실' },
+    { month: '2026-09', type: 'ROW', key: 'DISC:2609CL009#1', contractId: '2609CL009', part: 'DISC', over: false, limit: 25,
+      opinion: '대리 지정 기간 안에 근거를 남기고 영업 임원이 대신 결재함. 한도를 4%p 넘은 정도라 문제없음',
+      seen: '가장 큰 줄 24%(한도 20%), 계약 전체 20%, ③ 영업 리더 비즈니스유닛 문태호 2026-09-16 10:20(비즈니스1유닛 최민준 대신, 대리 지정)',
+      at: '2026-10-14 10:30', by: 'u_jaewon_kook', dept: '경영지원실' },
+  ];
+
+  /* ---------- 꺼낸 기록: 통제 증빙 내보내기와 결재 기록 묶음 (기획자 결정 2026-11-02 C-3, REQ-DASH-21) ----------
+   * 통계와 보고서(SCR-46)의 통제 증빙 내보내기(기간 전체, 감사 열람)와 계약 상세(SCR-42)의 결재 기록 묶음을 꺼낼 때마다 한 줄. 쌓기만 하고 고치거나 지우지 않음
+   * id / at, by, dept: 꺼낸 때와 사람, 그때 조직 / kind: PERIOD 기간 전체, BUNDLE 계약 묶음 하나 / cond: 조건(기간이나 묶음 번호)
+   * count: 건수(글), sum: 금액 합계(신규, 변경, 연장. 묶음은 0) / hash: 파일 지문(SHA-256, 파일 맨 위 머리 아래 본문의 지문) / file: 파일 이름
+   * 아래는 가상 기록입니다(지문도 가상 값). 시연으로 꺼낸 것은 이 브라우저에만(C.pushDemo 'exports'). 실제 시스템은 서버의 꺼낸 기록 */
+  const EXPORT_LOG = [
+    // 2026-11-02 고침: 할인 예외 점검(C-9) 시연 계약 셋(2609CL007~009, 9월 기안과 체결)을 넣은 값. 계약 +3건, 가격 예외 3건, 4번 예 +1건,
+    //   ⑧ 결과 +3줄, 결재 기록 +22줄, 금액 +61,920,000원. 가격과 권한 변경, 접속 기록 줄 수는 시연용 대략 값 [가정]
+    { id: 'EX-0001', at: '2026-10-14 10:20', by: 'u_chaeyul_in', dept: '경영지원실', kind: 'PERIOD', cond: '기간 2026-09-01~2026-09-30',
+      count: '계약 17건, 결재 기록 83줄, 가격 예외 3건, 4번 예 2건, ⑧ 결과 6줄, 가격과 권한 변경 17줄, 접속 기록 127줄', sum: 169320000,
+      hash: 'b7e07ff48fd4c99eeb24d16164ed54df525f51f3d192aa75d3c1b19f1bab8e1b', file: '통제증빙_2026-09-01_2026-09-30.csv' },
+    { id: 'EX-0002', at: '2026-10-16 14:05', by: 'u_sales2', dept: '비즈니스2유닛', kind: 'BUNDLE', cond: '계약 묶음 2606CL001 해랑출판',
+      count: '계약 4건, 결재 문서 4개, 결재 기록 21줄, 첨부와 체결본 2개', sum: 0,
+      hash: '777b3cbcfd503afd80e7a4207c74b868c3415d3b5415df2f753ce5abd304e1d6', file: '결재기록묶음_2606CL001_목록.csv' },
+  ];
+
+  /* ---------- 영업기회 대사: SCR-62 (기획자 결정 2026-11-02 E-1 ②, G-02, CTL-03) ----------
+   * 영업지원(담당자, 리더)이 매월 판다(CRM)에서 내려받은 수주 목록 파일(CSV)을 올려 시스템의 계약과 맞춰 봄. 운영 시작(SERVICE_START_MONTH) 뒤 수주만
+   *   계약이 없는 수주, 수주 목록에 없는 계약을 줄마다 보고 의견을 남긴 뒤 그 달 대사를 확인함. 기록은 쌓기만 함(고치거나 지우지 않음)
+   *   파일의 고객 담당자 이름, 연락처, 이메일 칸은 읽을 때 빼고 저장하지 않음(REQ-SEC-09. 빼낸 칸의 이름만 남김)
+   * OPP_SAMPLE: "예시 파일로 해 보기"가 읽는 판다 내려받기 모양의 9월 수주 목록. 담당자와 연락처 칸이 든 그대로(가상 인물, 가상 번호와 주소)
+   * OPP_RECON: 기록 { type, month: 대사 월, at, by, dept: 그때 조직 }
+   *   UPLOAD: id, fileName, rows: [{ wonAt 수주일, opp 영업기회번호, customer 고객사, bizNo, amount 수주 금액, sales 담당 영업 }],
+   *     skipped: { before: 운영 시작 전 수주 줄, other: 다른 달 수주 줄, bad: 읽지 못한 줄 }, dropped: 뺀 칸 이름. 같은 달에 다시 올리면 마지막 파일로 맞춰 봄
+   *   NOTE: key('ORDER:영업기회번호' 또는 'CONTRACT:계약번호'), text. 같은 줄에 다시 남기면 한 줄 더(화면은 마지막 의견)
+   *   CONFIRM: uploadId(맞춰 본 파일), memo(선택), seen: { orders, matched, noContract, notInList, keys } 확인 때 본 숫자
+   * 시연: 9월 파일을 10-05에 올리고 예외 두 줄(계약이 없는 도담고등학교 수주, 8월 수주라 목록에 없는 2609CL004)에 의견을 남김. 확인은 아직(기한 10-31) */
+  const OPP_SAMPLE = {
+    fileName: '판다_수주목록_2026-09.csv',
+    head: ['수주일', '영업기회번호', '고객사', '사업자등록번호', '수주 금액', '담당 영업', '고객 담당자', '연락처', '이메일'],
+    rows: [
+      ['2026-08-27', '2608CK021', '마루중학교', '403-83-10281', '13200000', '이도윤', '나예린', '010-0000-0101', 'contact01@example.com'],
+      // 할인 예외 점검(C-9) 시연 계약 셋의 수주(2026-11-02 더함): 수주 목록에 있어야 9월 대사의 예외가 처음 이야기대로 둘(위 OPP_RECON의 두 의견)
+      //   기안일보다 앞선 9월 날짜. 2609HR016(해솔테크)은 열람 제한 계약이라 볼 수 없는 사람에게는 화면이 가림
+      ['2026-09-01', '2609CK027', '한누리대학교', '134-82-61500', '36000000', '김태윤', '석다래', '010-0000-0107', 'contact07@example.com'],
+      ['2026-09-04', '2609HR003', '청람컨설팅', '220-88-71543', '19200000', '정하은', '마도현', '010-0000-0102', 'contact02@example.com'],
+      ['2026-09-04', '2609HR016', '해솔테크', '220-81-55239', '14400000', '정하은', '연시우', '010-0000-0108', 'contact08@example.com'],
+      // 기획자 결정 2026-11-03(C-44) 시연 계약 둘의 수주(담당 영업은 수주 때의 기태민, 2609CL010, 2609CL011과 맞음)
+      ['2026-09-05', '2609CK031', '라온디자인', '120-87-35202', '18000000', '기태민', '도하윤', '010-0000-0110', 'contact10@example.com'],
+      ['2026-09-10', '2609HR014', '새길교육연구소', '214-82-77313', '8400000', '정하은', '서지우', '010-0000-0103', 'contact03@example.com'],
+      ['2026-09-10', '2609CK029', '솔빛평생교육원', '403-82-30714', '11520000', '박서현', '편다온', '010-0000-0109', 'contact09@example.com'],
+      ['2026-09-11', '2609CK005', '바른출판', '105-87-44129', '24000000', '정하은', '하은솔', '010-0000-0104', 'contact04@example.com'],
+      ['2026-09-17', '2609HR021', '새빛정보통신', '214-86-51908', '14400000', '기태민', '채이안', '010-0000-0111', 'contact11@example.com'],
+      ['2026-09-18', '2609CK011', '새솔고등학교', '314-83-20951', '9600000', '이도윤', '우태린', '010-0000-0105', 'contact05@example.com'],
+      ['2026-09-26', '2609CK019', '새솔고등학교', '314-83-20951', '2400000', '이도윤', '우태린', '010-0000-0105', 'contact05@example.com'],
+      ['2026-09-28', '2609CK024', '도담고등학교', '312-83-55107', '6000000', '이도윤', '모세아', '010-0000-0106', 'contact06@example.com'],
+    ],
+  };
+  const OPP_RECON = [
+    { type: 'UPLOAD', id: 'OU-0001', month: '2026-09', at: '2026-10-05 10:20', by: 'u_sadmin', dept: '세일즈어드민유닛', fileName: OPP_SAMPLE.fileName,
+      rows: OPP_SAMPLE.rows.filter(function (r) { return r[0].slice(0, 7) === '2026-09'; }).map(function (r) {
+        return { wonAt: r[0], opp: r[1], customer: r[2], bizNo: r[3], amount: Number(r[4]), sales: r[5] };
+      }),
+      skipped: { before: 1, other: 0, bad: 0 }, dropped: ['고객 담당자', '연락처', '이메일'] },
+    { type: 'NOTE', month: '2026-09', key: 'ORDER:2609CK024', at: '2026-10-05 11:00', by: 'u_sadmin', dept: '세일즈어드민유닛',
+      text: '고객 예산 확정이 11월로 밀려 아직 기안 전. 영업대표 이도윤에게 확인함(10-05)' },
+    { type: 'NOTE', month: '2026-09', key: 'CONTRACT:2609CL004', at: '2026-10-05 11:05', by: 'u_sadmin', dept: '세일즈어드민유닛',
+      text: '8월 27일 수주(운영 시작 전)라 9월 목록에 없음. 판다에서 8월 수주로 확인함' },
+  ];
+
+  /* ---------- 인장 기록 대사: SCR-63 (기획자 결정 2026-11-02 E-7 덧붙임 ③) ----------
+   * 총무가 매월 "견적서 출력"에 회사 인장을 찍은 출력 기록(QUOTES issues의 sealed)을 인장 대장과 맞춰 보고 남기는 확인. 출력은 막지 않음
+   *   쌓기만 하고 고치거나 지우지 않음(같은 달에 다시 남기면 한 줄 더)
+   * { month, at, by, dept, result: MATCH 대장과 맞음 / DIFF 맞지 않는 것이 있음, memo(맞으면 선택, 맞지 않으면 필수), seen: { n: 인장 찍은 출력 수, keys: 견적번호#판@출력 일시 } } */
+  const SEAL_RECON = [
+    { month: '2026-09', at: '2026-10-06 14:00', by: 'u_ga', dept: '경영지원유닛', result: 'MATCH',
+      memo: '인장 찍은 출력 1건(QT2609-001 1판, 09-16)이 인장 대장의 9월 16일 줄(견적서, 바른출판)과 맞음. 09-14 출력은 인장 그림을 올리기 전이라 인장 없음',
+      seen: { n: 1, keys: 'QT2609-001#1@2026-09-16 11:20' } },
+  ];
+
+  /* ---------- 거래처 확인, 보류, 개선 과제 (기획자 결정 2026-11-02 C-13, C-16과 덧붙임 "컴플라이언스") ----------
+   * 모두 컴플라이언스 담당자가 남기고 쌓기만 함(고치거나 지우지 않음). 남길 때마다 관리자 변경 이력(영역 COMPLIANCE)에도 한 줄
+   * 판단과 막기는 common.js "거래처 확인과 보류". 화면은 거래처 관리(SCR-55)와 개선 과제와 보류(SCR-64)
+   * 아래 사람과 거래처, 사건은 모두 시연용 가상 내용입니다 */
+  // 거래처 확인(C-13): 확인 대상, 결과 항목, 위험 등급의 이름. 결과 항목의 bad는 "문제"로 보는 값
+  //   실제 소유자나 공직자의 이름은 남기지 않고 결과만 남김(REQ-SEC-09). 확인은 시스템 밖에서 손으로 함(공공데이터 API와 외부 AI를 쓰지 않음)
+  const CUSTOMER_CHECK = {
+    nextYears: 1, // 다음 확인일 기본: 확인한 날 1년 뒤(기획자 결정 2026-11-02 C-13 작업 지시). 창에서 앞당길 수 있음
+    WHY: { PUBLIC: '국가와 지자체', PROCURE: '조달', INDIRECT: '간접(총판, 리셀러)' },
+    RESULT: { NONE: '확인 안 함', OK: '문제 없음', ISSUE: '문제 있음' },
+    RISK: { HIGH: '높음', MID: '보통', LOW: '낮음' },
+    ITEMS: [
+      { key: 'sanction', label: '제재 명단', options: [['NONE', '해당 없음'], ['HIT', '해당 있음']], bad: ['HIT'], help: '국내외 제재 대상 명단과 입찰 참가 제한 업체' },
+      { key: 'media', label: '부정적 보도', options: [['NONE', '없음'], ['HIT', '있음']], bad: ['HIT'], help: '뇌물, 담합, 횡령 같은 보도' },
+      { key: 'owner', label: '실제 소유자', options: [['OK', '문제 없음'], ['ISSUE', '문제 있음'], ['UNKNOWN', '확인 못 함'], ['NA', '해당 없음(국가와 지자체)']], bad: ['ISSUE', 'UNKNOWN'], help: '이름은 적지 않고 결과만' },
+      { key: 'official', label: '공직자 관련', options: [['NONE', '없음'], ['HIT', '있음']], bad: ['HIT'], help: '소유자나 대표가 공직자이거나 그 가족인지. 이름은 적지 않음' },
+    ],
+  };
+  // 거래처 확인 기록: customerId, bizNo, name(그때 상호) / why: 그때의 확인 대상 까닭 / on: 확인한 날 / next: 다음 확인일
+  //   result: OK 문제 없음, ISSUE 문제 있음 / risk: 그때 계산한 위험 등급 / 항목 결과 sanction, media, owner, official / file: 증빙 파일 이름 / note: 확인한 방법과 판단
+  //   시연: 가온테크(간접) 문제 없음, 도담고등학교(국가와 지자체) 다음 확인일 지남, 가람전자(간접) 문제 있음 → 보류 HD-0001
+  //   확인 안 함: 마루중학교, 새솔고등학교, 푸른숲중학교(국가와 지자체), 하늘연구원(조달)
+  const CUSTOMER_CHECKS = [
+    { id: 'CK-0001', customerId: 'C-0006', bizNo: '129-86-40914', name: '가온테크', why: ['INDIRECT'], on: '2026-09-22', next: '2027-09-22',
+      result: 'OK', risk: 'MID', sanction: 'NONE', media: 'NONE', owner: 'OK', official: 'NONE', file: '가온테크_거래처확인_2026-09-22.pdf',
+      note: '시스템 도입 뒤 첫 확인. 제재 명단과 입찰 참가 제한 업체, 신문 검색, 주주명부로 확인함', by: 'u_seoyul_ban', at: '2026-09-22 15:20' },
+    { id: 'CK-0002', customerId: 'C-0023', bizNo: '312-83-55107', name: '도담고등학교', why: ['PUBLIC'], on: '2026-09-24', next: '2026-10-10',
+      result: 'OK', risk: 'LOW', sanction: 'NONE', media: 'NONE', owner: 'NA', official: 'NONE', file: '도담고등학교_거래처확인_2026-09-24.pdf',
+      note: '제재 명단과 신문 검색으로 확인함. 10월 초에 학교장이 바뀌어 공직자 관련을 다시 보려고 다음 확인일을 앞당김', by: 'u_seoyul_ban', at: '2026-09-24 11:00' },
+    { id: 'CK-0003', customerId: 'C-0019', bizNo: '124-81-56736', name: '가람전자', why: ['INDIRECT'], on: '2026-10-18', next: '2027-10-18',
+      result: 'ISSUE', risk: 'HIGH', sanction: 'NONE', media: 'HIT', owner: 'OK', official: 'NONE', file: '가람전자_거래처확인_2026-10-18.pdf',
+      note: '총판 계약 기안 뒤 처음 확인. 지역 입찰 담합 의혹 보도가 있어 사실을 확인할 때까지 보류함', by: 'u_seoyul_ban', at: '2026-10-18 15:00' },
+  ];
+  // 보류(C-16): kind CUSTOMER 거래처(customerId, bizNo, name) 또는 BUNDLE 계약 묶음(bundleId, 원계약 번호)
+  //   reason: 거는 사유 / remediationId: 관련 개선 과제(선택) / by, at: 건 사람과 때 / releasedAt, releasedBy, releaseReason: 푼 때(풀면 그 줄에 남김)
+  const HOLDS = [
+    { id: 'HD-0001', kind: 'CUSTOMER', customerId: 'C-0019', bizNo: '124-81-56736', name: '가람전자', bundleId: null,
+      reason: '거래처 확인에서 부정적 보도(지역 입찰 담합 의혹)가 나와 사실을 확인할 때까지 새 기안과 남은 결재를 멈춤', remediationId: 'RM-0003',
+      by: 'u_seoyul_ban', at: '2026-10-18 16:30', releasedAt: null, releasedBy: null, releaseReason: '' },
+    // 기획자 결정 2026-11-03(CTL-79) 시연: 하루 걸었다가 푼 계약 묶음 보류. 걸 때와 풀 때 이도윤(영업대표)과 최민준(영업 리더, ③ 차례)에게 이메일(MAIL_SAMPLES HOLD_RELEASE)
+    { id: 'HD-0002', kind: 'BUNDLE', customerId: null, bizNo: '', name: '이음병원', bundleId: '2604CL001',
+      reason: '무상 충전 수량을 계약 밖의 다른 기관에 쓴다는 제보가 있어 사실을 확인할 때까지 새 기안과 남은 결재를 멈춤', remediationId: null,
+      by: 'u_seoyul_ban', at: '2026-10-18 17:30', releasedAt: '2026-10-19 09:40', releasedBy: 'u_seoyul_ban',
+      releaseReason: '고객지원의 사용 기록으로 이음병원 안에서만 쓴 것을 확인함(확인 자료 첨부)' },
+  ];
+  // 개선 과제(C-16): 상태 열림 → 조치 중 → 효과 확인 → 끝남. 효과가 없으면 효과 확인에서 조치 중으로 되돌림
+  //   source: 찾은 곳 / found: 찾은 날 / cause 원인, action 조치, owner 책임자, due 기한 / effect 효과 확인, evidence 끝낸 증거(끝낼 때 꼭)
+  //   holdId: 관련 보류(선택) / history: 상태를 바꾼 기록 [{ at, by, to, note, set }] 쌓기만 함. 기한과 책임자를 바꿔도 한 줄
+  const REMEDIATION = {
+    STATE: { OPEN: '열림', DOING: '조치 중', VERIFY: '효과 확인', DONE: '끝남' },
+    SOURCE: { CUSTOMER_CHECK: '거래처 확인', DISCOUNT: '할인 예외 점검', OPP: '영업기회 대사', SEAL: '인장 기록 대사', CONFIG: '설정 변경 확인',
+      LOG: '접속 기록 점검', CLOSE: '기간 마감 점검', EXPIRY: '만료 예정 확인', APPROVAL: '결재 중 발견', AUDIT: '감사', REPORT: '신고', OTHER: '그 밖' },
+  };
+  const REMEDIATIONS = [
+    { id: 'RM-0001', title: '퇴사자 계정이 퇴사 뒤 이틀 동안 사용 중으로 남음', source: 'LOG', found: '2026-10-05',
+      cause: '인사 담당의 퇴사 통보가 퇴사 다음 날 와서, 관리자가 그다음 날 사용 중지함. 퇴사일 전에 관리자에게 알리는 절차가 없었음',
+      action: '인사 담당이 퇴사는 퇴사일 사흘 전까지, 이동과 입사는 그날 전에 관리자에게 알리고 관리자는 그날 반영함',
+      owner: 'u_admin', due: '2026-10-31', state: 'DONE', holdId: null,
+      effect: '10월 인사 이동, 리더 발령, 입사 4건이 모두 알린 날 반영된 것을 관리자 변경 이력(10-12, 10-15, 10-16)으로 확인함',
+      evidence: '인사_변경_알림_절차_2026-10.pdf', by: 'u_seoyul_ban', at: '2026-10-05 16:00',
+      history: [
+        { at: '2026-10-05 16:00', by: 'u_seoyul_ban', to: 'OPEN', note: '9월 기록 점검(정보보호)에서 받은 일을 기록함' },
+        { at: '2026-10-06 10:00', by: 'u_seoyul_ban', to: 'DOING', note: '관리자와 인사 담당이 알림 절차를 정하기 시작함' },
+        { at: '2026-10-09 14:00', by: 'u_seoyul_ban', to: 'VERIFY', note: '알림 절차를 정해 인사 담당과 관리자에게 알림. 10월 인사 변경으로 효과를 봄' },
+        { at: '2026-10-17 11:00', by: 'u_seoyul_ban', to: 'DONE', note: '효과를 확인해 끝냄', set: { effect: '10월 인사 이동, 리더 발령, 입사 4건이 모두 알린 날 반영된 것을 관리자 변경 이력(10-12, 10-15, 10-16)으로 확인함', evidence: '인사_변경_알림_절차_2026-10.pdf' } },
+      ] },
+    { id: 'RM-0002', title: '자동갱신 계약의 해지 통지 기한을 연장 검토 없이 넘김(한결대학교 2511CL001)', source: 'EXPIRY', found: '2026-10-08',
+      cause: '해지 통지 기한 이메일이 영업대표에게만 가고, 영업대표가 휴가 중이라 놓침. 유닛 리더는 알지 못함',
+      action: '유닛 리더도 통지 기한 7일 전에 이메일을 받게 하고, 통지 기한이 지난 계약을 영업지원이 매주 만료 예정 화면에서 봄',
+      owner: 'u_jihoon_eom', due: '2026-11-15', state: 'DOING', holdId: null, effect: '', evidence: '', by: 'u_seoyul_ban', at: '2026-10-08 10:30',
+      history: [
+        { at: '2026-10-08 10:30', by: 'u_seoyul_ban', to: 'OPEN', note: '만료 예정 화면에서 통지 기한이 지난 계약을 찾아 기록함' },
+        { at: '2026-10-13 09:40', by: 'u_seoyul_ban', to: 'DOING', note: '영업지원 리더가 매주 보기를 시작함. 리더 알림은 결재선 규칙의 알림 일수로 정할 예정' },
+      ] },
+    { id: 'RM-0003', title: '간접 거래처를 기안 전에 확인하지 않아 부정적 보도를 기안 뒤에 알게 됨(가람전자)', source: 'CUSTOMER_CHECK', found: '2026-10-18',
+      cause: '거래처 확인이 없어도 계약 등록에서 경고만 하고, 영업이 확인을 요청하지 않은 채 기안함',
+      action: '보도 내용의 사실을 확인하고, 간접 거래처는 첫 기안 전에 확인을 요청하도록 영업에 알림. 한 분기 운영해 보고 막기로 올릴지 정함',
+      owner: 'u_seoyul_ban', due: '2026-11-13', state: 'OPEN', holdId: 'HD-0001', effect: '', evidence: '', by: 'u_seoyul_ban', at: '2026-10-18 16:20',
+      history: [{ at: '2026-10-18 16:20', by: 'u_seoyul_ban', to: 'OPEN', note: '거래처 확인(CK-0003)에서 찾아 기록함' }] },
+  ];
+  // 위 기록과 같은 관리자 변경 이력 줄(영역 COMPLIANCE). 시연으로 남긴 것은 common.js가 같은 모양으로 더함
+  (function () {
+    const who = function (id) { return USERS[id] ? USERS[id].dept + ' ' + USERS[id].name : id; };
+    const pick = function (it, v) { return (it.options.filter(function (o) { return o[0] === v; })[0] || [v, v])[1]; };
+    CUSTOMER_CHECKS.forEach(function (r) {
+      ADMIN_LOG.push({ at: r.at, by: r.by, area: 'COMPLIANCE', target: r.name + ' (' + r.bizNo + ')',
+        change: '거래처 확인(' + r.id + '): ' + CUSTOMER_CHECK.RESULT[r.result] + ', 위험 ' + CUSTOMER_CHECK.RISK[r.risk] + '. ' +
+          CUSTOMER_CHECK.ITEMS.map(function (it) { return it.label + ' ' + pick(it, r[it.key]); }).join(', ') +
+          '. 확인한 날 ' + r.on + ', 다음 확인일 ' + r.next + ', 증빙 ' + r.file, reason: r.note });
+    });
+    HOLDS.forEach(function (h) {
+      const target = h.kind === 'CUSTOMER' ? '거래처 ' + h.name + ' (' + h.bizNo + ')' : '계약 묶음 ' + h.bundleId;
+      ADMIN_LOG.push({ at: h.at, by: h.by, area: 'COMPLIANCE', target: target, change: '보류 걸기(' + h.id + ')' + (h.remediationId ? ', 개선 과제 ' + h.remediationId : ''), reason: h.reason });
+      if (h.releasedAt) ADMIN_LOG.push({ at: h.releasedAt, by: h.releasedBy, area: 'COMPLIANCE', target: target, change: '보류 풀기(' + h.id + ')', reason: h.releaseReason });
+    });
+    REMEDIATIONS.forEach(function (r) {
+      r.history.forEach(function (x, i) {
+        ADMIN_LOG.push({ at: x.at, by: x.by, area: 'COMPLIANCE', target: r.id + ' ' + r.title,
+          change: i === 0 ? '개선 과제 기록: 책임자 ' + who(r.owner) + ', 기한 ' + r.due : '상태: ' + REMEDIATION.STATE[r.history[i - 1].to] + ' → ' + REMEDIATION.STATE[x.to] +
+            (x.set && x.set.evidence ? ', 끝낸 증거 ' + x.set.evidence : ''),
+          reason: i === 0 ? r.cause : x.note + (x.set && x.set.effect ? '. 효과 확인: ' + x.set.effect : '') });
+      });
+    });
+  })();
+
   return { TODAY, BRAND, ROLES, ROLE_AREAS, ROLE_SHORT, ROLE_AREA, ROLE_BASE, STEP_LEADS, APPROVER_ROLES, USERS, DEMO_PERSONA, STATUS, KINDS, SERVICES, METHODS, SETTLEMENTS, END_USER_PENDING, PRICE_BOOK, STEPS, REVIEW_GROUPS, POST_GROUPS, PROCESS_ROLES, STEP_ASSIGNEE, APPROVAL_STATE, APPROVAL_ACTIONS, SEAL_CHECKS, SIDE_DEAL_CHECK, SIGNED_CHECKS, SIGNED_MISMATCH, REVIEW_CHECKS, SUPPLEMENT_ITEMS, OPS_CHECKS, OPS_CHECKS_END, OPS_CHECKS_EXTEND, AFTERCARE_TYPES, FILE_KINDS, CONTRACTS, ALERT_RULES, ACCOUNT_STATUS, ACCOUNTS,
     // 기획자 결정 2026-11-02: 영업 임원 승인 기준(E-3), 만료 처리와 유예(A-10, A-11), 견적서로 계약서를 대신함(B-5)
     PRICE_RULES, PRICE_RULE_CHANGES, RULE_BASIS /* E-3 위임전결 근거 */, EXPIRY_RULES, QUOTE_INSTEAD, QUOTE_INSTEAD_CHECKS,
     ACCT_KINDS, // 기획자 결정 2026-11-02 B-6: 체크리스트 4번 조건의 종류
     INTEREST_CHECK, SPLIT_CHECK, RECENT_SAME, ANTI_BRIBE, SIGN_DATE_CHECK, // 기획자 결정 2026-11-02 결재 창 확인(C-14, E-2, C-15, B-8)
-    CHANGE_TYPES, CHANGE_RULES, OPS_CHECKS_PERIOD, TEAM_LEADERS,
+    ROLE_LIMITS, ROLE_GRANTS, ROLE_CONFLICTS, // 기획자 결정 2026-11-02: 감사 열람의 끝나는 날과 준 기록(C-2), 겹치면 안 되는 역할 조합(C-5)
+    CHANGE_TYPES, CHANGE_RULES, OPS_CHECKS_PERIOD, TEAM_LEADERS, OWNER_CHANGES /* 2026-11-03 C-44 영업대표 바꾼 기록 */,
     PRODUCTS, FEATURES, TEMPLATES, PRICE_ROWS, currentPrices, CUSTOMERS, QUOTE_RULES, QUOTE_SUPPLIER, QUOTES, BIZ_REGISTRY, BIZ_REGISTRY_INFO, NTS_STATUS, CODE_GROUPS, CODES, DELEGATIONS, ASSIGNEE_CHANGES, ADMIN_LOG, RESTRICT_LOG,
-    LOG_REVIEWS, ACCESS_REVIEWS, SEC_ALERT_KINDS, SEC_ALERTS, CLOSE_CHECKS /* B-9 기간 마감 점검 확인 */, NOTICE_KINDS, RELEASE_PARTS, NOTICES, EMAIL_TYPES,
-    OBLIGATION_KINDS, OBLIGATION_WHEN, OBLIGATION_PRESETS, OBLIGATIONS, SERVICE_START_MONTH };
+    LOG_REVIEWS, ACCESS_REVIEWS, SEC_ALERT_KINDS, SEC_ALERTS, CLOSE_CHECKS /* B-9 기간 마감 점검 확인 */, EXPORT_LOG /* C-3 꺼낸 기록 */, DISCOUNT_REVIEWS /* C-9 할인 예외 점검 기록 */, NOTICE_KINDS, RELEASE_PARTS, NOTICES, EMAIL_TYPES,
+    OBLIGATION_KINDS, OBLIGATION_WHEN, OBLIGATION_PRESETS, OBLIGATIONS, SERVICE_START_MONTH,
+    COMPANY, OPP_SAMPLE, OPP_RECON, SEAL_RECON, // 기획자 결정 2026-11-02 E-9 회사 설정, E-1 ② 영업기회 대사, E-7 ③ 인장 기록 대사
+    CUSTOMER_CHECK, CUSTOMER_CHECKS, HOLDS, REMEDIATION, REMEDIATIONS }; // 기획자 결정 2026-11-02 C-13 거래처 확인, C-16 보류와 개선 과제
 })();

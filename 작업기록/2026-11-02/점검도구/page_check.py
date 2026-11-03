@@ -45,6 +45,9 @@ def main():
             cdp.call('Page.navigate', url=ds.BASE + ck['url'])
             time.sleep(0.6)
             cdp.js("new Promise(r => { const t = () => document.readyState === 'complete' ? document.fonts.ready.then(() => setTimeout(r, 300)) : setTimeout(t, 100); t(); })")
+            for w2 in ck.get('resize', []):  # 연 뒤에 창 폭을 차례로 바꿈(창을 줄이는 것처럼)
+                cdp.call('Emulation.setDeviceMetricsOverride', width=w2, height=ck.get('h', 1300), deviceScaleFactor=ck.get('dpr', 1), mobile=False)
+                time.sleep(0.25)
             if ck.get('click'):  # 실제 마우스 누름(사용자 동작으로 쳐 줌: 선택 목록 펼치기 등)
                 pt = cdp.js("(() => { const e = document.querySelector(%s); e.scrollIntoView({block: 'center'}); const b = e.getBoundingClientRect(); return [b.left + 30, b.top + b.height / 2]; })()" % json.dumps(ck['click']))
                 for t in ('mousePressed', 'mouseReleased'):

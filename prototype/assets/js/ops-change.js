@@ -8,11 +8,14 @@
  *   2. 변경 종류 하나: 계약 기간 변경(새 종료일), 추가 충전(수량, 유상이면 금액). 서비스에 있는 것만 고를 수 있음
  *   3. 변경 사유(필수), CRM 영업활동 링크(필수, https)
  *   4. 결재선 미리 보기: ③ 영업 검토(기간 2개월 넘게 바뀜, 무상 충전 계약 연도 누적 50건 초과일 때만) → ⑨ 운영 변경(고객지원, HR 충전은 재무)
- *      → ⑩ 재무 확인(기획자 결정 2026-11-02 B-3, 추천과 다름: 운영 변경 모두. HR 충전은 ⑨를 한 사람이 아닌 재무 리더)
+ *      → ⑩ 재무 확인(기획자 결정 2026-11-02 B-3, 추천과 다름: 운영 변경 모두)
+ *      기획자 결정 2026-11-03 C-18 ⑤: HR 충전의 ⑩도 재무 담당자, ⑨를 한 사람이 아닌 다른 재무 담당자(예전에는 재무 리더)
+ *      기획자 결정 2026-11-03 C-44: 영업대표 본인은 지금 영업대표(C.isSalesRep: 바뀐 새 영업대표, 맡을 수 없으면 대신 맡는 영업 리더). 새 기록의 기안자도 그 사람
  *      무상 충전은 이번 계약 연도에 이미 받은 수량과 이번까지의 누적을 보임(B-4, C.freeChargeUsed)
  *      유상 충전은 기능을 고르고 그날 가격 기준의 표준 단가 x 수량과 할인율을 보임(B-3 덧붙임, 막지 않음)
  *   5. 기안하면 -C01 번호로 원계약에 묶어 저장(프로토타입은 이 브라우저에만)하고 결재 문서로 이동
  *   6. 보완 후 재기안(v0.58 기획자 결정): ops-change.html?id=반려된 운영 변경 번호로 열면 앞 차수 값을 채우고 같은 번호의 다음 차수로 기안
+ *   7. 기획자 결정 2026-11-02 C-16: 거래처나 묶음에 보류가 걸려 있으면(C.holdOf) "보류 중" 배지와 사유를 보이고 기안하지 않음(재기안 포함)
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -34,12 +37,22 @@
     return;
   }
   const root = b.root;
+  // 기획자 결정 2026-11-02 C-16: 거래처나 묶음에 보류가 걸려 있으면 운영 변경을 기안하지 않음(보완 후 재기안 ?id도). 다른 까닭보다 먼저(연장 검토, 해지와 같게)
+  const hold = C.holdOf(b);
+  if (hold) {
+    $('#notice').innerHTML = notice('보류 중이라 운영 변경을 기안할 수 없습니다', C.holdBadge(hold) + ' ' + esc(C.holdText(hold, me)) +
+      '<br>보류가 풀릴 때까지 운영 변경을 기안할 수 없습니다. <a href="' + back + '">계약 상세로</a>');
+    return;
+  }
   if (b.status !== 'ACTIVE') {
     $('#notice').innerHTML = notice('운영 변경을 기안할 수 없는 계약입니다', '지금 유효한 계약이 계약 완료일 때만 기안합니다. 지금 상태: ' + esc(D.STATUS[b.status].label) + '. <a href="' + back + '">계약 상세로</a>');
     return;
   }
-  if (root.requesterId !== me.id && me.role !== 'SUPER') {
-    $('#notice').innerHTML = notice('영업대표만 운영 변경을 기안합니다', '이 계약의 영업대표는 ' + esc(C.ownerLabel(root.requesterId)) + '입니다. <a href="' + back + '">계약 상세로</a>');
+  // 기획자 결정 2026-11-03(C-44): 지금 영업대표(바뀐 새 영업대표, 맡을 수 없으면 대신 맡는 영업 리더, C.isSalesRep). 계약 상세의 단추와 같은 규칙
+  //   처음 기안한 사람이라도 영업대표가 바뀌었으면 기안하지 않음
+  if (!C.isSalesRep(b, me) && me.role !== 'SUPER') {
+    $('#notice').innerHTML = notice('영업대표만 운영 변경을 기안합니다', '이 계약의 영업대표는 ' + esc(C.ownerLabel(C.salesRepOf(b))) + '입니다.' +
+      (C.repNeeded(b) ? ' ' + esc(C.repCoverText(b)) : '') + ' <a href="' + back + '">계약 상세로</a>');
     return;
   }
   const terminating = b.open.filter(function (o) { return o.kind === 'TERMINATE'; });
@@ -74,7 +87,10 @@
     info('계약번호', '<a href="' + back + '">' + esc(b.id) + '</a>' + (b.current !== root ? ' (지금 유효: ' + esc(b.current.id) + ')' : '')),
     info('서비스', esc(C.serviceLabel(root.services))),
     info('계약 기간', C.fmtPeriod(b.start, b.end)),
-    info('영업대표', esc(C.ownerLabel(root.requesterId))),
+    // 기획자 결정 2026-11-03(C-44): 지금 영업대표. 바뀌었으면 처음 기안한 사람, 맡을 수 없으면 "담당 지정 필요"(계약 상세와 같음)
+    info('영업대표', esc(C.ownerLabel(C.salesRepOf(b))) +
+      (C.salesRepOf(b) !== root.requesterId ? '<span class="cell-meta">처음 기안 ' + esc(C.ownerLabel(root.requesterId)) + '</span>' : '') +
+      (C.repNote(b) ? '<span class="cell-meta">' + esc(C.repNote(b)) + '</span>' : '')),
     info('진행 중인 일', b.open.length ? b.open.map(function (o) { return esc(o.id + ' ' + C.kindLabel(o)); }).join('<br>') : '없음'),
   ].join('');
   $('#number-help').textContent = again ? '같은 번호 ' + newId + '의 ' + ((again.round || 1) + 1) + '차로 기안합니다.' : '기안하면 ' + newId + '(운영 변경)로 원계약과 함께 묶입니다.';
@@ -185,7 +201,8 @@
       // B-3 덧붙임: 유상 충전의 기능과 그날 표준 단가(뒤에 가격 기준이 바뀌어도 기안 때 값으로 견줌). 무상, 기간 변경은 비움
       changeFeature: fid || undefined, changeListPrice: pr ? pr.listPrice : undefined,
       changePriceUnit: pr ? pr.unit : undefined, changePriceFrom: pr ? pr.validFrom : undefined,
-      requesterId: root.requesterId, requestedAt: C.nowStamp().slice(0, 16), restricted: root.restricted, personalData: false,
+      // 기안자는 지금 영업대표(2026-11-03 C-44, repActorOf). ③ 영업 검토도 그 사람 유닛의 리더(리더가 대신 기안하면 영업 임원)
+      requesterId: C.repActorOf(b), requestedAt: C.nowStamp().slice(0, 16), restricted: root.restricted, personalData: false,
       status: 'IN_REVIEW', history: [],
       startDate: t === 'PERIOD' ? b.start : undefined, oldEndDate: b.end, endDate: t === 'PERIOD' ? $('#f-end').value : undefined,
       reason: $('#f-reason').value.trim(), activityUrl: $('#f-activity').value.trim(),
@@ -213,17 +230,19 @@
     $('#price-compare').hidden = !paid;
     if (paid) $('#price-compare').innerHTML = priceBoxHtml(rec);
     const hr = /^HR_/.test(t);
-    // 맡는 사람 이름은 결재 문서와 같은 규칙(C.stepWho, 기획자 결정 2026-11-02 D-3): 리더 본인 계약의 ③은 "영업 임원", HR 충전의 ⑨는 "재무", ⑩은 "재무 리더"
+    // 맡는 사람 이름은 결재 문서와 같은 규칙(C.stepWho, 기획자 결정 2026-11-02 D-3): 리더 본인 계약의 ③은 "영업 임원", HR 충전의 ⑨는 "재무"
+    //   기획자 결정 2026-11-03 C-18 ⑤: HR 충전의 ⑩도 재무 담당자, ⑨를 한 사람이 아닌 다른 재무 담당자("⑩ 재무")
     const who = function (code) { return C.stepWho(code, rec) + ' ' + C.ownerLabel(C.stepUserNow(code, rec)); };
     const items = [
       { no: '③', name: '영업 검토', who: who('S03'),
         state: !sales ? 'wait' : sales[0] ? 'go' : 'skip', reason: sales ? sales[1] : '변경 종류와 내용을 기다림' },
       { no: '⑨', name: '운영 변경', who: who('S09'),
         state: t ? 'go' : 'wait', reason: hr ? '수불부에 HR 추가 충전 반영' : t === 'PERIOD' ? '라이선스나 도메인 기간 변경' : t ? 'CK 추가 충전 반영' : '변경 종류를 기다림' },
-      // 기획자 결정 2026-11-02 B-3(추천과 다름): 운영 변경도 ⑩ 재무 확인까지 끝나야 계약 완료(REQ-CHG-10). HR 충전은 ⑨를 한 재무 담당자가 아닌 사람
+      // 기획자 결정 2026-11-02 B-3(추천과 다름): 운영 변경도 ⑩ 재무 확인까지 끝나야 계약 완료(REQ-CHG-10)
+      //   기획자 결정 2026-11-03 C-18 ⑤: HR 충전의 ⑩도 재무 담당자, ⑨를 한 사람이 아닌 다른 재무 담당자(예전 "재무 리더" 글을 고침)
       { no: '⑩', name: '재무 확인', who: who('S10'), state: t ? 'go' : 'wait',
         reason: !t ? '변경 종류를 기다림' : (t === 'PERIOD' ? '바뀐 계약 기간의 매출 인식 확인' : paid ? '유상 충전 금액의 매출 확인' : '무상 제공 수량의 회계 영향 확인') +
-          (hr ? ', ⑨를 한 사람이 아닌 재무 리더가 확인' : '') },
+          (hr ? ', ⑨를 하지 않은 다른 재무 담당자가 확인' : '') },
     ];
     const BADGE = { go: ['progress', '거침'], skip: ['neutral', '생략'], wait: ['line', '답 대기'] };
     $('#route').innerHTML = '<ol class="route-list">' + items.map(function (it) {
