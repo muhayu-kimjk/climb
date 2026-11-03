@@ -19,7 +19,8 @@
 .approval-box .box-rowhead { width: 6.4rem; background: var(--surface-gray-subtler); font-weight: 700; color: var(--text-subtle); }
 .approval-box td strong { color: var(--text-basic); }
 /* 담당 칸의 조직과 이름 (v0.50): 조직은 작은 글자 한 줄, 이름은 굵게 다음 줄 */
-.approval-box .box-unit { display: block; margin-top: 0.2rem; font-size: var(--fs-body-xsmall); white-space: nowrap; }
+/*   조직 이름은 한 줄이 기본이고, 칸보다 길 때만 칸 안에서 줄을 바꿈(2026-11-03: 중간 폭 창이 17px가 되며 "세일즈어드민유닛"이 칸 밖으로 나왔음) */
+.approval-box .box-unit { display: block; margin-top: 0.2rem; font-size: var(--fs-body-xsmall); word-break: keep-all; overflow-wrap: anywhere; }
 .approval-box .box-name { display: block; }
 .approval-box .box-when { font-size: var(--fs-body-xsmall); color: var(--text-subtle); font-variant-numeric: tabular-nums; }
 /* 생략한 단계: 회색 바탕과 흐린 글자로 구분하되 글자 대비는 4.5:1 이상 (REQ-REV-03 "흐리게", KRDS 대비.

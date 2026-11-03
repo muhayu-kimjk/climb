@@ -24,8 +24,6 @@
   const nameOf = function (p) { return p.id.replace(/^p-/, ''); }; // 쪽 요소 id는 p-쪽이름, 주소는 #쪽이름(브라우저가 그 자리로 뛰지 않게)
   pages.forEach(function (p) { byId[nameOf(p)] = p; });
   const navEl = document.getElementById('doc-nav'), tocEl = document.getElementById('doc-toc'), pagerEl = document.getElementById('doc-pager');
-  // 차례가 종이 틀 바깥에 늘 펼쳐지는 넓은 화면(help.css와 같은 조건). 큰 모니터는 화면 전체가 17/15배라 1544px부터(2026-11-02)
-  const WIDE = window.matchMedia('screen and (min-width: 1360px) and (min-resolution: 1.01dppx), screen and (min-width: 1544px)');
 
   // 쪽 설명(차례 카드와 찾기에 씀). 쪽이 늘면 여기와 help.html에 함께 더함
   const BLURB = {
@@ -50,7 +48,7 @@
   });
   navEl.innerHTML =
     // 기획자 결정 2026-11-02 D-24: "이용 안내에서 찾기"는 차례 맨 위에 두되, 접히는 차례 줄 밖으로 뺌.
-    //   좁은 화면(1360px 미만)과 휴대폰에서도 접힌 차례 줄 위에 늘 보임(예전에는 차례를 펼쳐야 보였음). 넓은 화면은 예전처럼 왼쪽 차례 맨 위
+    //   모든 화면에서 접힌 차례 줄 위에 늘 보임(예전에는 차례를 펼쳐야 보였음)
     '<div class="doc-nav-in">' +
     '<div class="doc-search" role="search">' +
       '<label class="sr-only" for="doc-q">이용 안내에서 찾기</label>' +
@@ -60,7 +58,7 @@
       '<ul class="doc-search-list" id="doc-search-list" hidden></ul>' +
       '<p class="sr-only" aria-live="polite" id="doc-search-live"></p>' +
     '</div>' +
-    // 좁은 화면(1360px 미만)과 휴대폰: 차례는 내용 위의 접힌 줄. 누르면 펼침(넓은 화면에서는 이 단추가 보이지 않고 차례가 늘 펼쳐짐)
+    // 차례는 내용 위의 접힌 줄. 누르면 펼침(2026-11-03 기획자 요청: 넓은 화면에서도 같은 모양, 종이 틀 바깥으로 빼지 않음)
     '<button type="button" class="doc-nav-toggle" aria-expanded="false" aria-controls="doc-nav-body">' +
       '<span class="doc-nav-toggle-label">이용 안내 차례</span><span class="doc-nav-now"></span>' + C.icon('chevronDown') +
     '</button>' +
@@ -102,12 +100,12 @@
     renderToc(page);
     renderPager(page);
     if (target.page !== current) {
-      // 좁은 화면에서 펼쳐 둔 차례는 쪽을 고르면 접음
+      // 펼쳐 둔 차례는 쪽을 고르면 접음
       toggle.setAttribute('aria-expanded', 'false');
       navEl.classList.remove('is-open');
-      // 좁은 화면에서는 찾은 목록도 접음(D-24: 찾기 칸이 차례 줄 밖이라 목록이 새 쪽 위를 밀어내지 않게).
-      //   낱말은 칸에 남기고, 칸을 다시 누르면 목록이 다시 나옴. 넓은 화면은 예전처럼 목록을 그대로 둠
-      if (!WIDE.matches) document.getElementById('doc-search-list').hidden = true;
+      // 찾은 목록도 접음(D-24: 찾기 칸이 차례 줄 밖이라 목록이 새 쪽 위를 밀어내지 않게).
+      //   낱말은 칸에 남기고, 칸을 다시 누르면 목록이 다시 나옴
+      document.getElementById('doc-search-list').hidden = true;
     }
     const changed = target.page !== current;
     current = target.page;

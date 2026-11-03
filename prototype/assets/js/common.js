@@ -2152,10 +2152,21 @@ window.CLIMB = (function () {
     // 메뉴가 더 있는 쪽에 그라데이션과 화살표를 보임(v0.43). 하위 메뉴를 열어도 그대로 둠
     //   (v0.55 기획자 요청: 무언가를 눌렀을 때 고정된 곳이 바뀌지 않게. v0.42~v0.54는 열면 감췄음)
     const gnbScroll = gnbList.parentNode;
+    //   (2026-11-03 기획자 요청: 창을 줄이다 어느 순간 화살표와 흰 그라데이션이 한꺼번에 나타나 글자가 갑자기 사라졌음)
+    //   가린 폭이 적으면 그라데이션도 좁고 화살표도 옅게, 가린 폭이 늘수록 함께 넓어지고 진해짐. 가린 폭이 6.4rem 이상이면 지금 모양 그대로.
+    //   --more-l, --more-r: 그쪽 끝 그라데이션 폭(px), --more-l-a, --more-r-a: 화살표 진하기(0~1). 쓰는 곳은 common.css 4장
     function gnbEdge() {
       const max = gnbList.scrollWidth - gnbList.clientWidth;
       gnbScroll.classList.toggle('is-more-left', max > 2 && gnbList.scrollLeft > 2);
       gnbScroll.classList.toggle('is-more-right', max > 2 && gnbList.scrollLeft < max - 2);
+      //   화살표는 글자가 화살표 자리(약 2.5rem)를 비운 뒤부터 진해짐: 옅은 화살표가 남은 글자 위에 겹쳐 보이지 않게
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize), full = rem * 6.4, from = rem * 2.5;
+      const l = Math.max(0, Math.min(gnbList.scrollLeft, full)), r = Math.max(0, Math.min(max - gnbList.scrollLeft, full));
+      const alpha = function (v) { return Math.max(0, Math.min(1, (v - from) / (full - from))).toFixed(3); };
+      gnbScroll.style.setProperty('--more-l', l.toFixed(1) + 'px');
+      gnbScroll.style.setProperty('--more-r', r.toFixed(1) + 'px');
+      gnbScroll.style.setProperty('--more-l-a', alpha(l));
+      gnbScroll.style.setProperty('--more-r-a', alpha(r));
     }
     gnbScroll.querySelectorAll('.gnb-more').forEach(function (b) {
       b.addEventListener('click', function () {
@@ -2167,6 +2178,20 @@ window.CLIMB = (function () {
     const gnbCur = gnbList.querySelector('.gnb-link.is-current');
     if (gnbCur && gnbList.scrollWidth > gnbList.clientWidth) {
       gnbList.scrollLeft += gnbCur.getBoundingClientRect().left - gnbList.getBoundingClientRect().left - 16;
+    }
+    // 지금 화면의 메뉴는 늘 보이게(2026-11-03 기획자 요청: 공지사항처럼 오른쪽 메뉴에 있을 때 창을 줄이면 그 메뉴가 화살표 뒤로 사라졌음)
+    //   창 크기가 바뀌거나 글꼴이 오거나 메뉴 줄이 붙을 때, 지금 메뉴가 양끝 그라데이션 밖에 오도록 가장 적게 밀어 줌.
+    //   지금 메뉴는 그 자리에 남고 나머지 메뉴가 반대쪽 끝으로 밀려 줄어듦. 사용자가 손으로 밀어 볼 때는 건드리지 않음
+    function keepCur() {
+      if (!gnbCur || gnbList.scrollWidth <= gnbList.clientWidth + 2) return;
+      const full = parseFloat(getComputedStyle(document.documentElement).fontSize) * 6.4;
+      const lb = gnbList.getBoundingClientRect(), cb = gnbCur.getBoundingClientRect();
+      const curL = cb.left - lb.left + gnbList.scrollLeft, curR = curL + cb.width;
+      const mL = Math.min(full, curL), mR = Math.min(full, gnbList.scrollWidth - curR);
+      let s = gnbList.scrollLeft;
+      if (s + gnbList.clientWidth < curR + mR) s = curR + mR - gnbList.clientWidth;
+      if (s + mL > curL) s = curL - mL;
+      if (Math.abs(s - gnbList.scrollLeft) > 0.5) gnbList.scrollLeft = s;
     }
     // 하위 메뉴 자리(v0.50): 밀어 보는 줄에 잘리지 않게 .gnb-scroll 기준으로 둠(v0.55~v0.59는 연 메뉴 바로 아래 글자 폭만 한 작은 상자)
     function placeSub() {
@@ -2202,9 +2227,11 @@ window.CLIMB = (function () {
     // 막을 누르면 펼친 것만 닫음. 막에 직접 걸어 둠(아이폰 사파리는 문서에만 걸어 둔 누름을 막에서 보내지 않을 수 있음, v0.61 검토)
     dim.addEventListener('click', function () { closeMenus(); closeSheets(false); });
     gnbList.addEventListener('scroll', function () { gnbEdge(); placeSub(); }, { passive: true });
-    window.addEventListener('resize', function () { gnbEdge(); placeSub(); fitSheet(); });
+    window.addEventListener('resize', function () { keepCur(); gnbEdge(); placeSub(); fitSheet(); });
     window.addEventListener('scroll', function () { if (!dim.hidden) { syncDim(); fitSheet(); } }, { passive: true });
     gnbEdge();
+    // 글꼴이 늦게 와서 메뉴 글자 폭이 바뀌면 다시 정함(2026-11-03: 처음 열 때 다 들어가는데도 화살표가 남는 일이 있었음)
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { keepCur(); gnbEdge(); });
 
     // 하위 메뉴 열기·닫기
     el.querySelectorAll('button.gnb-link').forEach(function (btn) {
@@ -2442,7 +2469,7 @@ window.CLIMB = (function () {
       const now = isPhoneLayout() ? top <= 0 && window.scrollY > 0 : !guest && top <= 1 - headTop.offsetHeight;
       if (now === el.classList.contains('is-stuck')) return;
       el.classList.toggle('is-stuck', now);
-      gnbEdge(); // 붙으면 메뉴 줄에 아이콘이 들어와 메뉴가 넘칠 수 있음(최고관리자): 화살표를 다시 정함
+      keepCur(); gnbEdge(); // 붙으면 메뉴 줄에 아이콘이 들어와 메뉴가 넘칠 수 있음(최고관리자): 지금 메뉴가 보이게 밀고 화살표를 다시 정함
       // 붙거나 떨어지면서 초점이 있던 아이콘이 감춰지면 보이는 짝으로(PC)
       const a = document.activeElement, t = twin(a);
       if (t && !shown(a) && shown(t)) focusHere(t);
