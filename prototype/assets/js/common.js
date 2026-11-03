@@ -2821,10 +2821,12 @@ window.CLIMB = (function () {
     el.className = 'site-header' + (guest ? ' is-guest' : '');
     // 머리글 아이콘 묶음. where: 'top'(로고 줄 오른쪽) 또는 'bar'(PC에서 메뉴 줄이 위에 붙었을 때 메뉴 줄 오른쪽, v0.61 기획자 선택)
     //   두 묶음의 단추는 같은 판을 엶(aria-controls가 같음). 로그인 안 한 모양은 로고 줄의 계정 아이콘(누르면 로그인 화면)만
+    //   순서(2026-11-03 기획자 요청, v0.61의 계정 → 검색을 바꿈): 검색, 계정. 휴대폰은 검색, 계정, ≡(전체 메뉴는 맨 오른쪽 그대로).
+    //     위에 붙은 메뉴 줄은 검색, 계정, 이용 안내
     function hdrIcons(where) {
       if (guest) return where === 'top' ? '<a class="hdr-icon acc-btn is-guest" href="login.html" aria-label="로그인" title="로그인">' + accountIcon(false) + '</a>' : '';
-      return '<button type="button" class="hdr-icon acc-btn" aria-expanded="false" aria-controls="acc-sheet" aria-label="계정: ' + esc(user.name) + '님" title="계정">' + accountIcon(true) + '</button>' +
-        '<button type="button" class="hdr-icon search-btn" aria-expanded="false" aria-controls="menu-search" aria-label="메뉴 검색" title="메뉴 검색">' + icon('search') + '</button>' +
+      return '<button type="button" class="hdr-icon search-btn" aria-expanded="false" aria-controls="menu-search" aria-label="메뉴 검색" title="메뉴 검색">' + icon('search') + '</button>' +
+        '<button type="button" class="hdr-icon acc-btn" aria-expanded="false" aria-controls="acc-sheet" aria-label="계정: ' + esc(user.name) + '님" title="계정">' + accountIcon(true) + '</button>' +
         (where === 'top' ? '<button type="button" class="hdr-icon menu-btn" aria-expanded="false" aria-controls="phone-menu" aria-label="전체 메뉴 열기">' + icon('menu') + '</button>' : '');
     }
     el.innerHTML =

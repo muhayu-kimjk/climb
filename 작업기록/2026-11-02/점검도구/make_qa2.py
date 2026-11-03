@@ -90,14 +90,14 @@ QA = r"""(() => {
   document.querySelectorAll('.page-intro, .section-desc').forEach(e => { if (vis(e) && /rgba\(0, 0, 0, 0\)|transparent/.test(getComputedStyle(e).backgroundColor)) out.push('NOGRAY ' + e.className); });
   // 메뉴 한 줄(PC) / 휴대폰 탭 막대
   const phone = innerWidth <= 600;
-  if (!phone) { const hi = [...document.querySelectorAll('.user-line .hdr-icon')].filter(vis).map(e => e.classList[1]).join(','); if (hi !== 'acc-btn,search-btn') out.push('PC_HDR_ICONS ' + hi); }
+  if (!phone) { const hi = [...document.querySelectorAll('.user-line .hdr-icon')].filter(vis).map(e => e.classList[1]).join(','); if (hi !== 'search-btn,acc-btn') out.push('PC_HDR_ICONS ' + hi); } // 2026-11-03: 검색, 계정 순서
   if (!phone && document.querySelector('.gnb-list').scrollWidth > document.querySelector('.gnb-list').clientWidth + 1 && !/is-more-(left|right)/.test(document.querySelector('.gnb-scroll').className)) out.push('GNB_OVERFLOW'); // 넘쳐도 화살표가 있으면 됨(2026-11-03 기획자: 최고관리자는 화살표로 밀어 봄)
   if (!phone) { const tops = [...document.querySelectorAll('.gnb-list > li')].filter(vis).map(li => li.offsetTop); if (tops.length && new Set(tops).size > 1) out.push('MENU2LINES'); }
   else {
     if (vis(document.querySelector('.gnb'))) out.push('PHONE_GNB_VISIBLE');
     if (!vis(document.querySelector('.menu-btn'))) out.push('NO_MENU_BTN'); // v0.60: 탭 막대 대신 ≡ 메뉴
     const hi = [...document.querySelectorAll('.user-line .hdr-icon')].filter(vis).map(e => e.classList[1]).join(',');
-    if (hi !== 'acc-btn,search-btn,menu-btn') out.push('HDR_ICONS ' + hi); // v0.61: 계정, 검색, 전체 메뉴 순서
+    if (hi !== 'search-btn,acc-btn,menu-btn') out.push('HDR_ICONS ' + hi); // 2026-11-03: 검색, 계정, 전체 메뉴 순서
     const small = new Set();
     document.querySelectorAll('a, button, input:not([type=hidden]), select, textarea').forEach(e => {
       if (!vis(e) || e.closest('.sr-only, .demo-bar, .choice, .tab-sheet') || e.matches('.choice input')) return;
