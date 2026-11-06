@@ -166,7 +166,9 @@ svg { flex-shrink: 0; }
 .header-top { background: var(--surface-white); }
 .header-top .inner {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; align-content: center;
-  column-gap: 1.6rem; row-gap: 0.2rem; min-height: 8rem; padding-top: 1.2rem; padding-bottom: 1.2rem;
+  column-gap: 1.6rem; row-gap: 0.2rem; padding-top: 0.8rem; padding-bottom: 0.8rem;
+  /* 2026-11-06 기획자 요청: PC 로고 줄의 위아래가 넓어 보여 좁힘(높이 8rem 고정, 위아래 1.2rem → 고정 없이 위아래 0.8rem, 80px → 약 66px).
+   * 메뉴 줄이 붙는 위치(--header-top-h)는 common.js가 이 높이를 재어 맞춤. 휴대폰은 13장에서 48px로 따로 정함 */
 }
 .header-top .brand-title { grid-column: 1; grid-row: 1; justify-self: start; }
 .header-top .brand-en { grid-column: 1; grid-row: 2; }
@@ -175,7 +177,8 @@ svg { flex-shrink: 0; }
  *   누르는 칸(40px)이 그림(22px)보다 크고 글자 줄 상자도 글자보다 커서, 칸 아래를 둘째 줄 아래에 붙인 뒤 8px 내림(헤드리스 Chrome으로 글자와 그림의 잉크 아래 끝을 재어 정함)
  *   돋보기는 그림 모양이 계정보다 1px 남짓 짧아 조금 위에서 끝남(두 아이콘을 한 줄에 둠)
  * (v0.15~v0.60은 "조직 이름님 | 로그아웃" 한 줄을 2줄 글자 밑선에 맞췄음) */
-.header-top .user-line { grid-column: 2; grid-row: 1 / span 2; justify-self: end; align-self: end; margin-right: -0.9rem; margin-bottom: -0.8rem; }
+.header-top .user-line { grid-column: 2; grid-row: 1 / span 2; justify-self: end; align-self: end; margin-right: -0.9rem; margin-bottom: -0.8rem; position: relative; z-index: 1; }
+/* 2026-11-06: 로고 줄을 좁혀(위아래 0.8rem) 아이콘 칸 아래 끝이 메뉴 줄 위 끝과 같아짐. 메뉴 줄(.gnb, z-index 0)이 뒤에 그려져 키보드 이동 표시(파란 테두리) 아래쪽을 덮지 않게 아이콘 묶음을 위로 올림 */
 
 /* 시스템 이름 묶음 (REQ-NAME-01~06): 헤더, 푸터, 로그인 화면, 이메일 미리 보기가 함께 씀
  *   헤더: [심볼] climb / 무하유 계약 관리 시스템(작게)
@@ -189,8 +192,11 @@ a.brand-title:hover { color: var(--text-primary); }
  * 심볼과 climb 사이(v0.55 기획자 요청으로 0.35em → 0.25em 조금 좁힘, 24px 기준 약 8px → 6px) */
 .brand-mark { display: inline-block; width: 0.85em; height: 0.85em; margin-right: 0.25em; vertical-align: -0.07em; filter: var(--brand-mark-filter); }
 .brand-name, .brand-ko { white-space: nowrap; }
-/* 로고 글자 climb: SUITE를 얇게(Light 300). 얇은 글자가 심볼보다 작아 보여 1.15배로 키움(기획자 요청). 줄 높이는 그대로 */
-.brand-name { font-family: var(--font-brand); font-weight: 300; font-size: 1.15em; line-height: 1; letter-spacing: 0; }
+/* 로고 글자 climb: SUITE를 얇게(Light 300). 줄 높이는 그대로
+ * 크기: 예전에는 얇은 글자가 심볼보다 작아 보여 1.15배(27.6px, 20.7pt)로 키웠음(기획자 요청).
+ * 2026-11-06 기획자 요청으로 한 단계 낮춤: 1배(24px, 18pt). 머리글, 푸터, 이메일 미리 보기 모두 같은 규칙.
+ * 옆 심볼(파비콘)은 .brand-title 기준(0.85em)이라 크기 그대로 */
+.brand-name { font-family: var(--font-brand); font-weight: 300; font-size: 1em; line-height: 1; letter-spacing: 0; }
 /* 둘째 줄과 영문 이름: 작고 흐린 글자. 휴대폰에서 줄이 바뀌어도 양쪽 정렬하지 않음(v0.35) */
 .brand-en { font-family: var(--font-brand); font-size: var(--fs-body-xsmall); line-height: 1.4; color: var(--text-subtle); white-space: nowrap; text-align: left; }
 .brand-en.is-ko { font-family: var(--font-family); } /* 한글 이름 줄은 Noto Sans KR */
@@ -495,7 +501,7 @@ html.drawer-open { overflow: hidden; }
 }
 .btn--md { height: var(--height-md); padding: 0 2.4rem; font-size: var(--fs-body-medium); }
 .btn--lg { height: var(--height-lg); padding: 0 2.4rem; font-size: var(--fs-body-large); border-radius: var(--radius-lg); }
-/* 무하유 Green 위 흰 글자는 대비 미달(2.4:1) → Black 글자 (REQ-UI-05) */
+/* 초록 버튼: 무하유 Green 위 흰 글자는 대비 미달(2.4:1)이라 진한 초록 #0B8463 위 흰 글자(4.67:1). 2026-11-06 기획자 결정, 색은 tokens.css (REQ-UI-05) */
 .btn--primary { background: var(--button-primary-fill); color: var(--button-primary-text); font-weight: 700; }
 .btn--primary:hover { background: var(--button-primary-fill-hover); }
 .btn--primary:active { background: var(--button-primary-fill-pressed); }

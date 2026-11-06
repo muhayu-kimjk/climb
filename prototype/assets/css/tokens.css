@@ -24,7 +24,8 @@
  *     다른 기기는 해상도에 따라 같은 규칙으로 맞춰짐
  *
  * [글자 대비 기준] 글자와 배경의 명도 대비 4.5:1 이상 (KRDS·웹 접근성 기준, REQ-UI-05)
- *   - 무하유 Green(#11BE8A) 위에 흰 글자는 2.4:1로 기준 미달 → 초록 버튼의 글자는 Black(7.6:1)
+ *   - 무하유 Green(#11BE8A) 위에 흰 글자는 2.4:1로 기준 미달. 그래서 초록 버튼은 더 진한 초록(#0B8463) 위 흰 글자(4.67:1)
+ *     (2026-11-06 기획자 결정. 그전에는 무하유 Green 위 Black 글자 7.6:1)
  *   - 초록 계열 글자는 Dark Green(#407178, 흰 바탕 5.5:1) 사용
  *   - Gray(#8F8F9B)는 흰 바탕 3.2:1 → 글자 대신 테두리·아이콘·비활성 표시에 사용
  * ===================================================================== */
@@ -50,8 +51,11 @@
   --green-8: #ECFAF6;
   --green-14: #DEF6EF;
   --green-30: #B8ECDC;
-  --green-hover: #0FAA7D;    /* Green 88% + Black 12% (버튼 마우스 올림) */
-  --green-pressed: #0D9671;  /* Green 76% + Black 24% (버튼 누름) */
+  --green-hover: #0FAA7D;    /* Green 88% + Black 12% (사용 안 함: 2026-11-06부터 초록 버튼은 아래 --green-button) */
+  --green-pressed: #0D9671;  /* Green 76% + Black 24% (사용 안 함, 위와 같음) */
+  --green-button: #0B8463;          /* 초록 버튼 바탕: 흰 글자 4.67:1 (2026-11-06 기획자 결정). 무하유 Green에 검정 약 30%를 섞은 색 */
+  --green-button-hover: #0A7457;    /* 위 색 88% + 검정 12% (마우스 올림, 흰 글자 5.76:1) */
+  --green-button-pressed: #08644B;  /* 위 색 76% + 검정 24% (누름, 흰 글자 7.16:1) */
 
   --dark-green-8: #F0F4F4;
   --dark-green-14: #E4EBEC;
@@ -101,10 +105,12 @@
   --border-elevated: transparent;           /* 창(모달)의 테두리: 밝은 화면은 그림자로 충분해 없음 */
 
   /* 버튼 */
-  --button-primary-fill: var(--mh-green);
-  --button-primary-fill-hover: var(--green-hover);
-  --button-primary-fill-pressed: var(--green-pressed);
-  --button-primary-text: var(--mh-black);
+  /* 초록 버튼(2026-11-06 기획자 결정): 무하유 Green 위 검은 글자(7.6:1) 대신 더 진한 초록 위 흰 글자.
+   * 흰 글자 대비 4.67:1로 기준 4.5:1을 넘음. 마우스 올림 5.76:1, 누름 7.16:1. 어두운 화면도 같은 색 */
+  --button-primary-fill: var(--green-button);
+  --button-primary-fill-hover: var(--green-button-hover);
+  --button-primary-fill-pressed: var(--green-button-pressed);
+  --button-primary-text: var(--white);
   --button-secondary-fill: var(--green-8);
   --button-secondary-fill-hover: var(--green-14);
   --button-secondary-text: var(--mh-dark-green);
@@ -272,7 +278,7 @@
     --border-gray-light: #2B3D45;       /* 흰색 16% */
     --border-primary-light: #074A41;    /* Green 30% */
     --border-secondary-light: #15333B;
-    /* 버튼 (주 버튼 Green + Black 글자, 경고 버튼 진한 핑크 + 흰 글자는 그대로) */
+    /* 버튼 (주 버튼 진한 초록 + 흰 글자, 경고 버튼 진한 핑크 + 흰 글자는 밝은 화면 그대로) */
     --button-secondary-fill: #042F30;
     --button-secondary-fill-hover: #053D38; /* Green 22% */
     --button-secondary-text: var(--mh-green);
