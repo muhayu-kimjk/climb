@@ -3097,7 +3097,9 @@ window.CLIMB = (function () {
         level1.hidden = !!groupId;
         back.hidden = !groupId;
         title.hidden = !!groupId;
-        if (groupId) back.querySelector('.drawer-back-label').textContent = drawer.querySelector('[data-open="' + groupId + '"]').getAttribute('data-label');
+        const sub = drawer.querySelector('.drawer-sub-title');
+        sub.hidden = !groupId;
+        sub.textContent = groupId ? drawer.querySelector('[data-open="' + groupId + '"]').getAttribute('data-label') : '';
         drawer.querySelector('.drawer-body').scrollTop = 0;
       }
       function openDrawer() {
@@ -3351,10 +3353,11 @@ window.CLIMB = (function () {
       '<div class="drawer-panel" tabindex="-1" role="dialog" aria-modal="true" aria-label="전체 메뉴">' +
         '<div class="drawer-top">' +
           '<p class="drawer-title">전체 메뉴</p>' +
-          '<button type="button" class="drawer-back" hidden>' + icon('chevronLeft') + '<span class="drawer-back-label"></span><span class="sr-only">, 전체 메뉴로 돌아가기</span></button>' +
+          // 2단계 위쪽 줄(2026-11-06 기획자 요청): '‹ 전체 메뉴'(돌아가기). 고른 메뉴 이름(예: 견적)은 그 아래 제목(.drawer-sub-title)으로 내림
+          '<button type="button" class="drawer-back" hidden>' + icon('chevronLeft') + '<span class="drawer-back-label">전체 메뉴</span><span class="sr-only">로 돌아가기</span></button>' +
           '<button type="button" class="drawer-close" aria-label="메뉴 닫기">' + icon('panelClose') + '</button>' +
         '</div>' +
-        '<nav class="drawer-body" aria-label="주 메뉴"><ul class="drawer-list" data-level="1">' + level1 + '</ul>' + lists.join('') + '</nav>' +
+        '<nav class="drawer-body" aria-label="주 메뉴"><p class="drawer-sub-title" hidden></p><ul class="drawer-list" data-level="1">' + level1 + '</ul>' + lists.join('') + '</nav>' +
         // 맨 아래 묶음: 이용 안내, 내 계정. 로그아웃은 머리글 계정 아이콘 안으로 옮김(v0.61 기획자 요청)
         '<ul class="drawer-foot">' + foot('help.html', 'help', '이용 안내', 'SCR-90') + foot('account.html', 'user', '내 계정', 'SCR-93') + '</ul>' +
       '</div>';
@@ -3787,9 +3790,10 @@ window.CLIMB = (function () {
     if (!cal.el || cal.el.hidden) return;
     const r = cal.input.parentNode.getBoundingClientRect();
     const vw = document.documentElement.clientWidth, vh = window.innerHeight;
-    // 폭: 날짜 칸 폭에 맞춤(v0.35 기획자 요청). PC는 280~322px, 휴대폰(600px 이하)은 칸 폭 그대로(좁은 칸이면 280px)
-    const phone = isPhoneLayout();
-    const fit = Math.max(280, Math.min(r.width, phone ? 400 : 322)); // 스마트폰은 칸 폭(최대 400px), PC와 태블릿은 280~322px
+    // 폭: 날짜 칸 폭과 같게(v0.35 기획자 요청, 2026-11-06 다시 요청: PC에서 최대 322px로 묶어 칸보다 좁았음).
+    //   칸이 28rem(일곱 요일이 들어가는 폭)보다 좁을 때만 28rem. 화면보다 넓어지지는 않음
+    const minW = parseFloat(getComputedStyle(document.documentElement).fontSize) * 28;
+    const fit = Math.max(minW, r.width);
     cal.el.style.width = Math.round(Math.min(fit, vw - 16)) + 'px';
     const w = cal.el.offsetWidth, h = cal.el.offsetHeight;
     // 칸 왼쪽에 맞추되, A4 종이(확인 창이면 그 창)나 화면 밖으로 나가면 칸 오른쪽에 맞춤
@@ -4063,6 +4067,41 @@ window.CLIMB = (function () {
     if (head) head.parentNode.insertBefore(line('change-note change-line no-print'), head.nextSibling);
   }
 
+  /* ---------- 표 칸 폭 고정 (2026-11-06 기획자 요청: 무언가를 눌러 데이터가 바뀌어도 화면이 흔들리지 않게) ----------
+   * 거르기, 검색, 쪽 넘기기로 표 내용이 바뀌면 브라우저가 칸 폭을 내용에 맞춰 다시 정해 머리글과 칸이 옆으로 흔들렸음(목록 화면 23곳에서 잼).
+   * 그래서 표마다 처음 그린 뒤(글꼴까지 온 뒤)의 칸 폭을 비율(%)로 colgroup에 적고 table-layout: fixed로 고정함. 그 뒤 내용이 바뀌어도 칸 폭은 그대로.
+   * 비율이라 창 크기가 바뀌거나 인쇄해도 함께 맞춰짐. 머리글이 두 줄이거나 합친 칸이 있는 표, 이미 colgroup이 있는 표(견적 제품 표 등)는 건드리지 않음.
+   * 나중에 처음 보이는 표(펼침, 탭)는 보일 때 고정함 */
+  function lockTable(t) {
+    if (t.dataset.colLock || t.querySelector('colgroup') || !t.offsetParent) return;
+    const rows = t.tHead ? t.tHead.rows : [];
+    if (rows.length !== 1 || [].some.call(rows[0].cells, function (c) { return c.colSpan > 1; })) { t.dataset.colLock = 'skip'; return; }
+    // 내용 줄이 그려진 뒤에만 잼: 줄이 없거나 "없습니다" 한 줄(합친 칸)뿐이면 머리글 글자만으로 폭이 정해져 날짜 칸 등이 너무 좁게 굳었음
+    const body = t.tBodies[0];
+    if (!body || ![].some.call(body.rows, function (r) { return r.cells.length === rows[0].cells.length; })) return;
+    const total = t.getBoundingClientRect().width;
+    if (!total) return;
+    const cg = document.createElement('colgroup');
+    [].forEach.call(rows[0].cells, function (c) {
+      const col = document.createElement('col');
+      col.style.width = (c.getBoundingClientRect().width / total * 100).toFixed(3) + '%';
+      cg.appendChild(col);
+    });
+    t.insertBefore(cg, t.firstChild);
+    t.style.tableLayout = 'fixed';
+    t.dataset.colLock = 'on';
+  }
+  function lockTables() { document.querySelectorAll('main table.tbl').forEach(lockTable); }
+  function watchTables() {
+    const go = function () { setTimeout(lockTables, 0); };
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(go); else go();
+    if (window.MutationObserver) {
+      let pending = false;
+      new MutationObserver(function () { if (pending) return; pending = true; setTimeout(function () { pending = false; lockTables(); }, 0); })
+        .observe(document.querySelector('main') || document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'class'] });
+    }
+  }
+
   /* ---------- 화면 시작 ----------
    * 각 HTML의 <body data-page="SCR-xx">를 읽어 공통 영역을 그립니다. */
   function init() {
@@ -4075,6 +4114,7 @@ window.CLIMB = (function () {
     renderChangeNote(pageId); // 바뀐 점 한 줄(기획자 결정 2026-11-02 E-15)
     wireFields(document);
     enhanceDates(document);
+    watchTables(); // 표 칸 폭 고정(2026-11-06): 화면 스크립트가 처음 그린 뒤에 잼
     // 앞 화면에서 남긴 안내가 있으면 한 번 보여 줌
     try {
       const msg = sessionStorage.getItem('climb.flash');

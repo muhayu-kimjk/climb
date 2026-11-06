@@ -220,13 +220,21 @@
  *   다른 점: 크기는 KRDS 384px 대신 날짜 칸 폭에 맞춤(아래, 기획자 요청). 연도와 월은 브라우저 고르기 칸 */
 .date-input { position: relative; display: block; }
 .date-input .input { padding-right: 5.6rem; font-variant-numeric: tabular-nums; }
+/* 달력 단추(2026-11-06 기획자 요청: 눌린 바탕이 날짜 칸 밖으로 나와 부자연스러웠음).
+ *   보이는 단추는 칸 테두리 안쪽(위아래 0.4rem 띄운 정사각형)에만 그리고, 누르는 영역은 ::before로 44px(휴대폰, 터치 화면)까지 넓힘.
+ *   칸 안 아이콘 단추의 일반적인 방식: 눌린 바탕과 키보드 표시는 칸 안에, 누르는 영역은 보이지 않게 넉넉히(WCAG 2.5.8, 애플 44pt) */
 .date-btn {
-  position: absolute; top: 50%; right: 0.2rem; transform: translateY(-50%);
-  display: grid; place-items: center; width: var(--touch-min); height: var(--touch-min);
+  position: absolute; top: 0.4rem; bottom: 0.4rem; right: 0.4rem; aspect-ratio: 1;
+  display: grid; place-items: center; padding: 0;
   border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-basic); cursor: pointer;
 }
+.date-btn::before { content: ""; position: absolute; left: 50%; top: 50%; width: max(100%, var(--touch-min)); height: max(100%, var(--touch-min)); transform: translate(-50%, -50%); }
+.date-btn:focus-visible { box-shadow: inset 0 0 0 0.2rem var(--border-focus); outline: none; }
 .date-btn:hover { background: var(--surface-gray-subtler); }
-.date-btn:focus-visible { box-shadow: var(--focus-ring); }
+/* 달력을 연 동안(2026-11-06 기획자 요청: 달력 아이콘을 눌렀다는 것이 보이게): 머리글 아이콘처럼 눌린 바탕과 진한 초록 그림,
+ *   날짜 칸도 고른 칸처럼 파란 테두리. 달력을 닫으면 돌아감 */
+.date-btn[aria-expanded="true"] { background: var(--action-hover); color: var(--text-primary); }
+.date-input:has(.date-btn[aria-expanded="true"]) .input { border-color: var(--border-focus); box-shadow: inset 0 0 0 1px var(--border-focus); }
 .date-btn .icon { width: 2.4rem; height: 2.4rem; }
 .date-input .input[readonly] + .date-btn, .date-input .input:disabled + .date-btn { display: none; }
 

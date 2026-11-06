@@ -54,10 +54,12 @@
 .check-q--auto .field-label .badge { align-self: center; }
 .check-answer { display: flex; flex-wrap: wrap; align-items: center; gap: 0.8rem; min-height: var(--touch-min); font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
 .check-result { margin-top: 0.4rem; font-size: var(--fs-body-small); color: var(--text-primary); font-weight: 700; }
-.check-result:empty { display: none; }
+/* 답에 따라 생기는 안내 줄은 처음부터 한 줄 자리를 둠(2026-11-06 기획자 요청: 무언가를 고르면 줄이 생겨 아래가 밀리지 않게). 빈 때는 보이지 않는 한 칸 */
+.check-result:empty::before { content: "\00a0"; }
 .case-summary { margin-top: 0.8rem; padding: 1.2rem 1.6rem; border-radius: var(--radius-lg); background: var(--surface-primary-subtler); font-size: var(--fs-body-small); color: var(--text-basic); }
 .case-summary strong { color: var(--text-bolder); }
-.case-summary:empty { display: none; }
+/* 비었을 때도 상자 자리를 두고 무엇이 나올지 알림(2026-11-06 기획자 요청: 답하면 상자가 생기며 아래가 밀렸음) */
+.case-summary:empty::before { content: "체크리스트에 답하면 거치는 결재 단계가 여기에 보입니다."; color: var(--text-subtle); }
 /* 4번 조건의 종류 (기획자 결정 2026-11-02 B-6): 4번 문항, 종류, 비고를 한 묶음으로 붙여 보임(문항과 비고 사이와 같은 간격) */
 .check-q:has(+ .acct-kinds:not([hidden])) { margin-bottom: 0.8rem; }
 .acct-kinds:has(+ .field[data-field$="Note"]:not([hidden])) { margin-bottom: 1.2rem; }

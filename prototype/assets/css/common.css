@@ -273,7 +273,8 @@ a.brand-title:hover { color: var(--text-primary); }
  *   메뉴와 이용 안내 사이의 빈 곳에 들어가 메뉴와 이용 안내는 움직이지 않음. 붙어 있는 동안 로고 줄 아이콘은 감춤(화면 밖, Tab에서도 빠짐)
  *   붙을 때만 자리를 차지함(늘 잡아 두면 평소에도 메뉴가 넘침). 붙어 있는 동안 메뉴가 다 들어가지 않으면(예: 최고관리자 8개) 메뉴 줄을 옆으로 밀어 봄(한 줄 규칙, 화살표)
  *   누르는 칸은 PC 32px(터치 화면 44px), 그림 20px(v0.60 메뉴 줄 돋보기와 같은 크기) */
-.gnb-tools { display: none; align-items: center; flex-shrink: 0; margin: 0 -0.6rem; }
+/* 왼쪽 바깥 여백 +0.6rem(2026-11-06 기획자 요청: 붙은 메뉴 줄에서 › 화살표와 돋보기가 너무 붙어 보였음. 예전 -0.6rem → 사이가 1.2rem 넓어짐) */
+.gnb-tools { display: none; align-items: center; flex-shrink: 0; margin: 0 -0.6rem 0 0.6rem; }
 .gnb-tools .hdr-icon { width: var(--touch-min); height: var(--touch-min); }
 .gnb-tools .hdr-icon .icon { width: 2rem; height: 2rem; }
 .site-header.is-stuck .gnb-tools { display: flex; }
@@ -332,12 +333,15 @@ a.brand-title:hover { color: var(--text-primary); }
 .drawer.is-open .drawer-panel { transform: none; }
 .drawer-panel:focus { outline: none; box-shadow: var(--shadow-1); } /* 빈 곳을 눌러 메뉴판에 초점이 갈 때(키보드 Tab 가둠용, v0.61) */
 html.drawer-open { overflow: hidden; }
-.drawer-top { display: flex; align-items: center; gap: 0.8rem; min-height: 6.4rem; padding: 0 0.6rem 0 1.6rem; border-bottom: 1px solid var(--border-gray-light); }
+/* 높이는 휴대폰 머리글과 같은 48px(2026-11-06, 머리글을 64 → 48px로 낮추며 함께) */
+.drawer-top { display: flex; align-items: center; gap: 0.8rem; min-height: calc(var(--touch-min) + 0.4rem); padding: 0 0.6rem 0 1.6rem; border-bottom: 1px solid var(--border-gray-light); }
 .drawer-title { flex: 1; font-size: var(--fs-body-small); color: var(--text-subtle); }
 .drawer-back {
   flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.4rem; min-height: var(--touch-min); margin-left: -0.6rem; padding: 0;
-  border: 0; background: none; font-size: var(--fs-heading-xsmall); font-weight: 700; color: var(--text-bolder); text-align: left; cursor: pointer;
+  border: 0; background: none; font-size: var(--fs-body-medium); font-weight: 400; color: var(--text-basic); text-align: left; cursor: pointer;
 }
+/* 2단계: 위쪽 줄은 "‹ 전체 메뉴"(돌아가기, 보통 글자), 고른 메뉴 이름은 그 아래 제목(2026-11-06 기획자 요청: 예전에는 메뉴 이름이 위쪽 줄에 올라가 있었음) */
+.drawer-sub-title { padding: 0.8rem 0 0.4rem; font-size: var(--fs-heading-xsmall); font-weight: 700; color: var(--text-bolder); }
 .drawer-close { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: var(--touch-min); height: var(--touch-min); padding: 0; border: 0; background: none; color: var(--text-basic); cursor: pointer; }
 .drawer-back .icon, .drawer-close .icon { width: 2.4rem; height: 2.4rem; }
 .drawer-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.8rem 1.6rem; }
@@ -644,7 +648,9 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
 
   /* 헤더: 둘째 줄(무하유 계약 관리 시스템)을 감추고 오른쪽을 climb과 같은 줄 가운데에 맞춤(v0.36)
    * 오른쪽은 조직, 이름, 로그아웃 대신 아이콘 셋: 계정, 메뉴 검색, 전체 메뉴(v0.61 기획자 요청, 아래 .hdr-icon). 푸터와 로그인 화면의 이름 줄은 그대로 */
-  .header-top .inner { min-height: 6.4rem; column-gap: 1.2rem; align-items: center; }
+  /* 높이(2026-11-06 기획자 요청: 휴대폰 머리글이 높아 정보 영역이 좁음 → 할 수 있는 만큼 낮게): 누르는 칸 44px 아이콘 위아래로 2px씩만 남긴 48px.
+   *   v0.61~ 64px(위아래 여백 12px씩)에서 바꿈. 아이콘의 누르는 칸 44px은 그대로(눌린 바탕이 머리글 선에 닿지 않을 만큼만 남김) */
+  .header-top .inner { min-height: calc(var(--touch-min) + 0.4rem); padding-top: 0; padding-bottom: 0; column-gap: 1.2rem; align-items: center; }
   /* 로고(.brand-title)는 줄이지 않음: PC와 같은 24px (v0.55 기획자 요청, 로고는 아이덴티티라 기기마다 같게) */
   /* 영문 이름(MUHAYU Contract Lifecycle Intelligent Management Base, v0.55)은 휴대폰에서 칸보다 길면 낱말 사이에서
    * 두 줄로 고르게 나눔(로그인 상자는 좁아 두 줄, 푸터는 기준 휴대폰에서 한 줄이고 더 좁은 휴대폰에서만 두 줄) */
@@ -769,7 +775,7 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
 }
 .step-wrap .step { font-size: var(--fs-body-xsmall); font-style: normal; color: var(--text-subtle); }
 .step-wrap .step-tit { font-size: var(--fs-body-small); font-weight: 700; color: var(--text-bolder); white-space: nowrap; }
-.step-wrap .step-count { margin-top: 0.4rem; font-size: var(--fs-heading-medium); /* v0.59 위계: 24 → 21, 상자 제목보다 크지 않게 */ font-weight: 700; line-height: 1.2; color: var(--text-bolder); }
+.step-wrap .step-count { margin-top: 0.4rem; font-size: var(--fs-heading-small); /* v0.59 위계: 24 → 21, 상자 제목보다 크지 않게. 2026-11-06 묶음 제목을 19로 낮추어 숫자도 19(같은 크기)로 */ font-weight: 700; line-height: 1.2; color: var(--text-bolder); }
 .step-wrap .step-count .unit { margin-left: 0.2rem; font-size: var(--fs-body-medium); font-weight: 500; color: var(--text-subtle); }
 a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; }
 /* 한눈에 보기용(개요의 단계별 건수, 이용 안내의 5단계): "지금 단계"로 읽히지 않게 초록 원과 점을 쓰지 않고
@@ -786,7 +792,7 @@ a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: under
 .page-head--sub { margin: 0; } /* 제목이 본문 맨 위에서 시작. 경로(브레드크럼)는 어느 화면에도 두지 않음 (v0.15, v0.55 기획자 결정으로 상세 화면에서도 뺌) */
 
 /* KRDS 화면 안내 상자: 제목 아래 회색 상자에 화면 설명 */
-.page-intro { margin: 1.2rem 0 var(--gap-box); padding: var(--pad-box-y) var(--pad-box-x); border-radius: var(--radius-xl); background: var(--surface-gray-subtler); font-size: var(--fs-body-medium); color: var(--text-basic); }
+.page-intro { margin: 1.2rem 0 var(--gap-box); padding: var(--pad-box-y) var(--pad-box-x); border-radius: var(--radius-xl); background: var(--surface-gray-subtler); font-size: var(--fs-body-small); color: var(--text-basic); } /* 2026-11-06 기획자: 첫 줄이 너무 커서 아래 회색 글(.sub)과 같은 크기로. 둘은 색(진하게, 옅게)으로만 나눔. 모든 화면 같은 모양 */
 .page-intro p + p { margin-top: 0.4rem; }
 /* 회색 안내 상자 없이 제목 바로 아래 상자가 오는 화면(내 계정, v0.55 기획자 요청): 제목과 첫 상자 사이 간격 */
 .page-head--sub + .admin-stack { margin-top: var(--gap-box); }
@@ -913,3 +919,23 @@ a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: under
   .colchart-bar, .hbar-fill, .meter-fill, .step-dot.is-done, .step-dot.is-rejected { forced-color-adjust: none; background: CanvasText !important; }
   .meter-track { border: 1px solid CanvasText; }
   .step-dot { border: 1px solid CanvasText; }}
+
+/* 견적 화면(SCR-15 새 견적, SCR-16 견적 목록, SCR-17 견적서 보기)의 휴대폰: 옆으로 밀어 보지 않음(2026-11-06 기획자 요청, 견적부터).
+ *   표는 화면 폭 안에 두고, 칸이 좁으면 글자는 띄어쓰기에서 다음 줄로(긴 낱말만 칸 안에서 나눔). 제품 표와 품목 표는 quote.css에서 세로로 쌓음 */
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
+  body:is([data-page="SCR-15"], [data-page="SCR-16"], [data-page="SCR-17"]) .tbl { width: 100%; min-width: 0; }
+  body:is([data-page="SCR-15"], [data-page="SCR-16"], [data-page="SCR-17"]) .tbl th,
+  body:is([data-page="SCR-15"], [data-page="SCR-16"], [data-page="SCR-17"]) .tbl td { min-width: 0; white-space: normal !important; word-break: keep-all; overflow-wrap: anywhere; }
+}
+/* 견적 목록(SCR-16) 휴대폰: 칸 여섯(날짜 둘은 줄을 바꾸지 않음)이 폭에 다 들어가지 않아 줄마다 세로로 쌓음(2026-11-06 기획자 요청).
+ *   고객사가 줄의 제목, 그 아래 이름(왼쪽)과 값(오른쪽). 머리글 줄은 화면에서만 감춤(칸마다 data-label) */
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
+  body[data-page="SCR-16"] .tbl-scroll { overflow: visible; }
+  body[data-page="SCR-16"] .tbl, body[data-page="SCR-16"] .tbl tbody, body[data-page="SCR-16"] .tbl tr, body[data-page="SCR-16"] .tbl td { display: block; width: 100%; }
+  body[data-page="SCR-16"] .tbl colgroup { display: none; }
+  body[data-page="SCR-16"] .tbl thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  body[data-page="SCR-16"] .tbl tbody tr { padding: 1.2rem 0; border-bottom: 1px solid var(--border-gray-light); }
+  body[data-page="SCR-16"] .tbl td { padding: 0.3rem 0; border: 0; text-align: left; }
+  body[data-page="SCR-16"] .tbl td[data-label] { display: grid; grid-template-columns: 7.2rem minmax(0, 1fr); align-items: baseline; column-gap: 1.2rem; text-align: right; }
+  body[data-page="SCR-16"] .tbl td[data-label]::before { content: attr(data-label); text-align: left; font-size: var(--fs-body-small); color: var(--text-subtle); }
+}

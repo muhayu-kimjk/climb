@@ -70,7 +70,7 @@ QA = r"""(() => {
     if (/^-?[\d,]+\s?원(\s|$)/.test(t) && !/^(right|end)$/.test(getComputedStyle(td).textAlign)) amtBad.add(td.tagName + '.' + td.className + ' "' + t.slice(0, 14) + '"');
   });
   document.querySelectorAll('table:not(.approval-box)').forEach(tb => { // 결재란은 칸마다 여러 줄을 세로 가운데로 두는 설계라 뺌
-    [...tb.querySelectorAll('tbody tr')].filter(vis).slice(0, 8).forEach(tr => {
+    [...tb.querySelectorAll('tbody tr')].filter(vis).filter(tr => getComputedStyle(tr).display === 'table-row').slice(0, 8).forEach(tr => { // 2026-11-06: 휴대폰에서 세로로 쌓은 줄은 줄맞춤 대상이 아님
       const mids = [];
       [...tr.children].forEach(td => {
         const w = document.createTreeWalker(td, NodeFilter.SHOW_TEXT, { acceptNode: x => x.textContent.trim() && vis(x.parentElement) && !x.parentElement.closest('.sr-only') ? 1 : 3 });
@@ -102,7 +102,7 @@ QA = r"""(() => {
     document.querySelectorAll('a, button, input:not([type=hidden]), select, textarea').forEach(e => {
       if (!vis(e) || e.closest('.sr-only, .demo-bar, .choice, .tab-sheet') || e.matches('.choice input')) return;
       const cs = getComputedStyle(e); if (cs.display === 'inline') return;
-      const r = e.getBoundingClientRect(); if (r.height && r.height < 43.5) small.add(e.tagName + '.' + String(e.className).split(' ')[0] + ' ' + Math.round(r.height));
+      const r = e.getBoundingClientRect(); const hit = Math.max(r.height, parseFloat(getComputedStyle(e, '::before').height) || 0); /* 2026-11-06: 달력 단추처럼 ::before로 누르는 칸을 44px로 넓힌 것은 그 칸으로 잼 */ if (r.height && hit < 43.5) small.add(e.tagName + '.' + String(e.className).split(' ')[0] + ' ' + Math.round(r.height));
     });
     if (small.size) out.push('TOUCH(' + small.size + ') ' + [...small].slice(0, 4).join(' ; '));
   }

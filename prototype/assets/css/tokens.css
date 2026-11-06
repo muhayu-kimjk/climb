@@ -192,10 +192,10 @@
    * 제목 위계(v0.59 기획자 요청: 개요의 "진행 상세"가 그 아래 표의 고객사 이름보다 작아 보이고, 상자 제목도 약했음):
    *   본문 글자는 그대로 두고 제목만 한 단계씩 올려 제목끼리 두 단계(약 1.25배) 차이
    *   화면 제목 27 > 상자 제목 21(예: "1 기본 정보", "계약 진행 현황") > 작은 제목 17(예: "진행 상세", 결재 기록의 차수) > 본문과 항목 이름 15 > 표 13 */
-  --fs-heading-xlarge: 2.7rem;  /* 화면 제목 (20pt) */
+  --fs-heading-xlarge: 2.2rem;  /* 화면 제목. 2026-11-06 기획자 결정: 로고(2.4rem)보다 작게 2.7 → 2.2(머리글이 최상위 위계, 휴대폰과 같은 값) */
   --fs-heading-large: 2.4rem;   /* 로그인 제목 (18pt) */
   --fs-heading-medium: 2.1rem;  /* 확인 창 제목, 계약 금액 총액 (15.75pt) */
-  --fs-heading-small: 2.1rem;   /* 상자 제목, 묶음 제목 예: "1 기본 정보" (15.75pt). v0.59 위계 요청으로 19 → 21 */
+  --fs-heading-small: 1.9rem;   /* 상자 제목, 묶음 제목 예: "1 기본 정보". v0.59에 19 → 21, 2026-11-06 기획자 결정으로 화면 제목 2.2 아래 한 단계 1.9 */
   --fs-heading-xsmall: 1.7rem;  /* 작은 제목, 상자 안 소제목 예: "진행 상세" (12.75pt) */
   --fs-body-large: 1.7rem;      /* 메뉴, 화면 설명 (12.75pt) */
   --fs-body-medium: 1.5rem;     /* 본문, 입력 칸 글자, 항목 이름 (11.25pt) */
@@ -398,10 +398,10 @@
  * --------------------------------------------------------------- */
 @media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
   :root {
-    --fs-heading-xlarge: 2.8rem;  /* 화면 제목: Title 1 */
+    --fs-heading-xlarge: 2.2rem;  /* 화면 제목: 2026-11-06 기획자 결정 28 → 22px(로고 24px보다 작게, 머리글 48px이 최상위 위계) */
     --fs-heading-large: 2.4rem;   /* 로그인 제목: Title 2와 Title 1 사이 */
     --fs-heading-medium: 2.2rem;  /* 확인 창 제목: Title 2 */
-    --fs-heading-small: 2rem;     /* 상자 제목, 묶음 제목: Title 3 (항목 이름 17보다 한 단계 위, v0.59 위계) */
+    --fs-heading-small: 1.9rem;   /* 상자 제목, 묶음 제목: 2026-11-06 기획자 결정 20 → 19px(화면 제목 22 아래, 항목 이름 17보다 위) */
     --fs-heading-xsmall: 1.8rem;  /* 작은 제목(예: 진행 상세): 본문 17보다 한 단계 위, 상자 제목 20보다 아래 (v0.59 QA 위계) */
     --fs-body-large: 1.7rem;      /* 메뉴, 화면 설명: Body */
     --fs-body-medium: 1.7rem;     /* 본문: Body */

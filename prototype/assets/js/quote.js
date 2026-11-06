@@ -6,11 +6,11 @@
  *   견적은 계약과 이어지지 않고, 견적 단계 할인 승인도 없음(할인율 한도를 넘는 줄은 알려만 줌)
  * 하는 일
  *   1. 주소로 고치기와 보기를 가름: 출력하지 않은 내 견적은 고치기(SCR-15), 그 밖에는 보기(SCR-17, 메뉴는 견적 목록)
- *   2. 받는 곳: 거래처 찾기(C.searchBusinesses, KRDS 콤보 상자)로 상호와 사업자등록번호를 채움. 없으면 상호를 직접 적음
+ *   2. 받는 곳: 거래처 찾기(C.searchBusinesses, KRDS 콤보 상자)로 상호를 채움. 없으면 상호를 직접 적음. 사업자등록번호 칸은 없음(2026-11-06 기획자 요청)
  *   3. 제품 줄: 서비스 → 제품 → 기능(가격 기준이 있고 지금 파는 것만), 수량, 단가(오늘의 표준 단가로 채우고 고칠 수 있음), 할인율, 금액
  *      공급가액, 부가세(10%, 원 단위 버림), 합계. 할인율 한도를 넘는 줄은 칸 아래에 알림(계약할 때 ③ 영업 검토)
- *   4. 저장(작성 중) / 저장하고 견적서 출력: 검사 → 저장 → 보기 화면으로 가서 출력 기록을 남기고 견적서만 A4로 출력
- *      Enter로는 출력하지 않음(단추로만, v0.61 검토: 칸에서 Enter를 누르면 출력되어 판이 잠겼음)
+ *   4. 저장(작성 중) → 견적서 보기. 출력은 보기의 "견적서 출력"(검사 → 출력 기록 → 견적서만 A4로 출력)
+ *      2026-11-06 기획자 요청: 고치기 화면의 "저장하고 견적서 출력"을 없애고 저장만. Enter로는 저장도 출력도 하지 않음
  *   5. 보기: 견적서(고객에게 내는 모양), 출력 기록, 이 견적의 판. 작성한 영업은 "새 판 만들기"(출력한 판은 고칠 수 없음)
  *   6. 출력은 단추로만 기록이 남는 고객용 견적서가 나옴. 브라우저 인쇄는 다른 화면처럼 워터마크가 있는 사내 인쇄
  *   출력 기록 지키기(v0.61 검토): 저장과 출력과 새 판은 늘 저장된 기록을 다시 읽고 함. 출력한 판은 내용을 바꾸지 못하고 기록은 덧붙이기만
@@ -40,11 +40,11 @@
   // 주소: ?no=견적번호&ver=판
   const params = new URLSearchParams(location.search);
   const found = params.get('no') ? C.findQuote(params.get('no'), params.get('ver')) : null;
-  const PRINT_KEY = 'climb.quotePrint'; // "저장하고 견적서 출력"을 누르면 보기 화면에서 출력하도록 남기는 표시(한 번 쓰고 지움)
-  let printNow = false;
-  try { printNow = !!found && sessionStorage.getItem(PRINT_KEY) === found.no + '#' + found.ver; sessionStorage.removeItem(PRINT_KEY); } catch (e) { /* 무시 */ }
+  // &view=1: 저장한 뒤 가는 견적서 보기(2026-11-06 기획자 요청: 저장만 하고, 출력은 보기 화면의 "견적서 출력"으로).
+  //   고칠 수 있는 내 견적도 이 주소면 보기로 열고, 보기의 "고치기"로 다시 고침
+  const viewNow = !!found && params.get('view') === '1';
   // 머리글(지금 화면의 메뉴 표시)을 그리기 전에 고치기인지 보기인지 정함: 보기면 메뉴는 견적 목록(SCR-17 → SCR-16)
-  if (found && (printNow || !C.canEditQuote(C.currentUser(), found))) document.body.setAttribute('data-page', 'SCR-17');
+  if (found && (viewNow || !C.canEditQuote(C.currentUser(), found))) document.body.setAttribute('data-page', 'SCR-17');
   const me = C.init();
 
   const PRICE = {};
@@ -60,8 +60,6 @@
   function problems(q) {
     const out = [];
     if (!q.name) out.push(['name', '고객사 상호를 넣으세요.']);
-    const digits = String(q.bizNo || '').replace(/[^0-9]/g, '');
-    if (q.bizNo && !(digits.length === 10 && (C.isBizNo(digits) || C.isUniqueNo(digits)))) out.push(['bizNo', '사업자등록번호 10자리를 확인하세요. 모르면 비워 둡니다.']);
     if (q.opp && !C.isOppNo(q.opp)) out.push(['opp', '영업기회번호는 연도 2자리, 월 2자리, 영문 2자리, 일련번호 3자리입니다. 예: 2610CK012']);
     if (!q.date) out.push(['date', '견적일을 넣으세요.']);
     if (!q.validUntil) out.push(['validUntil', '유효기간을 넣으세요.']);
@@ -85,7 +83,7 @@
       '<a class="btn btn--tertiary btn--md" href="quotes.html">견적 목록</a>');
     return;
   }
-  if (found && (printNow || !C.canEditQuote(me, found))) { showView(found, printNow); return; }
+  if (found && (viewNow || !C.canEditQuote(me, found))) { showView(found, false); return; }
   startEdit(found);
 
   /* ================================ 고치기 ================================ */
@@ -106,7 +104,7 @@
     $('#page-title').textContent = src ? '견적 고치기' : '새 견적';
     $('#page-intro').innerHTML = '<p>제품과 가격 기준에 있는 표준 단가로 견적서를 만듭니다. 견적서를 출력하면 그 판은 고칠 수 없고 출력 기록이 남습니다.</p>' +
       '<p class="sub">' + (src ? esc(src.no) + ' ' + src.ver + '판, 출력 전이라 고칠 수 있습니다. ' : '') + '견적은 계약과 이어지지 않고, 견적 단계 할인 승인은 없습니다. 할인율 한도를 넘는 할인은 계약할 때 영업 리더가 승인합니다.</p>';
-    $('#q-name').value = q.name; $('#q-bizno').value = q.bizNo ? C.fmtBizNo(q.bizNo) : ''; $('#q-unit').value = q.unit; $('#q-opp').value = q.opp;
+    $('#q-name').value = q.name; $('#q-unit').value = q.unit; $('#q-opp').value = q.opp;
     $('#q-date').value = q.date; $('#q-valid').value = q.validUntil; $('#q-note').value = q.note || '';
     let customerKey = q.customer || '';
     validHelp();
@@ -117,7 +115,7 @@
 
     /* --- 2. 거래처 찾기 (KRDS 콤보 상자: 글자를 넣으면 목록, 위아래 화살표와 Enter로 고름, Esc로 닫음) --- */
     const nameIn = $('#q-name'), listEl = $('#q-name-list'), liveEl = $('#q-name-live');
-    let hits = [], active = -1, picked = null; // picked: 목록에서 고른 거래처(그 뒤 상호를 고치면 사업자등록번호를 비움)
+    let hits = [], active = -1, picked = null; // picked: 목록에서 고른 거래처(그 뒤 상호를 고치면 고른 거래처를 풂)
     function closeList() {
       listEl.hidden = true;
       active = -1;
@@ -139,22 +137,17 @@
       const h = hits[i];
       if (!h) return;
       nameIn.value = h.name;
-      $('#q-bizno').value = C.fmtBizNo(h.bizNo);
       customerKey = h.kind === 'C' ? h.key.slice(2) : '';
       picked = { name: h.name, bizNo: C.fmtBizNo(h.bizNo) };
       closeList();
       clearErr('name');
     }
     nameIn.addEventListener('input', function () {
-      // 고른 뒤 상호를 고치면 다른 곳이 됨: 고른 곳의 사업자등록번호와 거래처를 비움(v0.61 검토)
-      if (picked && nameIn.value !== picked.name) {
-        if ($('#q-bizno').value === picked.bizNo) $('#q-bizno').value = '';
-        picked = null;
-      }
+      // 고른 뒤 상호를 고치면 다른 곳이 됨: 고른 거래처를 풂(v0.61 검토)
+      if (picked && nameIn.value !== picked.name) picked = null;
       customerKey = '';
       renderHits();
     });
-    $('#q-bizno').addEventListener('input', function () { if (picked && $('#q-bizno').value !== picked.bizNo) { customerKey = ''; picked = null; } });
     nameIn.addEventListener('focus', renderHits);
     nameIn.addEventListener('blur', function () { setTimeout(closeList, 150); });
     nameIn.addEventListener('keydown', function (e) {
@@ -203,10 +196,13 @@
           '<select class="select" data-k="feature" aria-label="' + n + '번째 줄 기능"' + (l.product ? '' : ' disabled') + '><option value="">기능</option>' +
             feats.map(function (f) { return opt(f.id, C.featureText(f.id), l.feature); }).join('') + '</select>' +
         '</div><span class="cell-meta q-meta">' + metaText(l) + '</span></td>' +
-        '<td class="num"><input class="input q-qty" data-k="qty" inputmode="numeric" value="' + esc(l.raw && l.raw.qty != null ? l.raw.qty : l.qty) + '" aria-label="' + n + '번째 줄 수량"></td>' +
-        '<td class="num"><input class="input q-price" data-k="unitPrice" inputmode="numeric" value="' + esc(l.raw && l.raw.unitPrice != null ? l.raw.unitPrice : (l.unitPrice == null ? '' : Number(l.unitPrice).toLocaleString('ko-KR'))) + '" aria-label="' + n + '번째 줄 단가(원)"' + (l.feature ? '' : ' disabled') + '></td>' +
-        '<td class="num q-amount">' + (l.feature ? C.fmtWon(amount) : '-') + '</td>' +
-        '<td class="center q-del"><button type="button" class="btn-text" data-del="' + i + '"' + (q.lines.length < 2 ? ' disabled' : '') + '>지우기<span class="sr-only"> ' + n + '번째 줄</span></button></td>' +
+        '<td class="num" data-label="수량"><input class="input q-qty" data-k="qty" inputmode="numeric" value="' + esc(l.raw && l.raw.qty != null ? l.raw.qty : l.qty) + '" aria-label="' + n + '번째 줄 수량"></td>' +
+        '<td class="num" data-label="단가"><input class="input q-price" data-k="unitPrice" inputmode="numeric" value="' + esc(l.raw && l.raw.unitPrice != null ? l.raw.unitPrice : (l.unitPrice == null ? '' : Number(l.unitPrice).toLocaleString('ko-KR'))) + '" aria-label="' + n + '번째 줄 단가(원)"' + (l.feature ? '' : ' disabled') + '></td>' +
+        '<td class="num q-amount" data-label="금액">' + (l.feature ? C.fmtWon(amount) : '-') + '</td>' +
+        // 첫 줄은 "초기화"(고른 것과 수량, 단가를 비움), 둘째 줄부터는 "지우기"(줄을 뺌) (2026-11-06 기획자 요청: 예전에는 한 줄일 때도 "지우기"가 보였으나 눌러도 아무 일이 없었음)
+        '<td class="center q-del">' + (i === 0
+          ? '<button type="button" class="btn-text" data-reset="0">초기화<span class="sr-only"> 첫째 줄</span></button>'
+          : '<button type="button" class="btn-text" data-del="' + i + '">지우기<span class="sr-only"> ' + n + '번째 줄</span></button>') + '</td>' +
       '</tr>';
     }
     function sums() {
@@ -264,8 +260,13 @@
       if (l.raw) l.raw.unitPrice = null;
     });
     $('#q-lines').addEventListener('click', function (e) {
+      if (e.target.closest('[data-reset]')) {
+        q.lines[0] = blankLine();
+        renderLines('tr[data-i="0"] [data-k="service"]');
+        return;
+      }
       const b = e.target.closest('[data-del]');
-      if (!b || q.lines.length < 2) return;
+      if (!b || Number(b.dataset.del) === 0) return;
       q.lines.splice(Number(b.dataset.del), 1);
       renderLines('#q-add');
     });
@@ -287,10 +288,10 @@
     function clearErr(name) { const b = fieldBox(name); if (b && b.classList.contains('is-invalid')) C.setFieldError(b, ''); }
     // 화면의 값을 모은 사본(q.lines는 바꾸지 않음: 검사에 걸려도 화면의 줄과 기록의 줄이 어긋나지 않게, v0.61 검토)
     function collect() {
-      const bizDigits = $('#q-bizno').value.replace(/[^0-9]/g, '');
       return Object.assign({}, q, {
         name: $('#q-name').value.trim(),
-        bizNo: $('#q-bizno').value.trim() ? (bizDigits.length === 10 ? C.fmtBizNo(bizDigits) : $('#q-bizno').value.trim()) : '',
+        // 2026-11-06 기획자 요청: 사업자등록번호는 넣지 않음. 목록에서 고른 거래처면 그 번호를 기록에만 남김(화면과 견적서에는 보이지 않음)
+        bizNo: picked ? picked.bizNo : (customerKey && customerKey === q.customer ? q.bizNo || '' : ''),
         customer: customerKey,
         unit: $('#q-unit').value.trim(),
         opp: $('#q-opp').value.trim().toUpperCase(),
@@ -343,19 +344,9 @@
       $('#error-summary').hidden = true;
       const saved = save(d);
       if (!saved) return;
-      C.flash(saved.no + ' ' + saved.ver + '판을 저장했습니다. 출력 전이라 고칠 수 있습니다.');
-      location.href = 'quote.html?no=' + encodeURIComponent(saved.no) + '&ver=' + saved.ver;
-    });
-    // 저장하고 견적서 출력: 단추로만(Enter로는 출력하지 않음). 검사 → 저장 → 보기 화면에서 출력
-    $('#q-print').addEventListener('click', function () {
-      const d = collect();
-      const errs = problems(d);
-      if (errs.length) { showErrors(errs); return; }
-      $('#error-summary').hidden = true;
-      const saved = save(d);
-      if (!saved) return;
-      try { sessionStorage.setItem(PRINT_KEY, saved.no + '#' + saved.ver); } catch (e) { /* 무시 */ }
-      location.href = 'quote.html?no=' + encodeURIComponent(saved.no) + '&ver=' + saved.ver;
+      // 저장하면 견적서 보기로 감. 출력은 거기의 "견적서 출력"(모든 항목을 검사), 더 고치려면 "고치기"
+      C.flash(saved.no + ' ' + saved.ver + '판을 저장했습니다. 출력 전이라 고칠 수 있고, 다 되면 "견적서 출력"으로 냅니다.');
+      location.href = 'quote.html?no=' + encodeURIComponent(saved.no) + '&ver=' + saved.ver + '&view=1';
     });
     form.addEventListener('submit', function (e) { e.preventDefault(); }); // Enter로 출력하거나 저장하지 않음
   }
@@ -506,7 +497,7 @@
         '<div><dt>견적일</dt><dd>' + C.fmtDate(q.date) + '</dd></div><div><dt>유효기간</dt><dd>' + C.fmtDate(q.validUntil) + '까지</dd></div></dl></header>' +
       '<div class="qd-parties">' +
         '<section class="qd-party"><h3 class="qd-h3">받는 곳</h3><p class="qd-to">' + esc(q.name) + (q.unit ? ' ' + esc(q.unit) : '') + ' 귀중</p>' +
-          (q.bizNo ? '<p class="qd-small">사업자등록번호 ' + esc(q.bizNo) + '</p>' : '') + '<p class="qd-small">아래와 같이 견적합니다.</p></section>' +
+          '<p class="qd-small">아래와 같이 견적합니다.</p></section>' + // 받는 곳의 사업자등록번호는 싣지 않음(2026-11-06 기획자 요청)
         '<section class="qd-party"><h3 class="qd-h3">공급자</h3><dl class="qd-kv">' +
           '<div><dt>상호</dt><dd>' + esc(S.name) + '</dd></div>' +
           // 기획자 결정 2026-11-02 E-9: 회사 설정 값(REQ-QUO-08). 예전에는 "회사 설정 값" 자리만 있었음. 인장은 대표자 옆 "(인)" 자리에(E-7)
@@ -521,8 +512,9 @@
         '<thead><tr><th scope="col">번호</th><th scope="col" class="col-phone-wide">품목</th><th scope="col">단위</th><th scope="col" class="num">수량</th><th scope="col" class="num">단가</th><th scope="col" class="num">금액</th></tr></thead><tbody>' +
         q.lines.map(function (l, i) {
           const f = featureOf(l.feature);
-          return '<tr><td class="center">' + (i + 1) + '</td><td>' + esc(C.featureLabel({ product: f ? f.product : '', feature: l.feature })) + '</td><td class="center cell-phone-nowrap">' + esc(l.unit) + '</td>' +
-            '<td class="num">' + Number(l.qty).toLocaleString('ko-KR') + '</td><td class="num">' + C.fmtWon(l.unitPrice) + '</td><td class="num">' + C.fmtWon(l.unitPrice * l.qty) + '</td></tr>';
+          // data-label: 휴대폰에서 줄을 세로로 쌓을 때 값 앞에 붙는 이름(quote.css, 2026-11-06 기획자 요청: 휴대폰은 옆으로 밀지 않게)
+          return '<tr><td class="center qd-no">' + (i + 1) + '</td><td class="qd-item">' + esc(C.featureLabel({ product: f ? f.product : '', feature: l.feature })) + '</td><td class="center cell-phone-nowrap" data-label="단위">' + esc(l.unit) + '</td>' +
+            '<td class="num" data-label="수량">' + Number(l.qty).toLocaleString('ko-KR') + '</td><td class="num" data-label="단가">' + C.fmtWon(l.unitPrice) + '</td><td class="num" data-label="금액">' + C.fmtWon(l.unitPrice * l.qty) + '</td></tr>';
         }).join('') + '</tbody>' +
         '<tfoot><tr><th scope="row" colspan="5">공급가액</th><td class="num">' + C.fmtWon(t.supply) + '</td></tr>' +
         '<tr><th scope="row" colspan="5">부가세(' + Math.round(D.QUOTE_RULES.vat * 100) + '%)</th><td class="num">' + C.fmtWon(t.vat) + '</td></tr>' +

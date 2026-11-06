@@ -60,15 +60,16 @@
     $('#rows').innerHTML = rows.length ? rows.map(function (x) {
       const st = C.quoteStatus(x), t = C.quoteTotals(x);
       const href = 'quote.html?no=' + encodeURIComponent(x.no) + '&ver=' + x.ver;
+      // data-label: 휴대폰에서 줄을 세로로 쌓을 때 값 앞의 이름(common.css 견적 화면 휴대폰 규칙, 2026-11-06 기획자 요청: 옆으로 밀지 않게)
       return '<tr>' +
         '<td><a class="cell-title" href="' + href + '">' + esc(x.name) + (x.unit ? ' ' + esc(x.unit) : '') + '</a>' +
           '<span class="cell-meta"><span class="nowrap">' + esc(x.no) + '</span> ' + x.ver + '판' + (x.opp ? ', 영업기회번호 <span class="nowrap">' + esc(x.opp) + '</span>' : '') + '</span></td>' +
-        '<td class="num">' + C.fmtWon(t.total) + (C.quoteOverCap(x) ? '<span class="cell-meta">한도 넘음</span>' : '') + '</td>' +
-        '<td class="nowrap">' + C.badge(st.tone, st.label) + '</td>' +
-        '<td class="num-left">' + C.fmtDate(x.date) + '</td>' +
-        '<td class="num-left">' + C.fmtDate(x.validUntil) + '</td>' +
-        (seeOthers ? '<td class="center">' + esc(C.ownerLabel(x.owner)) + '</td>' : '') +
-        '<td class="center">' + ((x.issues || []).length ? x.issues.length + '번' : '-') + '</td>' +
+        '<td class="num" data-label="합계">' + C.fmtWon(t.total) + (C.quoteOverCap(x) ? '<span class="cell-meta">한도 넘음</span>' : '') + '</td>' +
+        '<td class="nowrap" data-label="상태">' + C.badge(st.tone, st.label) + '</td>' +
+        '<td class="num-left" data-label="견적일">' + C.fmtDate(x.date) + '</td>' +
+        '<td class="num-left" data-label="유효기간">' + C.fmtDate(x.validUntil) + '</td>' +
+        (seeOthers ? '<td class="center" data-label="작성">' + esc(C.ownerLabel(x.owner)) + '</td>' : '') +
+        '<td class="center" data-label="출력">' + ((x.issues || []).length ? x.issues.length + '번' : '-') + '</td>' +
       '</tr>';
     }).join('') : '<tr><td class="empty-row" colspan="' + cols + '">' + (all.length ? '조건에 맞는 견적이 없습니다.' : '아직 만든 견적이 없습니다.') + '</td></tr>';
     $('#pagination').innerHTML = C.pagerHtml(page, pages, list.length, from, rows.length, PAGE_SIZE, '건');

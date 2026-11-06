@@ -23,6 +23,14 @@
 #q-add { width: 100%; margin-top: 1.2rem; }
 
 .q-lines td { vertical-align: top; }
+/* 칸 폭 고정(2026-11-06 기획자 요청: 서비스, 제품, 기능을 고를 때마다 표가 흔들렸음).
+ *   예전에는 칸 폭을 내용으로 정해, 고른 제품의 긴 이름, 표준 단가 안내, 금액이 바뀔 때마다 모든 칸이 다시 자리 잡았음.
+ *   이제 수량, 단가, 금액, 지우기 칸은 정한 폭이고 남는 폭이 제품 칸. 가장 좁은 표 폭(60rem)보다 좁은 화면은 표 안에서 옆으로 밀어 봄 */
+.q-lines { table-layout: fixed; width: 100%; min-width: 60rem; }
+.q-lines .q-col-qty { width: 9.6rem; }
+.q-lines .q-col-price { width: 15.4rem; }
+.q-lines .q-col-amount { width: 13.6rem; }
+.q-lines .q-col-del { width: 7.2rem; }
 #quote-form .panel, #quote-form .field { min-width: 0; } /* 제품 표가 칸을 넓히지 않고 표 안에서 밀어 보게(휴대폰 가로 스크롤 막음) */
 /* 금액과 지우기 글자를 옆 칸(입력 칸) 글자와 같은 높이에(줄 맞춤): 두 칸 모두 줄 높이를 입력 칸 높이로 */
 .q-lines td.q-amount, .q-lines td.q-del { line-height: var(--height-md); }
@@ -34,7 +42,9 @@
  * 가장 좁은 폭은 휴대폰과 같은 14rem: 화면이 좁으면 칸이 찌그러지지 않고 표 안에서 옆으로 밀어 봄 */
 .q-pick { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.6rem; }
 .q-pick .select { width: 100%; min-width: 14rem; }
-.q-meta:empty { display: none; }
+/* 기능을 고르면 생기는 단가 안내 줄은 처음부터 한 줄 자리를 둠(2026-11-06 기획자 요청: 줄이 생기며 표와 아래가 밀렸음) */
+.q-meta { display: block; }
+.q-meta:empty::before { content: "\00a0"; }
 .q-lines .input { text-align: right; font-variant-numeric: tabular-nums; }
 .q-qty { width: 7.2rem; }
 .q-price { width: 13rem; }
@@ -93,9 +103,30 @@
   .qd-parties { grid-template-columns: minmax(0, 1fr); }
   .q-paper { padding: 1.6rem; }
   .qd-title { font-size: 2.4rem; letter-spacing: 0.8rem; text-indent: 0.8rem; }
-  .q-price { width: 11rem; }
-  .q-qty { width: 6rem; }
   /* 서비스, 제품, 기능을 한 줄에 하나씩 두던 휴대폰 규칙은 PC에도 같게 되어 위 .q-pick으로 합침 (D-8) */
+
+  /* 휴대폰은 옆으로 밀어 보지 않음(2026-11-06 기획자 요청, 견적 화면부터): 칸이 화면 폭을 넘으면 세로로 내리고 좌우를 채움.
+   *   제품 표(새 견적)와 품목 표(견적서 보기)는 줄마다 한 덩어리로 쌓음: 고르기 칸 → 수량, 단가, 금액(이름은 왼쪽, 값은 오른쪽 칸 가득) → 초기화나 지우기.
+   *   머리글 줄은 화면에서만 감춤(칸마다 data-label 이름이 붙고 입력 칸은 aria-label이 있음). 인쇄는 그대로 표 */
+  #quote-form .tbl-scroll, .qd-scroll { overflow: visible; border: 0; border-radius: 0; }
+  .q-lines, .qd-lines { min-width: 0; table-layout: auto; }
+  .q-lines colgroup { display: none; }
+  .q-lines thead, .qd-lines thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .q-lines, .q-lines tbody, .q-lines tr, .q-lines td,
+  .qd-lines, .qd-lines tbody, .qd-lines tr, .qd-lines td { display: block; width: 100%; }
+  .q-lines tr, .qd-lines tbody tr { padding: 1.2rem 0; border-bottom: 1px solid var(--border-gray-light); }
+  .q-lines td, .qd-lines tbody td { padding: 0.3rem 0; border: 0; text-align: left; }
+  .q-lines td[data-label], .qd-lines td[data-label] { display: grid; grid-template-columns: 7.2rem minmax(0, 1fr); align-items: center; column-gap: 1.2rem; text-align: right; }
+  .q-lines td[data-label]::before, .qd-lines td[data-label]::before { content: attr(data-label); text-align: left; font-size: var(--fs-body-small); color: var(--text-subtle); }
+  .q-lines td.q-amount { line-height: normal; min-height: var(--height-md); }
+  .q-qty, .q-price { width: 100%; }
+  .q-lines td.q-del { text-align: right; }
+  .qd-lines .qd-no { display: inline; padding: 0; font-weight: 700; color: var(--text-bolder); }
+  .qd-lines .qd-no::after { content: ". "; }
+  .qd-lines .qd-item { display: inline; padding: 0; font-weight: 700; color: var(--text-bolder); }
+  .qd-lines tfoot, .qd-lines tfoot tr { display: block; width: 100%; }
+  .qd-lines tfoot tr { display: flex; justify-content: space-between; gap: 1.2rem; }
+  .qd-lines tfoot th, .qd-lines tfoot td { display: block; padding: 0.8rem 0; }
 }
 
 /* ---------- 인쇄 ---------- */

@@ -64,16 +64,10 @@
             <p class="field-help" id="q-name-help">상호나 사업자등록번호 일부로 우리 거래처와 사업자 정보를 찾아 고릅니다. 없으면 상호를 그대로 적습니다.</p>
             <p class="field-error" hidden></p>
           </div>
-          <div class="field-row">
-            <div class="field" data-field="bizNo">
-              <label class="field-label" for="q-bizno">사업자등록번호 <span class="opt">(선택)</span></label>
-              <input class="input" id="q-bizno" type="text" inputmode="numeric" autocomplete="off" maxlength="12">
-              <p class="field-error" hidden></p>
-            </div>
-            <div class="field" data-field="unit">
-              <label class="field-label" for="q-unit">기관 또는 부서명 <span class="opt">(선택)</span></label>
-              <input class="input" id="q-unit" type="text" maxlength="40">
-            </div>
+          <!-- 2026-11-06 기획자 요청: 견적서에는 사업자등록번호를 넣지 않음. 고객사, 기관 또는 부서명(칸 끝까지), 영업기회번호를 PC도 휴대폰처럼 한 줄에 하나씩 -->
+          <div class="field" data-field="unit">
+            <label class="field-label" for="q-unit">기관 또는 부서명 <span class="opt">(선택)</span></label>
+            <input class="input" id="q-unit" type="text" maxlength="40">
           </div>
           <div class="field" data-field="opp">
             <label class="field-label" for="q-opp">영업기회번호 <span class="opt">(선택)</span></label>
@@ -104,6 +98,8 @@
             <p class="field-label" id="q-lines-label">제품<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></p>
             <div class="tbl-scroll" tabindex="0" role="region" aria-labelledby="q-lines-label">
               <table class="tbl tbl--compact q-lines">
+                <!-- 칸 폭을 미리 정함(2026-11-06 기획자 요청: 제품을 고를 때마다 칸 폭이 다시 정해져 표가 흔들렸음). 폭은 quote.css .q-lines col -->
+                <colgroup><col><col class="q-col-qty"><col class="q-col-price"><col class="q-col-amount"><col class="q-col-del"></colgroup>
                 <caption class="sr-only">견적 제품: 서비스, 제품, 기능, 수량, 표준 단가, 견적 단가, 할인율, 금액</caption>
                 <thead><tr><th scope="col">서비스와 제품, 기능</th><th scope="col" class="num">수량</th><th scope="col" class="num">단가</th><th scope="col" class="num">금액</th><th scope="col"><span class="sr-only">지우기</span></th></tr></thead>
                 <tbody id="q-lines"></tbody>
@@ -126,8 +122,8 @@
         </section>
 
         <div class="form-actions">
-          <button type="button" class="btn btn--tertiary btn--md" id="q-save">저장</button>
-          <button type="button" class="btn btn--primary btn--md" id="q-print">저장하고 견적서 출력</button><!-- Enter로는 출력하지 않게 type="button"(v0.61 검토) -->
+          <!-- 2026-11-06 기획자 요청: "저장하고 견적서 출력"을 없애고 저장만. 출력은 저장한 뒤 견적서 보기 화면의 "견적서 출력"으로 -->
+          <button type="button" class="btn btn--primary btn--md" id="q-save">저장</button>
         </div>
       </form>
 
