@@ -30,13 +30,14 @@
   const SEAL_TYPES = /^image\/(png|jpeg)$/;
   // 회사 정보 칸(03 8-9 company_setting). url: 링크 칸(선택, https://로 시작)
   const FIELDS = [
-    { key: 'name', label: '상호', help: '견적서 공급자 칸의 상호. 예: 주식회사 무하유' },
-    { key: 'bizNo', label: '사업자등록번호', help: "'-' 없이 숫자 10자리만 넣어도 됩니다." },
+    // attrs: 입력 칸 제한(기획자 결정 2026-11-09: 사업자등록번호, 상호, 수량은 모든 화면 같은 규칙: 상호 60자, 사업자등록번호는 숫자 칸 12자에 하이픈 자동)
+    { key: 'name', label: '상호', help: '견적서 공급자 칸의 상호. 예: 주식회사 무하유', attrs: ' maxlength="60"' },
+    { key: 'bizNo', label: '사업자등록번호', help: "숫자 10자리를 넣으면 '-'가 저절로 붙습니다.", attrs: ' inputmode="numeric" maxlength="12"' },
     { key: 'ceo', label: '대표자' },
     { key: 'address', label: '주소' },
     { key: 'phone', label: '대표 연락처', help: '예: 02-0000-0000' },
-    { key: 'ethicsUrl', label: '회사 윤리 규정 링크', url: true, help: '이용 안내 "거래 윤리와 신고"에서 엽니다. 선택' },
-    { key: 'reportUrl', label: '신고 창구 링크', url: true, help: '이 시스템 밖의 회사 신고 창구. 선택' },
+    { key: 'ethicsUrl', label: '회사 윤리 규정 링크', url: true, help: '이용 안내 "거래 윤리와 신고"에서 엽니다.' }, // 도움말의 "선택"은 이름 옆 (선택)으로 옮김(2026-11-06 점검 3회차)
+    { key: 'reportUrl', label: '신고 창구 링크', url: true, help: '이 시스템 밖의 회사 신고 창구.' },
   ];
   function val(f, n) { return (f.elements[n].value || '').trim(); }
 
@@ -55,10 +56,13 @@
       title: '회사 정보를 바꿀까요?',
       desc: '저장하면 다음 견적서부터 공급자 칸에 쓰이고, 바꾼 값과 사유가 관리자 변경 이력에 남습니다.',
       body: FIELDS.map(function (f) {
-        return C.fieldHtml({ name: f.key, label: f.label, required: !f.url, value: CO[f.key] || '', type: f.url ? 'url' : 'text', help: f.help, placeholder: f.url ? 'https://' : '' });
+        // 링크 칸은 넣지 않아도 되므로 optional로 "(선택)"을 다른 창과 같은 모양으로(2026-11-06 점검 3회차)
+        return C.fieldHtml({ name: f.key, label: f.label, required: !f.url, optional: !!f.url, value: CO[f.key] || '', type: f.url ? 'url' : 'text', help: f.help, placeholder: f.url ? 'https://' : '', attrs: f.attrs || '' });
       }).join('') +
         C.fieldHtml({ name: 'reason', label: '사유', type: 'textarea', required: true, placeholder: '예: 본사 주소 이전(경영지원유닛 알림 2026-11-20)' }),
       btn: '저장',
+      // 사업자등록번호는 넣는 대로 하이픈(기획자 결정 2026-11-09: 거래처 관리, 계약 등록과 같게)
+      open: function (f) { f.elements.bizNo.addEventListener('input', function (e) { e.target.value = C.fmtBizNo(e.target.value); }); },
       check: function (f) {
         const e = {};
         FIELDS.forEach(function (x) {
@@ -167,7 +171,8 @@
     if (e.target.closest('#btn-company') && canCompany) openCompany();
     if (e.target.closest('#btn-seal') && canSeal) openSeal();
     const pg = e.target.closest('#history-pages [data-page]');
-    if (pg && !pg.disabled) { page = Number(pg.getAttribute('data-page')); renderHistory(); }
+    // 쪽 번호를 다시 그려 누른 단추가 없어지므로 초점과 화면을 바꾼 기록 제목으로(다른 목록과 같게)(2026-11-06 점검 3회차)
+    if (pg && !pg.disabled) { page = Number(pg.getAttribute('data-page')); renderHistory(); C.focusSection('#sec-history'); }
   });
   render();
 })();

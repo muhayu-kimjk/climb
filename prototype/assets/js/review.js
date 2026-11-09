@@ -173,7 +173,9 @@
       const inRound = hist.filter(function (h) { return (h.round || 1) === k; });
       // 앞 차수의 기안 일시는 다시 기안할 때 남긴 SUBMIT 기록, 지금 차수는 기안 일시 (v0.58)
       const sub = inRound.filter(function (h) { return h.action === 'SUBMIT'; })[0];
-      out.push({ round: k, at: sub ? sub.at : k === last ? c.requestedAt : (inRound[0] || { at: c.requestedAt }).at, by: c.requesterId, why: k + '차 기안' });
+      // 올린 사람도 그 차수의 SUBMIT 기록에 남은 사람. SUBMIT 기록이 없을 때(지금 차수 등)만 지금 기안자
+      //   (2026-11-06 점검: 앞 차수의 판도 지금 차수의 기안자가 올린 것으로 보였음)
+      out.push({ round: k, at: sub ? sub.at : k === last ? c.requestedAt : (inRound[0] || { at: c.requestedAt }).at, by: (sub && sub.actorId) || c.requesterId, why: k + '차 기안' });
       inRound.filter(function (h) { return h.action === 'RESUBMIT'; }).forEach(function (h) {
         out.push({ round: k, at: h.at, by: h.actorId || c.requesterId, why: k + '차 보완 완료' });
       });
@@ -409,54 +411,75 @@
    * 첫 표: ① 기안 + 계약 검토 단계 ②~⑤. 생략한 단계도 칸을 두어 왜 생략했는지 보이게 함
    * 둘째 표: 계약 체결(⑥ 총무, ⑦ 기안자, ⑧ 영업지원)과 운영 검토(⑨ 고객지원, ⑩ 재무). 생략 없음
    * 기획자 결정 2026-11-02 D-3: 머리글은 현재 진행 칸과 같은 "맡는 사람" 이름(C.stepTag). 리더 본인 계약의 ③은 "③ 영업 임원" */
+  /* 휴대폰은 옆으로 밀어 보지 않음(2026-11-06 점검, CLAUDE.md 화면 규칙): 표(최소 폭 56rem)가 402px 휴대폰에서 옆으로 밀렸음.
+   *   그래서 boxHtml이 같은 칸 자료로 표와 함께 휴대폰용 목록(단계마다 한 덩어리: 단계 이름이 제목, 아래에 담당, 결과, 일시)도 만듦.
+   *   review.css가 휴대폰에서는 목록만, 넓은 화면과 인쇄에서는 표만 보이게 함(인쇄는 언제나 표). 둘 다 같은 때에 그려 화면이 흔들리지 않음
+   *   돌려주는 값: { table: 표 안쪽, list: 목록 안쪽(li들) } */
   function boxHtml(steps, withDraft) {
-    const skip = function (s) { return s.state === 'SKIPPED' ? ' class="is-skipped"' : ''; };
-    const head = (withDraft ? '<th scope="col">' + esc(C.stepTag('S01', c)) + '</th>' : '') +
-      steps.map(function (s) { return '<th scope="col">' + esc(C.stepTag(s.step, c)) + '</th>'; }).join('');
     // 담당 칸: 역할 / 조직(작은 글자) / 이름(굵게). "조직 이름" 순서(v0.50 기획자 요청)는 지키되 칸이 좁아 조직과 이름을 줄로 나눔
     //   (한 줄에 두면 "세일즈어드민유닛"이 칸보다 길어 낱말 중간에서 끊김)
     const person = function (id) {
       const u = D.USERS[id] || {};
       return (u.dept ? '<span class="box-unit">' + esc(u.dept) + '</span>' : '') + '<strong class="box-name">' + esc(u.name || '-') + '</strong>';
     };
-    const who = (withDraft ? '<td>' + esc(C.roleShort('SALES')) + person(c.requesterId) + '</td>' : '') +
-      steps.map(function (s) {
-        return '<td' + skip(s) + '>' + esc(C.roleShort(s.role)) + person(s.userId) + '</td>';
-      }).join('');
-    const result = (withDraft ? '<td>' + C.badge('line', '기안') + '</td>' : '') +
-      steps.map(function (s) {
-        const st = D.APPROVAL_STATE[s.state];
-        // ⑥~⑩이 끝나면 "승인" 대신 날인, 등록, 확인, 적용으로 표시
-        const label = s.state === 'DONE' && D.STEPS[s.step].done ? D.STEPS[s.step].done : st.label;
-        return '<td' + skip(s) + '>' + C.badge(st.tone, label) + '</td>';
-      }).join('');
-    const when = (withDraft ? '<td class="box-when">' + C.fmtDateTime(c.requestedAt) + '</td>' : '') +
-      steps.map(function (s) {
-        let t;
-        if (s.state === 'DONE' || s.state === 'REJECTED') t = C.fmtDateTime(s.decidedAt) + (s.onBehalfOf ? '<br>' + esc(C.josa(C.ownerLabel(s.decidedBy), '이', '가')) + ' 대신' : '');
-        else if (s.state === 'PENDING') t = C.waitDays(c, s) + '일째';
-        else if (s.state === 'SKIPPED') t = esc(s.reason);
-        else t = '-';
-        return '<td class="box-when' + (s.state === 'SKIPPED' ? ' is-skipped' : '') + '">' + t + '</td>';
-      }).join('');
-    return '<thead><tr><th scope="row" class="box-rowhead">단계</th>' + head + '</tr></thead>' +
+    // 휴대폰 목록의 담당: "조직 이름"을 한 줄(굵게), 역할은 그 아래 작은 회색 줄 (2026-11-06 점검)
+    const personLine = function (id, role) {
+      return '<strong class="box-name">' + esc(C.ownerLabel(id)) + '</strong><span class="cell-meta">' + esc(C.roleShort(role)) + '</span>';
+    };
+    // 칸 자료: 표와 휴대폰 목록이 같은 값을 씀 (2026-11-06 점검)
+    const cols = (withDraft ? [{
+      tag: C.stepTag('S01', c), skipped: false,
+      who: esc(C.roleShort('SALES')) + person(c.requesterId), whoLine: personLine(c.requesterId, 'SALES'),
+      result: C.badge('line', '기안'), when: C.fmtDateTime(c.requestedAt),
+    }] : []).concat(steps.map(function (s) {
+      const st = D.APPROVAL_STATE[s.state];
+      // ⑥~⑩이 끝나면 "승인" 대신 날인, 등록, 확인, 적용으로 표시
+      const label = s.state === 'DONE' && D.STEPS[s.step].done ? D.STEPS[s.step].done : st.label;
+      let t;
+      if (s.state === 'DONE' || s.state === 'REJECTED') t = C.fmtDateTime(s.decidedAt) + (s.onBehalfOf ? '<br>' + esc(C.josa(C.ownerLabel(s.decidedBy), '이', '가')) + ' 대신' : '');
+      else if (s.state === 'PENDING') t = C.waitDays(c, s) + '일째';
+      else if (s.state === 'SKIPPED') t = esc(s.reason);
+      else t = '-';
+      return { tag: C.stepTag(s.step, c), skipped: s.state === 'SKIPPED',
+        who: esc(C.roleShort(s.role)) + person(s.userId), whoLine: personLine(s.userId, s.role),
+        result: C.badge(st.tone, label), when: t };
+    }));
+    const skip = function (x) { return x.skipped ? ' class="is-skipped"' : ''; };
+    const head = cols.map(function (x) { return '<th scope="col">' + esc(x.tag) + '</th>'; }).join('');
+    const who = cols.map(function (x) { return '<td' + skip(x) + '>' + x.who + '</td>'; }).join('');
+    const result = cols.map(function (x) { return '<td' + skip(x) + '>' + x.result + '</td>'; }).join('');
+    const when = cols.map(function (x) { return '<td class="box-when' + (x.skipped ? ' is-skipped' : '') + '">' + x.when + '</td>'; }).join('');
+    const table = '<thead><tr><th scope="row" class="box-rowhead">단계</th>' + head + '</tr></thead>' +
       '<tbody>' +
         '<tr><th scope="row" class="box-rowhead">담당</th>' + who + '</tr>' +
         '<tr><th scope="row" class="box-rowhead">결과</th>' + result + '</tr>' +
         '<tr><th scope="row" class="box-rowhead">일시</th>' + when + '</tr>' +
       '</tbody>';
+    // 휴대폰 목록: 이름표(담당, 결과, 일시)는 왼쪽 옅게, 값은 오른쪽 진하게(견적 화면의 휴대폰 쌓기와 같은 모양).
+    //   생략한 단계는 "일시" 대신 "사유"로 생략한 까닭을 보임 (2026-11-06 점검)
+    const line = function (k, v, cls) { return '<div><dt>' + k + '</dt><dd' + (cls ? ' class="' + cls + '"' : '') + '>' + v + '</dd></div>'; };
+    const list = cols.map(function (x) {
+      return '<li class="box-step' + (x.skipped ? ' is-skipped' : '') + '"><p class="box-step-title">' + esc(x.tag) + '</p><dl>' +
+        line('담당', x.whoLine) + line('결과', x.result) + line(x.skipped ? '사유' : '일시', x.when, 'box-when') + '</dl></li>';
+    }).join('');
+    return { table: table, list: list };
   }
   function renderBox() {
     const steps = c.approvals || [];
-    $('#approval-box').innerHTML = '<caption class="sr-only">결재란 계약 검토: 단계마다 담당자, 결과, 일시</caption>' +
-      boxHtml(steps.filter(function (s) { return s.phase === 2; }), true);
-    $('#approval-box-post').innerHTML = '<caption class="sr-only">결재란 계약 체결과 운영 검토: 단계마다 담당자, 결과, 일시</caption>' +
-      boxHtml(steps.filter(function (s) { return s.phase === 3 || s.phase === 4; }), false);
+    // 표와 휴대폰 목록을 함께 채움 (2026-11-06 점검: 휴대폰은 목록만 보임)
+    const review = boxHtml(steps.filter(function (s) { return s.phase === 2; }), true);
+    $('#approval-box').innerHTML = '<caption class="sr-only">결재란 계약 검토: 단계마다 담당자, 결과, 일시</caption>' + review.table;
+    $('#approval-list').innerHTML = review.list;
+    const post = boxHtml(steps.filter(function (s) { return s.phase === 3 || s.phase === 4; }), false);
+    $('#approval-box-post').innerHTML = '<caption class="sr-only">결재란 계약 체결과 운영 검토: 단계마다 담당자, 결과, 일시</caption>' + post.table;
+    $('#approval-list-post').innerHTML = post.list;
     // 기획자 결정 2026-11-02 A-10, A-11: 계약이 끝난 뒤의 차례(phase 5: ⑨ 만료 처리, ③ 만료 유예 확인)는 따로 작은 표로
     const after = steps.filter(function (s) { return s.phase === 5; });
     $('#box-after').hidden = !after.length;
     if (after.length) {
-      $('#approval-box-after').innerHTML = '<caption class="sr-only">결재란 계약이 끝난 뒤: 만료 처리와 유예 확인의 담당자, 결과, 일시</caption>' + boxHtml(after, false);
+      const afterBox = boxHtml(after, false);
+      $('#approval-box-after').innerHTML = '<caption class="sr-only">결재란 계약이 끝난 뒤: 만료 처리와 유예 확인의 담당자, 결과, 일시</caption>' + afterBox.table;
+      $('#approval-list-after').innerHTML = afterBox.list;
     }
     // 거치는 단계는 맡는 사람 이름까지(기획자 결정 2026-11-02 D-3, E-3): ③ 영업 리더와 ③ 영업 임원 승인이 "③, ③"으로 겹쳐 보이지 않게
     const routedList = C.routedReview(c).map(function (s) { return s.step; });
@@ -581,10 +604,14 @@
       $('#amount').innerHTML = '<dl class="info-grid">' + [
         dd('원계약', '<a href="contract.html?id=' + encodeURIComponent(rootId) + '">' + esc(c.parentId) + '</a>'),
         dd('변경 종류', esc(D.CHANGE_TYPES[c.changeType])),
-        c.changeType === 'PERIOD'
-          ? dd('계약 기간', C.fmtDate(c.oldEndDate) + ' 종료 → ' + C.fmtDate(c.endDate) + ' 종료')
-          : dd('충전 수량', num(c.changeQty) + '건' + (c.changeAmount ? ', 금액 ' + won(c.changeAmount) + ' (부가세 별도)' : ' (무상)')),
-      ].concat(/_PAID$/.test(c.changeType) ? paidRows(dd) : []).concat([
+      ].concat(c.changeType === 'PERIOD'
+          ? [dd('계약 기간', C.fmtDate(c.oldEndDate) + ' 종료 → ' + C.fmtDate(c.endDate) + ' 종료')]
+          // 유상 충전은 수량과 금액을 두 칸으로 나누고 둘 다 오른쪽 정렬(표준 단가, 표준 금액과 같게)
+          //   (2026-11-06 점검: "100건, 금액 1,600,000원 (부가세 별도)"가 한 칸에 왼쪽 정렬로 있어 금액 오른쪽 정렬 규칙에 어긋났음)
+          : c.changeAmount
+            ? [dd('충전 수량', num(c.changeQty) + '건', 'amount'), dd('충전 금액', won(c.changeAmount) + ' (부가세 별도)', 'amount')]
+            : [dd('충전 수량', num(c.changeQty) + '건 (무상)')]
+      ).concat(/_PAID$/.test(c.changeType) ? paidRows(dd) : []).concat([
         dd('변경 사유', esc(c.reason || '-')),
         dd('CRM 영업활동', c.activityUrl ? '<a href="#" class="doc-link" data-activity>' + esc(c.activityUrl) + '</a>' : '-'),
         dd('③ 영업 검토', (sales[0] ? '거침: ' : '생략: ') + esc(sales[1])),
@@ -753,9 +780,14 @@
   const canOriginal = repMine || ['LEGAL', 'ADMIN', 'SUPER'].indexOf(me.role) > -1;
   function renderFiles() {
     const fmtSize = function (b) { return b >= 1048576 ? (b / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(b / 1024)) + 'KB'; };
-    const acts = '<span class="file-acts"><button type="button" class="btn-text" data-file="preview">미리보기</button>' +
-      '<button type="button" class="btn-text file-dl" data-file="pdf">PDF 내려받기</button>' +
-      (canOriginal ? '<button type="button" class="btn-text file-dl" data-file="original">원본 내려받기</button>' : '') + '</span>';
+    // 단추 뒤에 파일 이름 (2026-11-06 점검: 줄마다 같은 단추 이름이라 화면낭독기가 어느 것인지 알게 보이지 않는 글을 붙임. 보이는 글이 이름의 앞)
+    const acts = function (name) {
+      const sr = '<span class="sr-only"> ' + esc(name) + '</span>';
+      // 2026-11-06 점검: 단추 이름 "미리보기"를 맞춤법대로 "미리 보기"로(계약 상세와 같음)
+      return '<span class="file-acts"><button type="button" class="btn-text" data-file="preview">미리 보기' + sr + '</button>' +
+        '<button type="button" class="btn-text file-dl" data-file="pdf">PDF 내려받기' + sr + '</button>' +
+        (canOriginal ? '<button type="button" class="btn-text file-dl" data-file="original">원본 내려받기' + sr + '</button>' : '') + '</span>';
+    };
     // 한 판: [종류] [판 N] [결재한 판] 파일 이름 / 크기, 올린 때와 사람(까닭), 지문
     function line(g, v, now) {
       const versioned = g.kind === 'DRAFT_DOC' || g.kind === 'CLAUSE_DIFF' || g.kind === 'SIGNED';
@@ -765,7 +797,7 @@
         (v.approved ? ' ' + C.badge('success', '결재한 판') : '') + (v.checked ? ' ' + C.badge('success', '확인한 ' + DOC) : '') +
         ' <span class="file-name">' + esc(v.name) + '</span>' +
         '<span class="file-size">' + fmtSize(v.size) + ', ' + C.fmtDateTime(v.at) + ' ' + esc(C.ownerLabel(v.by)) + ' 올림(' + esc(v.why) + '), 지문 ' + v.hash + '</span></span>' +
-        acts + '</li>';
+        acts(v.name) + '</li>';
     }
     $('#files').innerHTML = files().map(function (g) {
       // 체결본은 지금 차수에서 올린 판만 지금 판. 앞 차수의 판만 있으면(⑧ 반려 뒤 다시 기안, ⑦ 전) 모두 이전 판으로 접음 (v0.61 검토)
@@ -1108,9 +1140,9 @@
     if (t.date) {
       const el = $('#act-date');
       dateVal = el.value;
-      const raw = String(Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').get.call(el) || '').trim(); // 적은 글자 그대로
-      const msg = !dateVal ? (raw ? '없는 날짜입니다. 월과 일을 다시 확인하세요.' : t.date.label.replace(' (필수)', '') + '을 적어 주세요. 예: ' + C.fmtDate(D.TODAY))
-        : t.date.max && dateVal > t.date.max ? '오늘(' + C.fmtDate(t.date.max) + ')보다 뒤 날짜는 적을 수 없습니다.' : '';
+      // 없는 날짜 확인은 공통 C.dateFieldError로(여기 따로 두던 같은 셈을 지움). 빈 칸 문장은 날짜 칸이라 "고르세요" (2026-11-06 점검 3회차)
+      const msg = !dateVal ? C.dateFieldError(el, t.date.label.replace(' (필수)', '') + '을 고르세요. 예: ' + C.fmtDate(D.TODAY))
+        : t.date.max && dateVal > t.date.max ? '오늘(' + C.fmtDate(t.date.max) + ')보다 뒤 날짜는 고를 수 없습니다.' : '';
       C.setFieldError($('#act-date-field'), msg);
       if (msg) ok = false;
     }
@@ -1204,10 +1236,10 @@
     const b = e.target.closest('[data-file]');
     if (!b) return;
     const kind = b.getAttribute('data-file');
-    // 한 문장으로 (KRDS 토스트, v0.28)
+    // 한 문장으로 (KRDS 토스트, v0.28). 2026-11-06 점검: 단추 이름에 맞춰 "미리 보기"로 띄어 씀(계약 상세와 같은 문구)
     C.toast(kind === 'pdf' ? '실제 시스템에서는 이름과 일시 워터마크를 찍은 PDF로 받고, 받은 기록이 남습니다(시안).'
       : kind === 'original' ? '원본은 지금 영업대표, 법무, 관리자만 받고, 받은 기록이 남습니다(시안).'
-      : '실제 시스템에서는 새 창에서 미리보기가 열립니다(시안).');
+      : '실제 시스템에서는 새 창에서 미리 보기가 열립니다(시안).');
   });
 
   renderNotice();

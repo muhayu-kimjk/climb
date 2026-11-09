@@ -27,6 +27,14 @@
   const found = D.CONTRACTS.find(function (c) { return c.id === origin; });
   const b = found ? C.bundleOf(C.rootOf(found)) : null;
   const back = b ? 'contract.html?id=' + encodeURIComponent(b.id) : 'contracts.html';
+  // 2026-11-06 점검: ?id=의 기록이 있고 볼 수 있는데 지금 다시 기안할 수 없으면 "찾을 수 없습니다" 대신 그 까닭과 결재 문서로 가는 길을 알림
+  //   "찾을 수 없습니다"는 없는 번호(또는 볼 수 없는 기록)일 때만. 연장 검토, 운영 변경과 같은 말
+  const idRec = params.get('id') && !again ? D.CONTRACTS.find(function (c) { return c.id === params.get('id'); }) : null;
+  if (idRec && C.canView(idRec, me)) {
+    $('#notice').innerHTML = notice('보완 후 재기안할 수 없는 기안입니다', '이 기안은 지금 보완 후 재기안할 수 없습니다(이미 다시 기안했거나 지금 영업대표가 아님). ' +
+      '<a class="doc-link" href="review.html?id=' + encodeURIComponent(idRec.id) + '">결재 문서 보기</a>');
+    return;
+  }
   if (!b || !C.canView(b.root, me)) {
     $('#notice').innerHTML = notice('해지할 계약을 찾을 수 없습니다', '계약 상세나 만료 예정 계약에서 "해지 기안"을 눌러 들어와 주세요.');
     return;
@@ -84,9 +92,10 @@
     info('계약 기간', C.fmtPeriod(b.start, b.end)),
     info('계약 금액', Number(cur.amount || 0).toLocaleString('ko-KR') + '원<span class="cell-meta">' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도</span>', 'amount'),
     // 기획자 결정 2026-11-03(C-44): 지금 영업대표. 바뀌었으면 처음 기안한 사람, 맡을 수 없으면 "담당 지정 필요"(계약 상세와 같음)
+    // "담당 지정 필요"는 계약 상세, 결재 화면처럼 주의 배지로 보임(회색 글자였음) (2026-11-06 점검)
     info('영업대표', esc(C.ownerLabel(C.salesRepOf(b))) +
       (C.salesRepOf(b) !== root.requesterId ? '<span class="cell-meta">처음 기안 ' + esc(C.ownerLabel(root.requesterId)) + '</span>' : '') +
-      (C.repNote(b) ? '<span class="cell-meta">' + esc(C.repNote(b)) + '</span>' : '')),
+      (C.repNote(b) ? '<span class="cell-meta">' + C.badge('attention', C.repNote(b)) + '</span>' : '')),
   ].join('');
   $('#number-help').textContent = again ? '같은 번호 ' + newId + '의 ' + ((again.round || 1) + 1) + '차로 기안합니다.' : '기안하면 ' + newId + '(해지)로 원계약과 함께 묶입니다.';
   $('#date-help').textContent = '오늘(' + C.fmtDate(D.TODAY) + ')부터 계약 종료일(' + C.fmtDate(b.end) + ') 사이의 날짜';
@@ -137,10 +146,20 @@
   /* ---------- 입력 검사 (KRDS 오류 패턴) ---------- */
   // 오류 표시와 aria-invalid는 공통 함수로 (KRDS, v0.28)
   function setError(name, msg) { C.setFieldError(document.querySelector('[data-field="' + name + '"]'), msg); }
+  // 고치는 칸의 오류는 그 칸을 고치는 대로 지움. 다음 기안 때까지 남아 있던 것 (2026-11-06 점검 3회차, 계약 등록의 clearError, C.formModal과 같음)
+  //   파일 칸은 change 처리기가 오류를 직접 정하므로 빼고, 요약 상자는 다음 기안 때 다시 셈
+  function clearOne(e) {
+    if (e.target.type === 'file') return;
+    const box = e.target.closest('[data-field]');
+    if (box && box.classList.contains('is-invalid')) C.setFieldError(box, '');
+  }
+  $('#form').addEventListener('input', clearOne);
+  $('#form').addEventListener('change', clearOne);
   function validate() {
     const errors = [];
     const date = $('#f-date').value, reason = $('#f-reason').value.trim();
-    const dateMsg = !date ? '해지일을 고르세요.' : date < D.TODAY || date > b.end ? '해지일은 오늘부터 계약 종료일 사이여야 합니다.' : '';
+    // 없는 날짜(2월 30일 등)를 적었으면 "없는 날짜입니다"를 보임. "해지일을 고르세요"로 덮어 적던 것 (2026-11-06 점검 3회차, C.dateFieldError)
+    const dateMsg = !date ? C.dateFieldError($('#f-date'), '해지일을 고르세요.') : date < D.TODAY || date > b.end ? '해지일은 오늘부터 계약 종료일 사이여야 합니다.' : '';
     setError('date', dateMsg);
     if (dateMsg) errors.push({ msg: dateMsg, el: $('#f-date') });
     setError('reason', reason ? '' : '해지 사유를 적으세요.');
@@ -163,6 +182,7 @@
 
   /* ---------- 기안 확인 창 ---------- */
   const modal = $('#confirm-modal');
+  let lastFocus = null;
   $('#form').addEventListener('submit', function (e) {
     e.preventDefault();
     if (!validate()) return;
@@ -170,11 +190,14 @@
       '<dl class="confirm-list"><div><dt>계약</dt><dd>' + esc(root.counterparty + ' ' + b.id) + '</dd></div>' +
       '<div><dt>해지 번호</dt><dd>' + esc(newId) + '</dd></div>' +
       '<div><dt>해지일</dt><dd>' + C.fmtDate($('#f-date').value) + '</dd></div></dl>';
+    lastFocus = document.activeElement;
     modal.hidden = false;
     C.focusModal(modal); // 제목에 포커스 (KRDS 모달, v0.28)
   });
+  // 닫기, 바깥 누름, Esc 모두 창을 닫고 열기 전 자리(기안 단추)로 포커스를 돌려줌. 계약 등록, 결재 화면과 같음 (2026-11-06 점검)
+  function closeModal() { modal.hidden = true; if (lastFocus) lastFocus.focus(); }
   modal.addEventListener('click', function (e) {
-    if (e.target === modal || e.target.closest('[data-act="close"]')) modal.hidden = true;
+    if (e.target === modal || e.target.closest('[data-act="close"]')) closeModal();
     if (!e.target.closest('[data-act="confirm"]')) return;
     // 해지 기안 기록 (데이터 정의서 contract: kind TERMINATE, terminate_date, terminate_reason)
     const fields = {
@@ -190,5 +213,5 @@
     C.flash(newId + ' 해지를 ' + (rec.round || 1) + '차로 기안했습니다. 다음 차례: ③ 영업 검토 (' + C.ownerLabel(C.stepUserNow('S03', rec)) + ')');
     location.href = 'review.html?id=' + encodeURIComponent(newId);
   });
-  document.addEventListener('keydown', function (e) { if (!modal.hidden && e.key === 'Escape') modal.hidden = true; });
+  document.addEventListener('keydown', function (e) { if (!modal.hidden && e.key === 'Escape') closeModal(); });
 })();

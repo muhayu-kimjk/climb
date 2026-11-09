@@ -115,8 +115,9 @@
           '<td class="num">' + (n == null ? '-' : n + '건') + '</td>' +
           '<td class="nowrap">' + (off ? C.badge('neutral', '풂') + '<span class="cell-meta">' + esc(C.ownerLabel(h.releasedBy)) + ', ' + C.fmtDateTime(h.releasedAt) + '</span>'
             : C.holdBadge(h)) + '</td>' +
-          '<td class="col-action">' + (canDo && !off ? '<button type="button" class="link-act link-act--danger" data-release="' + esc(h.id) + '" aria-label="' +
-            esc(C.holdTarget(h, me)) + ' 보류 풀기">풀기</button>' : '-') + '</td></tr>';
+          // 줄 이름은 aria-label 대신 보이는 글 뒤의 화면낭독기용 글로: 보이는 "풀기"가 읽는 이름의 앞에 오게(다른 표 안 단추와 같게, 2026-11-06 점검)
+          '<td class="col-action">' + (canDo && !off ? '<button type="button" class="link-act link-act--danger" data-release="' + esc(h.id) + '">풀기<span class="sr-only"> ' +
+            esc(C.holdTarget(h, me)) + ' 보류</span></button>' : '-') + '</td></tr>';
       }).join('') : '<tr><td class="empty-row" colspan="6">걸린 보류가 없습니다.</td></tr>') + '</tbody></table></div>';
     $('#holds-pages').innerHTML = C.pagerHtml(holdPage, pages, list.length, from, rows.length, PAGE_SIZE, '건');
   }
@@ -139,8 +140,9 @@
             return '<option value="BD:' + esc(b.id) + '">' + esc(b.id + ' ' + (C.canView(b.root, me) ? b.root.counterparty : '열람 제한 계약')) + '</option>';
           }).join('') + '</optgroup></select>' +
           '<p class="field-help">거래처에 걸면 그 거래처의 모든 계약에, 계약 묶음에 걸면 원계약과 변경, 연장, 해지, 운영 변경에 걸립니다.</p><p class="field-error" hidden></p></div>' +
-        C.fieldHtml({ name: 'rm', label: '관련 개선 과제', type: 'select', options: [['', '없음']].concat(open.map(function (r) { return [r.id, r.id + ' ' + r.title]; })),
-          help: '보류의 까닭이 된 개선 과제가 있으면 고릅니다(선택).' }) +
+        // 넣지 않아도 되는 칸은 optional로 "(선택)"을 모든 창에서 같은 모양으로(2026-11-06 점검 3회차)
+        C.fieldHtml({ name: 'rm', label: '관련 개선 과제', type: 'select', optional: true, options: [['', '없음']].concat(open.map(function (r) { return [r.id, r.id + ' ' + r.title]; })),
+          help: '보류의 까닭이 된 개선 과제가 있으면 고릅니다.' }) +
         // 사유는 결재 문서, 계약 상세, 만료 예정 등 그 계약을 볼 수 있는 사람에게 모두 보임 [가정]. 그래서 조사 내용이나 신고한 사람은 적지 않게 안내
         C.fieldHtml({ name: 'reason', label: '거는 사유', type: 'textarea', required: true, placeholder: '예: 거래처 확인에서 부정적 보도가 나와 사실을 확인할 때까지 새 기안과 남은 결재를 멈춤',
           help: '사유는 이 계약을 볼 수 있는 사람 모두에게 보입니다. 조사 내용이나 신고한 사람은 적지 마세요.' }),
@@ -221,13 +223,16 @@
         const d = r.due ? C.daysUntil(r.due) : null, done = r.state === 'DONE';
         const last = r.history[r.history.length - 1];
         const acts = [];
+        // 줄 이름(과제 번호)은 aria-label 대신 보이는 글 뒤의 화면낭독기용 글로: aria-label이 번호부터 읽고 "기한, 책임자 바꾸기"는 보이는 글과 달라
+        //   음성으로 단추를 부르기 어려웠음. 보이는 글이 이름의 앞에 오게 바꿈(다른 표 안 단추와 같게, 2026-11-06 점검)
+        const row = '<span class="sr-only"> ' + esc(r.id) + '</span>';
         if (canDo) {
           Object.keys(STEP).forEach(function (k) {
-            if (STEP[k].from === r.state) acts.push('<button type="button" class="link-act" data-step="' + k + '" data-id="' + esc(r.id) + '" aria-label="' + esc(r.id) + ' ' + STEP[k].label + '">' + STEP[k].label + '</button>');
+            if (STEP[k].from === r.state) acts.push('<button type="button" class="link-act" data-step="' + k + '" data-id="' + esc(r.id) + '">' + STEP[k].label + row + '</button>');
           });
-          if (!done) acts.push('<button type="button" class="link-act" data-step="EDIT" data-id="' + esc(r.id) + '" aria-label="' + esc(r.id) + ' 기한과 책임자 바꾸기">기한, 책임자 바꾸기</button>');
+          if (!done) acts.push('<button type="button" class="link-act" data-step="EDIT" data-id="' + esc(r.id) + '">기한, 책임자 바꾸기' + row + '</button>');
         }
-        acts.push('<button type="button" class="link-act" data-view-rm="' + esc(r.id) + '" aria-label="' + esc(r.id) + ' 기록 보기">기록 보기</button>');
+        acts.push('<button type="button" class="link-act" data-view-rm="' + esc(r.id) + '">기록 보기' + row + '</button>');
         return '<tr' + (done ? ' class="is-muted"' : '') + '>' +
           '<td class="col-wide"><span class="cell-strong">' + esc(r.id + ' ' + r.title) + '</span>' +
             '<span class="cell-meta">' + esc(RM.SOURCE[r.source] || r.source) + ', 찾은 날 ' + C.fmtDate(r.found) + (r.holdId ? ', 보류 ' + esc(r.holdId) : '') + '</span></td>' +
@@ -258,8 +263,9 @@
           C.fieldHtml({ name: 'owner', label: '책임자', type: 'select', required: true, options: [['', '고르세요']].concat(ownerOptions()) }) +
           C.fieldHtml({ name: 'due', label: '기한', type: 'date', required: true, attrs: ' data-after="fm-found" data-after-msg="기한은 찾은 날보다 앞설 수 없습니다."' }) +
         '</div>' +
-        C.fieldHtml({ name: 'hold', label: '관련 보류', type: 'select', options: [['', '없음']].concat(holds.map(function (h) { return [h.id, h.id + ' ' + C.holdTarget(h, me)]; })),
-          help: '이 과제 때문에 건 보류가 있으면 고릅니다(선택).' }),
+        // 넣지 않아도 되는 칸은 optional로 "(선택)"을 모든 창에서 같은 모양으로(2026-11-06 점검 3회차)
+        C.fieldHtml({ name: 'hold', label: '관련 보류', type: 'select', optional: true, options: [['', '없음']].concat(holds.map(function (h) { return [h.id, h.id + ' ' + C.holdTarget(h, me)]; })),
+          help: '이 과제 때문에 건 보류가 있으면 고릅니다.' }),
       btn: '기록',
       check: function (f) {
         const found = val(f, 'found'), due = val(f, 'due');
@@ -404,10 +410,10 @@
     else if (b.getAttribute('data-step') && canDo) openStep(b.getAttribute('data-id'), b.getAttribute('data-step'));
     else if (b.getAttribute('data-view-rm')) openView(b.getAttribute('data-view-rm'));
     else if (b.getAttribute('data-page') && !b.disabled) {
-      // 쪽 번호: 보류 목록과 개선 과제 목록이 따로 넘김
+      // 쪽 번호: 보류 목록과 개선 과제 목록이 따로 넘김. 누른 단추가 없어지므로 초점도 그 묶음 제목으로(2026-11-06 점검 3회차)
       const n = Number(b.getAttribute('data-page'));
-      if (b.closest('#holds-pages')) { holdPage = n; renderHolds(); $('#sec-holds').scrollIntoView({ block: 'start' }); }
-      else { rmPage = n; renderRms(); $('#sec-rm').scrollIntoView({ block: 'start' }); }
+      if (b.closest('#holds-pages')) { holdPage = n; renderHolds(); C.focusSection('#sec-holds'); }
+      else { rmPage = n; renderRms(); C.focusSection('#sec-rm'); }
     }
   });
   render();

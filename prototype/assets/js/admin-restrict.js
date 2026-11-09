@@ -4,7 +4,7 @@
  * 관련 요구사항: REQ-AUTH-07(영업이 등록할 때 체크), REQ-AUTH-08(관리자가 설정, 해제), REQ-AUTH-09(볼 수 있는 사람),
  *               REQ-AUTH-10(설정, 해제 이력: 누가, 언제, 사유), REQ-AUTH-20(지정 열람자, v0.52 기획자 결정)
  * 하는 일
- *   1. 열람 제한 계약 목록: 고객사(계약번호, 서비스), 지정 열람자(빼기, 맨 아래 열람자 더하기), 상태, 영업대표, 건 때, 관리(풀기)
+ *   1. 열람 제한 계약 목록: 고객사(계약번호, 서비스), 지정 열람자(빼기, 맨 아래 열람자 추가), 상태, 영업대표, 건 때, 관리(풀기)
  *   2. 열람 제한 걸기: 계약번호가 있는 원계약 중 제한이 없는 것을 골라 사유와 함께 검(그 뒤의 변경, 연장, 해지, 운영 변경까지 묶음 전체. 풀 때도 묶음 전체. v0.63 점검)
  *   3. 지정 열람자(v0.52): 기본으로 보는 사람(요청자, 결재선과 단계 담당자, 관리자) 밖에 더 볼 조직이나 사람
  *      - 조직이 기본(인사이동이 저절로 반영), 사람은 예외. 사람은 조직이 바뀌면 지정이 저절로 풀리고 관리자에게 이메일
@@ -31,6 +31,9 @@
   function val(f, n) { return (f.elements[n].value || '').trim(); }
   function find(id) { return D.CONTRACTS.filter(function (c) { return c.id === id; })[0]; }
   function label(c) { return c.id + ' ' + c.counterparty; }
+  // 관리자 변경 이력에 남기는 대상: 열람 제한 계약은 계약번호만(2026-11-06 점검, REQ-AUTH-09)
+  //   이력은 접속 기록 점검(SCR-57)에서 그 계약을 볼 수 없는 정보보호 담당자도 보므로 고객사 이름을 남기지 않음. 이 화면 안의 안내 글은 관리자만 보아 label 그대로
+  function logTarget(c) { return c.id; }
   const KIND = { DEPT: '조직', USER: '사람' };
   // 관찰자 계정인지 (A-9: 지정 열람자로 고를 수 없고, 지정되어도 보지 못함)
   function isObserver(id) {
@@ -61,7 +64,9 @@
           change: '열람자 지정 풀림: ' + C.viewerLabel(v) + '(사람)', reason: '인사이동으로 조직이 바뀜(' + v.deptAtGrant + ' → ' + v.releasedTo + '). 관리자에게 이메일로 알림' });
       });
     });
-    return restrictEvents().concat(viewerLog, released).sort(function (a, b) { return b.at.localeCompare(a.at); });
+    // 계약번호만 남긴 이력(logTarget, 2026-11-06 점검)은 이 화면에서만 고객사 이름을 붙여 보임(관리자는 열람 제한 계약도 봄)
+    const named = function (e) { const c = find(e.target); return c ? Object.assign({}, e, { target: label(c) }) : e; };
+    return restrictEvents().concat(viewerLog, released).map(named).sort(function (a, b) { return b.at.localeCompare(a.at); });
   }
   // 지금 걸려 있는 제한을 건 때와 사람
   //   변경, 연장, 해지, 운영 변경은 원계약의 제한을 이어받음(D-13): 원계약에 건 때를 보여 줌 (v0.58 QA: "-"로 비어 보였음)
@@ -91,7 +96,7 @@
     //   지정이 없으면 "없음"(작은 회색 글자 .cell-meta, PC는 예전 그대로). 휴대폰에서만 지정 줄과 같은 글자 크기에 위 여백 없이(admin.css .viewer-none)
     //   작은 글자일 때 휴대폰에서 옆 칸 첫 줄보다 2px 낮았음(2026-11-03 점검, 해솔테크 줄). PC 표는 바꾸지 않음(2026-11-03 검토)
     return (rows || '<span class="cell-meta viewer-none">없음</span>') + inherited +
-      '<button type="button" class="link-act viewer-add" data-viewer="' + esc(root.id) + '" aria-label="' + esc(c.counterparty) + ' 열람자 더하기">열람자 더하기</button>';
+      '<button type="button" class="link-act viewer-add" data-viewer="' + esc(root.id) + '" aria-label="' + esc(c.counterparty) + ' 열람자 추가">열람자 추가</button>';
   }
 
   function render() {
@@ -104,7 +109,8 @@
           '<span class="cell-meta">' + esc(C.serviceLabel(c.services)) + '</span></td>' +
         '<td class="col-viewers">' + viewersCell(c) + '</td>' +
         '<td class="nowrap">' + C.statusBadge(c) + '</td>' +
-        '<td class="center">' + esc(C.ownerLabel(c.requesterId)) + '</td>' +
+        // 영업대표는 지금 영업대표(C-44). 처음 기안한 사람을 보이던 것을 고침(2026-11-06 점검). 바뀌었으면 작은 줄에 처음 기안한 사람(진행 현황과 같음)
+        '<td class="center">' + esc(C.ownerLabel(C.salesRepOf(c))) + (C.salesRepOf(c) !== c.requesterId ? '<span class="cell-meta">처음 기안 ' + esc(C.ownerLabel(c.requesterId)) + '</span>' : '') + '</td>' +
         '<td class="num-left">' + setInfo(c.id) + '</td>' +
         '<td class="col-action"><button type="button" class="link-act link-act--danger" data-off="' + esc(c.id) + '" aria-label="' + esc(c.counterparty) + ' 열람 제한 풀기">풀기</button></td></tr>';
     }).join('') : '<tr><td class="empty-row" colspan="6">열람 제한 계약이 없습니다.</td></tr>';
@@ -128,7 +134,7 @@
       },
       done: function (f) {
         const c = find(val(f, 'cid'));
-        C.adminSave('RESTRICT', label(c), '열람 제한 설정', val(f, 'reason'), { k: 'RESTRICT', id: c.id, on: true });
+        C.adminSave('RESTRICT', logTarget(c), '열람 제한 설정', val(f, 'reason'), { k: 'RESTRICT', id: c.id, on: true });
         render();
         C.toast(c.counterparty + ' 계약에 열람 제한을 걸었습니다.');
       },
@@ -144,7 +150,7 @@
       btn: '열람 제한 풀기', tone: 'danger',
       check: function (f) { return { reason: val(f, 'reason') ? '' : '푸는 사유를 적으세요.' }; },
       done: function (f) {
-        C.adminSave('RESTRICT', label(c), '열람 제한 해제', val(f, 'reason'), { k: 'RESTRICT', id: c.id, on: false });
+        C.adminSave('RESTRICT', logTarget(c), '열람 제한 해제', val(f, 'reason'), { k: 'RESTRICT', id: c.id, on: false });
         render();
         C.toast(c.counterparty + ' 계약의 열람 제한을 풀었습니다.');
       },
@@ -162,7 +168,7 @@
       .map(function (a) { return [a.id, (a.dept ? a.dept + ' ' : '') + a.name + (isAuditing(a.id) ? ' (감사 열람 중)' : '')]; })
       .sort(function (a, b) { return a[1].localeCompare(b[1], 'ko'); });
     C.formModal({
-      title: '열람자를 더할까요?',
+      title: '열람자를 추가할까요?',
       desc: '이 계약 묶음(원계약과 그 변경, 연장, 해지)을 볼 수 있게 됩니다. 지정하면 그 사람(조직이면 그 조직 사람 모두)에게 이메일로 알립니다.',
       body: '<p class="modal-info">' + esc(label(root)) + '</p>' +
         C.fieldHtml({ name: 'kind', label: '지정할 것', type: 'select', required: true, value: 'DEPT', options: [['DEPT', '조직 (기본: 인사이동이 저절로 반영)'], ['USER', '사람 (예외: 조직이 바뀌면 저절로 풀림)']] }) +
@@ -172,7 +178,7 @@
           help: '이 사람이 다른 조직으로 옮기면 지정이 저절로 풀리고 관리자에게 이메일로 알립니다. 꼭 필요할 때만 씁니다. 관찰자는 고를 수 없습니다. ' +
             '감사 열람 중인 사람은 지정하지 않아도 보고, 지정하면 감사 열람이 끝나도 계속 봅니다.' }) + '</div>' +
         C.fieldHtml({ name: 'reason', label: '지정하는 사유', type: 'textarea', required: true, placeholder: '예: 총판 계약이라 매출 인식 방법을 재무기획유닛이 미리 검토' }),
-      btn: '열람자 더하기',
+      btn: '열람자 추가',
       open: function (f) {
         function sync() {
           const k = val(f, 'kind');
@@ -193,7 +199,7 @@
         const v = k === 'DEPT' ? { kind: 'DEPT', dept: val(f, 'dept') }
           : { kind: 'USER', userId: val(f, 'user'), deptAtGrant: (D.USERS[val(f, 'user')] || {}).dept || '' };
         const name = C.viewerLabel(v);
-        C.adminSave('RESTRICT', label(root), '열람자 지정: ' + name + '(' + KIND[k] + ')', val(f, 'reason'), { k: 'VIEWER_ADD', id: root.id, v: v });
+        C.adminSave('RESTRICT', logTarget(root), '열람자 지정: ' + name + '(' + KIND[k] + ')', val(f, 'reason'), { k: 'VIEWER_ADD', id: root.id, v: v });
         render();
         C.toast(C.josa(name, '을', '를') + ' 열람자로 지정했습니다. ' + (k === 'DEPT' ? '그 조직 사람들에게' : '지정된 사람에게') + ' 이메일로 알렸습니다.');
       },
@@ -211,7 +217,7 @@
       btn: '열람자에서 빼기', tone: 'danger',
       check: function (f) { return { reason: val(f, 'reason') ? '' : '빼는 사유를 적으세요.' }; },
       done: function (f) {
-        C.adminSave('RESTRICT', label(root), '열람자 뺌: ' + C.viewerLabel(v) + '(' + KIND[v.kind] + ')', val(f, 'reason'), { k: 'VIEWER_REMOVE', id: root.id, key: key });
+        C.adminSave('RESTRICT', logTarget(root), '열람자 뺌: ' + C.viewerLabel(v) + '(' + KIND[v.kind] + ')', val(f, 'reason'), { k: 'VIEWER_REMOVE', id: root.id, key: key });
         render();
         C.toast(C.josa(C.viewerLabel(v), '을', '를') + ' 열람자에서 뺐습니다.');
       },

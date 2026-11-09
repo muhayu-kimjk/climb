@@ -63,19 +63,32 @@
   // 표의 일시: 날짜와 시각을 각각 한 줄로("2026-" 뒤에서 끊기지 않게, 관리자 변경 이력과 같음)
   function dt(at) { return C.fmtDateTime(at).split(' ').map(function (s) { return '<span class="keep">' + s + '</span>'; }).join(' '); }
   const THIS_MONTH = D.TODAY.slice(0, 7);
-  // 누를 수 없는 단추와 짧은 까닭 (C-6)
-  function offBtn(label, why) { return '<button type="button" class="link-act" disabled>' + esc(label) + '</button><span class="cell-meta">' + esc(why) + '</span>'; }
+  // 표 안 단추 뒤에 붙이는 줄 이름: 줄마다 같은 "결과 남기기"라 화면낭독기가 어느 줄인지 알게 함. 보이는 글이 이름의 앞에 오게 뒤에 붙임(2026-11-06 점검)
+  function rowName(t) { return '<span class="sr-only"> ' + esc(t) + '</span>'; }
+  // 누를 수 없는 단추와 짧은 까닭 (C-6). row: 줄 이름(화면낭독기용, 2026-11-06 점검)
+  function offBtn(label, why, row) { return '<button type="button" class="link-act" disabled>' + esc(label) + (row ? rowName(row) : '') + '</button><span class="cell-meta">' + esc(why) + '</span>'; }
 
   // 이 화면을 연 것도 접속 기록에 남음 (REQ-ADM-18). 시연에서는 화면을 열 때마다 한 줄
   const OPENED = C.nowStamp();
-  function buildLogs() { return X.accessLogs([{ at: OPENED, userId: me.id, act: 'VIEW', target: '접속 기록 점검 화면' }]); }
+  // 열람 제한 계약을 볼 수 없는 사람(C.canView)에게는 기록 대상의 고객사 이름을 빼고 계약번호만 보임(2026-11-06 점검, REQ-AUTH-09)
+  //   예전에 "계약번호 고객사"로 남은 기록(이 브라우저의 시연 기록 포함)도 가림. 검색어로도 이름이 걸리지 않게 거르기 전에 바꿈
+  const hidden = D.CONTRACTS.filter(function (c) { return c.id && c.restricted && !C.canView(c, me); });
+  function hideName(t) {
+    if (!t) return t;
+    return hidden.reduce(function (s, c) { return s.split(c.id + ' ' + c.counterparty).join(c.id); }, t);
+  }
+  function buildLogs() {
+    return X.accessLogs([{ at: OPENED, userId: me.id, act: 'VIEW', target: '접속 기록 점검 화면' }])
+      .map(function (l) { return Object.assign({}, l, { target: hideName(l.target) }); });
+  }
   let logs = buildLogs();
 
   /* ---------- 1. 이상 행위 알림 ---------- */
   function alertAction(a) {
     if (readOnly || (!isPrivacy && !isSuper)) return '-';
-    if (a.userId === me.id) return offBtn('결과 남기기', '본인 알림'); // 자기에 대한 알림은 다른 사람이 확인(C-6과 같은 원칙)
-    return '<button type="button" class="link-act" data-alert="' + esc(a.id) + '">결과 남기기</button>';
+    const row = C.fmtDateTime(a.at) + ' ' + C.ownerLabel(a.userId); // 줄 이름: 일시와 사람(2026-11-06 점검)
+    if (a.userId === me.id) return offBtn('결과 남기기', '본인 알림', row); // 자기에 대한 알림은 다른 사람이 확인(C-6과 같은 원칙)
+    return '<button type="button" class="link-act" data-alert="' + esc(a.id) + '">결과 남기기' + rowName(row) + '</button>';
   }
   function renderAlerts() {
     const open = D.SEC_ALERTS.filter(function (a) { return a.status === 'OPEN'; }).length;
@@ -140,8 +153,8 @@
   function selfCount(ym) { return logs.filter(function (l) { return l.userId === me.id && l.at.slice(0, 7) === ym; }).length; }
   function monthAction(x) {
     if (readOnly || (!isPrivacy && !isSuper)) return '-';
-    if (isSuper) { const n = selfCount(x.ym); if (n) return offBtn('결과 남기기', '본인 작업 ' + n + '건'); }
-    return '<button type="button" class="link-act" data-month="' + x.ym + '">결과 남기기</button>';
+    if (isSuper) { const n = selfCount(x.ym); if (n) return offBtn('결과 남기기', '본인 작업 ' + n + '건', monthLabel(x.ym)); }
+    return '<button type="button" class="link-act" data-month="' + x.ym + '">결과 남기기' + rowName(monthLabel(x.ym)) + '</button>'; // 줄 이름: 달(2026-11-06 점검)
   }
   function renderMonths() {
     $('#month-rows').innerHTML = months().map(function (x) {
@@ -174,7 +187,23 @@
         '<div class="choice-row"><label class="choice"><input type="radio" name="result" value="OK">' + esc(okLabel) + '</label>' +
         '<label class="choice"><input type="radio" name="result" value="ACTION">조치함</label></div><p class="field-error" hidden></p></fieldset>' +
       C.fieldHtml({ name: 'note', label: '확인한 내용', type: 'textarea', required: true }) +
-      C.fieldHtml({ name: 'act', label: '조치', type: 'textarea', help: '조치함을 고르면 꼭 적습니다. 예: 퇴사자 계정 사용 중지 요청(관리자, 2026-10-02 처리)' });
+      // 조치는 "조치함"을 고를 때만 필수. 처음엔 (선택)으로 보이고, 조치함을 고르면 필수 표시로 바꿈(wireAct, 2026-11-06 점검 3회차)
+      C.fieldHtml({ name: 'act', label: '조치', type: 'textarea', optional: true, help: '조치함을 고르면 꼭 적습니다. 예: 퇴사자 계정 사용 중지 요청(관리자, 2026-10-02 처리)' })
+        .replace(' <span class="opt">', '<span class="req" aria-hidden="true" hidden>*</span><span class="sr-only act-sr" hidden>(필수)</span> <span class="opt">');
+  }
+  // 결과를 고를 때마다 조치 칸 이름의 필수 표시를 바꿈. 계약 등록의 사용 업체 칸과 같은 방식(new-contract.js syncOrg, 2026-11-06 점검 3회차)
+  function wireAct(f) {
+    const box = f.querySelector('[data-field="act"]');
+    const sync = function () {
+      const r = f.querySelector('[name="result"]:checked');
+      const need = !!(r && r.value === 'ACTION');
+      box.querySelector('.req').hidden = !need;
+      box.querySelector('.act-sr').hidden = !need;
+      box.querySelector('.opt').hidden = need;
+      if (!need) C.setFieldError(box, ''); // 이상 없음으로 바꾸면 앞의 "조치를 적으세요"는 맞지 않으므로 지움
+    };
+    f.querySelectorAll('[name="result"]').forEach(function (x) { x.addEventListener('change', sync); });
+    sync();
   }
   function checkResult(f) {
     const r = f.querySelector('[name="result"]:checked');
@@ -193,7 +222,7 @@
       body: '<div class="modal-info"><ul class="summary-list">' + lines.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') +
         '<li>설정 변경과 최고관리자 작업의 자세한 목록은 화면의 "설정 변경", "최고관리자 작업" 묶음에서 봅니다.</li></ul></div>' + resultFields('이상 없음'),
       btn: '점검 결과 저장',
-      open: function (f) { f.elements.note.placeholder = '예: 접속 기록과 내려받기 기록 확인. 업무 시간 밖 접속은 모두 결재 처리로 확인함'; },
+      open: function (f) { wireAct(f); f.elements.note.placeholder = '예: 접속 기록과 내려받기 기록 확인. 업무 시간 밖 접속은 모두 결재 처리로 확인함'; },
       check: checkResult,
       done: function (f) {
         const r = { month: ym, result: f.querySelector('[name="result"]:checked').value, note: val(f, 'note'), action: val(f, 'act'), seen: lines.join(' / ') };
@@ -227,8 +256,9 @@
   }
   function superAction(x) {
     if (readOnly) return '-';
-    if (isPrivacy) return '<button type="button" class="link-act" data-super="' + x.ym + '">결과 남기기</button>';
-    return isSuper ? offBtn('결과 남기기', '정보보호만 남김') : '-';
+    // 줄 이름: 달(2026-11-06 점검)
+    if (isPrivacy) return '<button type="button" class="link-act" data-super="' + x.ym + '">결과 남기기' + rowName(monthLabel(x.ym)) + '</button>';
+    return isSuper ? offBtn('결과 남기기', '정보보호만 남김', monthLabel(x.ym)) : '-';
   }
   function renderSuper() {
     const recs = superReviews();
@@ -253,7 +283,7 @@
           }).join('') : '<tr><td class="empty-row" colspan="4">이달 최고관리자 작업이 없습니다.</td></tr>') + '</tbody></table></div>' +
         resultFields('이상 없음'),
       btn: '점검 결과 저장',
-      open: function (f) { f.elements.note.placeholder = '예: 9월 1일 시스템 도입 설정과 감사 열람 부여 1건 확인. 결재 단계 처리 없음'; },
+      open: function (f) { wireAct(f); f.elements.note.placeholder = '예: 9월 1일 시스템 도입 설정과 감사 열람 부여 1건 확인. 결재 단계 처리 없음'; },
       check: checkResult,
       done: function (f) {
         const r = { month: ym, result: f.querySelector('[name="result"]:checked').value, note: val(f, 'note'), action: val(f, 'act'), seen: seen };
@@ -331,8 +361,9 @@
   // C-6: 분기 검토에는 최고관리자 자기 계정(관리자 권한 줄)과 자기가 준 권한(감사 열람 등)이 늘 들어 있어 최고관리자는 남기지 못함
   function quarterAction(x) {
     if (readOnly) return '-';
-    if (isPrivacy) return '<button type="button" class="link-act" data-quarter="' + x.key + '">결과 남기기</button>';
-    return isSuper ? offBtn('결과 남기기', '본인 계정이 듦') : '-';
+    // 줄 이름: 분기(2026-11-06 점검)
+    if (isPrivacy) return '<button type="button" class="link-act" data-quarter="' + x.key + '">결과 남기기' + rowName(x.label) + '</button>';
+    return isSuper ? offBtn('결과 남기기', '본인 계정이 듦', x.label) : '-';
   }
   function renderQuarters() {
     $('#quarter-rows').innerHTML = quarters().map(function (x) {
@@ -421,7 +452,7 @@
       desc: '저장하면 검토한 사람과 일시, 결과가 남고 고칠 수 없습니다. 권한을 바꿔야 하면 관리자에게 요청하고 조치에 적습니다.',
       body: '<div class="modal-info">' + accessSummary(q) + '</div>' + resultFields('이상 없음'),
       btn: '검토 결과 저장',
-      open: function (f) { f.elements.note.placeholder = '예: 모든 계정의 권한이 하는 일에 맞음. 권한을 바꾼 기록 모두 사유 있음'; },
+      open: function (f) { wireAct(f); f.elements.note.placeholder = '예: 모든 계정의 권한이 하는 일에 맞음. 권한을 바꾼 기록 모두 사유 있음'; },
       check: checkResult,
       done: function (f) {
         const r = { quarter: key, result: f.querySelector('[name="result"]:checked').value, note: val(f, 'note'), action: val(f, 'act'), seen: accessLines(q).join(' / ') };
@@ -572,7 +603,11 @@
   const ADM_AREA = Object.assign({}, X.AREA, { AUDIT: '점검 기록' });
   $('#adm-area').innerHTML = '<option value="">전체</option>' + Object.keys(ADM_AREA).map(function (k) { return '<option value="' + k + '">' + esc(ADM_AREA[k]) + '</option>'; }).join('');
   let admPage = 1;
-  function admAll() { return C.adminLog().concat(C.roleEndLog()).sort(function (a, b) { return b.at.localeCompare(a.at); }); }
+  // 대상의 고객사 이름은 볼 수 있을 때만(hideName, 2026-11-06 점검)
+  function admAll() {
+    return C.adminLog().concat(C.roleEndLog()).map(function (e) { return Object.assign({}, e, { target: hideName(e.target) }); })
+      .sort(function (a, b) { return b.at.localeCompare(a.at); });
+  }
   function renderAdminLog() {
     const all = admAll(), area = $('#adm-area').value, q = $('#adm-q').value.trim().toLowerCase();
     const list = all.filter(function (e) {
@@ -600,7 +635,8 @@
     renderAdminLog(); // 이 화면에서 남긴 점검 기록도 바로 보이게(C-2)
   }
   $('#filter').addEventListener('input', function () { page = 1; renderLogs(); });
-  $('#filter').addEventListener('change', function () { page = 1; renderLogs(); });
+  // 검색 칸은 'input'이 이미 그렸으므로 'change'(칸을 떠날 때)에서 다시 그리지 않음. 다시 그리면 누르던 줄이나 쪽 번호가 바뀌어 클릭이 사라짐(2026-11-06 점검 4회차)
+  $('#filter').addEventListener('change', function (e) { if (e.target.matches('input[type=search], input[type=text]')) return; page = 1; renderLogs(); });
   $('#filter').addEventListener('reset', function () { setTimeout(function () { page = 1; renderLogs(); }, 0); });
   $('#filter').addEventListener('submit', function (e) { e.preventDefault(); });
   $('#cfg-filter').addEventListener('change', function () { cfgPage = 1; renderConfig(); });
@@ -608,7 +644,7 @@
   $('#q-filter').addEventListener('change', renderQData);
   $('#q-filter').addEventListener('submit', function (e) { e.preventDefault(); });
   $('#adm-filter').addEventListener('input', function () { admPage = 1; renderAdminLog(); });
-  $('#adm-filter').addEventListener('change', function () { admPage = 1; renderAdminLog(); });
+  $('#adm-filter').addEventListener('change', function (e) { if (e.target.matches('input[type=search], input[type=text]')) return; admPage = 1; renderAdminLog(); });
   $('#adm-filter').addEventListener('reset', function () { setTimeout(function () { admPage = 1; renderAdminLog(); }, 0); });
   $('#adm-filter').addEventListener('submit', function (e) { e.preventDefault(); });
   $('#content').addEventListener('click', function (e) {
@@ -621,9 +657,10 @@
     else if (b.getAttribute('data-month')) openMonth(b.getAttribute('data-month'));
     else if (b.getAttribute('data-super')) openSuper(b.getAttribute('data-super'));
     else if (b.getAttribute('data-quarter')) openQuarter(b.getAttribute('data-quarter'));
-    else if (b.getAttribute('data-page') && b.closest('#cfg-pagination')) { cfgPage = Number(b.getAttribute('data-page')); renderConfig(); $('#sec-config').scrollIntoView({ block: 'start' }); }
-    else if (b.getAttribute('data-page') && b.closest('#adm-pagination')) { admPage = Number(b.getAttribute('data-page')); renderAdminLog(); $('#sec-admin-log').scrollIntoView({ block: 'start' }); }
-    else if (b.getAttribute('data-page')) { page = Number(b.getAttribute('data-page')); renderLogs(); $('#sec-log').scrollIntoView({ block: 'start' }); }
+    // 쪽 번호: 누른 단추가 다시 그려져 없어지므로 초점도 그 묶음 제목으로(2026-11-06 점검 3회차)
+    else if (b.getAttribute('data-page') && b.closest('#cfg-pagination')) { cfgPage = Number(b.getAttribute('data-page')); renderConfig(); C.focusSection('#sec-config'); }
+    else if (b.getAttribute('data-page') && b.closest('#adm-pagination')) { admPage = Number(b.getAttribute('data-page')); renderAdminLog(); C.focusSection('#sec-admin-log'); }
+    else if (b.getAttribute('data-page')) { page = Number(b.getAttribute('data-page')); renderLogs(); C.focusSection('#sec-log'); }
   });
   refresh();
 })();

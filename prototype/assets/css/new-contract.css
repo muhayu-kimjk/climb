@@ -122,6 +122,8 @@ html:has(.form-actions.action-bar) { scroll-padding-bottom: calc(var(--height-md
 .confirm-list > div { display: grid; grid-template-columns: 10rem minmax(0, 1fr); gap: 1.2rem; padding: 0.8rem 0; border-bottom: 1px solid var(--border-gray-light); font-size: var(--fs-body-small); }
 .confirm-list dt { color: var(--text-subtle); }
 .confirm-list dd { color: var(--text-bolder); font-weight: 700; }
+/* 금액은 표 밖에서도 오른쪽 정렬(계약 등록, 운영 변경 확인 창의 금액 줄) (2026-11-06 점검) */
+.confirm-list dd.amount { text-align: right; font-variant-numeric: tabular-nums; }
 
 /* ---------- 휴대폰 화면 (방식 B) ----------
  * 제품 상자: 서비스, 제품, 기능, 수량, 계약 금액 모두 한 줄에 하나 */

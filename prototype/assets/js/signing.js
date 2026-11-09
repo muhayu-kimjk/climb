@@ -23,7 +23,8 @@
   document.querySelectorAll('[data-rule]').forEach(function (el) { el.textContent = D.ALERT_RULES[el.getAttribute('data-rule')]; });
   const SIGN_STEPS = ['S06', 'S07', 'S08'];
 
-  const seeAll = me.role === 'SUPER' || me.role === 'ADMIN';
+  // 관리자 보기는 뺌(기획자 결정 2026-11-09: 관리자는 처리하지 않고, 이 화면은 관리자 메뉴에도 없었음). 최고관리자는 시연용으로 모두 봄
+  const seeAll = me.role === 'SUPER';
   // 기획자 결정 2026-11-03(C-44): 내 계약은 내가 지금 영업대표인 계약(C.isSalesRep: 넘겨받은 계약, 맡을 수 없는 영업대표 대신 맡는 영업 리더)
   //   ⑦ 차례가 그 사람에게 가므로(common.js stepUser) 이 목록도 같은 사람에게. 영업 역할이 아니어도 그런 계약이 있으면 들어옴
   const repOwn = function (c) { return C.isSalesRep(c, me); };
@@ -89,7 +90,8 @@
       const daysSub = '<span class="cell-sub">' + (x.at8 ? '대기 ' : '승인 후 ') + days + '</span>';
       const cust = visible
         ? '<a class="cell-title" href="review.html?id=' + encodeURIComponent(x.c.id) + '">' + esc(x.c.counterparty) + '</a>' +
-          '<span class="cell-sub">' + service + '</span>' + daysSub + '<span class="cell-meta">' + esc(x.c.id) + (x.c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span>'
+          '<span class="cell-sub">' + service + '</span>' + daysSub + '<span class="cell-meta">' + esc(x.c.id) + (x.c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span>' +
+          (C.holdOf(x.c) ? '<span class="cell-meta">' + C.holdBadge(C.holdOf(x.c)) + '</span>' : '') // 보류 중이면 배지(기획자 결정 2026-11-09: 결재하는 사람이 목록에서 바로 알게. 전체 진행 현황 progress.js와 같은 모양, REQ-CMP-04 ③)
         : '<span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>' + daysSub;
       // 지금 단계와 담당자. ⑦이 내 차례면 배지로 알림. 단계 이름 끝의 "대기", "중"은 떼어 전체 진행 현황과 같게(REQ-DASH-06)
       //   기획자 결정 2026-11-02 B-5: 견적서로 계약서를 대신한 계약은 "⑦ 견적서 등록", "⑧ 견적서 확인"(C.stepIng)
@@ -111,7 +113,8 @@
   }
 
   $('#filter').addEventListener('input', function () { page = 1; render(); });
-  $('#filter').addEventListener('change', function () { page = 1; render(); });
+  // 검색 칸은 'input'이 이미 그렸으므로 'change'(칸을 떠날 때)에서 다시 그리지 않음. 다시 그리면 누르던 줄이나 쪽 번호가 바뀌어 클릭이 사라짐(2026-11-06 점검 4회차)
+  $('#filter').addEventListener('change', function (e) { if (e.target.matches('input[type=search], input[type=text]')) return; page = 1; render(); });
   $('#filter').addEventListener('reset', function () { setTimeout(function () { page = 1; render(); }, 0); });
   $('#filter').addEventListener('submit', function (e) { e.preventDefault(); });
   $('#pagination').addEventListener('click', function (e) {
@@ -119,7 +122,8 @@
     if (!b || b.disabled) return;
     page = Number(b.getAttribute('data-page'));
     render();
-    $('#list').scrollIntoView({ block: 'start' });
+    // 쪽 번호를 다시 그려 누른 단추가 없어지므로 초점을 목록 제목으로 옮기고 화면도 거기로(2026-11-06 점검 3회차)
+    C.focusSection('#list-title');
   });
   render();
 })();

@@ -169,7 +169,8 @@
     else C.openGraceDecide(b, me, act === 'ok', render);
   });
   $('#filter').addEventListener('input', render);
-  $('#filter').addEventListener('change', render);
+  // 검색 칸은 'input'이 이미 그렸으므로 'change'(칸을 떠날 때)에서 다시 그리지 않음. 다시 그리면 누르던 줄이나 쪽 번호가 바뀌어 클릭이 사라짐(2026-11-06 점검 4회차)
+  $('#filter').addEventListener('change', function (e) { if (e.target.matches('input[type=search], input[type=text]')) return; render(); });
   $('#filter').addEventListener('reset', function () { setTimeout(render, 0); });
   $('#filter').addEventListener('submit', function (e) { e.preventDefault(); });
   render();

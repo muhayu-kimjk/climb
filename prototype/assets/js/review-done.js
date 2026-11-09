@@ -18,7 +18,8 @@
   const $ = function (s) { return document.querySelector(s); };
   const PAGE_SIZE = 20;
 
-  const seeAll = me.role === 'SUPER' || me.role === 'ADMIN';
+  // 관리자 보기는 뺌(기획자 결정 2026-11-09: 관리자는 처리하지 않고, 이 화면은 관리자 메뉴에도 없었음). 최고관리자는 시연용으로 모두 봄
+  const seeAll = me.role === 'SUPER';
   if (!seeAll && !C.hasRole(me, D.PROCESS_ROLES)) {
     $('#notice').innerHTML = C.noticeBox('', '검토 완료는 단계를 처리하는 역할만 씁니다',
       '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다.');
@@ -96,21 +97,22 @@
       return '<tr>' +
         '<td class="num-left">' + C.fmtDateTime(x.h.at).split(' ').map(function (s) { return '<span class="keep">' + s + '</span>'; }).join(' ') + '</td>' + // 날짜와 시각을 각각 한 줄로("2026-10-" 뒤에서 끊기지 않게). 결재 문서의 결재 기록과 같은 방식 (첫 사용 점검)
         '<td><a class="cell-title" href="review.html?id=' + encodeURIComponent(x.c.id) + '">' + esc(x.c.counterparty) + '</a>' +
-          '<span class="cell-sub">' + C.statusBadge(x.c) + '</span>' + // 휴대폰에서만 보이는 상태 배지 줄 (D-9)
+          '<span class="cell-sub">' + C.statusBadge(x.c) + (C.holdOf(x.c) ? ' ' + C.holdBadge(C.holdOf(x.c)) : '') + '</span>' + // 휴대폰에서만 보이는 상태 배지 줄 (D-9). 보류 배지도(기획자 결정 2026-11-09)
           // 계약번호는 날짜처럼 한 줄로 (마지막 하이픈에서 끊기지 않게). 서비스와 차수는 쉼표 뒤에서 줄이 바뀔 수 있음
           '<span class="cell-meta"><span class="nowrap">' + esc(x.c.id) + '</span>, ' + esc(C.serviceLabel(x.c.services)) + ', ' + (x.h.round || 1) + '차</span></td>' +
         '<td class="nowrap">' + esc(stepTag(x.h.step, x.c)) + '</td>' + // PC에서도 번호와 이름을 한 줄로("②"만 윗줄에 남지 않게). 짧은 칸이라 검토 대기의 단계 칸처럼 가운데 (첫 사용 점검)
         '<td class="nowrap">' + C.badge(a.tone, C.actionLabel(x.h, x.c)) + '</td>' +
         (seeAll ? '<td class="center cell-phone-nowrap">' + esc(C.ownerLabel(x.h.actorId, x.h.actorDept)) + (x.h.onBehalfOf ? '<span class="cell-meta">' + esc(C.ownerLabel(x.h.onBehalfOf)) + ' 대신</span>' : '') + '</td>' : '') +
         '<td>' + (x.h.comment ? esc(commentText(x.h)) : '-') + '</td>' + // 확인 문장은 개수만 (D-11)
-        '<td class="nowrap col-status">' + C.statusBadge(x.c) + '</td>' + // 휴대폰에서는 감춤 (D-9)
+        '<td class="nowrap col-status">' + C.statusBadge(x.c) + (C.holdOf(x.c) ? '<span class="cell-meta">' + C.holdBadge(C.holdOf(x.c)) + '</span>' : '') + '</td>' + // 휴대폰에서는 감춤 (D-9). 보류 중이면 배지(기획자 결정 2026-11-09)
       '</tr>';
     }).join('') : '<tr><td class="empty-row" colspan="' + cols + '">' + (all.length ? '조건에 맞는 기록이 없습니다.' : '아직 처리한 결재가 없습니다.') + '</td></tr>';
     $('#pagination').innerHTML = C.pagerHtml(page, pages, list.length, from, rows.length, PAGE_SIZE, '건');
   }
 
   $('#filter').addEventListener('input', function () { page = 1; render(); });
-  $('#filter').addEventListener('change', function () { page = 1; render(); });
+  // 검색 칸은 'input'이 이미 그렸으므로 'change'(칸을 떠날 때)에서 다시 그리지 않음. 다시 그리면 누르던 줄이나 쪽 번호가 바뀌어 클릭이 사라짐(2026-11-06 점검 4회차)
+  $('#filter').addEventListener('change', function (e) { if (e.target.matches('input[type=search], input[type=text]')) return; page = 1; render(); });
   $('#filter').addEventListener('reset', function () { setTimeout(function () { page = 1; render(); }, 0); });
   $('#filter').addEventListener('submit', function (e) { e.preventDefault(); });
   $('#pagination').addEventListener('click', function (e) {
@@ -118,7 +120,8 @@
     if (!b || b.disabled) return;
     page = Number(b.getAttribute('data-page'));
     render();
-    $('#list').scrollIntoView({ block: 'start' });
+    // 쪽 번호를 다시 그려 누른 단추가 없어지므로 초점을 목록 제목으로 옮기고 화면도 거기로(2026-11-06 점검 3회차)
+    C.focusSection('#list-title');
   });
   render();
 })();

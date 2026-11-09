@@ -16,6 +16,8 @@
 /* 표 줄 안의 관리 버튼: 글자 링크 모양. 조심할 일(해제, 끝내기)은 핑크 */
 .link-act { min-height: var(--touch-min); padding: 0 0.2rem; font-size: var(--fs-body-small); font-weight: 700; color: var(--text-primary); text-decoration: underline; text-underline-offset: 0.3rem; white-space: nowrap; }
 .link-act + .link-act { margin-left: 1rem; }
+/* 단추 안 화면낭독기용 줄 이름(.sr-only, position: absolute)이 표 밖 기준으로 자리 잡아 휴대폰에서 화면을 옆으로 넓히지 않게 단추를 기준으로(2026-11-06 점검, quote.css와 같은 까닭) */
+.link-act { position: relative; }
 .link-act--danger { color: var(--text-danger); }
 .link-act:disabled { color: var(--text-disabled); text-decoration: none; cursor: default; }
 /* 체결 후 의무의 할 일(기록 남기기, 기록 보기, 끝내기. 기획자 결정 2026-11-02 D-15): 좁은 칸에서 한 줄에 하나씩 (v0.53) */
@@ -27,6 +29,8 @@
 .ob-info { display: grid; grid-template-columns: 8rem minmax(0, 1fr); gap: 0.6rem 1.2rem; margin-bottom: 1.6rem; font-size: var(--fs-body-small); text-align: left; }
 .ob-info dt { color: var(--text-subtle); }
 .ob-info > div { display: contents; }
+/* 이행 기록 보기 창의 청구 금액: 금액은 표 안팎 모두 오른쪽 정렬, 자릿수 폭을 같게(2026-11-06 점검) */
+.ob-info dd.amount { text-align: right; font-variant-numeric: tabular-nums; }
 
 /* 표 안의 굵은 주 정보와 흐린 줄(사용 안 함, 끝남) */
 .tbl .cell-strong { font-weight: 700; color: var(--text-basic); }
@@ -60,6 +64,8 @@
 .seen-data { margin-top: 0.4rem; }
 .seen-data summary { width: fit-content; cursor: pointer; font-size: var(--fs-body-small); color: var(--text-primary); }
 .seen-data summary:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
+/* 감사 증빙이라 어느 화면을 인쇄하든 펼쳐 찍음(기획자 결정 2026-11-09. 그전에는 통계 마감 보고서만) */
+@media print { .seen-data summary { display: none; } .seen-data::details-content { content-visibility: visible; } }
 .check-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.6rem; }
 /* 표 아래 보조 버튼 (결재선 규칙의 유닛 추가) */
 .sub-actions { display: flex; justify-content: flex-end; margin-top: 1.2rem; }

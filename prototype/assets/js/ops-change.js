@@ -32,6 +32,14 @@
   const found = D.CONTRACTS.find(function (c) { return c.id === origin; });
   const b = found ? C.bundleOf(C.rootOf(found)) : null;
   const back = b ? 'contract.html?id=' + encodeURIComponent(b.id) : 'contracts.html';
+  // 2026-11-06 점검: ?id=의 기록이 있고 볼 수 있는데 지금 다시 기안할 수 없으면 "찾을 수 없습니다" 대신 그 까닭과 결재 문서로 가는 길을 알림
+  //   "찾을 수 없습니다"는 없는 번호(또는 볼 수 없는 기록)일 때만. 해지, 연장 검토와 같은 말
+  const idRec = params.get('id') && !again ? D.CONTRACTS.find(function (c) { return c.id === params.get('id'); }) : null;
+  if (idRec && C.canView(idRec, me)) {
+    $('#notice').innerHTML = notice('보완 후 재기안할 수 없는 기안입니다', '이 기안은 지금 보완 후 재기안할 수 없습니다(이미 다시 기안했거나 지금 영업대표가 아님). ' +
+      '<a class="doc-link" href="review.html?id=' + encodeURIComponent(idRec.id) + '">결재 문서 보기</a>');
+    return;
+  }
   if (!b || !C.canView(b.root, me)) {
     $('#notice').innerHTML = notice('변경할 계약을 찾을 수 없습니다', '계약 상세에서 "운영 변경 기안"을 눌러 들어와 주세요.');
     return;
@@ -88,9 +96,10 @@
     info('서비스', esc(C.serviceLabel(root.services))),
     info('계약 기간', C.fmtPeriod(b.start, b.end)),
     // 기획자 결정 2026-11-03(C-44): 지금 영업대표. 바뀌었으면 처음 기안한 사람, 맡을 수 없으면 "담당 지정 필요"(계약 상세와 같음)
+    // "담당 지정 필요"는 계약 상세, 결재 화면처럼 주의 배지로 보임(회색 글자였음) (2026-11-06 점검)
     info('영업대표', esc(C.ownerLabel(C.salesRepOf(b))) +
       (C.salesRepOf(b) !== root.requesterId ? '<span class="cell-meta">처음 기안 ' + esc(C.ownerLabel(root.requesterId)) + '</span>' : '') +
-      (C.repNote(b) ? '<span class="cell-meta">' + esc(C.repNote(b)) + '</span>' : '')),
+      (C.repNote(b) ? '<span class="cell-meta">' + C.badge('attention', C.repNote(b)) + '</span>' : '')),
     info('진행 중인 일', b.open.length ? b.open.map(function (o) { return esc(o.id + ' ' + C.kindLabel(o)); }).join('<br>') : '없음'),
   ].join('');
   $('#number-help').textContent = again ? '같은 번호 ' + newId + '의 ' + ((again.round || 1) + 1) + '차로 기안합니다.' : '기안하면 ' + newId + '(운영 변경)로 원계약과 함께 묶입니다.';
@@ -106,7 +115,10 @@
   }).join('');
   $('#f-end').min = D.TODAY;
   const typeOf = function () { const r = document.querySelector('[name="type"]:checked'); return r ? r.value : ''; };
-  const num = function (v) { const n = String(v || '').replace(/[^0-9]/g, ''); return n ? parseInt(n, 10) : 0; };
+  // 수량과 금액 칸은 숫자, 쉼표, 띄어쓰기만 받음. 다른 글자가 섞이면 그 글자를 말없이 지우고 셈하던 것을 고쳐 0으로 보고(셈하지 않음) 칸에 오류를 보임 (2026-11-06 점검 3회차)
+  const NUM_MSG = '수량과 금액은 숫자로만 넣습니다(쉼표는 괜찮음).';
+  const numOk = function (v) { return /^[0-9,\s]*$/.test(String(v || '')); };
+  const num = function (v) { if (!numOk(v)) return 0; const n = String(v || '').replace(/[^0-9]/g, ''); return n ? parseInt(n, 10) : 0; };
   const won = C.fmtWon; // 1,600,000원
   const pct = function (r) { return Math.round(r * 1000) / 10 + '%'; };
 
@@ -254,6 +266,17 @@
     $('#route-desc').textContent = '운영 변경은 체크리스트, 법무, 날인, 체결본 확인 없이 진행하고, ⑨ 운영 변경 다음 ⑩ 재무 확인까지 끝나면 계약 완료가 됩니다. 기간이 ' +
       R.periodMonths + '개월 넘게 바뀌거나 무상 충전이 계약 연도 누적 ' + R.freeQty + '건을 넘을 때만 ③ 영업 리더가 승인합니다.';
   }
+  // 고치는 칸의 오류는 그 칸을 고치는 대로 지움. 다음 기안 때까지 남아 있던 것 (2026-11-06 점검 3회차, 계약 등록의 clearError, C.formModal과 같음)
+  //   수량, 금액 칸은 숫자가 아닌 글자가 섞이면 바로 그 칸에 오류를 보이고, 고치면 지움
+  function onEdit(e) {
+    const box = e.target.closest('[data-field]');
+    if (e.target.id === 'f-qty' || e.target.id === 'f-amount') {
+      if (!numOk(e.target.value)) { C.setFieldError(box, NUM_MSG); return; }
+    }
+    if (box && box.classList.contains('is-invalid')) C.setFieldError(box, '');
+  }
+  $('#form').addEventListener('input', onEdit);
+  $('#form').addEventListener('change', onEdit);
   $('#form').addEventListener('input', refresh);
   $('#form').addEventListener('change', refresh);
   // 보완 후 재기안: 앞 차수 값을 채움
@@ -278,11 +301,13 @@
     const t = typeOf(), end = $('#f-end').value;
     const msgs = [
       ['type', t ? '' : '변경 종류를 고르세요.', document.querySelector('[name="type"]')],
-      ['end', t !== 'PERIOD' ? '' : !end ? '새 계약 종료일을 고르세요.' : end === b.end ? '지금 종료일과 같습니다.' : end < D.TODAY ? '새 종료일은 오늘 이후여야 합니다.' : '', $('#f-end')],
+      // 없는 날짜(2월 30일 등)를 적었으면 "없는 날짜입니다"를 보임. "…을 고르세요"로 덮어 적던 것 (2026-11-06 점검 3회차, C.dateFieldError)
+      ['end', t !== 'PERIOD' ? '' : !end ? C.dateFieldError($('#f-end'), '새 계약 종료일을 고르세요.') : end === b.end ? '지금 종료일과 같습니다.' : end < D.TODAY ? '새 종료일은 오늘 이후여야 합니다.' : '', $('#f-end')],
       // B-3 덧붙임: 유상 충전은 기능을 꼭 고름(표준 금액 비교는 막지 않음)
       ['feature', !/_PAID$/.test(t) || $('#f-feature').value ? '' : '충전할 기능을 고르세요.', $('#f-feature')],
-      ['qty', !t || t === 'PERIOD' ? '' : num($('#f-qty').value) > 0 ? '' : '충전 수량을 1건 이상 넣으세요.', $('#f-qty')],
-      ['amount', !/_PAID$/.test(t) ? '' : num($('#f-amount').value) > 0 ? '' : '유상 충전 금액을 넣으세요.', $('#f-amount')],
+      // 숫자가 아닌 글자가 섞이면 "숫자로만 넣습니다"를 먼저 보임 (2026-11-06 점검 3회차)
+      ['qty', !t || t === 'PERIOD' ? '' : !numOk($('#f-qty').value) ? NUM_MSG : num($('#f-qty').value) > 0 ? '' : '충전 수량을 1건 이상 넣으세요.', $('#f-qty')],
+      ['amount', !/_PAID$/.test(t) ? '' : !numOk($('#f-amount').value) ? NUM_MSG : num($('#f-amount').value) > 0 ? '' : '유상 충전 금액을 넣으세요.', $('#f-amount')],
       ['reason', $('#f-reason').value.trim() ? '' : '변경 사유를 적으세요.', $('#f-reason')],
       ['activity', /^https:\/\/\S+$/.test($('#f-activity').value.trim()) ? '' : 'CRM 영업활동 링크를 https://로 시작하는 주소로 넣으세요.', $('#f-activity')],
     ];
@@ -305,13 +330,16 @@
 
   /* ---------- 기안 확인 창 ---------- */
   const modal = $('#confirm-modal');
+  let lastFocus = null;
   $('#form').addEventListener('submit', function (e) {
     e.preventDefault();
     if (!validate()) return;
     const rec = record(), sales = C.changeSales(rec);
-    const what = rec.changeType === 'PERIOD' ? C.fmtDate(b.end) + ' 종료 → ' + C.fmtDate(rec.endDate) + ' 종료'
-      : rec.changeQty.toLocaleString('ko-KR') + '건' + (rec.changeAmount ? ', ' + rec.changeAmount.toLocaleString('ko-KR') + '원 (부가세 별도)' : ' (무상)');
-    const row = function (k, v) { return '<div><dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd></div>'; };
+    const row = function (k, v, cls) { return '<div><dt>' + esc(k) + '</dt><dd' + (cls ? ' class="' + cls + '"' : '') + '>' + esc(v) + '</dd></div>'; };
+    // 변경 내용: 수량과 금액을 한 줄에 섞지 않고 수량 줄과 금액 줄로 나눔. 금액은 표 밖에서도 오른쪽 정렬(dd.amount, new-contract.css) (2026-11-06 점검)
+    const what = rec.changeType === 'PERIOD' ? row('변경 내용', C.fmtDate(b.end) + ' 종료 → ' + C.fmtDate(rec.endDate) + ' 종료')
+      : row('변경 수량', rec.changeQty.toLocaleString('ko-KR') + '건') +
+        row('변경 금액', rec.changeAmount ? rec.changeAmount.toLocaleString('ko-KR') + '원 (부가세 별도)' : '무상', 'amount');
     // B-4: 무상 충전은 이번 계약 연도 누적, B-3 덧붙임: 유상 충전은 기능과 표준 금액 대비
     let extra = '';
     if (/_FREE$/.test(rec.changeType)) {
@@ -324,12 +352,15 @@
     }
     $('#confirm-body').innerHTML = '<p>기안하면 ' + (sales[0] ? '③ 영업 검토부터' : '⑨ 운영 변경부터') + ' 시작되고, ⑩ 재무 확인까지 끝나면 계약 완료가 됩니다. 결재가 끝날 때까지 고칠 수 없습니다.</p>' +
       '<dl class="confirm-list">' + row('계약', root.counterparty + ' ' + b.id) + row('운영 변경 번호', newId) +
-      row('변경 종류', D.CHANGE_TYPES[rec.changeType]) + row('변경 내용', what) + extra + '</dl>';
+      row('변경 종류', D.CHANGE_TYPES[rec.changeType]) + what + extra + '</dl>';
+    lastFocus = document.activeElement;
     modal.hidden = false;
     C.focusModal(modal); // 제목에 포커스 (KRDS 모달, v0.28)
   });
+  // 닫기, 바깥 누름, Esc 모두 창을 닫고 열기 전 자리(기안 단추)로 포커스를 돌려줌. 계약 등록, 결재 화면과 같음 (2026-11-06 점검)
+  function closeModal() { modal.hidden = true; if (lastFocus) lastFocus.focus(); }
   modal.addEventListener('click', function (e) {
-    if (e.target === modal || e.target.closest('[data-act="close"]')) modal.hidden = true;
+    if (e.target === modal || e.target.closest('[data-act="close"]')) closeModal();
     if (!e.target.closest('[data-act="confirm"]')) return;
     // 운영 변경 기록 (데이터 정의서 contract: kind CHANGE, change_type, change_qty, change_amount, activity_url)
     const rec = again ? C.resubmitRecord(again, record()) : Object.assign(record(), { round: 1 });
@@ -338,5 +369,5 @@
     C.flash(newId + ' 운영 변경을 ' + (rec.round || 1) + '차로 기안했습니다. 다음 차례: ' + next);
     location.href = 'review.html?id=' + encodeURIComponent(newId);
   });
-  document.addEventListener('keydown', function (e) { if (!modal.hidden && e.key === 'Escape') modal.hidden = true; });
+  document.addEventListener('keydown', function (e) { if (!modal.hidden && e.key === 'Escape') closeModal(); });
 })();

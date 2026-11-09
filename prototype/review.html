@@ -59,14 +59,18 @@
           <h2 class="section-title" id="box-title">결재란</h2>
           <p class="section-desc" id="box-desc"></p>
           <div class="approval-box-wrap"><table class="approval-box" id="approval-box"></table></div>
+          <!-- 2026-11-06 점검: 휴대폰은 옆으로 밀어 보지 않게 표 대신 단계마다 한 덩어리 목록(review.js boxHtml이 표와 함께 채움). 넓은 화면과 인쇄는 표만 -->
+          <ol class="box-list" id="approval-list" aria-label="결재란 계약 검토"></ol>
           <!-- 3단계 계약 체결(⑥~⑧)과 4단계 운영 검토(⑨~⑩)도 같은 문서의 결재란에 이어서 (REQ-SIGN-02) -->
           <h3 class="box-subtitle">계약 체결과 운영 검토</h3>
           <div class="approval-box-wrap"><table class="approval-box" id="approval-box-post"></table></div>
+          <ol class="box-list" id="approval-list-post" aria-label="결재란 계약 체결과 운영 검토"></ol>
           <!-- 기획자 결정 2026-11-02 A-10, A-11: 계약이 끝난 뒤의 차례(⑨ 만료 처리, ③ 만료 유예 확인)는 ⑥~⑩ 표와 섞지 않고 따로 작은 표로.
                그 차례가 있는 계약(묶음의 지금 유효한 계약)에만 보임. 그리기 전에 정해져 화면이 흔들리지 않음 -->
           <div id="box-after" hidden>
             <h3 class="box-subtitle">계약이 끝난 뒤</h3>
             <div class="approval-box-wrap"><table class="approval-box approval-box--after" id="approval-box-after"></table></div>
+            <ol class="box-list" id="approval-list-after" aria-label="결재란 계약이 끝난 뒤"></ol>
           </div>
         </section>
 
@@ -92,8 +96,9 @@
 
         <section class="panel" aria-labelledby="files-title">
           <h2 class="section-title" id="files-title"><span class="num">4</span>첨부 파일과 검토 요청 사항</h2>
-          <!-- 내려받기 규칙 (REQ-SEC-08): 워터마크 PDF, 원본은 기안자, 법무, 관리자만, 휴대폰은 미리보기만 -->
-          <p class="section-desc">내려받으면 이름과 일시 워터마크가 찍힌 PDF로 받고, 누가 언제 받았는지 기록에 남습니다. 고칠 수 있는 원본은 기안자, 법무, 관리자만 받습니다. <span class="mobile-only">휴대폰에서는 미리보기만 됩니다.</span></p>
+          <!-- 내려받기 규칙 (REQ-SEC-08): 워터마크 PDF, 원본은 지금 영업대표, 법무, 관리자만, 휴대폰은 미리 보기만
+               (2026-11-06 점검: 원본을 받는 사람은 기안자가 아니라 지금 영업대표(결정 C-44, review.js와 같게). 단추 이름 "미리 보기"에 맞춰 띄어 씀) -->
+          <p class="section-desc">내려받으면 이름과 일시 워터마크가 찍힌 PDF로 받고, 누가 언제 받았는지 기록에 남습니다. 고칠 수 있는 원본은 지금 영업대표, 법무, 관리자만 받습니다. <span class="mobile-only">휴대폰에서는 미리 보기만 됩니다.</span></p>
           <ul class="doc-files" id="files"></ul>
           <h3 class="field-label memo-label">검토 요청 사항</h3>
           <p class="memo" id="memo"></p>

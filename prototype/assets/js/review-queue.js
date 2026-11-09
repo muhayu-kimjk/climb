@@ -25,7 +25,8 @@
   //   기획자 결정 2026-11-02: ③ 영업 임원 승인(S03C, E-3)과 ③ 만료 유예 확인(SGR, A-11)도 단계 거르기에 보이게 적어 둠
   const QUEUE_STEPS = ['S02', 'S03', 'S03C', 'S04', 'S05', 'S06', 'S08', 'SGR'];
 
-  const seeAll = me.role === 'SUPER' || me.role === 'ADMIN';
+  // 관리자 보기는 뺌(기획자 결정 2026-11-09: 관리자는 처리하지 않고, 이 화면은 관리자 메뉴에도 없었음). 최고관리자는 시연용으로 모두 봄
+  const seeAll = me.role === 'SUPER';
   const lead = !seeAll && C.isLead(me);
   const showWho = seeAll || lead; // 담당자 칸을 보이는지
   // 재무는 영업지원이 기안한 계약의 ②, ⑧을 대신 검토 (REQ-AUTH-16, v0.58 QA)
@@ -96,7 +97,8 @@
             '<span class="cell-sub">' + service + '</span>' + requester + '<span class="cell-meta">' + esc(x.c.id) + (x.c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span></td>'
           : '<td><span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>' + requester + '</td>') +
         '<td class="col-service">' + (C.canView(x.c, me) ? service : '-') + '</td>' + // 가린 줄은 서비스도 가림 (v0.62)
-        '<td class="nowrap">' + esc(C.stepLabel(x.s.step, x.c)) + (together ? '<span class="cell-meta">동시: ' + esc(together) + '</span>' : '') +
+        // 보류 중이면 배지(기획자 결정 2026-11-09: 결재하는 사람이 목록에서 바로 알게. 전체 진행 현황 progress.js와 같은 모양, REQ-CMP-04 ③)
+        '<td class="nowrap">' + esc(C.stepLabel(x.s.step, x.c)) + (C.holdOf(x.c) ? '<span class="cell-meta">' + C.holdBadge(C.holdOf(x.c)) + '</span>' : '') + (together ? '<span class="cell-meta">동시: ' + esc(together) + '</span>' : '') +
           // 대리 지정으로 내 차례가 된 건 (REQ-REV-08)
           (!showWho && x.s.userId !== me.id ? '<span class="cell-meta">' + esc(C.ownerLabel(x.s.userId)) + ' 대신 (대리 지정)</span>' : '') + '</td>' +
         (showWho ? '<td class="center">' + esc(C.ownerLabel(x.s.userId)) + '</td>' : '') +
@@ -109,7 +111,8 @@
   }
 
   $('#filter').addEventListener('input', function () { page = 1; render(); });
-  $('#filter').addEventListener('change', function () { page = 1; render(); });
+  // 검색 칸은 'input'이 이미 그렸으므로 'change'(칸을 떠날 때)에서 다시 그리지 않음. 다시 그리면 누르던 줄이나 쪽 번호가 바뀌어 클릭이 사라짐(2026-11-06 점검 4회차)
+  $('#filter').addEventListener('change', function (e) { if (e.target.matches('input[type=search], input[type=text]')) return; page = 1; render(); });
   $('#filter').addEventListener('reset', function () { setTimeout(function () { page = 1; render(); }, 0); });
   $('#filter').addEventListener('submit', function (e) { e.preventDefault(); });
   $('#pagination').addEventListener('click', function (e) {
@@ -117,7 +120,8 @@
     if (!b || b.disabled) return;
     page = Number(b.getAttribute('data-page'));
     render();
-    $('#list').scrollIntoView({ block: 'start' });
+    // 쪽 번호를 다시 그려 누른 단추가 없어지므로 초점을 목록 제목으로 옮기고 화면도 거기로(2026-11-06 점검 3회차)
+    C.focusSection('#list-title');
   });
   render();
 })();

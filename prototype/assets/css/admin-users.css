@@ -32,6 +32,9 @@
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
     overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
   }
+  /* 2026-11-06 점검: 휴대폰에서 넘치는 표는 줄마다 쌓게 되어(common.js stackTable) 이메일 칸이 좁아지지 않음. D-17의 까닭(고정 칸이 표를 좁힘)이 없어져 전체 주소를 보이고 칸 고정도 풂 */
+  .tbl--users[data-stack] .col-email { position: static; box-shadow: none; background: none; }
+  .tbl--users[data-stack] .email-domain { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; white-space: normal; }
 }
 
 @media print {

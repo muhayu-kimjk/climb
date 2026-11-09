@@ -56,7 +56,8 @@
           <dl class="info-grid" id="summary"></dl>
         </section>
 
-        <section class="panel" aria-labelledby="rounds-title">
+        <!-- 표가 든 묶음(2, 4, 5, 6)은 panel--flow: 길면 쪽을 넘겨 찍음. 묶음째 다음 쪽으로 밀려 빈 쪽이 생기지 않게 (2026-11-06 점검, review.css 인쇄) -->
+        <section class="panel panel--flow" aria-labelledby="rounds-title">
           <h2 class="section-title" id="rounds-title"><span class="num">2</span>계약 이력과 금액</h2><!-- D-6(2026-11-02), 예전 "차수와 금액" -->
           <p class="section-desc">원계약과 변경, 연장, 해지를 기안한 순서대로 적습니다. 금액은 부가세 별도입니다. 체크리스트 1번은 표준계약서 사용, 2번은 표준단가표 적용, 3번은 할인율 한도 지킴, 4번은 회계에 영향을 주는 특수 조건이 있는지 묻는 문항입니다.</p>
           <div class="tbl-wrap"><table class="tbl tbl--compact" id="rounds"></table></div>
@@ -68,18 +69,18 @@
           <div id="approvals"></div>
         </section>
 
-        <section class="panel" aria-labelledby="signed-title">
+        <section class="panel panel--flow" aria-labelledby="signed-title">
           <h2 class="section-title" id="signed-title"><span class="num">4</span>체결본</h2>
           <div class="tbl-wrap"><table class="tbl tbl--compact" id="signed"></table></div>
         </section>
 
         <!-- 체결 후 의무 (v0.53 기획자 결정, REQ-FLOW-33~36) -->
-        <section class="panel" aria-labelledby="ob-title">
+        <section class="panel panel--flow" aria-labelledby="ob-title">
           <h2 class="section-title" id="ob-title"><span class="num">5</span>체결 후 의무</h2>
           <div class="tbl-wrap"><table class="tbl tbl--compact" id="obligations"></table></div>
         </section>
 
-        <section class="panel" aria-labelledby="notes-title">
+        <section class="panel panel--flow" aria-labelledby="notes-title">
           <h2 class="section-title" id="notes-title"><span class="num">6</span>사후관리 기록</h2>
           <div class="tbl-wrap"><table class="tbl tbl--compact" id="notes"></table></div>
         </section>

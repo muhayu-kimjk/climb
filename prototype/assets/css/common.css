@@ -189,13 +189,15 @@ svg { flex-shrink: 0; }
 a.brand-title:hover { color: var(--text-primary); }
 /* 심볼: 파비콘과 같은 파일을 글자 높이에 맞춤(v0.22). 어두운 화면에서는 흰 심볼(v0.53) */
 /* 심볼 크기(v0.55 기획자 요청으로 0.95em → 0.85em 조금 줄임). 글자 climb과 가운데가 맞게 내림 값도 함께 바꿈
- * 심볼과 climb 사이(v0.55 기획자 요청으로 0.35em → 0.25em 조금 좁힘, 24px 기준 약 8px → 6px) */
-.brand-mark { display: inline-block; width: 0.85em; height: 0.85em; margin-right: 0.25em; vertical-align: -0.07em; filter: var(--brand-mark-filter); }
+ * 심볼과 climb 사이(v0.55 기획자 요청으로 0.35em → 0.25em 조금 좁힘, 24px 기준 약 8px → 6px)
+ * 2026-11-06 기획자 요청: 로고 글자를 1.15배 → 1배로 낮춘 뒤 심볼도 같은 비율로 줄임. 크기 0.85em → 0.74em(20.4px → 약 17.8px),
+ *   사이 0.25em → 0.22em(6px → 약 5.2px). 심볼과 climb 글자의 세로 가운데는 사진의 픽셀로 재어 맞춤(내림 값 -0.07em → -0.04em, PC와 휴대폰에서 1px 안쪽) */
+.brand-mark { display: inline-block; width: 0.74em; height: 0.74em; margin-right: 0.22em; vertical-align: -0.04em; filter: var(--brand-mark-filter); }
 .brand-name, .brand-ko { white-space: nowrap; }
 /* 로고 글자 climb: SUITE를 얇게(Light 300). 줄 높이는 그대로
  * 크기: 예전에는 얇은 글자가 심볼보다 작아 보여 1.15배(27.6px, 20.7pt)로 키웠음(기획자 요청).
  * 2026-11-06 기획자 요청으로 한 단계 낮춤: 1배(24px, 18pt). 머리글, 푸터, 이메일 미리 보기 모두 같은 규칙.
- * 옆 심볼(파비콘)은 .brand-title 기준(0.85em)이라 크기 그대로 */
+ * 옆 심볼(파비콘)도 같은 날 같은 비율로 줄임(위 .brand-mark) */
 .brand-name { font-family: var(--font-brand); font-weight: 300; font-size: 1em; line-height: 1; letter-spacing: 0; }
 /* 둘째 줄과 영문 이름: 작고 흐린 글자. 휴대폰에서 줄이 바뀌어도 양쪽 정렬하지 않음(v0.35) */
 .brand-en { font-family: var(--font-brand); font-size: var(--fs-body-xsmall); line-height: 1.4; color: var(--text-subtle); white-space: nowrap; text-align: left; }
@@ -230,7 +232,11 @@ a.brand-title:hover { color: var(--text-primary); }
 .gnb-list {
   display: flex; flex-wrap: nowrap;
   overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  scroll-padding-inline: 6.4rem; /* Tab으로 간 메뉴가 화살표와 흐려지는 끝에 가리지 않게(2026-11-06 점검 3회차) */
 }
+/* 메뉴 칸의 키보드 이동 표시는 칸 안쪽에(2026-11-06 점검 3회차: 밀어 보는 줄이 바깥으로 퍼지는 표시를 잘라 거의 보이지 않았음) */
+.gnb-link:focus-visible { box-shadow: inset 0 0 0 0.3rem var(--border-focus); border-radius: 0; }
+@media (forced-colors: active) { .gnb-link:focus-visible { outline-offset: -0.4rem; } }
 .gnb-list::-webkit-scrollbar { display: none; }
 .gnb-more {
   position: absolute; top: 0; bottom: 0; z-index: 1; display: none; align-items: center; width: 8rem; padding: 0;
@@ -257,7 +263,9 @@ a.brand-title:hover { color: var(--text-primary); }
   -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
 }
 /* 이용 안내: 중요한 항목이라 글자 15px, 아이콘 약 16px(아이콘은 글자의 1.05배)로 예전 크기 (v0.59 기획자 요청) */
-.gnb-aside { display: inline-flex; align-items: center; gap: 0.4rem; font-size: var(--fs-body-medium); color: var(--text-subtle); white-space: nowrap; }
+.gnb-aside { display: inline-flex; align-items: center; gap: 0.4rem; margin-left: 1.2rem; font-size: var(--fs-body-medium); color: var(--text-subtle); white-space: nowrap; }
+/* 왼쪽 바깥 여백 1.2rem(2026-11-06 기획자 요청: 메뉴가 넘칠 때 › 화살표와 이용 안내 아이콘(?)이 붙어 보였음. 메뉴 줄 칸 사이 1.6rem에 더해 2.8rem).
+ *   화살표가 있을 때만 넓히면 창 폭을 바꿀 때 이용 안내가 움직이므로 늘 둠. 붙은 메뉴 줄은 아래 .is-stuck 규칙이 따로 정함 */
 /* 세로 줄맞춤(v0.59 기획자 요청): Noto Sans KR 글자는 줄 상자 가운데보다 조금 아래에 그려져, 가운데 맞춤한 아이콘이 글자보다 0.25~0.75px 위에 보였음.
  * 아이콘을 글자 크기의 4%(15px 글자에서 0.6px) 내려 글자 가운데에 맞춤. 메뉴 펼침 화살표(∨)도 같은 까닭으로 7% 내림(아래 .gnb-link .icon) */
 .gnb-aside .icon { position: relative; top: 0.04em; }
@@ -348,8 +356,11 @@ html.drawer-open { overflow: hidden; }
 }
 /* 2단계: 위쪽 줄은 "‹ 전체 메뉴"(돌아가기, 보통 글자), 고른 메뉴 이름은 그 아래 제목(2026-11-06 기획자 요청: 예전에는 메뉴 이름이 위쪽 줄에 올라가 있었음) */
 .drawer-sub-title { padding: 0.8rem 0 0.4rem; font-size: var(--fs-heading-xsmall); font-weight: 700; color: var(--text-bolder); }
-.drawer-close { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: var(--touch-min); height: var(--touch-min); padding: 0; border: 0; background: none; color: var(--text-basic); cursor: pointer; }
-.drawer-back .icon, .drawer-close .icon { width: 2.4rem; height: 2.4rem; }
+.drawer-close, .drawer-theme { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: var(--touch-min); height: var(--touch-min); padding: 0; border: 0; border-radius: var(--radius-md); background: none; color: var(--text-basic); cursor: pointer; }
+/* 밝기 단추(2026-11-06 기획자 요청): 닫기 단추 바로 왼쪽. 머리글 아이콘처럼 44px 칸끼리 붙임(줄의 칸 사이 0.8rem을 당김) */
+.drawer-theme { margin-right: -0.8rem; }
+.drawer-theme:hover, .drawer-close:hover { background: var(--action-hover); }
+.drawer-back .icon, .drawer-close .icon, .drawer-theme .icon { width: 2.4rem; height: 2.4rem; }
 .drawer-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.8rem 1.6rem; }
 .drawer-item {
   display: flex; align-items: center; justify-content: space-between; gap: 1.2rem; width: 100%; min-height: 5.2rem; padding: 0;
@@ -376,10 +387,17 @@ html.drawer-open { overflow: hidden; }
 } /* 높이는 화면 아래를 넘지 않게(common.js fitSheet, 가로 휴대폰). 아래 선은 고대비와 어두운 화면에서도 판 끝이 보이게(v0.61 검토) */
 .site-header.is-stuck .hdr-sheet { top: 100%; }
 /* 계정 판의 내용은 오른쪽(누른 계정 아이콘 아래)에 붙임(2026-11-03 기획자 요청: 아이콘을 누른 뒤 왼쪽 끝까지 손을 옮겨야 했음).
- *   폭은 32rem까지(v0.61은 40rem, 왼쪽에서 시작). 오른쪽 끝은 계정 아이콘 그림의 오른쪽 끝(같은 날 기획자 요청, --acc-right는 common.js fitSheet가 잼).
- *   휴대폰 규칙(13장)의 판 안쪽 여백보다 뒤에 와야 해서 두 클래스로 씀 */
-.hdr-sheet.acc-sheet { padding-right: var(--acc-right, var(--page-margin)); }
-.acc-sheet > * { max-width: 32rem; margin-left: auto; text-align: right; }
+ *   폭은 32rem까지(v0.61은 40rem, 왼쪽에서 시작). 휴대폰 규칙(13장)의 판 안쪽 여백보다 뒤에 와야 해서 두 클래스로 씀
+ *   (2026-11-03에는 글자 끝을 누른 계정 아이콘 그림의 오른쪽 끝에 맞췄음. common.js가 그 거리를 쟀음)
+ * 2026-11-06 기획자 요청: 사이 선은 판 오른쪽 끝까지, 글자와 아이콘은 오른쪽 끝(본문 오른쪽 끝, 종이 좌우 여백 안쪽)에 맞춤.
+ *   휴대폰은 계정 아이콘 오른쪽에 ≡가 있어 계정 아이콘 끝에 맞추면 오른쪽이 비어 보였음. PC는 계정 아이콘이 맨 오른쪽이라 같은 자리.
+ *   판의 오른쪽 안쪽 여백을 없애고 같은 거리(종이 좌우 여백)를 글자 칸마다 안쪽 여백으로 줌. 선은 칸의 테두리라 판 끝까지 감 */
+.hdr-sheet.acc-sheet { padding-right: 0; }
+.acc-sheet > * { max-width: calc(32rem + var(--page-margin)); margin-left: auto; text-align: right; }
+.acc-sheet > p, .acc-sheet a { padding-right: var(--page-margin); }
+/* 줄이 판 끝까지 가서, 판(스크롤 상자)이 바깥으로 퍼지는 키보드 이동 표시의 오른쪽을 자름. 줄 안쪽에 그림(2026-11-06 검토). 고대비 모드의 테두리도 안쪽으로 */
+.acc-sheet a:focus-visible { box-shadow: inset 0 0 0 0.3rem var(--border-focus); border-radius: 0; } /* 쓰임 이름 토큰으로(2026-11-06 점검 3회차) */
+@media (forced-colors: active) { .acc-sheet a:focus-visible { outline-offset: -0.4rem; } }
 .acc-name { font-size: var(--fs-body-large); font-weight: 700; color: var(--text-bolder); }
 .acc-org { margin-top: 0.2rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
 .acc-sheet ul { margin-top: 1.2rem; border-top: 1px solid var(--border-gray-light); }
@@ -609,7 +627,7 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
 /* ---------- 11. 안내 메시지 (아직 만들지 않은 화면 등) ---------- */
 .toast {
   position: fixed; left: 50%; bottom: 3.2rem; z-index: 200; max-width: calc(100% - 3.2rem);
-  padding: 1.4rem 2rem; border-radius: var(--radius-lg); background: var(--surface-inverse); color: var(--text-inverse);
+  padding: 1.4rem 2rem; border: 1px solid transparent; /* 고대비에서만 보이는 테두리(2026-11-06 점검 3회차) */ border-radius: var(--radius-lg); background: var(--surface-inverse); color: var(--text-inverse);
   font-size: var(--fs-body-small); box-shadow: var(--shadow-1);
   opacity: 0; transform: translate(-50%, 0.8rem); pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease;
 }
@@ -675,6 +693,7 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
   .user-line .menu-btn { display: inline-flex; }
   .site-header.is-stuck .user-line .hdr-icon { visibility: visible; } /* 휴대폰은 로고 줄째로 붙어 아이콘이 늘 보임 */
   .hdr-sheet { top: 100%; padding: 1.2rem var(--page-margin) 1.6rem; } /* 휴대폰은 로고 줄 아래(메뉴 줄이 없음) */
+  .acc-sheet > * { max-width: none; } /* 휴대폰 계정 판은 폭 제한 없이 왼쪽 여백부터 오른쪽 끝까지(2026-11-06: 32rem 제한이면 선이 왼쪽에서 조금 떨어져 시작했음) */
   #menu-search .msearch-item { min-height: 4.8rem; font-size: var(--fs-body-large); }
   .site-header.is-guest { position: sticky; top: 0; }
 
@@ -714,6 +733,8 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
 @media print {
   html, body { background: var(--white); }
   .site-header { position: static; box-shadow: none; } /* 메뉴 줄 고정(v0.60)은 화면에서만 */
+  /* 붙은 메뉴 줄(.is-stuck)의 그림자는 규칙이 더 구체적이라 위 줄을 이겼음. 화면을 내린 채 찍어도 종이에 그림자가 남지 않게 (2026-11-06 점검) */
+  .site-header.is-stuck { position: static; box-shadow: none; }
   /* 작은 칠(체크한 칸, 결재 단계 점, 그래프 막대)이 빠지지 않게 칠을 그대로 찍음.
    * 넓은 바탕은 흑백 인쇄 색(tokens.css 6-1)에서 흰색이라 잉크를 쓰지 않음 */
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -735,6 +756,9 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
   /* 종이에서 쓸 수 없는 요소 */
   /* 푸터도 감춤: 시스템 이름과 쪽 번호는 모든 쪽 아래에 찍히는 @page 영역이 대신함 */
   .demo-bar, .skip-link, .gnb, .user-line, .toast, .link-more, .col-action, .site-footer, .no-print { display: none !important; }
+  /* 알림 상자 안 단추(결재 문서, 계약 상세)와 화면 제목 옆 단추(견적 목록의 "새 견적"도)는 종이에서 쓸 수 없음 (2026-11-06 점검)
+   *   .page-actions는 quote.css에만 있어 quote.css를 읽지 않는 견적 목록에서 단추가 찍혔음. 공통으로 옮김 */
+  .notice-actions, .page-actions { display: none !important; }
 
   /* 종이 틀: 용지 여백이 대신하므로 틀의 여백과 그림자를 없앰 */
   .sheet { display: block; max-width: none; min-height: 0; margin: 0; box-shadow: none; }
@@ -861,8 +885,9 @@ a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: under
  *   펼치기 줄(이전 판, 표로 보기, 본 자료), 체크와 라디오 줄, 표 안의 짧은 글자 버튼(확인, 빼기, 수정), 견적 줄 지우기
  *   (v0.63 점검에서 고침: 23~32px이었음). 보이지 않는 덧칸(::before)을 가운데에 겹쳐 놓아 줄 간격이 바뀌지 않음 */
 @media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) {
-  summary, .choice, .link-act, .q-del .btn-text { position: relative; }
-  summary::before, .choice::before, .link-act::before, .q-del .btn-text::before {
+  /* 2026-11-06 점검: 목록 표의 제목 글자 링크(a.cell-title)와 표 안 문서 링크(.tbl a.doc-link)도 넓힘(25px뿐이었음) */
+  summary, .choice, .link-act, .q-del .btn-text, a.cell-title, .tbl a.doc-link { position: relative; }
+  summary::before, .choice::before, .link-act::before, .q-del .btn-text::before, a.cell-title::before, .tbl a.doc-link::before {
     content: ""; position: absolute; left: 50%; top: 50%;
     width: max(100%, var(--touch-min)); height: max(100%, var(--touch-min));
     transform: translate(-50%, -50%);
@@ -912,6 +937,8 @@ a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: under
   *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; scroll-behavior: auto !important; }
 }
 @media (forced-colors: active) {
+  /* 거래처 찾기 목록에서 화살표로 고른 줄(2026-11-06 점검 3회차: 고대비에서 고른 줄이 보이지 않았음) */
+  .combo-option[aria-selected="true"], .q-combo-item[aria-selected="true"] { forced-color-adjust: none; background: Highlight !important; color: HighlightText !important; }
   :focus-visible { outline: 0.2rem solid Highlight !important; outline-offset: 0.2rem; }
   /* 라디오의 가운데 점은 단추 바탕 그림(form.css, 2026-11-03)이라 고대비에서도 글자색으로 그림 */
   .choice input[type="radio"]:checked {
@@ -944,4 +971,27 @@ a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: under
   body[data-page="SCR-16"] .tbl td { padding: 0.3rem 0; border: 0; text-align: left; }
   body[data-page="SCR-16"] .tbl td[data-label] { display: grid; grid-template-columns: 7.2rem minmax(0, 1fr); align-items: baseline; column-gap: 1.2rem; text-align: right; }
   body[data-page="SCR-16"] .tbl td[data-label]::before { content: attr(data-label); text-align: left; font-size: var(--fs-body-small); color: var(--text-subtle); }
+}
+
+/* 휴대폰에서 화면 폭을 넘는 표(2026-11-06 점검, common.js stackTable이 data-stack을 붙임): 줄마다 한 덩어리로 쌓음.
+ *   견적 목록(SCR-16) 쌓기와 같은 모양: 이름은 왼쪽 옅게, 값은 오른쪽 진하게. 머리글 줄은 화면에서만 감춤(화면낭독기는 읽음). 인쇄는 표 */
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
+  .tbl-scroll:has(> .tbl[data-stack]) { overflow: visible; border: 0; border-radius: 0; } /* 표 테두리 상자를 없애 줄이 상자 선에 붙지 않게(견적 화면과 같게) */
+  .tbl[data-stack] { width: 100%; min-width: 0; table-layout: auto !important; }
+  .tbl[data-stack] colgroup { display: none; }
+  .tbl[data-stack] thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .tbl[data-stack], .tbl[data-stack] tbody, .tbl[data-stack] tfoot, .tbl[data-stack] tr, .tbl[data-stack] td, .tbl[data-stack] tbody th { display: block; width: 100%; }
+  .tbl[data-stack] tbody tr { padding: 1.2rem 0; border-bottom: 1px solid var(--border-gray-light); }
+  .tbl[data-stack] td, .tbl[data-stack] tbody th { min-width: 0; padding: 0.3rem 0; border: 0; text-align: left; white-space: normal !important; word-break: keep-all; overflow-wrap: anywhere; }
+  /* 이름은 왼쪽에 띄워 두고(float) 값은 그 오른쪽에 글 흐름 그대로 오른쪽 맞춤. 칸 안의 여러 조각(날짜와 시각, 배지, 작은 줄)이 갈라지지 않고,
+   * 긴 이름(예: 최종 로그아웃일시)도 한 줄. 화면마다 칸에 준 가운데 맞춤보다 앞서게 !important (휴대폰 쌓기에서만) */
+  .tbl[data-stack] [data-label] { display: flow-root; text-align: right !important; }
+  .tbl[data-stack] [data-label]::before { content: attr(data-label); float: left; max-width: 50%; padding-right: 1.2rem; text-align: left; font-size: var(--fs-body-small); font-weight: 400; color: var(--text-subtle); }
+  .tbl[data-stack] .stack-title, .tbl[data-stack] tbody th:not([data-label]) { padding-bottom: 0.4rem; text-align: left !important; font-weight: 700; color: var(--text-bolder); }
+  .tbl[data-stack] tfoot tr { display: flex; justify-content: space-between; gap: 1.2rem; padding: 0.8rem 0; }
+  /* 줄의 글자 단추(고치기, 수정 등)는 높이를 글자만큼으로 해 이름과 같은 줄에 둠. 누르는 칸 44px는 위 손가락 화면 규칙의 ::before가 지킴 */
+  .tbl[data-stack] .link-act { min-height: 0; }
+  /* 쌓지 않았을 때 휴대폰이 감추는 칸(작은 줄로 대신 보임)은 쌓아도 감춤, 이름 없는 숫자 칸도 오른쪽(2026-11-06 점검 3회차) */
+  .tbl[data-stack] [data-stack-hide] { display: none !important; }
+  .tbl[data-stack] td.num:not([data-label]) { text-align: right !important; }
 }

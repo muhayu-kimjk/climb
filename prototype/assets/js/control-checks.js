@@ -6,7 +6,7 @@
  * 하는 일
  *   1. 접속 기록 만들기(accessLogs): 예시 데이터로 만든 접속 기록. 접속 기록 점검(admin-logs.js)에 있던 것을 옮김
  *      기획자 결정 2026-11-02 C-3: 통제 증빙과 결재 기록 묶음을 꺼낸 일도 "내려받기"로 넣음
- *      점검 화면이 따로 쌓는 기록(할인 예외 점검, 기간 마감 확인, 영업기회 대사, 인장 기록 대사)도 "점검 기록"으로 넣음(2026-11-02)
+ *      점검 화면이 따로 쌓는 기록(할인 예외 점검, 기간 마감 확인, 영업기회 대사, 인장 기록 대조)도 "점검 기록"으로 넣음(2026-11-02)
  *   2. 최고관리자 계정(superIds, 기획자 결정 2026-11-02 C-6): 매월 점검의 "최고관리자 작업"을 따로 모을 때 씀
  *   3. 설정 변경 묶음(settingChanges, 기획자 결정 2026-11-02 C-8): 가격 기준, 제품과 기능, 표준계약서, 결재선 규칙, 회사 설정을 바꾼 것 한 건씩
  *      전후 값, 사유, 품의 링크. 결재선 규칙은 근거(사유, 위임전결 근거)와 새로 맡는 사람이 기안자 유닛 밖인지
@@ -40,10 +40,12 @@ window.CLIMB_CTL = (function () {
     });
     D.CONTRACTS.forEach(function (c) {
       if (!c.id) return;
-      push(c.requestedAt, c.requesterId, 'SUBMIT', c.id + ' ' + c.counterparty);
+      // 열람 제한 계약은 계약번호만 남김(2026-11-06 점검, REQ-AUTH-09): 고객사 이름이 접속 기록으로 새어 나가 볼 수 없는 사람에게 보였음
+      const name = c.restricted ? c.id : c.id + ' ' + c.counterparty;
+      push(c.requestedAt, c.requesterId, 'SUBMIT', name);
       (c.history || []).forEach(function (h) {
         // 앞 차수의 기안(다시 기안할 때 결재 기록에 남긴 줄)은 결재가 아니라 기안으로 (v0.61 검토)
-        if (h.action === 'SUBMIT') { push(h.at, h.actorId || c.requesterId, 'SUBMIT', c.id + ' ' + c.counterparty + ' (' + (h.round || 1) + '차)'); return; }
+        if (h.action === 'SUBMIT') { push(h.at, h.actorId || c.requesterId, 'SUBMIT', name + ' (' + (h.round || 1) + '차)'); return; }
         const st = D.STEPS[h.step];
         push(h.at, h.actorId, 'APPROVE', c.id + ' ' + (st ? st.no : '') + ' ' + C.actionLabel(h, c));
       });
@@ -70,7 +72,7 @@ window.CLIMB_CTL = (function () {
       push(x.at, x.by, 'DOWNLOAD', (x.kind === 'BUNDLE' ? '결재 기록 묶음: ' : '통제 증빙: ') + x.cond + ' (' + x.file + ')', '사내망');
     });
     // 기획자 결정 2026-11-02: 관리자 변경 이력 밖에 따로 쌓는 점검 기록도 "점검 기록"으로(접속 기록 조회와 통제 증빙에 함께 나옴)
-    //   할인 예외 점검(C-9), 기간 마감 확인(B-9), 영업기회 대사(E-1 ②), 인장 기록 대사(E-7 ③). 계약은 번호만(고객사 이름은 넣지 않음)
+    //   할인 예외 점검(C-9), 기간 마감 확인(B-9), 영업기회 대사(E-1 ②), 인장 기록 대조(E-7 ③). 계약은 번호만(고객사 이름은 넣지 않음)
     const ym = function (m) { return m ? m.slice(0, 4) + '년 ' + Number(m.slice(5, 7)) + '월' : ''; };
     const DR = { LIMIT: '한계값 정함', ROW: '줄 확인', DONE: '점검 마침' }, OR = { UPLOAD: '파일 올림', NOTE: '줄 의견', CONFIRM: '확인' };
     (D.DISCOUNT_REVIEWS || []).concat(C.loadDemo('discountReviews')).forEach(function (r) {
@@ -78,7 +80,7 @@ window.CLIMB_CTL = (function () {
     });
     (D.CLOSE_CHECKS || []).concat(C.loadDemo('closeChecks')).forEach(function (r) { push(r.at, r.by, 'AUDIT', '기간 마감 점검: 기간 말 ' + C.fmtDate(r.end) + ' 확인'); });
     (D.OPP_RECON || []).concat(C.loadDemo('oppRecon')).forEach(function (r) { push(r.at, r.by, 'AUDIT', '영업기회 대사: ' + ym(r.month) + ' ' + (OR[r.type] || r.type)); });
-    (D.SEAL_RECON || []).concat(C.loadDemo('sealRecon')).forEach(function (r) { push(r.at, r.by, 'AUDIT', '인장 기록 대사: ' + ym(r.month) + ' 대조'); });
+    (D.SEAL_RECON || []).concat(C.loadDemo('sealRecon')).forEach(function (r) { push(r.at, r.by, 'AUDIT', '인장 기록 대조: ' + ym(r.month) + ' 대조'); });
     (extra || []).forEach(function (l) { push(l.at, l.userId, l.act, l.target, l.place); });
     return out.sort(function (a, b) { return b.at.localeCompare(a.at); });
   }

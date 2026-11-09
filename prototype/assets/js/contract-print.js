@@ -35,8 +35,14 @@
 
   /* ---------- 머리 ---------- */
   const st = D.STATUS[b.status];
+  // 만료 처리와 유예(A-10, A-11), 보류(C-16)를 계약 상세(contract.js)와 같게 (2026-11-06 점검)
+  //   전에는 종료일이 지난 계약도 그냥 "만료" 배지만 찍혀 만료 처리 차례인지 유예 중인지, 보류가 걸렸는지 종이에서 알 수 없었음
+  const ex = C.expiryOf(b);
+  const exOn = !!ex && ex.ended && !!ex.label;
+  const hold = C.holdOf(b);
   $('#doc-title').textContent = root.counterparty + ' 계약 요약서';
-  $('#doc-meta').innerHTML = C.meta([esc(b.id), esc(C.serviceLabel(root.services)), C.badge(st.tone, st.label), ['기준일', C.fmtDate(D.TODAY)]]);
+  $('#doc-meta').innerHTML = C.meta([esc(b.id), esc(C.serviceLabel(root.services)),
+    (exOn ? C.badge(ex.tone, ex.label) : C.badge(st.tone, st.label)) + (hold ? ' ' + C.holdBadge(hold) : ''), ['기준일', C.fmtDate(D.TODAY)]]);
   $('#doc-tools').hidden = false;
   $('#btn-print').addEventListener('click', function () { window.print(); });
 
@@ -68,6 +74,9 @@
     curSigns ? info(C.isQuoteInstead(cur) ? '고객 날인일' : '서명본 체결일', C.signedDate(cur) ? C.fmtDate(C.signedDate(cur)) + '<span class="cell-meta">올린 날 ' + C.fmtDate(cur.signedAt) + '</span>' : '-') : '',
     curSigns ? info('실제 개통일', C.openDate(cur) ? C.fmtDate(C.openDate(cur)) : '-') : '',
     info(b.status === 'TERMINATED' ? '해지일' : '계약 완료일', b.status === 'TERMINATED' ? C.fmtDate(root.terminateDate) : cur.completedAt ? C.fmtDateTime(cur.completedAt) : '-'),
+    // 만료 처리(A-10): 종료일이 지난 계약만. 처리한 때와 사람, 아니면 지금 상태. 계약 상세의 같은 줄과 같음 (2026-11-06 점검)
+    exOn ? info('만료 처리', ex.done ? C.fmtDateTime(ex.done.at) + '<span class="cell-meta">' + esc(C.ownerLabel(ex.done.actorId, ex.done.actorDept)) + ' 처리</span>'
+      : esc(ex.label) + (ex.step && ex.step.state === 'PENDING' ? '<span class="cell-meta">' + esc(C.ownerLabel(ex.step.userId)) + ' 차례, ' + C.waitDays(ex.holder, ex.step) + '일째</span>' : '')) : '',
   ].join('');
 
   /* ---------- 2. 계약 이력과 금액 (D-6, 예전 "차수와 금액") ---------- */
@@ -93,7 +102,8 @@
       return '<tr' + (c === cur ? ' class="is-current"' : '') + '>' +
         '<td class="nowrap">' + esc(c.id) + '<span class="cell-meta">기안 ' + C.fmtDate(c.requestedAt) + (c === cur ? ', 지금 유효' : '') + '</span></td>' +
         '<td>' + esc(C.kindLabel(c)) + (checkText(c) ? '<span class="cell-meta">' + esc(checkText(c)) + '</span>' : '') + '</td>' +
-        '<td class="center nowrap">' + C.statusBadge(c) + '</td>' +
+        // 종료일이 지난 지금 유효한 계약은 만료 처리 상태로(A-10, 머리의 배지와 계약 상세와 같음) (2026-11-06 점검)
+        '<td class="center nowrap">' + (exOn && c === ex.holder ? C.badge(ex.tone, ex.label) : C.statusBadge(c)) + '</td>' +
         '<td class="num-left">' + termOf(c) + '</td>' +
         '<td class="num nowrap">' + moneyOf(c) + '</td></tr>';
     }).join('') + '</tbody>';

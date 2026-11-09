@@ -11,7 +11,7 @@
  *   4. 점검할 일: 정보보호 담당자, 리더와 최고관리자에게만. 이상 행위 알림, 매월 기록 점검, 분기 권한 검토 (v0.27)
  *      기획자 결정 2026-11-02 C-10: 점검을 맡은 모든 사람에게 넓히고 사람마다 자기 점검만(아래 CHECK_GROUPS)
  *        정보보호(위 셋과 최고관리자 작업 점검 C-6), 재무 임원(할인 예외 점검 C-9), 재무 리더와 법무(설정 변경 확인 C-8),
- *        재무(기간 마감 점검 B-9), 영업지원(영업기회 대사 E-1 ②), 총무(인장 기록 대사 E-7 ③), 컴플라이언스(거래처 확인 C-13, 개선 과제 C-16)
+ *        재무(기간 마감 점검 B-9), 영업지원(영업기회 대사 E-1 ②), 총무(인장 기록 대조 E-7 ③), 컴플라이언스(거래처 확인 C-13, 개선 과제 C-16)
  *        매출 대사(B-7)는 재무와 상의 뒤 정하므로 아직 없음. 읽기만 하는 역할(감사 열람, 관찰자)은 점검할 일이 없음
  *   내가 검토할 계약의 줄은 C.turnHref로: 만료 처리와 유예 확인(A-10, A-11)은 계약 상세로
  *   기획자 결정 2026-11-03 C-44 영업대표 바꾸기
@@ -163,7 +163,7 @@
     { on: C.canDoCheck(me, 'SCR-65'), items: configItems, who: '설정 변경 확인은 재무 리더와 법무가', more: ['설정 변경 확인으로', 'config-review.html'], owner: '재무 리더, 법무' },
     { on: isCloser, items: closeItems, who: '기간 마감 점검은 재무가', more: ['기간 마감 점검으로', CLOSE_HREF], owner: '재무' },
     { on: C.canDoCheck(me, 'SCR-62'), items: function () { return C.reconTodo('SCR-62'); }, who: '영업기회 대사는 영업지원이', more: ['영업기회 대사로', 'opp-recon.html'], owner: '영업지원' },
-    { on: C.canDoCheck(me, 'SCR-63'), items: function () { return C.reconTodo('SCR-63'); }, who: '인장 기록 대사는 총무가', more: ['인장 기록 대사로', 'seal-recon.html'], owner: '총무' },
+    { on: C.canDoCheck(me, 'SCR-63'), items: function () { return C.reconTodo('SCR-63'); }, who: '인장 기록 대조는 총무가', more: ['인장 기록 대조로', 'seal-recon.html'], owner: '총무' },
     { on: C.canDoCheck(me, 'SCR-64'), items: complianceItems, who: '거래처 확인과 개선 과제는 컴플라이언스 담당자가', more: ['개선 과제와 보류로', 'remediation.html'], owner: '컴플라이언스' },
   ].filter(function (g) { return g.on; });
   const audits = CHECK_GROUPS.reduce(function (out, g) {
@@ -185,7 +185,8 @@
     const href = c.status === 'DRAFT' ? 'new-contract.html?id=' + encodeURIComponent(c.draftKey)
       : ['ACTIVE', 'EXPIRED', 'TERMINATED'].indexOf(c.status) > -1 ? 'contract.html?id=' + encodeURIComponent(C.rootOf(c))
       : 'review.html?id=' + encodeURIComponent(c.id);
-    const link = '<a class="cell-title" href="' + href + '">' + esc(c.counterparty) + '</a>';
+    // 2026-11-06 점검: 거래처를 넣지 않고 임시 저장한 계약은 링크 글이 비었음. "거래처 미입력"으로 보임(내 등록 목록과 같은 말)
+    const link = '<a class="cell-title" href="' + href + '">' + esc(c.counterparty || '거래처 미입력') + '</a>';
     const service = esc(C.serviceLabel(c.services));
     return '<td>' + link + '<span class="cell-sub">' + service + '</span>' + sub + '</td><td class="col-service">' + service + '</td>';
   }
@@ -206,25 +207,29 @@
   function renderGreeting() {
     // 이름 뒤 '님'은 붙여 씁니다. (REQ-UI-08 표기 규칙)
     const name = '<strong>' + esc(me.name) + '님</strong>, ';
-    let msg;
+    let msg, hadWork; // hadWork: 앞 문장이 할 일을 알렸는지(아래 점검 문장의 "도"와 "은"을 고름, 2026-11-06 점검)
     if (isProcessor) {
       // 영업 리더는 새 영업대표를 정할 계약도 셈(2026-11-03 C-44, 아래 내가 검토할 계약 표와 같은 수)
       const n = myActions.length + repTodo.length;
+      hadWork = n > 0;
       msg = n
         ? name + '지금 ' + doWord + ' 계약이 <strong class="em">' + n + '건</strong> 있습니다.'
         : name + '지금 ' + doWord + ' 계약이 없습니다.';
     } else if (isSales) {
+      hadWork = myActions.length > 0;
       msg = myActions.length
         ? name + '처리가 필요한 내 계약이 <strong class="em">' + myActions.length + '건</strong> 있습니다.'
         : name + '지금 처리할 계약이 없습니다.';
     } else {
+      hadWork = inReview.length + restricted.length > 0;
       msg = name + '검토 중인 계약 <strong>' + inReview.length + '건</strong>, 열람 제한 계약 <strong>' + restricted.length + '건</strong>이 있습니다.';
     }
     // 정보보호: 점검할 일도 함께 (REQ-DASH-16)
     const auditCount = audits.filter(function (a) { return a.todo; }).length;
     //   기획자 결정 2026-11-02 C-10: 점검을 맡은 모든 사람(재무, 재무 임원, 재무 리더, 법무, 영업지원, 총무, 컴플라이언스)도 셈
     //   최고관리자는 시연으로 모든 점검을 보므로 인사말에는 넣지 않음(예전과 같음)
-    if (me.role !== 'SUPER' && auditCount) msg += ' 점검할 일도 <strong class="em">' + auditCount + '건</strong> 있습니다.';
+    //   2026-11-06 점검: "할 일이 없습니다" 바로 뒤에 "점검할 일도"가 붙어 어색했음. 앞 문장이 할 일을 알렸을 때만 "도", 아니면 "은"
+    if (me.role !== 'SUPER' && auditCount) msg += ' 점검할 일' + (hadWork ? '도' : '은') + ' <strong class="em">' + auditCount + '건</strong> 있습니다.';
     document.getElementById('greeting').innerHTML = msg;
     document.getElementById('today').textContent = C.fmtToday() + ' 기준';
     // 최근 공지 한 줄은 없앰(v0.59 기획자 요청, REQ-UI-29). 공지와 릴리즈는 공지사항 게시판에서, 중요 공지는 이메일로(REQ-ENV-10).

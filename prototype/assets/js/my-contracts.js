@@ -22,7 +22,8 @@
   const $ = function (s) { return document.querySelector(s); };
   const PAGE_SIZE = 20;
 
-  const seeAll = me.role === 'SUPER' || me.role === 'ADMIN';
+  // 관리자 보기는 뺌(기획자 결정 2026-11-09: 관리자는 처리하지 않고, 이 화면은 관리자 메뉴에도 없었음). 최고관리자는 시연용으로 모두 봄
+  const seeAll = me.role === 'SUPER';
   if (!seeAll && me.role !== 'SALES') {
     $('#notice').innerHTML = C.noticeBox('', '내 등록 목록은 영업이 씁니다',
       '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 모든 계약은 보관함 > 전체 계약에서 볼 수 있습니다.');
@@ -32,6 +33,8 @@
   if (seeAll) $('#intro').textContent = '모든 영업이 등록한 계약입니다(' + C.roleLabel(me.role) + ' 보기). 임시 저장한 계약은 작성자만 보므로 빠집니다.';
 
   const dateOf = function (c) { return c.requestedAt || c.savedAt || ''; };
+  // 2026-11-06 점검: 거래처를 넣지 않고 임시 저장한 계약은 상호가 비어 줄 링크에 글이 없고 확인 창과 알림 문장이 어색했음. "거래처 미입력"으로 보임(개요와 같은 말)
+  const cpName = function (c) { return c.counterparty || '거래처 미입력'; };
   let all = [];
   function collect() {
     all = D.CONTRACTS.filter(function (c) {
@@ -58,7 +61,7 @@
     if (!C.isSalesRep(c, me) && me.role !== 'SUPER') return '-';
     if (c.status === 'DRAFT') {
       return '<div class="row-actions"><a class="btn btn--secondary" href="new-contract.html?id=' + encodeURIComponent(c.draftKey) + '">이어서 작성</a>' +
-        '<button type="button" class="btn btn--tertiary btn-reject" data-del="' + esc(c.draftKey) + '">삭제</button></div>';
+        '<button type="button" class="btn btn--tertiary btn-reject" data-del="' + esc(c.draftKey) + '">지우기<span class="sr-only"> ' + esc(cpName(c)) + ' 임시 저장</span></button></div>'; // (2026-11-06 점검: 줄마다 같은 단추 이름이라 화면낭독기가 어느 것인지 알게 보이지 않는 글을 붙임. 보이는 글이 이름의 앞. 없애는 말은 "지우기"로 맞춤)
     }
     // 보완 요청을 받은 계약: 결재 문서에서 보완 완료 (REQ-REV-11, v0.26)
     if (c.status === 'SUPPLEMENT') {
@@ -90,7 +93,7 @@
     const q = $('#f-q').value.trim().toLowerCase();
     const status = $('#f-status').value, kind = $('#f-kind').value;
     return all.filter(function (c) {
-      if (q && c.counterparty.toLowerCase().indexOf(q) < 0 && String(c.id || '').toLowerCase().indexOf(q) < 0) return false;
+      if (q && (c.counterparty || '').toLowerCase().indexOf(q) < 0 /* 거래처 없이 임시 저장한 줄에서 멈추지 않게(2026-11-06 점검) */ && String(c.id || '').toLowerCase().indexOf(q) < 0) return false;
       if (status && c.status !== status) return false;
       if (kind && c.kind !== kind) return false;
       return true;
@@ -111,7 +114,7 @@
       // 작성 중은 계약 등록 화면으로, 그 밖에는 결재 문서로
       // 계약번호는 날짜처럼 한 줄로 (2512CL001-R01이 마지막 하이픈에서 끊기지 않게)
       const link = c.status === 'DRAFT'
-        ? '<a class="cell-title" href="new-contract.html?id=' + encodeURIComponent(c.draftKey) + '">' + esc(c.counterparty) + '</a><span class="cell-meta">임시 저장</span>'
+        ? '<a class="cell-title" href="new-contract.html?id=' + encodeURIComponent(c.draftKey) + '">' + esc(cpName(c)) + '</a><span class="cell-meta">임시 저장</span>'
         : '<a class="cell-title" href="review.html?id=' + encodeURIComponent(c.id) + '">' + esc(c.counterparty) + '</a><span class="cell-meta"><span class="nowrap">' + esc(c.id) + '</span>' + (c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span>' +
           repLine(c);
       // 기획자 결정 2026-11-02 D-10(C-43 ⑤): 휴대폰은 할 일 단추를 고객사 아래에 함께 둠(표를 끝까지 밀지 않아도 보이게)
@@ -138,7 +141,7 @@
     const b = e.target.closest('[data-del]');
     if (!b) return;
     target = D.CONTRACTS.find(function (c) { return c.draftKey === b.getAttribute('data-del'); });
-    $('#del-desc').textContent = (target ? target.counterparty + ' 계약의 ' : '') + '임시 저장 내용을 지웁니다. 기안 전이라 결재 기록은 없고, 지우면 되살릴 수 없습니다.';
+    $('#del-desc').textContent = (target ? cpName(target) + ' 계약의 ' : '') + '임시 저장 내용을 지웁니다. 기안 전이라 결재 기록은 없고, 지우면 되살릴 수 없습니다.';
     lastFocus = b;
     modal.hidden = false;
     C.focusModal(modal); // 제목에 포커스 (KRDS 모달, v0.28)
@@ -147,18 +150,20 @@
   modal.addEventListener('click', function (e) {
     if (e.target === modal || e.target.closest('[data-act="close"]')) closeModal();
     if (e.target.closest('[data-act="confirm"]') && target) {
-      const name = target.counterparty;
+      const name = cpName(target);
       C.deleteDraft(target);
       modal.hidden = true;
       collect();
       render();
       C.toast(name + ' 임시 저장을 지웠습니다.');
+      C.restoreFocus(lastFocus); // 지운 줄의 단추는 없어져 화면 제목으로 초점을 옮김(2026-11-06 점검: 화면 맨 앞으로 떨어졌음)
     }
   });
   document.addEventListener('keydown', function (e) { if (!modal.hidden && e.key === 'Escape') closeModal(); });
 
   $('#filter').addEventListener('input', function () { page = 1; render(); });
-  $('#filter').addEventListener('change', function () { page = 1; render(); });
+  // 검색 칸은 'input'이 이미 그렸으므로 'change'(칸을 떠날 때)에서 다시 그리지 않음. 다시 그리면 누르던 줄이나 쪽 번호가 바뀌어 클릭이 사라짐(2026-11-06 점검 4회차)
+  $('#filter').addEventListener('change', function (e) { if (e.target.matches('input[type=search], input[type=text]')) return; page = 1; render(); });
   $('#filter').addEventListener('reset', function () { setTimeout(function () { page = 1; render(); }, 0); });
   $('#filter').addEventListener('submit', function (e) { e.preventDefault(); });
   $('#pagination').addEventListener('click', function (e) {
@@ -166,7 +171,8 @@
     if (!b || b.disabled) return;
     page = Number(b.getAttribute('data-page'));
     render();
-    $('#list').scrollIntoView({ block: 'start' });
+    // 쪽 번호를 다시 그려 누른 단추가 없어지므로 초점을 목록 제목으로 옮기고 화면도 거기로(2026-11-06 점검 3회차)
+    C.focusSection('#list-title');
   });
   render();
 })();

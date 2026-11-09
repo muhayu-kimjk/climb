@@ -11,11 +11,15 @@
   var KEY = 'climb.demoTheme';
   var root = document.documentElement;
   var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
-  // 시연 역할: 주소의 ?role=, 저장한 역할, 없으면 기본 역할인 최고관리자 (common.js getRole과 같게, v0.58 QA: 예전에는 DEFAULT로 저장해 고른 밝기를 잃었음)
+  // 시연 역할: 주소의 ?role=, 저장한 역할, 없으면 기본 역할인 최고관리자 (common.js getRole과 같은 순서, v0.58 QA: 예전에는 DEFAULT로 저장해 고른 밝기를 잃었음)
+  //   이 파일은 mock-data.js보다 먼저 읽어 역할 이름이 맞는지는 보지 않음. 없는 역할을 주소에 넣으면 그 이름으로 밝기를 저장함(시안에서만, 2026-11-06 점검)
   function roleKey() {
     return (window.URLSearchParams && new URLSearchParams(location.search).get('role')) || localStorage.getItem('climb.demoRole') || 'SUPER';
   }
+  // 이 화면에서 고른 값(2026-11-06 검토: 저장소를 못 쓰는 브라우저에서도 메뉴판 밝기 단추가 이 화면에서는 동작하게)
+  var memo = null;
   function choice() {
+    if (memo) return memo;
     try {
       var role = roleKey();
       var all = JSON.parse(localStorage.getItem(KEY) || '{}') || {};
@@ -26,13 +30,16 @@
     var c = choice();
     var dark = c === 'dark' || (c === 'auto' && mq && mq.matches);
     root.setAttribute('data-theme', dark ? 'dark' : 'light');
+    // 바뀐 것을 알림: 메뉴판의 밝기 단추와 내 계정의 화면 설정이 따라감(2026-11-06)
+    try { window.dispatchEvent(new Event('climb-theme')); } catch (e) { /* 오래된 브라우저 */ }
   }
   apply();
   if (mq && mq.addEventListener) mq.addEventListener('change', apply);
-  // 내 계정에서 고를 때 씀: 저장하고 바로 바꿈
+  // 내 계정과 휴대폰 메뉴판의 밝기 단추(2026-11-06)에서 고를 때 씀: 저장하고 바로 바꿈
   window.CLIMB_THEME = {
     get: choice,
     set: function (value) {
+      memo = value;
       try {
         var role = roleKey();
         var all = JSON.parse(localStorage.getItem(KEY) || '{}') || {};

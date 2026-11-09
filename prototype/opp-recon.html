@@ -18,7 +18,7 @@
   <link rel="stylesheet" href="assets/css/form.css">
   <link rel="stylesheet" href="assets/css/list.css">
   <link rel="stylesheet" href="assets/css/admin.css">
-  <link rel="stylesheet" href="assets/css/recon.css"><!-- 회사 설정, 영업기회 대사, 인장 기록 대사 (2026-11-02) -->
+  <link rel="stylesheet" href="assets/css/recon.css"><!-- 회사 설정, 영업기회 대사, 인장 기록 대조 (2026-11-02) -->
 </head>
 <!-- =====================================================================
   SCR-62 영업기회 대사 (docs/02_화면목록.md 6장 점검, 기획자 결정 2026-11-02 E-1 ②)
@@ -57,8 +57,8 @@
           <p class="panel-desc">지난달 수주 목록은 다음 달 말일까지 맞춰 보고 확인합니다. 운영을 시작한 달부터의 수주만 봅니다.</p>
           <div class="tbl-scroll" tabindex="0" role="region" aria-label="월별 대사 표">
             <table class="tbl tbl--compact">
-              <caption class="sr-only">월별 대사: 대사 월, 기한, 올린 파일, 맞춰 본 결과, 확인, 보기</caption>
-              <thead><tr><th scope="col">대사 월</th><th scope="col">기한</th><th scope="col" class="col-phone-wide">올린 파일</th><th scope="col">맞춰 본 결과</th><th scope="col">확인</th><th scope="col" class="col-action">보기</th></tr></thead>
+              <caption class="sr-only">월별 대사: 대상 월, 기한, 올린 파일, 맞춰 본 결과, 확인, 보기</caption>
+              <thead><tr><th scope="col">대상 월</th><th scope="col">기한</th><th scope="col" class="col-phone-wide">올린 파일</th><th scope="col">맞춰 본 결과</th><th scope="col">확인</th><th scope="col" class="col-action">보기</th></tr></thead>
               <tbody id="month-rows"></tbody>
             </table>
           </div>
@@ -68,7 +68,7 @@
         <section class="panel" aria-labelledby="sec-detail">
           <div class="panel-head panel-head--act">
             <h2 class="panel-title" id="sec-detail">대사</h2>
-            <div class="recon-month-pick"><label class="field-label field-label--sm" for="f-month">대사 월</label><select class="select" id="f-month"></select></div>
+            <div class="recon-month-pick"><label class="field-label field-label--sm" for="f-month">대상 월</label><select class="select" id="f-month"></select></div>
           </div>
           <p class="step-guide">판다에서 내려받은 그 달의 수주 목록(CSV)을 올리면 영업기회번호로 시스템의 계약과 맞춰 봅니다. 운영 시작 전 수주와 다른 달 수주는 빼고,
             파일의 고객 담당자 이름, 연락처, 이메일 칸은 읽을 때 빼서 저장하지 않습니다. 계약이 없는 수주와 수주 목록에 없는 계약에 줄마다 의견을 남긴 뒤 확인합니다.</p>
@@ -81,8 +81,8 @@
           <p class="panel-desc">파일을 올리고, 의견을 남기고, 확인한 기록입니다. 고치거나 지울 수 없습니다.</p>
           <div class="tbl-scroll" tabindex="0" role="region" aria-label="대사 기록 표">
             <table class="tbl tbl--compact recon-log">
-              <caption class="sr-only">대사 기록: 일시, 대사 월, 한 일, 내용, 한 사람</caption>
-              <thead><tr><th scope="col">일시</th><th scope="col">대사 월</th><th scope="col">한 일</th><th scope="col" class="col-phone-wide">내용</th><th scope="col">한 사람</th></tr></thead>
+              <caption class="sr-only">대사 기록: 일시, 대상 월, 한 일, 내용, 남긴 사람</caption>
+              <thead><tr><th scope="col">일시</th><th scope="col">대상 월</th><th scope="col">한 일</th><th scope="col" class="col-phone-wide">내용</th><th scope="col">남긴 사람</th></tr></thead>
               <tbody id="log-rows"></tbody>
             </table>
           </div>

@@ -143,7 +143,9 @@
   /* 그래프가 없는 표(계약 방식과 거래처마다, v0.62)는 인쇄 때 stats.js가 펼치고 "보기" 글자만 숨김 */
   .chart-table--print summary { display: none; }
   .chart-table--print::details-content { content-visibility: visible; } /* 브라우저 인쇄 미리 보기처럼 beforeprint가 없는 경우에도 펼쳐 찍음 */
-  .panel { break-inside: avoid; }
+  /* 묶음째 쪽을 넘기지 않는 것은 종이에 찍히는 표가 없는 상자만. 긴 표가 든 묶음(통제 지표 등)까지 막으면 빈 쪽이 생겼음 (2026-11-06 점검)
+   *   찍히는 표: 묶음 바로 아래 표, 인쇄 때 펼치는 표(chart-table--print). 그래프 옆 "표로 보기"는 종이에서 감추므로 그래프 묶음은 그대로 한 쪽에 */
+  .panel:not(:has(> .tbl-scroll, .chart-table--print)) { break-inside: avoid; }
 
   /* 기간 마감 점검(B-9): "보고서 인쇄"에는 넣지 않고, "마감 점검 인쇄"(body.is-print-close)는 이 묶음만 A4로 */
   body:not(.is-print-close) .close-panel { display: none !important; }

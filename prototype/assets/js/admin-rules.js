@@ -207,7 +207,7 @@
     // 기획자 결정 2026-11-02 C-5: 고른 리더에게 겹치는 일이 생기면 알리고 까닭을 받음(유닛과 리더를 모두 고른 뒤에 셈)
     const listFor = function (f) { const unit = val(f, 'unit'), to = val(f, 'to'); return unit && to ? C.roleConflicts(to, { addSteps: ['S03:' + unit] }) : []; };
     C.formModal({
-      title: '유닛별 리더 표에 유닛을 더할까요?',
+      title: '유닛별 리더 표에 유닛을 추가할까요?',
       desc: '더하면 그 유닛 사람이 기안하는 계약의 ③ 영업 검토가 정한 리더에게 갑니다. 표에 없는 유닛의 계약은 영업 임원이 검토합니다.',
       body: C.fieldHtml({ name: 'unit', label: '유닛', type: 'select', required: true, options: [['', '고르세요']].concat(units.map(function (x) { return [x.label, x.label]; })),
           help: '2단계 유닛 중 영업 담당자나 영업 리더가 있고 아직 표에 없는 유닛만 고를 수 있습니다.' }) +
@@ -281,7 +281,7 @@
         '<td class="num-left"><span class="keep">' + C.fmtDate(d.from) + '~</span><wbr><span class="keep">' + C.fmtDate(d.to) + '</span>' + (d.endedAt ? '<span class="cell-meta">' + C.fmtDate(d.endedAt) + ' 끝냄</span>' : '') + '</td>' +
         '<td class="col-wide">' + esc(d.reason) + '</td>' +
         '<td class="nowrap">' + C.badge(tag[0], tag[1]) + '</td>' +
-        '<td class="col-action">' + (state === 'ENDED' ? '-' : '<button type="button" class="link-act link-act--danger" data-end="' + esc(d.id) + '">' + (state === 'ACTIVE' ? '끝내기' : '취소') + '</button>') + '</td></tr>';
+        '<td class="col-action">' + (state === 'ENDED' ? '-' : '<button type="button" class="link-act link-act--danger" data-end="' + esc(d.id) + '">' + (state === 'ACTIVE' ? '끝내기' : '취소') + '<span class="sr-only"> ' + esc(C.ownerLabel(d.absentId)) + ' 대리 지정</span></button>') /* (2026-11-06 점검: 줄마다 같은 단추 이름이라 화면낭독기가 어느 것인지 알게 보이지 않는 글을 붙임. 보이는 글이 이름의 앞) */ + '</td></tr>';
     }).join('') : '<tr><td class="empty-row" colspan="6">대리 지정이 없습니다.</td></tr>';
   }
   // 대신할 수 있는 사람: 같은 역할. 영업 리더(③ 영업 검토)는 영업 임원도 (REQ-AUTH-12)
@@ -445,13 +445,14 @@
   /* ---------- 3. 독촉과 알림 일수 (REQ-ENV-10, REQ-DASH-05, REQ-FLOW-32, REQ-FLOW-36) ---------- */
   //   기획자 결정 2026-11-02 D-12: 체결 대기에서 ⑥, ⑦ 줄은 승인 후 일수(체결 지연), ⑧ 줄은 그 단계 대기(결재 대기)로 강조. 독촉 이메일 규칙은 그대로
   //   기획자 결정 2026-11-02 A-5(추천과 다름): 해지 통지 기한 강조와 이메일, 의무 기한 강조와 이메일 네 칸을 더함. 값은 D.ALERT_RULES
-  //     이 값을 읽는 화면(개요, 만료 예정, 계약 상세, 의무 관리, 의무 더하기 창, 내 계정)은 모두 화면을 열 때 지금 값을 읽음
+  //     이 값을 읽는 화면(개요, 만료 예정, 계약 상세, 의무 관리, 의무 추가 창, 내 계정)은 모두 화면을 열 때 지금 값을 읽음
   //   기획자 결정 2026-11-02 E-12: 해지 통지 기한 이메일은 영업대표에게 모든 날, 그 유닛 리더에게는 가장 짧은 날(처음 7일 전)에만
   //   multi: 날이 둘인 이메일(첫 이메일, 두 번째 이메일). 첫 이메일이 기한에서 더 멂 / max: 넣을 수 있는 가장 큰 일수
   //     해지 통지 기한 강조는 만료 예정에 넣는 날수(expiryWindowDays, 90일)를 넘지 않게: 넘으면 강조할 계약이 목록에 없음
+  //   2026-11-06 점검 3회차: 체결 지연 독촉은 처음 기안자가 아니라 지금 영업대표에게 감(기획자 결정 2026-11-03 C-44, common.js salesRepOf)
   const RULES = [
     { key: 'approvalDelayDays', name: '결재 대기 독촉', max: 60, use: '한 단계에 이 일수 이상 머문 건을 개요, 검토 대기, 운영 검토 대기, 체결 대기의 ⑧ 줄에서 강조하고 그 단계 담당자에게 독촉 이메일' },
-    { key: 'signDelayDays', name: '체결 지연 독촉', max: 60, use: '계약 검토가 끝나고 이 일수가 지나도 체결이 끝나지 않은 건을 체결 대기의 ⑥, ⑦ 줄에서 강조하고 기안자에게 독촉 이메일' },
+    { key: 'signDelayDays', name: '체결 지연 독촉', max: 60, use: '계약 검토가 끝나고 이 일수가 지나도 체결이 끝나지 않은 건을 체결 대기의 ⑥, ⑦ 줄에서 강조하고 영업대표에게 독촉 이메일' },
     { key: 'noticeSoonDays', name: '해지 통지 기한 강조', max: D.ALERT_RULES.expiryWindowDays, use: '자동갱신 계약의 해지 통지 기한이 이 일수 안이거나 지났으면 개요, 만료 예정, 계약 상세에서 강조' },
     { key: 'noticeMailDays', name: '해지 통지 기한 이메일', multi: true, max: 90, use: '자동갱신 계약의 해지 통지 기한 이 일수 전에 영업대표에게 이메일. 그 유닛 리더에게는 두 번째 이메일({last}일 전)만' },
     { key: 'obligationSoonDays', name: '의무 기한 강조', max: 60, use: '체결 후 의무의 기한이 이 일수 안이면 "D-n"으로 강조하고 개요 "챙길 의무"와 의무 관리의 급한 것에 넣음' },

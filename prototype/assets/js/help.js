@@ -79,8 +79,10 @@
   });
 
   // ---------- 쪽 바꾸기 ----------
+  // 주소 # 뒤 글. 잘못된 % 글(예: 잘린 링크)이면 빈 글로 두어 소개 쪽이 열리게(2026-11-06 점검 4회차): 풀다가 멈춰 모든 쪽이 한꺼번에 보였음
+  function hashText() { try { return decodeURIComponent((location.hash || '').slice(1)); } catch (e) { return ''; } }
   function parseHash() {
-    const h = decodeURIComponent((location.hash || '').slice(1));
+    const h = hashText();
     const id = h.split('--')[0];
     return { page: byId[id] ? id : 'intro', section: h.indexOf('--') > 0 && document.getElementById(h) ? h : '' };
   }
@@ -118,7 +120,13 @@
       if (h) h.focus({ preventScroll: true });
     }
   }
-  window.addEventListener('hashchange', function () { show(parseHash(), true); });
+  window.addEventListener('hashchange', function () {
+    // 2026-11-06 점검 3회차: "본문 바로가기"(#main)처럼 이용 안내 쪽이 아닌 주소는 쪽을 바꾸지 않음(소개로 넘어가던 것을 고침).
+    //   브라우저가 하는 대로 그 자리로 포커스만 옮김
+    const id = hashText().split('--')[0];
+    if (id && !byId[id]) return;
+    show(parseHash(), true);
+  });
 
   // ---------- 이전과 다음 ----------
   function renderPager(page) {

@@ -706,7 +706,8 @@
       title: C.fmtDate(end) + ' 기간 마감 점검을 확인할까요?',
       desc: '저장하면 확인한 사람과 일시, 메모, 지금 본 숫자가 남고 고칠 수 없습니다.' + (prev ? ' 이미 남긴 확인 ' + prev + '건은 그대로 두고 한 줄 더 남깁니다.' : ''),
       body: '<p class="modal-info">' + esc(seenText(seen)) + '</p>' +
-        C.fieldHtml({ name: 'memo', label: '메모 (선택)', type: 'textarea', help: '예: 기간 말 뒤에 올린 1건은 서명본 체결일에 맞춰 9월로 반영함' }),
+        // 넣지 않아도 되는 칸은 optional로 "(선택)"을 모든 창에서 같은 모양으로(2026-11-06 점검 3회차)
+        C.fieldHtml({ name: 'memo', label: '메모', type: 'textarea', optional: true, help: '예: 기간 말 뒤에 올린 1건은 서명본 체결일에 맞춰 9월로 반영함' }),
       btn: '확인 남기기',
       done: function (f) {
         C.pushDemo('closeChecks', { end: end, at: C.nowStamp().slice(0, 16), by: me.id, dept: me.dept || '', memo: f.elements.memo.value.trim(), seen: seen });
@@ -732,11 +733,15 @@
   function acctKindText(c) {
     return ((c.checklist || {}).acctKinds || []).map(function (k) { const x = (D.ACCT_KINDS || []).filter(function (y) { return y.code === k; })[0]; return x ? x.label : k; }).join(', ');
   }
-  // 단계의 지금 상태, 처리한 사람, 일시 (거치지 않는 단계는 "거치지 않음")
+  // 단계의 지금 상태, 처리한 사람, 일시 (결재선에 아예 없는 단계는 "거치지 않음")
+  // 상태 글은 화면(review.js 결재 칸)과 같은 규칙: 끝난 단계는 그 단계의 끝난 말(D.STEPS[code].done, 예: ⑩ "확인"), 없으면 "승인".
+  // 생략한 단계는 화면처럼 "생략"(2026-11-06 점검 4회차: 전에는 ⑩도 "승인", 생략도 "거치지 않음"으로 나가 화면과 달랐음)
   function stepState(c, code) {
     const a = (c.approvals || []).filter(function (x) { return x.step === code; })[0];
-    if (!a || a.state === 'SKIPPED') return ['거치지 않음', '', ''];
-    return [(D.APPROVAL_STATE[a.state] || { label: a.state }).label, a.decidedBy ? C.ownerLabel(a.decidedBy) : '', a.decidedAt ? C.fmtDateTime(a.decidedAt) : ''];
+    if (!a) return ['거치지 않음', '', ''];
+    if (a.state === 'SKIPPED') return [(D.APPROVAL_STATE.SKIPPED || { label: '생략' }).label, '', ''];
+    const label = a.state === 'DONE' && D.STEPS[code] && D.STEPS[code].done ? D.STEPS[code].done : (D.APPROVAL_STATE[a.state] || { label: a.state }).label;
+    return [label, a.decidedBy ? C.ownerLabel(a.decidedBy) : '', a.decidedAt ? C.fmtDateTime(a.decidedAt) : ''];
   }
   function buildEvidence(from, to) {
     const inP = function (s) { const d = String(s || '').slice(0, 10); return !!d && d >= from && d <= to; };
@@ -908,7 +913,8 @@
   $('#close-end').value = PREV_MONTH_END;
   $('#close-days').value = CLOSE_DAYS;
   $('#close-bar').addEventListener('input', function () { renderClose(false); });
-  $('#close-bar').addEventListener('change', function () { renderClose(true); });
+  // 일수 칸을 떠날 때 생기는 change는 값이 맞으면 다시 그리지 않음(input이 이미 그림)(2026-11-06 점검 4회차): 숫자를 넣은 뒤 표의 계약 링크를 누르면 그 순간 표가 다시 그려져 눌림이 사라졌음
+  $('#close-bar').addEventListener('change', function () { const v = closeInputs(); if (v.endOk && v.nOk) return; renderClose(true); });
   // 확인은 재무만: 그 밖의 사람에게는 단추를 두지 않음(역할은 화면을 여는 동안 바뀌지 않아 자리가 흔들리지 않음)
   const okBtn = $('#btn-close-ok');
   if (canConfirm) okBtn.addEventListener('click', openConfirm); else okBtn.remove();

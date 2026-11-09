@@ -89,7 +89,7 @@
             <div class="field-row">
               <div class="field" data-field="qty">
                 <label class="field-label" for="f-qty">충전 수량<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
-                <div class="input-unit"><input class="input" id="f-qty" type="text" inputmode="numeric" placeholder="0"><span class="unit">건</span></div>
+                <div class="input-unit"><input class="input" id="f-qty" type="text" inputmode="numeric" maxlength="7" placeholder="0"><!-- 수량은 999,999건까지(기획자 결정 2026-11-09: 사업자등록번호, 상호, 수량은 모든 화면 같은 규칙) --><span class="unit">건</span></div>
                 <p class="field-help" id="qty-help"></p>
                 <p class="field-error" hidden></p>
               </div>

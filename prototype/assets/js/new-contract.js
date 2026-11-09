@@ -35,7 +35,11 @@
   D.PRICE_BOOK.forEach(function (p) { PRICE[p.feature] = p; }); // 가격 기준: 기능마다 하나(v0.49)
 
   /* ---------- 숫자와 날짜 도우미 ---------- */
+  // 숫자 칸은 숫자와 쉼표, 빈칸만 받음(2026-11-06 점검 3회차, 견적 화면과 같은 규칙): 다른 글자(소수점, 빼기 등)가 있으면
+  //   글자를 빼고 셈하지 않고(예전에는 '1.5'가 15가 됨) 비운 값(null)으로 보고, 그 칸에 숫자로만 넣으라고 알림(numFlag)
+  function badNum(v) { return !/^[\d,\s]*$/.test(String(v == null ? '' : v)); }
   function parseNum(v) {
+    if (badNum(v)) return null;
     const n = String(v == null ? '' : v).replace(/[^0-9]/g, '');
     return n ? parseInt(n, 10) : null;
   }
@@ -93,11 +97,12 @@
     return v ? '<option value="' + esc(t.id) + '">' + esc(t.name + ' (판 ' + v.no + ', ' + C.fmtDate(v.from) + '부터)') + '</option>' : '';
   }).join('') + '<option value="OWN">상대방 양식(표준계약서 없음)</option>';
   /* 거래처 검색 (REQ-REG-18, 기획자 요청 v0.32)
-   *   상호나 사업자등록번호 일부로 우리 거래처 목록과 사업자 정보 DB(공공데이터 내재화)를 함께 찾음 (C.searchBusinesses)
+   *   상호나 사업자등록번호 일부로 우리 거래처 목록과 사업자 정보 DB(기획자가 모은 자료를 내재화, REQ-REG-19. 공공데이터나 정부 API는 쓰지 않음(2026-11-06 점검 4회차))를 함께 찾음 (C.searchBusinesses)
    *   고르면 상호와 사업자등록번호가 채워지고 잠김. DB에서 고른 곳은 기안할 때 거래처 목록에 함께 등록
    *   검색 결과가 없으면 "직접 입력하기"로 상호와 사업자등록번호를 넣음
    *   선택 값(name="customer"): 'C:거래처 번호' 우리 거래처 / 'R:사업자등록번호' DB / 'NEW' 직접 입력
-   * 프로토타입: 새 거래처는 기안할 때 함께 등록되는 것으로 안내만 함. 실제 시스템은 서버가 사업자등록번호 중복과 상태를 다시 검사 */
+   * 프로토타입: 새 거래처는 기안할 때 거래처 목록에 함께 등록함(아래 registerCustomer, 2026-11-06 점검 4회차: 예전에는 안내만 하고 등록하지 않았음).
+   *   실제 시스템은 서버가 사업자등록번호 중복과 상태를 다시 검사 */
   const NEW_CUSTOMER = 'NEW';
   const HELP_SEARCH = '상호나 사업자등록번호 일부를 넣어 찾습니다. 우리 거래처와 ' + D.BIZ_REGISTRY_INFO.source + '(' +
     C.fmtDate(D.BIZ_REGISTRY_INFO.refreshedAt) + ' 기준)를 함께 찾고, 고르면 상호와 사업자등록번호가 채워집니다. 찾는 곳이 없으면 직접 입력합니다.';
@@ -189,6 +194,10 @@
     if (e.target.id === 'customer-research') { setCustomer('', '', ''); qInput.value = ''; qInput.focus(); }
   });
   document.addEventListener('click', function (e) { if (!e.target.closest('#customer-combo')) closePanel(); });
+  // Tab으로 검색 칸을 떠나면 결과 창을 닫음(2026-11-06 점검 3회차: 열린 채 남아 다음 칸을 가렸음). 창 안의 "직접 입력하기"로 가는 것은 그대로
+  $('#customer-combo').addEventListener('focusout', function (e) { if (!e.currentTarget.contains(e.relatedTarget)) closePanel(); });
+  //   마우스로 창 안을 누를 때는 검색 칸의 초점을 지킴: 누른 단추에 초점이 가지 않는 브라우저(사파리)에서 위 닫기로 "직접 입력하기"가 눌리기 전에 사라지지 않게
+  panel.addEventListener('mousedown', function (e) { e.preventDefault(); });
   // 상호로 거래처 고르기 (이어서 작성, 재기안, 원계약에서 미리 채우기). 없으면 직접 입력으로
   function pickCustomerByName(name, bizNo, unit) {
     if (!name) return;
@@ -277,6 +286,10 @@
     setTitle('새 계약 등록 (이어서 작성)');
     $('#notice').innerHTML = noticeHtml('', '임시 저장한 계약을 이어서 작성합니다',
       C.fmtDate(source.savedAt) + '에 임시 저장했습니다. 임시 저장한 계약은 나만 볼 수 있습니다.', '');
+  } else if (srcId) {
+    // 2026-11-06 점검: 주소의 ?id=가 틀렸거나 이미 기안했거나 지운 기록이면 빈 새 계약 등록이 말없이 열렸음. 까닭과 내 등록 목록으로 가는 길을 알림
+    $('#notice').innerHTML = noticeHtml('', '기록을 찾을 수 없습니다',
+      '이어서 작성하거나 다시 기안할 기록을 찾을 수 없습니다. 이미 기안했거나 지운 기록일 수 있습니다. <a class="doc-link" href="my-contracts.html">내 등록 목록</a>', '');
   }
   function setTitle(t) { $('#page-title').textContent = t; }
 
@@ -345,20 +358,22 @@
     const prod = feat ? productOf(feat.product) : null;
     const li = document.createElement('li');
     li.className = 'product-item';
+    // 줄 오류(맨 아래 p-err-n)를 서비스, 제품, 기능, 수량, 금액 칸에 이어 화면낭독기가 칸과 함께 읽게 함(2026-11-06 점검 3회차: 나중에 그린 칸이라 이어지지 않았음)
+    const rowErr = ' aria-describedby="p-err-' + n + '"';
     li.innerHTML =
       '<div class="product-pick">' +
         '<div class="field"><label class="field-label field-label--sm" for="p-svc-' + n + '">서비스</label>' +
-          '<select class="select" id="p-svc-' + n + '" data-k="service">' + optionsHtml(prod ? [[prod.service, C.serviceLabel([prod.service])]] : [], prod ? prod.service : '', '고르세요') + '</select></div>' +
+          '<select class="select" id="p-svc-' + n + '" data-k="service"' + rowErr + '>' + optionsHtml(prod ? [[prod.service, C.serviceLabel([prod.service])]] : [], prod ? prod.service : '', '고르세요') + '</select></div>' +
         '<div class="field"><label class="field-label field-label--sm" for="p-prod-' + n + '">제품</label>' +
-          '<select class="select" id="p-prod-' + n + '" data-k="product">' + optionsHtml(prod ? [[prod.id, prod.name]] : [], prod ? prod.id : '', '서비스를 먼저 고르세요') + '</select></div>' +
+          '<select class="select" id="p-prod-' + n + '" data-k="product"' + rowErr + '>' + optionsHtml(prod ? [[prod.id, prod.name]] : [], prod ? prod.id : '', '서비스를 먼저 고르세요') + '</select></div>' +
         '<div class="field"><label class="field-label field-label--sm" for="p-feat-' + n + '">기능</label>' +
-          '<select class="select" id="p-feat-' + n + '" data-k="feature">' + optionsHtml(feat ? [[feat.id, C.featureText(feat.id)]] : [], feat ? feat.id : '', '제품을 먼저 고르세요') + '</select></div>' +
+          '<select class="select" id="p-feat-' + n + '" data-k="feature"' + rowErr + '>' + optionsHtml(feat ? [[feat.id, C.featureText(feat.id)]] : [], feat ? feat.id : '', '제품을 먼저 고르세요') + '</select></div>' +
       '</div>' +
       '<div class="product-grid">' +
         '<div class="field"><label class="field-label field-label--sm" for="p-qty-' + n + '">수량</label>' +
-          '<div class="input-unit"><input class="input" id="p-qty-' + n + '" data-k="qty" inputmode="numeric" maxlength="6" value="' + (data.qty || 1) + '"><span class="unit qty-unit">개</span></div></div>' +
+          '<div class="input-unit"><input class="input" id="p-qty-' + n + '" data-k="qty" inputmode="numeric" maxlength="7"' + rowErr + ' value="' + (data.qty || 1) + '"><span class="unit qty-unit">개</span></div></div>' +
         '<div class="field"><label class="field-label field-label--sm" for="p-amt-' + n + '">계약 금액</label>' +
-          '<div class="input-unit"><input class="input" id="p-amt-' + n + '" data-k="amount" inputmode="numeric" value="' + fmtNum(data.amount != null ? data.amount : null) + '"><span class="unit">원</span></div></div>' +
+          '<div class="input-unit"><input class="input" id="p-amt-' + n + '" data-k="amount" inputmode="numeric"' + rowErr + ' value="' + fmtNum(data.amount != null ? data.amount : null) + '"><span class="unit">원</span></div></div>' +
       '</div>' +
       // 사용 업체: 직접, 조달은 선택. 간접은 필수이고, 아직 모르면 "정해지지 않음"과 까닭을 고름 (v0.62, 표준 대응표 G-19). syncOrg()가 바꿈
       '<div class="field org-field"><label class="field-label field-label--sm" for="p-org-' + n + '">사용 업체<span class="req" aria-hidden="true" hidden>*</span>' +
@@ -375,8 +390,8 @@
         // 사용 업체 오류는 이 칸 아래에 따로 (제품 줄의 다른 오류와 함께 보이게, 검토에서 고침)
         '<p class="field-error" id="p-org-err-' + n + '" hidden></p></div>' +
       '<div class="product-foot"><span class="price-info"></span><span class="price-badge"></span>' +
-        '<button type="button" class="btn-text" data-act="remove">이 제품 삭제</button></div>' +
-      '<p class="field-error" hidden></p>';
+        '<button type="button" class="btn-text" data-act="remove">이 제품 지우기</button></div>' + // (2026-11-06 점검: 줄을 없애는 말은 "지우기"로 맞춤. 몇 번째 제품인지 붙였던 숨은 글은 줄을 지우면 번호가 맞지 않아 뺌)
+      '<p class="field-error" id="p-err-' + n + '" hidden></p>'; // id: 위 칸들의 aria-describedby(2026-11-06 점검 3회차)
     $('#product-list').appendChild(li);
     syncPick(li, data.feature);
     syncOrg(li);
@@ -418,16 +433,22 @@
   $('#btn-add-product').insertAdjacentHTML('afterbegin', C.icon('plus')); // + 아이콘 (v0.57)
   $('#btn-add-product').addEventListener('click', function () { addProduct().querySelector('select').focus(); });
   $('#product-list').addEventListener('click', function (e) {
-    if (e.target.closest('[data-act="remove"]')) { e.target.closest('li').remove(); refresh(); }
+    if (!e.target.closest('[data-act="remove"]')) return;
+    // 줄을 지우면 초점을 다음 제품 줄의 첫 칸(서비스)으로, 남은 다음 줄이 없으면 "제품 추가"로(2026-11-06 점검 3회차: 누른 단추가 없어져 초점이 화면 맨 앞으로 떨어졌음)
+    const li = e.target.closest('li.product-item'), next = li.nextElementSibling;
+    li.remove();
+    refresh();
+    (next ? next.querySelector('select') : $('#btn-add-product')).focus();
   });
   // 서비스나 제품을 바꾸면 다음 칸을 다시 채움, 기능을 바꾸면 수량 단위를 맞춤 (폼 전체의 change보다 먼저 돌아 계산에 새 기능이 쓰임)
   $('#product-list').addEventListener('change', function (e) {
     if (e.target.matches('[data-k="service"], [data-k="product"], [data-k="feature"]')) syncPick(e.target.closest('li'));
     if (e.target.matches('[data-k="orgPending"], [data-k="orgWhy"]')) syncOrg(e.target.closest('li'));
   });
-  // 금액 칸은 입력하는 동안 숫자만 남기고, 칸을 벗어나면 쉼표를 붙임
+  // 금액 칸은 칸을 벗어나면 쉼표를 붙임. 숫자가 아닌 글은 지우지 않고 그대로 두어 오류로 알림(2026-11-06 점검 3회차)
   form.addEventListener('focusout', function (e) {
     if (e.target.matches('[data-k="amount"], .yearly-input')) {
+      if (badNum(e.target.value)) return; // 숫자가 아닌 글자가 있으면 그대로 둠(지우면 넣은 글이 사라짐, 2026-11-06 점검 3회차)
       const n = parseNum(e.target.value);
       e.target.value = fmtNum(n);
     }
@@ -436,14 +457,16 @@
   function readProducts() {
     return $$('#product-list > li').map(function (li) {
       const feature = li.querySelector('[data-k="feature"]').value;
-      const qty = parseNum(li.querySelector('[data-k="qty"]').value);
-      const amount = parseNum(li.querySelector('[data-k="amount"]').value);
+      const qtyEl = li.querySelector('[data-k="qty"]'), amtEl = li.querySelector('[data-k="amount"]');
+      const qty = parseNum(qtyEl.value);
+      const amount = parseNum(amtEl.value);
+      const bad = badNum(qtyEl.value) || badNum(amtEl.value); // 숫자가 아닌 글자가 든 칸(2026-11-06 점검 3회차): 값은 비운 것으로 셈
       const retired = !!feature && liveFeatureIds().indexOf(feature) < 0; // 다시 연 줄의 사용 안 함 기능
       const p = retired ? null : PRICE[feature];
       const std = p && qty ? p.listPrice * qty : null;
       // 할인율: 표준 금액보다 높게 받으면 음수(표준 단가보다 높음). v0.58 QA: 예전에는 0으로 보아 "표준 단가"라고 잘못 보였음
       const discount = std && amount != null ? (std - amount) / std : null;
-      return { li: li, feature: feature, retired: retired, qty: qty, amount: amount, product: p, std: std, discount: discount, cap: p ? p.discountCap : null };
+      return { li: li, feature: feature, retired: retired, bad: bad, qty: qty, amount: amount, product: p, std: std, discount: discount, cap: p ? p.discountCap : null };
     });
   }
 
@@ -483,7 +506,8 @@
     list.innerHTML = years.map(function (y, i) {
       return '<div class="year-row"><label class="year-label" for="y-' + i + '"><strong>' + (i + 1) + '년 차</strong>' +
         C.fmtPeriod(y.from, y.to) + '</label>' +
-        '<div class="input-unit"><input class="input yearly-input" id="y-' + i + '" inputmode="numeric" value="' + (old[i] || '') + '"><span class="unit">원</span></div></div>';
+        // 칸마다 묶음의 도움말과 오류(new-contract.html yearly-help, yearly-err)를 이음(2026-11-06 점검 3회차: 나중에 그린 칸이라 이어지지 않았음)
+        '<div class="input-unit"><input class="input yearly-input" id="y-' + i + '" inputmode="numeric" aria-describedby="yearly-help yearly-err" value="' + esc(old[i] || '') + '"><span class="unit">원</span></div></div>';
     }).join('') + '<p class="year-sum" id="year-sum"></p>';
     updateYearSum();
   }
@@ -780,8 +804,28 @@
     if (e.target.id === 'f-bizno') { e.target.value = C.fmtBizNo(e.target.value); bizWarn(); }
     if (e.target.id === 'f-opportunity') { e.target.value = e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, ''); updateOppLink(); }
     clearError(e.target);
+    numFlag(e.target);
     refresh();
   });
+  // 숫자 칸(제품 줄의 수량과 금액, 연도별 금액, 해지 통지 일수)에 숫자, 쉼표, 빈칸이 아닌 글자가 있으면 그 칸 묶음의 오류로 알림
+  //   (2026-11-06 점검 3회차, 견적 화면과 같은 말). 틀린 칸에만 aria-invalid. 글자를 고치면 위 clearError가 지우고 남은 틀린 칸만 다시 알림
+  const NUM_FIELDS = '[data-k="qty"], [data-k="amount"], .yearly-input, #f-notice-days';
+  function numMsg(box) {
+    return box.classList.contains('product-item') ? '수량과 금액은 숫자로만 넣습니다(쉼표는 괜찮음).'
+      : box.getAttribute('data-field') === 'yearly' ? '연도별 금액은 숫자로만 넣습니다(쉼표는 괜찮음).'
+      : '해지 통지 기한은 숫자로만 넣습니다.';
+  }
+  function numFlag(el) {
+    if (!el.matches || !el.matches(NUM_FIELDS)) return;
+    const box = el.closest('.product-item') || el.closest('[data-field]');
+    if (!box) return;
+    const bad = $$(NUM_FIELDS, box).filter(function (x) { return badNum(x.value); });
+    if (!bad.length) return;
+    box.classList.add('is-invalid');
+    const err = box.querySelector(':scope > .field-error');
+    if (err) { err.innerHTML = C.icon('alert', 'sm') + '<span>' + esc(numMsg(box)) + '</span>'; err.hidden = false; }
+    bad.forEach(function (x) { x.setAttribute('aria-invalid', 'true'); });
+  }
   form.addEventListener('change', function (e) {
     if (e.target.type !== 'file') clearError(e.target); // 파일 칸은 addFiles가 오류를 직접 정함(맞지 않는 파일 경고가 바로 지워지던 것, v0.63 검토)
     if (e.target.name === 'kind') onKindChange();
@@ -840,9 +884,16 @@
     }
     if (kind === 'RENEW') {
       const busy = b.open.filter(function (o) { return o.kind === 'RENEW' || o.kind === 'TERMINATE' || (o.kind === 'CHANGE' && o.changeType === 'PERIOD'); })[0];
-      if (busy) return { msg: busy.id + ': 진행 중인 ' + C.kindLabel(busy) + ' 기안이 있어 새 연장을 올릴 수 없습니다. 그 기안이 끝난 뒤에 올립니다.', short: '진행 중인 기안이 끝난 뒤에 올리세요.' };
+      if (busy) return { msg: busy.id + ': 진행 중인 ' + C.kindLabel(busy) + ' 기안이 있어 새 연장을 기안할 수 없습니다. 그 기안이 끝난 뒤에 기안합니다.', short: '진행 중인 기안이 끝난 뒤에 기안하세요.' }; // 말은 "기안"(2026-11-06 점검)
     }
     return null;
+  }
+  // 연장 기안의 가장 이른 시작일: 고른 원계약 묶음의 지금 종료일 다음 날(기획자 결정 2026-11-09). 연장이 아니거나 원계약을 고르지 않았으면 ''
+  function renewStart() {
+    if (val('kind') !== 'RENEW') return '';
+    const o = D.CONTRACTS.find(function (c) { return c.id === $('#f-origin').value; });
+    const b = o && C.bundleOf(C.rootOf(o));
+    return b && b.end ? C.addDays(b.end, 1) : '';
   }
   function onOriginChange() {
     const help = $('#origin-help');
@@ -857,6 +908,10 @@
     if (o) {
       if (!$('#f-customer').value) pickCustomerByName(o.counterparty, '', o.unit);
     }
+    // 연장이면 시작일 달력이 원계약 종료일 다음 날부터 열리고, 비어 있으면 그날을 넣어 둠(기획자 결정 2026-11-09)
+    const rs = renewStart();
+    $('#f-start').min = rs || '';
+    if (rs && !$('#f-start').value) $('#f-start').value = rs;
     // 열람 제한 이어받기 (D-13 v0.39 기획자 결정): 원계약이 열람 제한이면 변경, 연장 기안도 제한. 여기서는 풀 수 없고 관리자만(열람 제한 관리)
     const fromOrigin = !!(o && o.restricted && val('kind') !== 'NEW');
     // 보완 후 재기안: 이미 기안한 계약에 걸린 열람 제한은 영업이 풀 수 없음(풀기는 관리자만, REQ-AUTH-07. v0.63 통제 목록 CTL-94 점검)
@@ -879,7 +934,8 @@
   function renderFiles(key) {
     $('#' + key + '-list').innerHTML = files[key].map(function (f, i) {
       return '<li><span><span class="file-name">' + esc(f.name) + '</span><span class="file-size">' + fmtSize(f.size) + '</span></span>' +
-        '<button type="button" class="btn-text" data-file="' + key + '" data-i="' + i + '" aria-label="' + esc(f.name) + ' 삭제">삭제</button></li>';
+        // 2026-11-06 점검: 없애는 말을 "지우기"로 맞춤(제품 줄, 임시 저장과 같게). 화면낭독기 이름도 보이는 글이 앞
+        '<button type="button" class="btn-text" data-file="' + key + '" data-i="' + i + '" aria-label="지우기(' + esc(f.name) + ')">지우기</button></li>';
     }).join('');
   }
   // 받는 파일: 안내와 같게 PDF, Word, 한글, 한 파일 50MB 이하 (REQ-REG-15, REQ-UI-21 첨부 형식, v0.63 점검에서 고침: 아무 파일이나 받았음)
@@ -908,9 +964,14 @@
   form.addEventListener('click', function (e) {
     const b = e.target.closest('[data-file]');
     if (!b) return;
-    files[b.dataset.file].splice(Number(b.dataset.i), 1);
-    renderFiles(b.dataset.file);
+    const key = b.dataset.file, i = Number(b.dataset.i);
+    files[key].splice(i, 1);
+    renderFiles(key);
     refresh();
+    // 지운 뒤 초점: 그 자리에 온 다음 파일의 "지우기", 맨 끝 파일이었으면 앞 파일의 "지우기", 목록이 비면 그 칸의 파일 선택
+    //   (2026-11-06 점검 3회차: 누른 단추가 없어져 초점이 화면 맨 앞으로 떨어졌음)
+    const left = $$('#' + key + '-list [data-file]');
+    (left[i] || left[left.length - 1] || $('#f-' + key)).focus();
   });
 
   /* ---------- 6. 필수 항목 검사 (KRDS 오류 패턴) ---------- */
@@ -946,21 +1007,26 @@
     if (block) need(false, 'origin', block.short); // 긴 설명과 링크는 칸 아래 도움말에 이미 있음(같은 문장을 두 번 보이지 않게, v0.63 검토)
     need(!!val('customer'), 'customer', '거래처를 검색해 고르세요. 검색 결과가 없으면 직접 입력합니다.', qInput);
     if (val('customer') === NEW_CUSTOMER) {
-      need(!!val('counterparty'), 'counterparty', '거래처 상호를 입력하세요.');
+      // 2026-11-06 점검: 오류 문장을 다른 화면과 맞춤(글자를 치는 칸은 "넣으세요", 날짜 칸은 "고르세요", 폐업은 "기안할 수 없습니다")
+      need(!!val('counterparty'), 'counterparty', '거래처 상호를 넣으세요.');
+      // 같은 상호의 거래처가 이미 있으면 막음(2026-11-06 점검 4회차), 결정할 것 4번의 추천대로: 기안하면 거래처 목록에 등록되는데 계약은 상호로 묶여
+      //   다른 회사의 계약이 섞였음. 거래처 관리의 같은 상호 막기(admin-customers.js nameTaken)와 같은 규칙
+      const sameName = val('counterparty') && D.CUSTOMERS.filter(function (cu) { return cu.name === val('counterparty') && !cu.mergedInto; })[0];
+      if (sameName) need(false, 'counterparty', '같은 상호의 거래처가 이미 있습니다(' + sameName.id + '). 거래처 칸에서 검색해 고르세요.');
       const no = val('bizNo').replace(/-/g, ''); // 숫자 10자리로 비교. 저장과 표시는 000-00-00000 (v0.34)
       const digits = function (x) { return String(x).replace(/-/g, ''); };
       const dupCu = D.CUSTOMERS.filter(function (cu) { return digits(cu.bizNo) === no; })[0];
       const inDb = D.BIZ_REGISTRY.filter(function (r) { return digits(r.bizNo) === no; })[0];
       const ten = /^\d{10}$/.test(no);
-      need(ten, 'bizNo', '사업자등록번호 10자리를 입력하세요.');
+      need(ten, 'bizNo', '사업자등록번호 10자리를 넣으세요.');
       // 검증 숫자 규칙. 고유번호(가운데 82, 83)는 맞지 않아도 막지 않고 칸 아래에 알림만 (v0.39)
       if (ten && !C.isUniqueNo(no)) need(C.isBizNo(no), 'bizNo', '사업자등록번호가 맞지 않습니다. 사업자등록증의 숫자를 다시 확인하세요.');
       if (ten && (C.isBizNo(no) || C.isUniqueNo(no))) need(!dupCu && !inDb, 'bizNo', '이미 ' + (dupCu ? '거래처 목록' : '사업자 정보 DB') + '에 있는 번호입니다(' + (dupCu || inDb || {}).name + '). 거래처 칸에서 검색해 고르세요.');
       // 국세청 상태 조회(직접 넣은 번호만, v0.39): 폐업은 막음, 휴업은 칸 아래 알림만
-      if (ten) need(C.ntsStatus(no) !== 'CLOSED', 'bizNo', '국세청 조회 결과 폐업한 사업자입니다. 폐업한 곳과는 계약을 올릴 수 없습니다.');
+      if (ten) need(C.ntsStatus(no) !== 'CLOSED', 'bizNo', '국세청 조회 결과 폐업한 사업자입니다. 폐업한 곳과는 계약을 기안할 수 없습니다.');
     }
     // 영업기회번호: 필수, 판다 번호 규칙 (v0.32 기획자 요청)
-    need(!!val('opportunity'), 'opportunity', '영업기회번호를 입력하세요.');
+    need(!!val('opportunity'), 'opportunity', '영업기회번호를 넣으세요.');
     if (val('opportunity')) need(C.isOppNo(val('opportunity')), 'opportunity', '영업기회번호는 연도 2자리, 월 2자리, 영문 2자리, 일련번호 3자리입니다(예: 2610SU067).');
     // 기획자 결정 2026-11-02 E-1 ①: 다른 고객의 계약에 쓴 번호는 막고, 같은 고객의 다른 계약에 쓴 번호면 까닭을 받음
     syncOpp();
@@ -970,11 +1036,22 @@
     syncGuards();
     if (guard.hold) need(false, 'customer', '보류가 걸린 ' + (guard.hold.kind === 'BUNDLE' ? '계약 묶음이라' : '거래처라') + ' 기안할 수 없습니다. 보류가 풀린 뒤 기안합니다.', qInput);
     need(!!val('method'), 'method', '계약 방식을 고르세요.');
-    need(!!val('startDate'), 'startDate', '계약 시작일을 입력하세요.');
-    need(!!val('endDate'), 'endDate', '계약 종료일을 입력하세요.');
+    // 날짜 칸은 "고르세요"(2026-11-06 점검). 2026-11-06 점검 3회차: 없는 날짜(2월 30일 등)를 적었으면 "없는 날짜입니다"로(C.dateFieldError).
+    //   예전에는 날짜 칸이 빈 값을 돌려주어 "고르세요"로 덮어 적었음
+    const startErr = C.dateFieldError($('#f-start'), '계약 시작일을 고르세요.');
+    const endErr = C.dateFieldError($('#f-end'), '계약 종료일을 고르세요.');
+    need(!startErr, 'startDate', startErr);
+    need(!endErr, 'endDate', endErr);
+    // 연장은 원계약 종료일 다음 날부터(기획자 결정 2026-11-09, 연장 검토 화면과 같은 규칙). 기간이 겹치거나 비지 않게
+    const rs = renewStart();
+    if (rs && val('startDate')) need(val('startDate') >= rs, 'startDate', '연장 계약은 원계약 종료일 다음 날(' + C.fmtDate(rs) + ')부터 시작합니다.');
     if (val('startDate') && val('endDate')) need(val('endDate') >= val('startDate'), 'endDate', '계약 종료일은 계약 시작일보다 앞설 수 없습니다.'); // 같은 날은 됨 (v0.38)
     need(!!val('autoRenew'), 'autoRenew', '자동갱신 여부를 고르세요.');
-    if (val('autoRenew') === 'YES') need(!!parseNum(val('noticeDays')), 'noticeDays', '해지 통지 기한(만료 며칠 전)을 입력하세요.');
+    // 2026-11-06 점검 3회차: 숫자가 아닌 글자가 있으면 글자를 빼고 셈하지 않고 숫자로만 넣으라고 알림
+    if (val('autoRenew') === 'YES') {
+      if (badNum(val('noticeDays'))) need(false, 'noticeDays', '해지 통지 기한은 숫자로만 넣습니다.');
+      else need(!!parseNum(val('noticeDays')), 'noticeDays', '해지 통지 기한(만료 며칠 전)을 넣으세요.');
+    }
     need(!!val('personalData'), 'personalData', '개인정보 처리위탁 계약 여부를 고르세요.');
     need(!!val('sla'), 'sla', '서비스 수준 협약(SLA) 여부를 고르세요.'); // v0.40
 
@@ -985,6 +1062,16 @@
       if (r.product && r.qty && r.amount != null) return;
       r.li.classList.add('is-invalid');
       const err = r.li.querySelector(':scope > .field-error');
+      // 2026-11-06 점검 3회차: 수량이나 금액에 숫자가 아닌 글자가 있으면 "모두 넣으세요" 대신 숫자로만 넣으라고 알리고 그 칸으로
+      if (r.bad) {
+        const msgBad = (i + 1) + '번째 줄의 수량과 금액은 숫자로만 넣습니다(쉼표는 괜찮음).';
+        const badEl = $$('[data-k="qty"], [data-k="amount"]', r.li).filter(function (x) { return badNum(x.value); });
+        badEl.forEach(function (x) { x.setAttribute('aria-invalid', 'true'); });
+        err.hidden = false;
+        err.innerHTML = C.icon('alert', 'sm') + '<span>' + esc(msgBad) + '</span>';
+        errors.push({ msg: msgBad, target: badEl[0] });
+        return;
+      }
       const msg = r.retired ? (i + 1) + '번째 줄의 기능은 지금 쓰지 않습니다. 다른 기능을 고르세요.'
         : (i + 1) + '번째 줄의 서비스, 제품, 기능, 수량, 계약 금액을 모두 넣으세요.';
       err.hidden = false;
@@ -1015,7 +1102,12 @@
     if (!$('#yearly-field').hidden) {
       const ys = yearlyAmounts();
       const sum = ys.reduce(function (a, b) { return a + (b || 0); }, 0);
-      need(ys.every(function (y) { return y != null; }) && sum === totalAmount(), 'yearly',
+      // 2026-11-06 점검 3회차: 숫자가 아닌 글자가 든 칸이 있으면 그 칸으로 가며 숫자로만 넣으라고 알림
+      const badYear = $$('.yearly-input').filter(function (x) { return badNum(x.value); });
+      if (badYear.length) {
+        need(false, 'yearly', '연도별 금액은 숫자로만 넣습니다(쉼표는 괜찮음).', badYear[0]);
+        $$('.yearly-input').forEach(function (x) { if (badYear.indexOf(x) < 0) x.removeAttribute('aria-invalid'); }); // 틀린 칸에만 aria-invalid
+      } else need(ys.every(function (y) { return y != null; }) && sum === totalAmount(), 'yearly',
         '연도별 금액을 모두 넣고, 합계를 총액(' + fmtNum(totalAmount()) + '원)과 맞추세요.');
     }
     need(!!val('settlement'), 'settlement', '정산 방식을 고르세요.');
@@ -1121,6 +1213,9 @@
   //   두 단추는 화면 아래에 붙은 단추 줄에 있음(기획자 결정 2026-11-02 D-4). 줄 높이가 고정이라 임시 저장이 숨어도 흔들리지 않음
   if (source && source.status === 'REJECTED') $('#btn-save').hidden = true;
   $('#btn-save').addEventListener('click', function () {
+    // 숫자가 아닌 수량, 금액, 해지 통지 일수가 있으면 임시 저장도 막고 알림(2026-11-06 점검 3회차): 빈 값으로 저장돼 다시 열면 적은 글이 사라졌음. 견적 저장과 같게
+    const badBoxes = $$(NUM_FIELDS, form).filter(function (x) { return badNum(x.value); });
+    if (badBoxes.length) { badBoxes.forEach(numFlag); badBoxes[0].focus(); C.toast('숫자가 아닌 칸이 있어 임시 저장하지 않았습니다. 표시한 칸을 고쳐 주세요.', true); return; }
     const key = source && source.status === 'DRAFT' ? source.draftKey : C.newDraftKey();
     C.saveDemoContract(Object.assign(formRecord(), { id: null, draftKey: key, status: 'DRAFT', savedAt: C.nowStamp().slice(0, 16), history: [] })); // 임시 저장일시(03 saved_at, 일시)
     C.flash('임시 저장했습니다. 나만 볼 수 있고, 내 등록 목록에서 이어서 작성할 수 있습니다.');
@@ -1155,7 +1250,7 @@
       // E-1 ①: 같은 고객의 다른 계약과 같은 번호면 그 계약과 까닭을 함께
       ['영업기회번호', val('opportunity') + (oppDupOk() ? ' (같은 고객의 다른 계약 ' + oppNames(opp.same) + '에도 씀. 까닭: ' + val('oppReason') + ')' : '')],
       ['서비스', serviceOfProducts()],
-      ['계약 금액', fmtNum(current.total || 0) + '원 (부가세 별도)'],
+      ['계약 금액', fmtNum(current.total || 0) + '원 (부가세 별도)', 'amount'],
       ['계약 기간', C.fmtPeriod(val('startDate'), val('endDate'))],
       ['서비스 수준 협약(SLA)', val('sla') === 'YES' ? '있음' : '없음'],
       ['기준 표준계약서', templatePick() ? (templatePick().id === 'OWN' ? '상대방 양식(표준계약서 없음)' : templatePick().label) : '-'], // v0.53
@@ -1167,7 +1262,8 @@
       ['기안 차수', round + '차' + (val('restricted') ? ', 열람 제한' : '')],
     ];
     $('#confirm-body').innerHTML = '<p>기안하면 ② 체크리스트 검토부터 시작되고, 기안한 내용은 결재가 끝날 때까지 고칠 수 없습니다.</p>' +
-      '<dl class="confirm-list">' + rows.filter(Boolean).map(function (r) { return '<div><dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd></div>'; }).join('') + '</dl>';
+      // 금액 줄(세 번째 값 'amount')은 표 밖에서도 오른쪽 정렬(dd.amount, new-contract.css) (2026-11-06 점검)
+      '<dl class="confirm-list">' + rows.filter(Boolean).map(function (r) { return '<div><dt>' + esc(r[0]) + '</dt><dd' + (r[2] ? ' class="' + r[2] + '"' : '') + '>' + esc(r[1]) + '</dd></div>'; }).join('') + '</dl>';
     lastFocus = document.activeElement;
     modal.hidden = false;
     C.focusModal(modal); // 제목에 포커스 (KRDS 모달, v0.28)
@@ -1199,12 +1295,34 @@
   // 기안: 계약번호를 붙여 저장하고 결재 문서(SCR-23)로 감. ② 체크리스트 검토부터 시작 (v0.58 QA: 예전에는 저장하지 않았음)
   //   보완 후 재기안: 같은 계약번호의 다음 차수. 앞 차수의 결재 기록과 기안 일시는 그대로 남김(REQ-FLOW-17)
   //   이어서 작성한 임시 저장은 기안하면 지움
+  /* 기안할 때 거래처 목록에 새로 등록 (REQ-REG-18, 데이터 정의서 6장 registered_via, registered_contract_no) (2026-11-06 점검 4회차)
+   *   사업자 정보 DB에서 고른 곳('R:...')은 REGISTRY, 직접 입력('NEW')은 MANUAL. 우리 거래처('C:...')는 등록하지 않음
+   *   거래처 관리(SCR-55)의 추가와 같은 길(C.adminSave의 CUSTOMER_ADD)로 남겨, 다시 열어도 거래처 관리와 중복 확인, 거래처 확인, 보류가 이 거래처를 봄
+   *   이미 같은 번호의 거래처가 있으면(다른 화면에서 먼저 등록) 다시 넣지 않음. 보완 후 재기안은 1차에서 등록한 거래처를 고르게 되어 두 번 등록되지 않음 */
+  function nextCustomerId() {
+    const n = D.CUSTOMERS.reduce(function (m, cu) { return Math.max(m, Number(String(cu.id).replace(/\D/g, '')) || 0); }, 0) + 1;
+    return 'C-' + String(n).padStart(4, '0');
+  }
+  function registerCustomer(no, at) {
+    const key = val('customer');
+    const via = key === NEW_CUSTOMER ? 'MANUAL' : String(key).indexOf('R:') === 0 ? 'REGISTRY' : '';
+    const bizNo = C.fmtBizNo(val('bizNo')), name = val('counterparty');
+    if (!via || !name || !bizNo) return;
+    const digits10 = bizNo.replace(/\D/g, '');
+    if (D.CUSTOMERS.some(function (cu) { return String(cu.bizNo).replace(/\D/g, '') === digits10; })) return;
+    const cu = { id: nextCustomerId(), name: name, bizNo: bizNo, use: true, registeredBy: me.id, registeredAt: at.slice(0, 10),
+      registeredVia: via, registeredContractNo: no };
+    C.adminSave('CUSTOMER', cu.name + '(' + cu.id + ')',
+      '거래처 추가: ' + cu.bizNo + (via === 'MANUAL' ? ', 계약 기안에서 직접 입력' : ', 계약 기안에서 사업자 정보 DB로 고름'),
+      no + ' 계약을 기안하며 함께 등록', { k: 'CUSTOMER_ADD', cu: cu });
+  }
   function done() {
     const no = newNumber();
     const now = C.nowStamp().slice(0, 16);
     const rec = source && source.status === 'REJECTED' ? C.resubmitRecord(source, formRecord())
       : Object.assign(formRecord(), { id: no, status: 'IN_REVIEW', requestedAt: now, round: round, history: [] });
     if (source && source.status === 'DRAFT') C.deleteDraft(source);
+    registerCustomer(no, now); // 새 거래처를 거래처 목록에 등록 (REQ-REG-18, 2026-11-06 점검 4회차)
     C.saveDemoContract(rec);
     C.flash(no + ' ' + round + '차로 기안했습니다. 다음 차례: ② 체크리스트 검토 (' + C.ownerLabel(C.stepUserNow('S02', rec)) + ')');
     location.href = 'review.html?id=' + encodeURIComponent(no);
@@ -1282,6 +1400,19 @@
         $('#notice').innerHTML = noticeHtml('', '영업대표만 변경과 연장을 기안합니다',
           '이 계약(' + esc(po.id) + ')의 영업대표는 ' + esc(C.ownerLabel(C.salesRepOf(po))) + '입니다.' + (C.repNeeded(po) ? ' ' + esc(C.repCoverText(po)) : '') +
           ' 원계약은 내가 영업대표인 계약 중에서 고릅니다.', '');
+      } else if (po && (C.isSalesRep(po, me) || anyOrigin) && C.canView(po, me)) {
+        // 2026-11-06 점검: 내가 영업대표인 계약인데 원계약 목록에 없으면(해지, 만료 처리 끝, 아직 계약 완료 전) 말없이 비어 있었음. 고를 수 없는 까닭을 알림
+        //   까닭은 위 originsFor와 같은 규칙: 변경은 계약 완료만, 연장은 만료되었어도 서비스를 닫기 전(만료 처리 차례, 유예 중)까지(A-11)
+        const pb = C.bundleOf(po.id), px = pb ? C.expiryOf(pb) : null, pk = pre.get('kind');
+        const why = !pb ? '묶음 정보가 없어 고를 수 없습니다.'
+          : pb.status === 'TERMINATED' ? '해지되어 변경과 연장을 기안할 수 없습니다.'
+          : pb.status === 'EXPIRED' && pk === 'RENEW' ? (px && px.state === 'DONE' ? '만료 처리가 끝나 서비스를 닫았으므로 연장할 수 없습니다. 다시 계약하려면 신규로 기안합니다.'
+            : px && px.state === 'OFF' ? '만료되었고 이미 연장이나 새 계약이 있어 연장할 수 없습니다.'
+            : '만료되어 연장할 수 없습니다.')
+          : pb.status === 'EXPIRED' ? '만료되어 변경을 기안할 수 없습니다.' + (lateRenewable(pb) ? ' 서비스를 닫기 전이라 연장은 기안할 수 있습니다.' : '')
+          : '아직 계약 완료가 아니라(지금 상태: ' + D.STATUS[pb.status].label + ') 고를 수 없습니다.';
+        $('#notice').innerHTML = noticeHtml('', '이 계약은 원계약으로 고를 수 없습니다',
+          '이 계약(' + esc(po.id) + ')은 ' + esc(why) + ' 원계약은 계약 완료인 계약 중에서 고릅니다.', '');
       }
     }
   }

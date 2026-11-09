@@ -139,7 +139,8 @@
         help: '이날 이후 기안하는 계약부터 새 기준을 씁니다. 오늘 이후 날짜만 고를 수 있습니다.' }) +
       C.fieldHtml({ name: 'docUrl', label: '품의 문서 링크', type: 'url', required: true, placeholder: 'https://',
         help: '가격 기준 변경을 승인한 사내 품의 문서의 주소입니다. 없으면 저장할 수 없습니다.' }) +
-      C.fieldHtml({ name: 'docNo', label: '품의 번호', placeholder: '예: 경영지원-2026-1021' }) +
+      // 넣지 않아도 되는 칸은 optional로 "(선택)"을 모든 창에서 같은 모양으로(2026-11-06 점검 3회차)
+      C.fieldHtml({ name: 'docNo', label: '품의 번호', optional: true, placeholder: '예: 경영지원-2026-1021' }) +
       C.fieldHtml({ name: 'reason', label: '변경 사유', type: 'textarea', required: true, placeholder: '품의 내용을 짧게 적습니다. 예: 서버 비용 반영으로 단가 인상' });
   }
   // 가격과 근거 검사. base가 있으면(바꾸기) 단가나 한도 중 하나는 바뀌어야 함
@@ -249,8 +250,8 @@
     else if (b.getAttribute('data-change')) openChange(b.getAttribute('data-change'));
     // 서비스 단추 (D-19): 바꾸면 이력은 1쪽부터
     else if (b.getAttribute('data-svc')) { setSvc(b.getAttribute('data-svc')); page = 1; render(); }
-    // 이력 쪽 번호 (D-19): 쪽을 바꾸면 이력 묶음 맨 위로 (다른 목록과 같음)
-    else if (b.getAttribute('data-page') && !b.disabled) { page = Number(b.getAttribute('data-page')); render(); $('#sec-history').scrollIntoView({ block: 'start' }); }
+    // 이력 쪽 번호 (D-19): 쪽을 바꾸면 이력 묶음 맨 위로 (다른 목록과 같음). 누른 단추가 없어지므로 초점도 이력 제목으로(2026-11-06 점검 3회차)
+    else if (b.getAttribute('data-page') && !b.disabled) { page = Number(b.getAttribute('data-page')); render(); C.focusSection('#sec-history'); }
   });
   // 기능 이름 찾기는 넣는 즉시 반영. 초기화는 서비스도 전체로 (D-19)
   $('#filter').addEventListener('input', function () { page = 1; render(); });

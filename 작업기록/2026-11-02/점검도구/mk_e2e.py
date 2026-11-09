@@ -35,7 +35,7 @@ const ins = [...row.parentElement.querySelectorAll('input[type=text], input:not(
 const info = ins.map(i => (i.getAttribute('aria-label') || i.placeholder || i.id || '') + '=' + i.value);
 for (const i of ins) { const l = (i.getAttribute('aria-label') || '') + (i.placeholder || ''); if (/수량/.test(l)) set(i, '1'); else if (/할인/.test(l)) set(i, '20'); else if (!i.value) set(i, '20'); }
 await wait(150);
-const r = await act('저장하고 견적서 출력');
+setTimeout(() => document.getElementById('q-save').click(), 0); const r = 'saved';
 return JSON.stringify({prod, feat, info, act: r, errs: errs(), url: location.href});
 } catch (e) { return 'ERR ' + e.message; } })()""" % {'name': json.dumps(NAME, ensure_ascii=False), 'biz': json.dumps(BIZ), 'opp': json.dumps(OPP)}
 
@@ -90,7 +90,8 @@ const over = document.documentElement.scrollWidth - innerWidth; const dOver = Ma
 } catch (e) { return 'ERR ' + e.message; } })()"""
 
 spec = [{"url": "index.html?role=SUPER", "js": "(() => { Object.keys(localStorage).filter(k => k.startsWith('climb.')).forEach(k => localStorage.removeItem(k)); return 'cleared'; })()"},
-        {"url": "quote.html?role=SALES", "js": quote_js, "w": W, "h": H, "shot": mode + "_01_quote"},
+        {"url": "quote.html?role=SALES", "js": quote_js, "w": W, "h": H},
+        {"url": "quote.html?role=SALES", "urlFrom": "location.pathname.split('/').pop() + location.search", "js": "(async () => { const b = [...document.querySelectorAll('main button, main a.btn')].find(x => x.offsetParent && x.textContent.trim() === '견적서 출력'); if (!b) return 'NO PRINT BUTTON ' + location.search; window.print = () => {}; b.click(); await new Promise(r => setTimeout(r, 400)); const d = [...document.querySelectorAll('[role=dialog]')].find(x => x.offsetParent && !x.classList.contains('drawer-panel')); if (d) { const ok = [...d.querySelectorAll('.modal-actions button')].pop(); ok.click(); await new Promise(r => setTimeout(r, 400)); } return 'printed ' + location.search + ' ' + (document.querySelector('h1') || {}).textContent; })()", "w": W, "h": H},
         {"url": "quotes.html?role=SALES", "js": "(() => JSON.stringify([...document.querySelectorAll('main tbody tr')].slice(0, 3).map(tr => tr.textContent.replace(/\\s+/g, ' ').trim().slice(0, 80))))()", "w": W, "h": H},
         {"url": "new-contract.html?role=SALES", "js": contract_js, "w": W, "h": H, "shot": mode + "_02_contract"}]
 for i in range(steps):

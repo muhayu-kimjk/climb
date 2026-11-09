@@ -39,8 +39,13 @@
   /* ---------- 2. 화면: 밝게, 어둡게 (v0.53 기획자 요청, REQ-UI-31) ----------
    * 고르면 저장하고 바로 바꿈(theme.js). 시안은 시연 역할마다 이 브라우저에 저장, 실제 시스템은 계정마다 서버에 저장 */
   const THEME_LABEL = { auto: '기기 설정대로', light: '밝게', dark: '어둡게' };
-  const themeNow = window.CLIMB_THEME ? window.CLIMB_THEME.get() : 'auto';
-  document.querySelectorAll('[name="theme"]').forEach(function (r) { r.checked = r.value === themeNow; });
+  // 휴대폰 메뉴판의 밝기 단추로 바꾸면 여기 고른 값도 따라감(2026-11-06, theme.js의 climb-theme 알림)
+  function syncThemeChoice() {
+    const themeNow = window.CLIMB_THEME ? window.CLIMB_THEME.get() : 'auto';
+    document.querySelectorAll('[name="theme"]').forEach(function (r) { r.checked = r.value === themeNow; });
+  }
+  syncThemeChoice();
+  window.addEventListener('climb-theme', syncThemeChoice);
   $('#theme-choices').addEventListener('change', function (e) {
     if (!window.CLIMB_THEME || e.target.name !== 'theme') return;
     window.CLIMB_THEME.set(e.target.value);

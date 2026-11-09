@@ -52,7 +52,9 @@
         '<td class="nowrap">' + (now ? C.badge('success', '판 ' + now.no) + '<span class="cell-meta">반부패 조항 ' + bribeText(now) + '</span>' : '-') + '</td>' +
         '<td class="num-left nowrap">' + (now ? C.fmtDate(now.from) : '-') + '</td>' +
         '<td class="num">' + total + '건' + (Object.keys(use).length > 1 ? Object.keys(use).map(function (k) { return '<span class="cell-meta">판 ' + k + ': ' + use[k] + '건</span>'; }).join('') : '') + '</td>' +
-        '<td class="col-action"><button type="button" class="link-act" data-dl="' + esc(t.id) + '" aria-label="' + esc(t.name) + ' 지금 판 내려받기">내려받기</button>' +
+        // 2026-11-06 점검: 첫 판이 앞으로 적용되는 표준계약서도 "지금 판 내려받기"가 보였음. 지금 판이 있을 때만 내려받기, 없으면 "적용 전"과 다음 판의 시작일
+        '<td class="col-action">' + (now ? '<button type="button" class="link-act" data-dl="' + esc(t.id) + '" aria-label="' + esc(t.name) + ' 지금 판 내려받기">내려받기</button>'
+          : '<span class="nowrap">적용 전</span>' + (next.length ? '<span class="cell-meta">' + C.fmtDate(next.map(function (v) { return v.from; }).sort()[0]) + '부터</span>' : '')) +
           (canEdit ? '<button type="button" class="link-act" data-ver="' + esc(t.id) + '" aria-label="' + esc(t.name) + ' 새 판 올리기">새 판</button>' : '') + '</td></tr>';
     }).join('');
 

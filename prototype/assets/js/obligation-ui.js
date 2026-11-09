@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------
  * 의무 관리(SCR-48)와 계약 상세(SCR-42)가 함께 씀
  *   - 배지와 기한 칸: 종류(보안 의무, SLA, 청구 일정), 상태(기한 지남, D-n, 예정, 일이 생기면, 모두 함, 끝냄)
- *   - 창: 의무 더하기, 이행 기록 남기기, 끝내기, 이행 기록 보기
+ *   - 창: 의무 추가, 이행 기록 남기기, 끝내기, 이행 기록 보기
  *   - 표 안 단추: 기록 남기기, 기록 보기, 끝내기 (기획자 결정 2026-11-02 D-15: "이행 기록"을 "기록 남기기"로)
  * 더한 의무와 이행 기록은 고치거나 지우지 않음. 그만 챙길 때는 사유를 적어 끝냄
  * 프로토타입: 바꾼 내용은 이 브라우저에만 저장(시연 기록). 실제 시스템은 서버에 저장하고 기한 알림을 보냄
@@ -34,7 +34,7 @@
       (o.amount ? ', ' + won(o.amount) : '') + '</span>';
   }
 
-  /* ---------- 의무 더하기 ---------- */
+  /* ---------- 의무 추가 ---------- */
   const EVERY = [['1', '달마다'], ['3', '분기마다'], ['6', '6달마다'], ['12', '해마다']];
   function openAdd(root, me, onDone) {
     const b = C.bundleOf(root.id);
@@ -44,7 +44,7 @@
         .filter(function (op) { return D.OBLIGATION_PRESETS[Number(op[0])].kind === kind; }));
     };
     C.formModal({
-      title: '이 계약에 의무를 더할까요?',
+      title: '이 계약에 의무를 추가할까요?', // "추가"로 맞춤(기획자 결정 2026-11-09)
       desc: '더하면 맡은 분야가 의무 관리에서 챙기고 기한 전에 이메일을 받습니다. 더한 의무는 지우지 않고 끝내기만 합니다.',
       body: '<div class="field-row">' +
           C.fieldHtml({ name: 'kind', label: '종류', type: 'select', required: true, options: kinds.map(function (k) { return [k, D.OBLIGATION_KINDS[k].label + '(' + D.ROLE_AREA[D.OBLIGATION_KINDS[k].owner] + ')']; }),
@@ -61,7 +61,7 @@
         '</div>' +
         C.fieldHtml({ name: 'within', label: '얼마 안에', required: true, placeholder: '예: 알게 된 때부터 4시간 안', help: '일이 생기면 하는 의무는 기한이 없고, 생길 때마다 이행 기록을 남깁니다.' }) +
         C.fieldHtml({ name: 'amount', label: '청구 금액', unit: '원', placeholder: '예: 36000000', help: '부가세 별도. 이메일에는 금액을 넣지 않습니다.' }),
-      btn: '의무 더하기',
+      btn: '의무 추가',
       open: function (f) {
         function sync() {
           const w = val(f, 'when');
@@ -104,7 +104,7 @@
           everyMonths: w === 'REPEAT' ? Number(val(f, 'every')) : undefined, within: w === 'EVENT' ? val(f, 'within') : undefined,
           amount: val(f, 'kind') === 'BILLING' && amt ? Number(amt) : undefined,
         }, me);
-        C.toast('의무를 더했습니다. ' + C.obligationOwnerLabel(o) + ' 분야가 챙깁니다.');
+        C.toast('의무를 추가했습니다. ' + C.obligationOwnerLabel(o) + ' 분야가 챙깁니다.');
         if (onDone) onDone(o);
       },
     });
@@ -151,12 +151,13 @@
   /* ---------- 이행 기록 보기 ---------- */
   function openHistory(o) {
     const recs = (o.records || []).slice().sort(function (a, b) { return b.at.localeCompare(a.at); });
-    const line = function (k, v) { return '<div><dt>' + esc(k) + '</dt><dd>' + v + '</dd></div>'; };
+    // cls: dd에 붙일 class. 청구 금액은 "amount"로 오른쪽 정렬(금액은 표 안팎 모두 오른쪽, 2026-11-06 점검)
+    const line = function (k, v, cls) { return '<div><dt>' + esc(k) + '</dt><dd' + (cls ? ' class="' + cls + '"' : '') + '>' + v + '</dd></div>'; };
     C.formModal({
       title: o.title,
       desc: '맡은 분야와 이행 기록입니다. 기록은 고치거나 지울 수 없습니다.',
       body: '<dl class="ob-info">' + line('종류', kindBadge(o)) + line('언제', esc(C.obligationWhenText(o))) +
-          (o.clause ? line('근거 조항', esc(o.clause)) : '') + (o.amount ? line('청구 금액', won(o.amount) + ' (부가세 별도)') : '') +
+          (o.clause ? line('근거 조항', esc(o.clause)) : '') + (o.amount ? line('청구 금액', won(o.amount) + ' (부가세 별도)', 'amount') : '') +
           line('맡은 분야', esc(C.obligationOwnerLabel(o)) + '(담당자와 리더)') + line('상태', stateBadge(o)) +
           line('더한 사람', esc(C.ownerLabel(o.by)) + ', ' + C.fmtDateTime(o.at)) +
           (o.endedAt ? line('끝냄', esc(C.ownerLabel(o.endedBy)) + ', ' + C.fmtDateTime(o.endedAt) + '<span class="cell-meta">' + esc(o.endReason) + '</span>') : '') +
@@ -174,14 +175,17 @@
   // 할 일 버튼: 기록 남기기(맡은 분야), 기록 보기(모두), 끝내기
   // 기획자 결정 2026-11-02 D-15: "이행 기록"은 기록을 보는 단추로도 읽혀 옆의 "기록 보기"와 헷갈려 "기록 남기기"로.
   //   의무 관리(SCR-48)와 계약 상세(SCR-42) 체결 후 의무 표가 함께 바뀜. 창 제목과 창 안 단추("이행 기록 남기기")는 그대로
-  function actionsHtml(o, me) {
+  function actionsHtml(o, me, root) {
     const s = C.obligationState(o);
     const live = ['ENDED', 'DONE', 'NONE'].indexOf(s.code) < 0; // 기한 없음(NONE)은 기록할 기한이 없음
     const endable = ['ENDED', 'DONE'].indexOf(s.code) < 0;
+    // 화면낭독기가 어느 줄의 단추인지 알게 단추 글 뒤에 의무 이름(볼 수 있는 계약이면 고객사도)을 붙임. 보이는 글이 이름의 앞에 오게 둠(2026-11-06 점검)
+    //   의무 관리 표는 줄마다 고객사가 달라 같은 의무 이름이 여러 줄일 수 있음. 열람 제한 계약은 고객사를 읽지 않음
+    const name = '<span class="sr-only"> ' + esc(o.title + (root && C.canView(root, me) ? ', ' + root.counterparty : '')) + '</span>';
     // 좁은 칸에 들어가게 한 줄에 하나씩(ob-acts)
-    return '<span class="ob-acts">' + (live && C.canRecordObligation(me, o) ? '<button type="button" class="link-act" data-ob-rec="' + o.id + '">기록 남기기</button>' : '') +
-      '<button type="button" class="link-act" data-ob-view="' + o.id + '">기록 보기</button>' +
-      (endable && C.canEndObligation(me, o) ? '<button type="button" class="link-act link-act--danger" data-ob-end="' + o.id + '">끝내기</button>' : '') + '</span>';
+    return '<span class="ob-acts">' + (live && C.canRecordObligation(me, o) ? '<button type="button" class="link-act" data-ob-rec="' + o.id + '">기록 남기기' + name + '</button>' : '') +
+      '<button type="button" class="link-act" data-ob-view="' + o.id + '">기록 보기' + name + '</button>' +
+      (endable && C.canEndObligation(me, o) ? '<button type="button" class="link-act link-act--danger" data-ob-end="' + o.id + '">끝내기' + name + '</button>' : '') + '</span>';
   }
   // 표 안의 버튼 연결: container 안의 data-ob-* 버튼을 누르면 창을 열고, 끝나면 rerender
   function wire(container, me, rerender) {
@@ -197,6 +201,6 @@
     });
   }
 
-  // 다른 화면이 쓰는 것: 기한 칸, 의무 칸, 할 일 버튼과 연결, 의무 더하기 창
+  // 다른 화면이 쓰는 것: 기한 칸, 의무 칸, 할 일 버튼과 연결, 의무 추가 창
   window.CLIMB_OB = { dueHtml: dueHtml, titleHtml: titleHtml, actionsHtml: actionsHtml, wire: wire, openAdd: openAdd };
 })();

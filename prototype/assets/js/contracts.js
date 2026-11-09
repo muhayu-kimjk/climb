@@ -116,7 +116,8 @@
   }
 
   $('#filter').addEventListener('input', function () { page = 1; render(); });
-  $('#filter').addEventListener('change', function () { page = 1; render(); });
+  // 검색 칸은 'input'이 이미 그렸으므로 'change'(칸을 떠날 때)에서 다시 그리지 않음. 다시 그리면 누르던 줄이나 쪽 번호가 바뀌어 클릭이 사라짐(2026-11-06 점검 4회차)
+  $('#filter').addEventListener('change', function (e) { if (e.target.matches('input[type=search], input[type=text]')) return; page = 1; render(); });
   $('#filter').addEventListener('reset', function () { setTimeout(function () { page = 1; render(); }, 0); });
   $('#filter').addEventListener('submit', function (e) { e.preventDefault(); });
   $('#pagination').addEventListener('click', function (e) {
@@ -124,7 +125,8 @@
     if (!b || b.disabled) return;
     page = Number(b.getAttribute('data-page'));
     render();
-    $('#list').scrollIntoView({ block: 'start' });
+    // 쪽 번호를 다시 그려 누른 단추가 없어지므로 초점을 목록 제목으로 옮기고 화면도 거기로(2026-11-06 점검 3회차)
+    C.focusSection('#list-title');
   });
   render();
 })();

@@ -29,6 +29,14 @@
   const found = D.CONTRACTS.find(function (c) { return c.id === origin; });
   const b = found ? C.bundleOf(C.rootOf(found)) : null;
   const back = b ? 'contract.html?id=' + encodeURIComponent(b.id) : 'expiring.html';
+  // 2026-11-06 점검: ?id=의 기록이 있고 볼 수 있는데 지금 다시 기안할 수 없으면 "찾을 수 없습니다" 대신 그 까닭과 결재 문서로 가는 길을 알림
+  //   "찾을 수 없습니다"는 없는 번호(또는 볼 수 없는 기록)일 때만. 해지, 운영 변경과 같은 말
+  const idRec = params.get('id') && !again ? D.CONTRACTS.find(function (c) { return c.id === params.get('id'); }) : null;
+  if (idRec && C.canView(idRec, me)) {
+    $('#notice').innerHTML = notice('보완 후 재기안할 수 없는 기안입니다', '이 기안은 지금 보완 후 재기안할 수 없습니다(이미 다시 기안했거나 지금 영업대표가 아님). ' +
+      '<a class="doc-link" href="review.html?id=' + encodeURIComponent(idRec.id) + '">결재 문서 보기</a>');
+    return;
+  }
   if (!b || !C.canView(b.root, me)) {
     $('#notice').innerHTML = notice('연장할 계약을 찾을 수 없습니다', '계약 상세나 만료 예정 계약에서 "연장 검토"를 눌러 들어와 주세요.');
     return;
@@ -82,9 +90,10 @@
     info('계약 금액', Number(cur.amount || 0).toLocaleString('ko-KR') + '원<span class="cell-meta">' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도</span>', 'amount'),
     info('해지 통지 기한', noticeDay ? '<span class="keep">' + C.fmtDate(noticeDay) + (C.daysUntil(noticeDay) < 0 ? ' <span class="wait-long">지남</span>' : '') + '</span><span class="cell-meta">만료 ' + b.noticeDays + '일 전까지 상대방에게 알려야 연장되지 않음</span>' : '-'),
     // 기획자 결정 2026-11-03(C-44): 지금 영업대표. 바뀌었으면 처음 기안한 사람, 맡을 수 없으면 "담당 지정 필요"(계약 상세와 같음)
+    // "담당 지정 필요"는 계약 상세, 결재 화면처럼 주의 배지로 보임(회색 글자였음) (2026-11-06 점검)
     info('영업대표', esc(C.ownerLabel(C.salesRepOf(b))) +
       (C.salesRepOf(b) !== root.requesterId ? '<span class="cell-meta">처음 기안 ' + esc(C.ownerLabel(root.requesterId)) + '</span>' : '') +
-      (C.repNote(b) ? '<span class="cell-meta">' + esc(C.repNote(b)) + '</span>' : '')),
+      (C.repNote(b) ? '<span class="cell-meta">' + C.badge('attention', C.repNote(b)) + '</span>' : '')),
   ].join('');
   $('#keep-help').textContent = (again ? '같은 번호 ' + newId + '의 ' + ((again.round || 1) + 1) + '차로 기안하고' : '기안하면 ' + newId + '(연장, 조건 그대로)로 묶이고') +
     ', 승인되면 아래에 입력한 기간이 새 계약 기간이 됩니다. 금액과 조건은 그대로입니다.';
@@ -138,39 +147,66 @@
     $('#go-box').hidden = v === 'KEEP';
     if (GO[v]) $('#go-text').textContent = GO[v].text;
     $('#btn-submit').textContent = v === 'KEEP' ? '연장 검토 기안' : GO[v].btn;
+    if (v !== 'KEEP') $('#error-summary').hidden = true; // 다른 갈래로 가면 그대로 연장의 오류 요약은 감춤 (2026-11-06 점검 3회차)
   }
   $('#form').addEventListener('change', onChoice);
   onChoice();
+  // 고치는 칸의 오류는 그 칸을 고치는 대로 지움. 다음 기안 때까지 남아 있던 것 (2026-11-06 점검 3회차, 계약 등록의 clearError, C.formModal과 같음)
+  function clearOne(e) {
+    const box = e.target.closest('[data-field]');
+    if (box && box.classList.contains('is-invalid')) C.setFieldError(box, '');
+  }
+  $('#form').addEventListener('input', clearOne);
+  $('#form').addEventListener('change', clearOne);
 
   /* ---------- 기안 ---------- */
   const modal = $('#confirm-modal');
+  let lastFocus = null;
   $('#form').addEventListener('submit', function (e) {
     e.preventDefault();
     const v = choice();
     if (GO[v]) { location.href = GO[v].href; return; }
     // 입력 검사: 시작일(지금 종료일 다음 날 이후), 종료일(시작일보다 앞설 수 없음, v0.38), 이유
     const start = $('#f-start').value, end = $('#f-end').value, reason = $('#f-reason').value.trim();
+    // 없는 날짜(2월 30일 등)를 적었으면 "없는 날짜입니다"를 보임. "…을 고르세요"로 덮어 적던 것 (2026-11-06 점검 3회차, C.dateFieldError)
     const msgs = {
-      start: !start ? '새 계약 시작일을 고르세요.' : start < newStart ? '새 계약 시작일은 지금 종료일 다음 날(' + C.fmtDate(newStart) + ') 이후여야 합니다.' : '',
-      end: !end ? '새 계약 종료일을 고르세요.' : start && end < start ? '새 계약 종료일은 새 계약 시작일보다 앞설 수 없습니다.' : '', // 같은 날은 됨 (v0.38)
+      start: !start ? C.dateFieldError($('#f-start'), '새 계약 시작일을 고르세요.') : start < newStart ? '새 계약 시작일은 지금 종료일 다음 날(' + C.fmtDate(newStart) + ') 이후여야 합니다.' : '',
+      end: !end ? C.dateFieldError($('#f-end'), '새 계약 종료일을 고르세요.') : start && end < start ? '새 계약 종료일은 새 계약 시작일보다 앞설 수 없습니다.' : '', // 같은 날은 됨 (v0.38)
       reason: reason ? '' : '그대로 연장하는 이유를 적으세요.',
     };
-    let first = null;
+    const errors = [];
     Object.keys(msgs).forEach(function (k) {
       const field = document.querySelector('[data-field="' + k + '"]');
       C.setFieldError(field, msgs[k]); // 오류 표시와 aria-invalid (KRDS, v0.28)
-      if (msgs[k] && !first) first = field.querySelector('input, textarea');
+      if (msgs[k]) errors.push({ msg: msgs[k], el: field.querySelector('input, textarea') });
     });
-    if (first) { first.focus(); return; }
+    // 오류 요약: 해지, 운영 변경과 같은 상자(KRDS 오류 요약). 첫 칸으로 바로 가던 것을 요약 상자로 (2026-11-06 점검 3회차)
+    const box = $('#error-summary');
+    box.hidden = !errors.length;
+    if (errors.length) {
+      box.innerHTML = '<p class="error-summary-title">' + C.icon('alert') + '입력하지 않았거나 고쳐야 할 항목이 ' + errors.length + '개 있습니다</p><ul>' +
+        errors.map(function (er, i) { return '<li><a href="#" data-err="' + i + '">' + esc(er.msg) + '</a></li>'; }).join('') + '</ul>';
+      box.onclick = function (ev) {
+        const a = ev.target.closest('[data-err]');
+        if (!a) return;
+        ev.preventDefault();
+        errors[Number(a.dataset.err)].el.focus();
+      };
+      box.focus();
+      return;
+    }
     $('#confirm-body').innerHTML = '<p>기안하면 ③ 영업 검토부터 시작되고, 결재가 끝날 때까지 고칠 수 없습니다.</p>' +
       '<dl class="confirm-list"><div><dt>계약</dt><dd>' + esc(root.counterparty + ' ' + b.id) + '</dd></div>' +
       '<div><dt>연장 번호</dt><dd>' + esc(newId) + '</dd></div>' +
       '<div><dt>새 계약 기간</dt><dd>' + C.fmtPeriod(start, end) + '</dd></div></dl>';
+    lastFocus = document.activeElement;
     modal.hidden = false;
     C.focusModal(modal); // 제목에 포커스 (KRDS 모달, v0.28)
   });
+  // 닫기, 바깥 누름, Esc 모두 창을 닫고 열기 전 자리(기안 단추)로 포커스를 돌려줌. 계약 등록, 결재 화면과 같음 (2026-11-06 점검)
+  function closeModal() { modal.hidden = true; if (lastFocus) lastFocus.focus(); }
   modal.addEventListener('click', function (e) {
-    if (e.target === modal || e.target.closest('[data-act="close"]')) modal.hidden = true;
+    if (e.target === modal || e.target.closest('[data-act="close"]')) closeModal();
     if (!e.target.closest('[data-act="confirm"]')) return;
     // 연장 검토(그대로 자동갱신) 기록 (데이터 정의서 contract: kind RENEW, renew_mode AUTO)
     const fields = { startDate: $('#f-start').value, endDate: $('#f-end').value, reason: $('#f-reason').value.trim() };
@@ -184,5 +220,5 @@
     C.flash(newId + ' 연장 검토(조건 그대로)를 ' + (rec.round || 1) + '차로 기안했습니다. 다음 차례: ③ 영업 검토 (' + C.ownerLabel(C.stepUserNow('S03', rec)) + ')');
     location.href = 'review.html?id=' + encodeURIComponent(newId);
   });
-  document.addEventListener('keydown', function (e) { if (!modal.hidden && e.key === 'Escape') modal.hidden = true; });
+  document.addEventListener('keydown', function (e) { if (!modal.hidden && e.key === 'Escape') closeModal(); });
 })();

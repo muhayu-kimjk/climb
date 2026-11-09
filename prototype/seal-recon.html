@@ -18,10 +18,10 @@
   <link rel="stylesheet" href="assets/css/form.css">
   <link rel="stylesheet" href="assets/css/list.css">
   <link rel="stylesheet" href="assets/css/admin.css">
-  <link rel="stylesheet" href="assets/css/recon.css"><!-- 회사 설정, 영업기회 대사, 인장 기록 대사 (2026-11-02) -->
+  <link rel="stylesheet" href="assets/css/recon.css"><!-- 회사 설정, 영업기회 대사, 인장 기록 대조 (2026-11-02) -->
 </head>
 <!-- =====================================================================
-  SCR-63 인장 기록 대사 (docs/02_화면목록.md 6장 점검, 기획자 결정 2026-11-02 E-7 덧붙임 ③)
+  SCR-63 인장 기록 대조 (docs/02_화면목록.md 6장 점검, 기획자 결정 2026-11-02 E-7 덧붙임 ③)
   - 고객용 견적서("견적서 출력")에는 회사 인장 그림이 늘 찍히고, 출력 기록에 "인장 찍음"이 남습니다.
   - 총무가 매월 그 기록을 인장 대장과 맞춰 보고 확인을 남깁니다. 견적서 출력은 막지 않습니다.
   - 남긴 기록은 쌓기만 하고 고치거나 지우지 않습니다(누가, 언제).
@@ -41,11 +41,12 @@
   <main id="main" class="page" tabindex="-1">
     <div class="inner">
       <div class="page-head page-head--sub">
-        <h1 class="page-title">인장 기록 대사</h1>
+        <h1 class="page-title">인장 기록 대조</h1>
       </div>
       <div class="page-intro">
         <p>총무가 매월 견적서 출력 때 찍은 회사 인장 기록을 인장 대장과 맞춰 봅니다.</p>
-        <p class="sub">인장을 찍은 출력 기록마다 대장과 맞는지 확인을 남깁니다. 견적서 출력은 막지 않고, 남긴 기록은 고치거나 지울 수 없습니다.</p>
+        <!-- 2026-11-06 점검: 이 화면은 출력 기록마다가 아니라 달마다 대조 결과 하나를 남기므로 안내를 그에 맞춤(화면 이름은 기획자 결정이라 그대로) -->
+        <p class="sub">달마다 인장을 찍은 출력 기록을 인장 대장과 맞춰 보고 대조 결과를 남깁니다. 견적서 출력은 막지 않고, 남긴 기록은 고치거나 지울 수 없습니다.</p>
       </div>
 
       <div id="notice"></div>

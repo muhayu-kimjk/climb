@@ -22,11 +22,15 @@
   if (!C.gate(me, C.checkOwners(SCR).concat(['AUDIT']), '설정 변경 확인은 재무 리더와 법무가 씁니다',
     '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 화면 맨 위 검은 띠에서 재무 리더, 법무 담당자, 감사 열람, 최고관리자 가운데 하나로 바꾸면 볼 수 있습니다.')) return;
 
-  const AREAS = ['PRICE', 'PRODUCT', 'TEMPLATE']; // 이 화면에서 확인하는 영역 (결재선 규칙, 회사 설정은 SCR-57)
   const PAGE_SIZE = 20;
   const readOnly = C.isReadOnly(me);
   const canDo = C.canDoCheck(me, SCR);
   const isFin = C.hasRole(me, ['FIN_LEAD']), isLegal = C.hasRole(me, ['LEGAL']);
+  // 법무만인 사람은 표준계약서 줄만 봄(2026-11-06 점검, REQ-SCOPE-02, REQ-ADM-26): 가격과 제품의 변경까지 모두 보였음
+  //   재무 리더, 최고관리자, 감사 열람은 그대로 모든 영역. 영역 고르기, 건수, 확인 기록도 표준계약서만
+  const legalOnly = isLegal && !C.hasRole(me, ['FIN_LEAD', 'SUPER', 'AUDIT']);
+  const AREAS = legalOnly ? ['TEMPLATE'] : ['PRICE', 'PRODUCT', 'TEMPLATE']; // 이 화면에서 확인하는 영역 (결재선 규칙, 회사 설정은 SCR-57)
+  if (legalOnly) $('#f-area').querySelectorAll('option[value="PRICE"], option[value="PRODUCT"]').forEach(function (o) { o.remove(); });
   let page = 1;
   function val(f, n) { return (f.elements[n].value || '').trim(); }
   function dt(at) { return C.fmtDateTime(at).split(' ').map(function (s) { return '<span class="keep">' + s + '</span>'; }).join(' '); }
@@ -42,7 +46,7 @@
   function stateOf(x) { const k = X.checkOf(x.id); return k ? k.result : 'WAIT'; }
   function filtered() {
     const area = $('#f-area').value, state = $('#f-state').value;
-    return X.settingChanges({ areas: area ? [area] : AREAS }).filter(function (x) { return !state || stateOf(x) === state; });
+    return X.settingChanges({ areas: area && AREAS.indexOf(area) > -1 ? [area] : AREAS }).filter(function (x) { return !state || stateOf(x) === state; });
   }
   // 가격 기준을 여러 기능에 함께 넣은 건은 기능마다 전후 값을 접어 둠
   function itemsHtml(x) {
@@ -66,8 +70,10 @@
     return C.badge('line', '확인 전') + '<span class="cell-meta">' + esc(cc.why || who + '가 확인할 차례') + '</span>';
   }
   function actionHtml(x, cc) {
-    if (cc.ok) return '<button type="button" class="link-act" data-check="' + esc(x.id) + '">확인 남기기</button>';
-    if (cc.mine && cc.why) return '<button type="button" class="link-act" disabled>확인 남기기</button>'; // 본인이 바꾼 줄(까닭은 확인 칸에)
+    // 줄마다 같은 "확인 남기기"라 화면낭독기가 어느 줄인지 알게 단추 글 뒤에 줄 이름(바꾼 것과 일시)을 붙임. 보이는 글이 이름의 앞(2026-11-06 점검)
+    const row = '<span class="sr-only"> ' + esc(x.target + ' ' + C.fmtDateTime(x.at)) + '</span>';
+    if (cc.ok) return '<button type="button" class="link-act" data-check="' + esc(x.id) + '">확인 남기기' + row + '</button>';
+    if (cc.mine && cc.why) return '<button type="button" class="link-act" disabled>확인 남기기' + row + '</button>'; // 본인이 바꾼 줄(까닭은 확인 칸에)
     return '-';
   }
   function render() {
@@ -79,7 +85,8 @@
     if (page > pages) page = pages;
     const from = (page - 1) * PAGE_SIZE, rows = list.slice(from, from + PAGE_SIZE);
     $('#list-count').innerHTML = C.meta([[(list.length !== all.length ? '거른 결과' : '전체'), '<strong>' + list.length + '건</strong>'],
-      ['확인 전', '가격과 제품 ' + waitFin + '건, 표준계약서 ' + (waitAll.length - waitFin) + '건']]);
+      // 법무만인 사람에게는 표준계약서 건수만(legalOnly, 2026-11-06 점검)
+      ['확인 전', (legalOnly ? '' : '가격과 제품 ' + waitFin + '건, ') + '표준계약서 ' + (waitAll.length - waitFin) + '건']]);
     const cols = readOnly ? 6 : 7;
     $('#rows').innerHTML = rows.length ? rows.map(function (x) {
       const cc = X.canConfirm(me, x);
@@ -98,7 +105,8 @@
   function renderLog() {
     const byId = {};
     X.settingChanges({ areas: AREAS }).forEach(function (x) { byId[x.id] = x; });
-    const list = X.checkEntries();
+    // 법무만인 사람에게는 표준계약서 확인만(legalOnly, 2026-11-06 점검: 재무 리더가 남긴 가격과 제품 확인으로 바뀐 것이 보였음)
+    const list = X.checkEntries().filter(function (e) { return AREAS.indexOf(e.op.area) > -1; });
     $('#log-rows').innerHTML = list.length ? list.map(function (e) {
       const x = byId[e.op.id];
       return '<tr><td class="num-left">' + dt(e.at) + '</td><td class="center">' + esc(C.ownerLabel(e.by)) + '</td>' +
@@ -127,9 +135,24 @@
         '<fieldset class="field" data-field="result"><legend class="field-label">결과<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>' +
           '<div class="choice-row"><label class="choice"><input type="radio" name="result" value="MATCH">' + esc(R.MATCH) + '</label>' +
           '<label class="choice"><input type="radio" name="result" value="DIFF">' + esc(R.DIFF) + '</label></div><p class="field-error" hidden></p></fieldset>' +
-        C.fieldHtml({ name: 'note', label: '의견', type: 'textarea',
-          help: (tpl ? '"근거와 다름"' : '"품의와 다름"') + '을 고르면 꼭 적습니다. 무엇이 다른지, 누가 고쳐야 하는지 적습니다.' }),
+        // 의견은 다름을 고를 때만 필수. 처음엔 (선택), 고르면 필수 표시로(아래 open, 2026-11-06 점검 3회차)
+        C.fieldHtml({ name: 'note', label: '의견', type: 'textarea', optional: true,
+          help: (tpl ? '"근거와 다름"' : '"품의와 다름"') + '을 고르면 꼭 적습니다. 무엇이 다른지, 누가 고쳐야 하는지 적습니다.' })
+          .replace(' <span class="opt">', '<span class="req" aria-hidden="true" hidden>*</span><span class="sr-only req-sr" hidden>(필수)</span> <span class="opt">'),
       btn: '확인 남기기',
+      // 결과를 고를 때마다 의견 칸 이름의 필수 표시를 바꿈. 계약 등록의 사용 업체 칸과 같은 방식(new-contract.js syncOrg, 2026-11-06 점검 3회차)
+      open: function (f) {
+        const box = f.querySelector('[data-field="note"]');
+        const sync = function () {
+          const r = f.querySelector('[name="result"]:checked'), need = !!(r && r.value === 'DIFF');
+          box.querySelector('.req').hidden = !need;
+          box.querySelector('.req-sr').hidden = !need;
+          box.querySelector('.opt').hidden = need;
+          if (!need) C.setFieldError(box, ''); // 맞음으로 바꾸면 앞의 "적으세요" 오류는 맞지 않으므로 지움
+        };
+        f.querySelectorAll('[name="result"]').forEach(function (x) { x.addEventListener('change', sync); });
+        sync();
+      },
       check: function (f) {
         const r = f.querySelector('[name="result"]:checked');
         return { result: r ? '' : '결과를 고르세요.', note: r && r.value === 'DIFF' && !val(f, 'note') ? '다른 점을 적으세요.' : '' };
@@ -152,7 +175,8 @@
     const b = e.target.closest('button');
     if (!b || b.disabled) return;
     if (b.getAttribute('data-check')) openCheck(b.getAttribute('data-check'));
-    else if (b.getAttribute('data-page')) { page = Number(b.getAttribute('data-page')); render(); $('#app-title').scrollIntoView({ block: 'start' }); }
+    // 쪽 번호: 누른 단추가 다시 그려져 없어지므로 초점도 묶음 제목으로(2026-11-06 점검 3회차)
+    else if (b.getAttribute('data-page')) { page = Number(b.getAttribute('data-page')); render(); C.focusSection('#app-title'); }
   });
   render();
 })();

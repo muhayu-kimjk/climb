@@ -59,7 +59,8 @@
     const cols = seeOthers ? 7 : 6;
     $('#rows').innerHTML = rows.length ? rows.map(function (x) {
       const st = C.quoteStatus(x), t = C.quoteTotals(x);
-      const href = 'quote.html?no=' + encodeURIComponent(x.no) + '&ver=' + x.ver;
+      // 목록에서 열면 견적서 보기가 먼저(기획자 결정 2026-11-09). 보기에서 고치기와 견적서 출력
+      const href = 'quote.html?no=' + encodeURIComponent(x.no) + '&ver=' + x.ver + '&view=1';
       // data-label: 휴대폰에서 줄을 세로로 쌓을 때 값 앞의 이름(common.css 견적 화면 휴대폰 규칙, 2026-11-06 기획자 요청: 옆으로 밀지 않게)
       return '<tr>' +
         '<td><a class="cell-title" href="' + href + '">' + esc(x.name) + (x.unit ? ' ' + esc(x.unit) : '') + '</a>' +
@@ -75,14 +76,17 @@
     $('#pagination').innerHTML = C.pagerHtml(page, pages, list.length, from, rows.length, PAGE_SIZE, '건');
   }
   $('#filter').addEventListener('input', function () { page = 1; render(); });
-  $('#filter').addEventListener('change', function () { page = 1; render(); });
+  // 검색 칸은 'input'이 이미 그렸으므로 'change'(칸을 떠날 때)에서 다시 그리지 않음. 다시 그리면 누르던 줄이나 쪽 번호가 바뀌어 클릭이 사라짐(2026-11-06 점검 4회차)
+  $('#filter').addEventListener('change', function (e) { if (e.target.matches('input[type=search], input[type=text]')) return; page = 1; render(); });
   $('#filter').addEventListener('reset', function () { setTimeout(function () { page = 1; render(); }, 0); });
   $('#filter').addEventListener('submit', function (e) { e.preventDefault(); });
   $('#pagination').addEventListener('click', function (e) {
     const b = e.target.closest('button[data-page]');
-    if (!b) return;
+    if (!b || b.disabled) return;
     page = Number(b.getAttribute('data-page'));
     render();
+    // 쪽 번호를 다시 그려 누른 단추가 없어지므로 초점을 목록 제목으로 옮기고 화면도 거기로, 다른 목록 화면과 같게(2026-11-06 점검 3회차)
+    C.focusSection('#list-title');
   });
   render();
 })();

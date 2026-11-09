@@ -33,7 +33,8 @@
   $('#f-owner').innerHTML = options('전체', owners.map(function (u) { return [u, C.ownerLabel(u)]; }));
   const params = new URLSearchParams(location.search);
   const preset = params.get('status');
-  if (preset) $('#f-status').value = preset;
+  // 2026-11-06 점검: 목록에 있는 값일 때만 미리 고름(전체 계약, 내 등록 목록과 같게). 없는 값이면 고른 칸이 비어 보이고 목록도 비었음
+  if (Array.prototype.some.call($('#f-status').options, function (o) { return o.value && o.value === preset; })) $('#f-status').value = preset;
   // 개요에서 영업이 누르면 나로 거름 (v0.58 QA)
   //   진행 중인 계약이 없는 영업도 나로 거름(빈 목록). 예전에는 다른 사람 계약이 모두 보였음 (v0.63 점검에서 고침)
   if (params.get('owner') && params.get('owner') === me.id && owners.indexOf(me.id) < 0) {
@@ -84,12 +85,13 @@
         '<td class="center">' + esc(C.ownerLabel(C.salesRepOf(c))) + (C.salesRepOf(c) !== c.requesterId ? '<span class="cell-meta">처음 기안 ' + esc(C.ownerLabel(c.requesterId)) + '</span>' : '') + '</td>' +
         '<td class="num-left nowrap">' + C.fmtDate(c.requestedAt) + '</td>' + // 날짜는 한 줄 (첫 사용 점검: 하이픈에서 끊겼음)
       '</tr>';
-    }).join('') : '<tr><td class="empty-row" colspan="7">조건에 맞는 계약이 없습니다.</td></tr>';
+    }).join('') : '<tr><td class="empty-row" colspan="7">' + (all.length ? '조건에 맞는 계약이 없습니다.' : '진행 중인 계약이 없습니다.') + '</td></tr>'; // 아예 없을 때와 거르기로 빠졌을 때를 나눔(2026-11-06 점검, 내 등록 목록과 같게)
     $('#pagination').innerHTML = C.pagerHtml(page, pages, list.length, from, rows.length, PAGE_SIZE, '건');
   }
 
   $('#filter').addEventListener('input', function () { page = 1; render(); });
-  $('#filter').addEventListener('change', function () { page = 1; render(); });
+  // 검색 칸은 'input'이 이미 그렸으므로 'change'(칸을 떠날 때)에서 다시 그리지 않음. 다시 그리면 누르던 줄이나 쪽 번호가 바뀌어 클릭이 사라짐(2026-11-06 점검 4회차)
+  $('#filter').addEventListener('change', function (e) { if (e.target.matches('input[type=search], input[type=text]')) return; page = 1; render(); });
   $('#filter').addEventListener('reset', function () { setTimeout(function () { page = 1; render(); }, 0); });
   $('#filter').addEventListener('submit', function (e) { e.preventDefault(); });
   $('#pagination').addEventListener('click', function (e) {
@@ -97,7 +99,8 @@
     if (!b || b.disabled) return;
     page = Number(b.getAttribute('data-page'));
     render();
-    $('#list').scrollIntoView({ block: 'start' });
+    // 쪽 번호를 다시 그려 누른 단추가 없어지므로 초점을 목록 제목으로 옮기고 화면도 거기로(2026-11-06 점검 3회차)
+    C.focusSection('#list-title');
   });
   render();
 })();

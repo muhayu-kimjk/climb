@@ -14,7 +14,7 @@
  *   → 열람 권한(canView, 지정 열람자) → 처리 대기 목록 → 시연 기록 → 견적서 → 체결 후 의무 → 관리자 설정(applyAdmin)
  *   → 감사 열람을 준 기록, 겹치면 안 되는 역할, 점검 담당(2026-11-02 C-2, C-5, C-7, 점검 화면) → 거래처 확인과 보류(2026-11-02 C-13, C-16)
  *   → 계약 묶음(bundleOf, 만료 예정, 해지 통지 기한) → 만료 처리와 유예(2026-11-02 A-10, A-11) → 영업대표 바꾸기(2026-11-03 C-44) → HTML 조각 → 헤더, 메뉴, 푸터 그리기 → 메뉴 검색 → 휴대폰 전체 메뉴판
- *   → 안내 메시지와 확인 창 → 입력 칸 → 쪽 번호 → 관리자 화면 부품 → 워터마크 → 날짜 입력과 달력 → 표 머리글 정렬
+ *   → 안내 메시지와 확인 창 → 입력 칸 → 쪽 번호 → 관리자 화면 부품 → 워터마크 → 날짜 입력과 달력 → 표 머리글 정렬 → 바뀐 점 한 줄 → 표 칸 폭 고정
  *   → 화면 시작(init)과 내보내기   (v0.63: 견적서, 메뉴 검색, 휴대폰 전체 메뉴판, 표 머리글 정렬을 더하고 v0.60에 없앤 "맨 위로"를 뺌)
  * 불러올 때 한 번 하는 일: 시연 기록 다시 적용(시연 기록 묶음), 관리자 설정 적용(applyAdmin 뒤 buildReview)
  * ===================================================================== */
@@ -29,7 +29,7 @@ window.CLIMB = (function () {
    *        리더와 임원(영업지원 리더, 정보보호 리더, 고객지원 리더, 재무 리더, 재무 임원)은 그 분야 담당자의 메뉴를 함께 봅니다(ROLE_BASE, v0.29)
    * scr  : 화면 ID. */
   // 점검 화면마다 그 점검을 맡는 역할 (기획자 결정 2026-11-02). 메뉴, 화면 문(C.gate에 checkOwners와 AUDIT), 처리(canDoCheck), 개요 "점검할 일"(C-10)이 함께 씀
-  //   SCR-61 할인 예외 점검: 재무 임원(CFO, C-9) / SCR-62 영업기회 대사: 영업지원(담당자, 리더, E-1 ②) / SCR-63 인장 기록 대사: 총무(E-7 ③)
+  //   SCR-61 할인 예외 점검: 재무 임원(CFO, C-9) / SCR-62 영업기회 대사: 영업지원(담당자, 리더, E-1 ②) / SCR-63 인장 기록 대조: 총무(E-7 ③)
   //   SCR-64 개선 과제와 보류: 컴플라이언스(C-16) / SCR-65 설정 변경 확인: 가격과 제품 줄은 재무 리더, 표준계약서 줄은 법무(올린 사람이 아닌 법무, C-8)
   const CHECK_OWNERS = {
     'SCR-61': ['FIN_EXEC'],
@@ -102,7 +102,7 @@ window.CLIMB = (function () {
     { label: '점검', roles: Object.keys(CHECK_OWNERS).reduce(function (all, k) { return all.concat(CHECK_OWNERS[k]); }, ['AUDIT']), children: [
       { label: '할인 예외 점검', scr: 'SCR-61', href: 'discount-review.html', roles: CHECK_OWNERS['SCR-61'].concat(['AUDIT']) },
       { label: '영업기회 대사', scr: 'SCR-62', href: 'opp-recon.html', roles: CHECK_OWNERS['SCR-62'].concat(['AUDIT']) },
-      { label: '인장 기록 대사', scr: 'SCR-63', href: 'seal-recon.html', roles: CHECK_OWNERS['SCR-63'].concat(['AUDIT']) },
+      { label: '인장 기록 대조', scr: 'SCR-63', href: 'seal-recon.html', roles: CHECK_OWNERS['SCR-63'].concat(['AUDIT']) },
       { label: '개선 과제와 보류', scr: 'SCR-64', href: 'remediation.html', roles: CHECK_OWNERS['SCR-64'].concat(['AUDIT']) },
       { label: '설정 변경 확인', scr: 'SCR-65', href: 'config-review.html', roles: CHECK_OWNERS['SCR-65'].concat(['AUDIT']) },
     ] },
@@ -166,6 +166,9 @@ window.CLIMB = (function () {
     menu: '<path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/>',
     panelClose: '<path d="M4 12h12"/><path d="m11 7 5 5-5 5"/><path d="M20 5v14"/>', // 메뉴판 닫기(오른쪽으로 접기)
     user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+    // 메뉴판의 밝기 단추(2026-11-06 기획자 요청): 밝은 화면이면 해, 어두운 화면이면 달
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+    moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
   };
   // 계정 아이콘 (v0.61 기획자 요청): 로그인하면 메뉴판의 "내 계정"과 같은 사람 아이콘(user, 선만. 처음 시안의 초록으로 칠한 동그라미는 기획자 요청으로 뺌)
   //   로그인 안 하면 동그라미 안의 사람(선만, 회색). 모양과 색이 함께 달라 색만으로 구분하지 않음. 색은 CSS(.acc-btn)
@@ -1143,7 +1146,8 @@ window.CLIMB = (function () {
    *   감사 열람은 열람 제한 계약을 모두 봄(기획자 결정 2026-11-02 C-2). 끝나는 날이 지나면 다른 사람과 같음
    * ※ 실제 시스템에서는 반드시 서버에서 판단해야 합니다. 화면에서 가리는 것만으로는 보안이 되지 않습니다. */
   // 볼 수 없는 계약을 열었을 때의 안내 (결재 문서, 계약 상세, 계약 요약서가 같은 문장을 씀)
-  const RESTRICTED_MSG = '열람 제한 계약은 요청자, 그 계약의 결재선과 단계 담당자, 관리자, 지정 열람자, 감사 열람 역할만 볼 수 있습니다.';
+  // canView와 같게(2026-11-06 점검 3회차: 지금 영업대표, 대리 지정, 재무(4번 예)가 빠져 있었음)
+  const RESTRICTED_MSG = '열람 제한 계약은 그 차수를 기안한 영업과 지금 영업대표(대신 맡는 리더 포함), 그 계약의 결재선과 단계 담당자(대리 지정된 사람, 만료 처리와 유예 확인 차례인 사람 포함), 관리자, 지정 열람자, 감사 열람 역할, 그리고 체크리스트 4번이 예인 계약은 재무만 볼 수 있습니다.';
   function canView(c, user) {
     // 작성 중(임시 저장) 계약은 작성자 본인만 봅니다. [가정]
     if (c.status === 'DRAFT') return c.requesterId === user.id;
@@ -1366,14 +1370,14 @@ window.CLIMB = (function () {
   const DEMO_KEYS = { contracts: 'climb.demoContracts', notes: 'climb.demoNotes', deleted: 'climb.demoDeleted', admin: 'climb.demoAdmin', mail: 'climb.demoMail', theme: 'climb.demoTheme' /* 화면 설정(v0.53, theme.js) */,
     obligations: 'climb.demoObligations' /* 체결 후 의무(v0.53) */, quotes: 'climb.demoQuotes' /* 견적서(v0.61) */,
     closeChecks: 'climb.demoCloseChecks' /* 기획자 결정 2026-11-02 B-9: 통계의 기간 마감 점검 확인(쌓기만 함) */ };
-  // 기획자 결정 2026-11-02: 영업기회 대사(E-1 ②, 파일 올림, 줄 의견, 확인)와 인장 기록 대사(E-7 ③, 대조 확인). 쌓기만 함
+  // 기획자 결정 2026-11-02: 영업기회 대사(E-1 ②, 파일 올림, 줄 의견, 확인)와 인장 기록 대조(E-7 ③, 대조 확인). 쌓기만 함
   DEMO_KEYS.oppRecon = 'climb.demoOppRecon';
   DEMO_KEYS.sealRecon = 'climb.demoSealRecon';
-  /* 개요 "점검할 일"(기획자 결정 2026-11-02 C-10)에 더할 영업기회 대사(SCR-62, 영업지원)와 인장 기록 대사(SCR-63, 총무)의 일
+  /* 개요 "점검할 일"(기획자 결정 2026-11-02 C-10)에 더할 영업기회 대사(SCR-62, 영업지원)와 인장 기록 대조(SCR-63, 총무)의 일
    *   운영을 시작한 달부터 끝난 달 중 확인(대조)을 남기지 않은 달마다 한 줄, 기한은 다음 달 말일 [가정]. 모두 남겼으면 이달 한 줄(이달이 끝난 뒤)
    *   모양은 개요의 점검할 일과 같게 [{ what, todo, state, due, href }]. 확인 기록은 D.OPP_RECON(CONFIRM)과 D.SEAL_RECON에 시연 기록을 더한 것 */
   function reconTodo(scr) {
-    const opp = scr === 'SCR-62', name = opp ? '영업기회 대사' : '인장 기록 대사', page = opp ? 'opp-recon.html' : 'seal-recon.html';
+    const opp = scr === 'SCR-62', name = opp ? '영업기회 대사' : '인장 기록 대조', page = opp ? 'opp-recon.html' : 'seal-recon.html';
     const done = (opp ? (D.OPP_RECON || []).concat(loadDemo('oppRecon')).filter(function (r) { return r.type === 'CONFIRM'; })
       : (D.SEAL_RECON || []).concat(loadDemo('sealRecon'))).map(function (r) { return r.month; });
     const label = function (ym) { return Number(ym.slice(0, 4)) + '년 ' + Number(ym.slice(5, 7)) + '월 ' + name; };
@@ -1484,7 +1488,8 @@ window.CLIMB = (function () {
     return { supply: supply, vat: vat, total: supply + vat };
   }
   // 할인율 한도를 넘는 줄: 견적 줄에 저장한 그때의 표준 단가와 한도로 봄 (견적 화면, 견적 목록, 통계가 같이 씀. v0.62 표준 대응표 G-01 남은 것)
-  function quoteLineOverCap(l) { return !!l.listPrice && l.cap != null && 1 - (Number(l.unitPrice) || 0) / l.listPrice > l.cap + 1e-9; }
+  //   단가를 비운 줄(작성 중, unitPrice null)은 아직 값을 정하지 않은 것이라 세지 않음(2026-11-06 점검: 할인 100%로 세어 목록, "한도 넘은 견적만", 통계에 잡혔음)
+  function quoteLineOverCap(l) { return !!l.listPrice && l.cap != null && l.unitPrice != null && l.unitPrice !== '' && 1 - (Number(l.unitPrice) || 0) / l.listPrice > l.cap + 1e-9; }
   function quoteOverCap(q) { return (q.lines || []).some(quoteLineOverCap); }
   // 상태: 작성 중(출력 전) / 출력함 / 기간 지남(유효기간이 오늘보다 앞) / 새 판으로 바뀜(더 높은 판이 있음)
   function quoteStatus(q) {
@@ -2020,12 +2025,12 @@ window.CLIMB = (function () {
       // 3) 끝나지 않은 대리 지정(예정, 진행 중): 대신하는 사람의 담당을 함께 맡음
       D.DELEGATIONS.forEach(function (d) {
         if (d.delegateId !== userId || delegationState(d) === 'ENDED') return;
-        duties(d.absentId).forEach(function (x) { add(dutyOf(x.key), '대리 지정 ' + userName(d.absentId) + ' 대신 ' + x.label + '(' + fmtPeriod(d.from, d.to).replace('​', '') + ')'); });
+        duties(d.absentId).forEach(function (x) { add(dutyOf(x.key), '대리 지정 ' + ownerLabel(d.absentId) + ' 대신 ' + x.label + '(' + fmtPeriod(d.from, d.to).replace('​', '') + ')'); });
       });
     }
     // 4) 이번에 저장하려는 담당과 대리 지정
     (ctx.addSteps || []).forEach(function (key) { add(dutyOf(key), ctx.label || '이번에 맡길 ' + stepKeyLabel(key)); });
-    if (ctx.delegateFor) duties(ctx.delegateFor).forEach(function (x) { add(dutyOf(x.key), ctx.label || '이번 대리 지정 ' + userName(ctx.delegateFor) + ' 대신 ' + x.label); });
+    if (ctx.delegateFor) duties(ctx.delegateFor).forEach(function (x) { add(dutyOf(x.key), ctx.label || '이번 대리 지정 ' + ownerLabel(ctx.delegateFor) + ' 대신 ' + x.label); }); // 사람은 "조직 이름"(2026-11-06 점검)
     return R.pairs.filter(function (p) { return why[p[0]] && why[p[1]]; }).map(function (p) {
       const a = R.duties[p[0]], b = R.duties[p[1]], w = {};
       const and = josa(a.label, '과', '와').slice(a.label.length); // 괄호 앞 말에 맞춘 조사: "⑨ 고객지원(…)과"
@@ -3028,12 +3033,8 @@ window.CLIMB = (function () {
     // 판 높이: 판 윗변부터 화면 아래까지. PC는 판이 메뉴 줄을 덮으며 시작해(2026-11-02 기획자 요청, common.css .hdr-sheet) 머리글 아래가 아니라 판 자신의 윗변에서 잼
     function fitSheet() {
       if (openSheet) openSheet.sheet.style.maxHeight = Math.max(160, window.innerHeight - Math.max(0, openSheet.sheet.getBoundingClientRect().top)) + 'px';
-      // 계정 판의 오른쪽 끝 = 누른 계정 아이콘 그림의 오른쪽 끝(2026-11-03 기획자 요청: 본문 끝(돋보기 아래)까지 가서 너무 오른쪽에 붙어 보였음).
-      //   판의 오른쪽 안쪽 여백을 그 거리로(common.css .hdr-sheet.acc-sheet). 붙은 메뉴 줄에서 열면 그 줄의 계정 아이콘, 휴대폰은 머리글 계정 아이콘 기준
-      if (openSheet && openSheet.sheet.id === 'acc-sheet') {
-        const g = openerOf(openSheet).querySelector('svg');
-        if (g) openSheet.sheet.style.setProperty('--acc-right', Math.max(0, openSheet.sheet.getBoundingClientRect().right - g.getBoundingClientRect().right).toFixed(1) + 'px');
-      }
+      // 계정 판 글자의 오른쪽 끝은 CSS만으로 본문 오른쪽 끝(2026-11-06 기획자 요청, common.css .acc-sheet).
+      //   2026-11-03~11-06에는 여기서 누른 계정 아이콘까지의 거리(--acc-right)를 쟀으나 쓰지 않게 되어 지움
     }
     el.querySelectorAll('.hdr-sheet').forEach(function (sheet) {
       const s = { sheet: sheet, btns: [].slice.call(el.querySelectorAll('[aria-controls="' + sheet.id + '"]')) };
@@ -3057,7 +3058,12 @@ window.CLIMB = (function () {
         const items = [].filter.call(sheet.querySelectorAll('a[href], button, input'), function (x) { return x.getClientRects().length; });
         const next = nextIcon(openerOf(s));
         if (e.shiftKey && document.activeElement === items[0]) { e.preventDefault(); setSheet(s, false, true); }
-        else if (!e.shiftKey && document.activeElement === items[items.length - 1] && next) { e.preventDefault(); setSheet(s, false, false); focusHere(next); }
+        // 다음 아이콘이 없으면(PC 계정 판) 화면에서 그다음인 메뉴 줄로(2026-11-06 점검 3회차: 판이 nav 뒤에 있어 메뉴 줄을 건너뛰고 본문으로 갔음)
+        else if (!e.shiftKey && document.activeElement === items[items.length - 1]) {
+          const op = openerOf(s);
+          const after = next || (op.closest('.gnb-tools') ? el.querySelector('.gnb-aside') : el.querySelector('.gnb-list .gnb-link'));
+          if (after) { e.preventDefault(); setSheet(s, false, false); focusHere(after); }
+        }
       });
     });
 
@@ -3123,6 +3129,19 @@ window.CLIMB = (function () {
       };
       menuBtn.addEventListener('click', function () { closeMenus(); closeSheets(false); openDrawer(); });
       drawer.querySelector('.drawer-close').addEventListener('click', function () { closeDrawer(true); });
+      // 밝기 단추(2026-11-06 기획자 요청): 지금 보이는 화면의 반대로 바꿔 저장(theme.js). 기기 설정이 바뀌거나 내 계정에서 고르면 아이콘도 따라감
+      const themeBtn = drawer.querySelector('.drawer-theme');
+      function syncTheme() {
+        const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+        themeBtn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+        themeBtn.innerHTML = icon(dark ? 'moon' : 'sun');
+      }
+      syncTheme();
+      window.addEventListener('climb-theme', syncTheme);
+      themeBtn.addEventListener('click', function () {
+        if (!window.CLIMB_THEME) return;
+        window.CLIMB_THEME.set(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+      });
       drawer.querySelector('.drawer-scrim').addEventListener('click', function () { closeDrawer(true); });
       drawer.querySelectorAll('[data-open]').forEach(function (b) {
         b.addEventListener('click', function () { showLevel(b.getAttribute('data-open')); back.focus(); });
@@ -3330,7 +3349,10 @@ window.CLIMB = (function () {
    *   맨 위 줄: "전체 메뉴"(2단계에서는 "‹ 메뉴 이름" 뒤로 단추) + →| 닫기
    *   1단계: 이 역할에 보이는 위 메뉴(renderHeader가 역할로 거른 MENU) 그대로. 하위 메뉴가 있으면 > 를 붙여 누르면 2단계로
    *   2단계: 그 메뉴의 하위 메뉴. 지금 화면은 진한 초록 굵은 글자(1단계에서는 지금 화면이 든 메뉴)
-   *   맨 아래 묶음(선으로 나눔): 이용 안내, 내 계정. 로그아웃은 머리글 계정 판(v0.61)
+   *   맨 아래 묶음(선으로 나눔): 내 계정. 로그아웃은 머리글 계정 판(v0.61)
+   *   이용 안내는 1단계 맨 끝(공지사항 아래, 2026-11-06 기획자 요청. 그 전에는 맨 아래 묶음)
+   *   맨 위 줄 닫기 단추 왼쪽에 밝기 단추(2026-11-06 기획자 요청): 누르면 밝은 화면과 어두운 화면을 바꿈. 아이콘은 지금 화면(밝으면 해, 어두우면 달) [가정]
+   *     고른 값은 내 계정의 화면 설정(밝게, 어둡게)과 같은 곳에 저장(theme.js). 기기 설정대로는 내 계정에서 고름
    *   메뉴에서 펼쳐지는 것은 평평하게(직각, v0.59). 바탕은 흰색(기획자가 참고한 Claude 문서 사이트처럼) */
   function drawerHtml(menu, pageId) {
     const lists = [];
@@ -3345,7 +3367,9 @@ window.CLIMB = (function () {
       }).join('') + '</ul>');
       return '<li><button type="button" class="drawer-item' + (isCurrent ? ' is-current' : '') + '" data-open="' + id + '" data-label="' + esc(m.label) + '">' +
         '<span>' + esc(m.label) + '</span>' + icon('chevronRight') + '</button></li>';
-    }).join('');
+    }).join('') +
+      // 이용 안내(SCR-90): 공지사항 아래(2026-11-06 기획자 요청)
+      '<li><a class="drawer-item" href="help.html"' + (pageId === 'SCR-90' ? ' aria-current="page"' : '') + '>이용 안내</a></li>';
     const foot = function (href, ic, label, scr) {
       return '<li><a href="' + href + '"' + (scr && scr === pageId ? ' aria-current="page"' : '') + '>' + icon(ic) + '<span>' + label + '</span></a></li>';
     };
@@ -3355,11 +3379,13 @@ window.CLIMB = (function () {
           '<p class="drawer-title">전체 메뉴</p>' +
           // 2단계 위쪽 줄(2026-11-06 기획자 요청): '‹ 전체 메뉴'(돌아가기). 고른 메뉴 이름(예: 견적)은 그 아래 제목(.drawer-sub-title)으로 내림
           '<button type="button" class="drawer-back" hidden>' + icon('chevronLeft') + '<span class="drawer-back-label">전체 메뉴</span><span class="sr-only">로 돌아가기</span></button>' +
+          // 밝기 단추: 누름 상태(aria-pressed)가 어두운 화면 켜짐. 아이콘과 상태는 wireDrawer의 syncTheme이 맞춤
+          '<button type="button" class="drawer-theme" aria-pressed="false" aria-label="어두운 화면" title="어두운 화면">' + icon('sun') + '</button>' +
           '<button type="button" class="drawer-close" aria-label="메뉴 닫기">' + icon('panelClose') + '</button>' +
         '</div>' +
         '<nav class="drawer-body" aria-label="주 메뉴"><p class="drawer-sub-title" hidden></p><ul class="drawer-list" data-level="1">' + level1 + '</ul>' + lists.join('') + '</nav>' +
-        // 맨 아래 묶음: 이용 안내, 내 계정. 로그아웃은 머리글 계정 아이콘 안으로 옮김(v0.61 기획자 요청)
-        '<ul class="drawer-foot">' + foot('help.html', 'help', '이용 안내', 'SCR-90') + foot('account.html', 'user', '내 계정', 'SCR-93') + '</ul>' +
+        // 맨 아래 묶음: 내 계정. 로그아웃은 머리글 계정 아이콘 안으로 옮김(v0.61 기획자 요청). 이용 안내는 1단계 맨 끝으로(2026-11-06)
+        '<ul class="drawer-foot">' + foot('account.html', 'user', '내 계정', 'SCR-93') + '</ul>' +
       '</div>';
   }
 
@@ -3392,7 +3418,10 @@ window.CLIMB = (function () {
   /* ---------- 안내 메시지 ---------- */
   let toastTimer = null;
   //   KRDS 토스트: 한 문장, 안내는 2~3초, 주의는 3~4초 (v0.28). warn이 참이면 3.5초
-  function toast(msg, warn) {
+  //   화면낭독기(2026-11-06 점검): 알림 칸(role=status)은 화면을 열 때 비워 둔 채 미리 만들어 둠(ensureToast, initPage).
+  //     새로 만든 칸에 바로 글을 넣으면 첫 안내(앞 화면에서 넘긴 안내 포함)를 읽지 않는 일이 있고, 같은 글을 다시 넣으면 바뀐 것이 없어 읽지 않음.
+  //     그래서 글을 비운 뒤 잠깐 있다가 넣고, 사라질 때 글도 지움(투명해져도 글이 남아 다시 읽히지 않게)
+  function ensureToast() {
     let el = document.getElementById('toast');
     if (!el) {
       el = document.createElement('div');
@@ -3401,13 +3430,30 @@ window.CLIMB = (function () {
       el.setAttribute('role', 'status');
       document.body.appendChild(el);
     }
-    el.textContent = msg;
-    // 결재 문서의 처리 막대처럼 아래에 붙는 막대가 있으면 그 위에 띄움
-    const bar = document.querySelector('.action-bar:not([hidden])');
-    el.style.bottom = bar ? (bar.getBoundingClientRect().height + 16) + 'px' : '';
-    el.classList.add('is-show');
+    return el;
+  }
+  function toast(msg, warn) {
+    const el = ensureToast();
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { el.classList.remove('is-show'); }, warn ? 3500 : 2600);
+    // 이미 떠 있으면 먼저 사라지게 한 뒤 바꿈(2026-11-06 점검 3회차: 글만 비워 작은 빈 상자가 잠깐 보였음)
+    const showing = el.classList.contains('is-show');
+    el.classList.remove('is-show');
+    if (!showing) el.textContent = '';
+    // 결재 문서의 처리 막대처럼 아래에 붙는 막대가 있으면 그 위에 띄움. 사이는 1.6rem(2026-11-06 점검: 16px로 고정해 큰 모니터의 17/15배를 따르지 않았음)
+    const bar = document.querySelector('.action-bar:not([hidden])');
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 10;
+    el.style.bottom = bar ? (bar.getBoundingClientRect().height + 1.6 * rem) + 'px' : '';
+    toastTimer = setTimeout(function () {
+      el.textContent = '';
+      toastTimer = setTimeout(function () {
+      el.textContent = msg;
+      el.classList.add('is-show');
+      toastTimer = setTimeout(function () {
+        el.classList.remove('is-show');
+        toastTimer = setTimeout(function () { el.textContent = ''; }, 300); // 사라지는 움직임(0.2초) 뒤
+      }, warn ? 3500 : 2600);
+      }, 60);
+    }, showing ? 220 : 0);
   }
 
   /* ---------- 확인 창 공통 (KRDS 모달, v0.28) ----------
@@ -3426,6 +3472,7 @@ window.CLIMB = (function () {
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   });
   function focusModal(modal) {
+    stackTables(); // 창 안의 표도 휴대폰에서 넘치면 쌓음(2026-11-06 점검 3회차)
     const t = modal.querySelector('.modal-title');
     if (!t) return;
     t.setAttribute('tabindex', '-1');
@@ -3438,8 +3485,10 @@ window.CLIMB = (function () {
   let fieldSeq = 0;
   function wireFields(root) {
     (root || document).querySelectorAll('.field, fieldset.field').forEach(function (f) {
-      const control = f.querySelector('input:not([type=hidden]):not([type=radio]):not([type=checkbox]), select, textarea');
-      const targets = control ? [control] : Array.prototype.slice.call(f.querySelectorAll('input[type=radio], input[type=checkbox]'));
+      // 이 칸에 바로 든 입력만(2026-11-06 점검 3회차: 자동갱신 묶음 안의 해지 통지 일수 칸을 묶음의 입력으로 잡아 라디오 오류가 그 칸에 이어졌음)
+      const own = function (x) { return x.parentElement.closest('.field, fieldset.field, .sub-fields') === f; };
+      const control = [].filter.call(f.querySelectorAll('input:not([type=hidden]):not([type=radio]):not([type=checkbox]), select, textarea'), own)[0];
+      const targets = control ? [control] : [].filter.call(f.querySelectorAll('input[type=radio], input[type=checkbox]'), own);
       if (!targets.length) return;
       // 이미 걸어 둔 연결(예: 두 날짜 칸이 함께 쓰는 도움말)은 남김 (v0.35)
       const ids = ((control || f).getAttribute('data-describedby') || '').split(' ').filter(Boolean);
@@ -3505,7 +3554,8 @@ window.CLIMB = (function () {
   //   o: { name, label, type(text, date, number, url, select, textarea), value, options: [[값, 이름]], required, help, placeholder, unit, readonly, attrs }
   function fieldHtml(o) {
     const id = 'fm-' + o.name;
-    const req = o.required ? '<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span>' : '';
+    // optional: 넣지 않아도 되는 칸은 화면 양식처럼 "(선택)"(2026-11-06 점검 3회차: 창마다 붙거나 안 붙었음)
+    const req = o.required ? '<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span>' : o.optional ? ' <span class="opt">(선택)</span>' : '';
     const ph = o.placeholder ? ' placeholder="' + esc(o.placeholder) + '"' : '';
     let control;
     if (o.type === 'select') {
@@ -3524,6 +3574,31 @@ window.CLIMB = (function () {
   }
   //   opt: { title, desc(누르면 어떻게 되는지만), body(입력 칸 HTML), btn, tone(primary, danger), open(form), check(form) → { 칸 이름: 오류 문장 }, done(form) }
   let fmLast = null;
+  // 표를 다시 그려 연 단추가 없어졌으면(2026-11-06 점검: 저장하면 초점이 화면 맨 앞으로 떨어졌음) 같은 data- 값의 새 단추로,
+  //   그것도 없으면 화면 제목으로 초점을 옮김. 화면 스크립트에서도 씀(C.restoreFocus)
+  // 목록을 다시 그려 누른 단추가 없어질 때(쪽 번호, 보기) 초점을 그 묶음 제목으로 옮기고 화면도 거기로(2026-11-06 점검 3회차)
+  //   target: 제목 요소나 선택자. 제목에 tabindex=-1을 붙여 초점을 받을 수 있게 함
+  function focusSection(target) {
+    const t = typeof target === 'string' ? document.querySelector(target) : target;
+    if (!t) return;
+    if (!t.hasAttribute('tabindex')) t.setAttribute('tabindex', '-1');
+    t.focus({ preventScroll: true });
+    t.scrollIntoView({ block: 'start' });
+  }
+  function restoreFocus(prev) {
+    if (!prev || prev.isConnected || !prev.attributes) return;
+    const attrs = [].filter.call(prev.attributes, function (a) { return /^data-/.test(a.name) || a.name === 'id'; });
+    let t = null;
+    if (attrs.length) {
+      const sel = prev.tagName.toLowerCase() + attrs.map(function (a) { return '[' + a.name + '="' + (window.CSS && CSS.escape ? CSS.escape(a.value) : a.value) + '"]'; }).join('');
+      try { t = document.querySelector(sel); } catch (e) { t = null; }
+    }
+    if (!t) {
+      t = document.querySelector('main h1');
+      if (t && !t.hasAttribute('tabindex')) t.setAttribute('tabindex', '-1');
+    }
+    if (t) t.focus();
+  }
   function closeFormModal() {
     const el = document.getElementById('form-modal');
     if (el) el.hidden = true;
@@ -3548,6 +3623,10 @@ window.CLIMB = (function () {
       // btn: false면 보기만 하는 창(예: 이메일 미리 보기, v0.53). 닫기만 둠
       (opt.btn === false ? '' : '<button type="submit" form="fm-form" class="btn btn--' + (opt.tone || 'primary') + ' btn--md">' + esc(opt.btn || '저장') + '</button>') + '</div></div>';
     const form = el.querySelector('#fm-form');
+    // 오류가 난 칸을 고치면 그 오류를 바로 지움(2026-11-06 점검 3회차: 다음 저장 때까지 남았음. 계약 등록과 같게)
+    const clearOne = function (e) { const box = e.target.closest('[data-field]'); if (box && box.classList.contains('is-invalid')) setFieldError(box, ''); };
+    form.addEventListener('input', clearOne);
+    form.addEventListener('change', clearOne);
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       const errs = (opt.check && opt.check(form)) || {};
@@ -3560,8 +3639,10 @@ window.CLIMB = (function () {
       if (first) { first.focus(); return; }
       closeFormModal();
       if (opt.done) opt.done(form);
+      restoreFocus(fmLast);
     });
     el.hidden = false;
+    stackTables(); // 창 안의 표도 휴대폰에서 넘치면 쌓음(2026-11-06 점검 4회차): formModal은 focusModal을 거치지 않았음)
     wireFields(form);
     if (opt.open) opt.open(form);
     const f0 = form.querySelector('input:not([readonly]):not([disabled]), select:not([disabled]), textarea');
@@ -3842,6 +3923,14 @@ window.CLIMB = (function () {
     const dt = new Date(y, mo, d);
     return dt.getFullYear() === y && dt.getMonth() === mo && dt.getDate() === d ? isoOf(y, mo, d) : '';
   }
+  // 날짜 칸 확인(2026-11-06 점검 3회차): 글을 적었는데 없는 날짜(2월 30일 등)면 "없는 날짜입니다", 비었으면 emptyMsg, 맞으면 ''.
+  //   날짜 칸은 없는 날짜일 때 빈 값을 돌려주어, 화면마다 "…을 고르세요"로 덮어 적던 것을 막음
+  function dateFieldError(input, emptyMsg) {
+    if (!input) return '';
+    const raw = (INPUT_VALUE.get.call(input) || '').trim();
+    if (input.value) return '';
+    return raw ? '없는 날짜입니다. 월과 일을 다시 확인하세요.' : (emptyMsg || '');
+  }
   function enhanceDates(root) {
     (root || document).querySelectorAll('input[type=date]:not([data-cal])').forEach(function (input) {
       input.setAttribute('data-cal', '');
@@ -4073,7 +4162,16 @@ window.CLIMB = (function () {
    * 비율이라 창 크기가 바뀌거나 인쇄해도 함께 맞춰짐. 머리글이 두 줄이거나 합친 칸이 있는 표, 이미 colgroup이 있는 표(견적 제품 표 등)는 건드리지 않음.
    * 나중에 처음 보이는 표(펼침, 탭)는 보일 때 고정함 */
   function lockTable(t) {
-    if (t.dataset.colLock || t.querySelector('colgroup') || !t.offsetParent) return;
+    // 휴대폰에서 쌓은 표(data-stack)는 칸 폭을 잴 수 없어 쌓지 않은 모양일 때 잼(2026-11-06 점검)
+    // 휴대폰에서는 잠그지 않음(2026-11-06 점검 3회차: 잠근 표는 늘 화면 폭 안이라 넘쳐도 쌓이지 않았음. 휴대폰은 쌓기로 흔들림을 막음)
+    // 화면이 표 전체(innerHTML)를 다시 그려 colgroup이 없어졌으면 잰 비율로 다시 붙임(2026-11-06 점검 4회차): 고정 배치에 colgroup이 없어 칸이 똑같이 나뉘었음)
+    if (t.dataset.colLock === 'on' && !t.querySelector('colgroup') && t.dataset.colW) {
+      const cg0 = document.createElement('colgroup');
+      t.dataset.colW.split(',').forEach(function (w) { const col = document.createElement('col'); col.style.width = w; cg0.appendChild(col); });
+      t.insertBefore(cg0, t.firstChild);
+      return;
+    }
+    if (t.dataset.colLock || t.querySelector('colgroup') || !t.offsetParent || t.hasAttribute('data-stack') || isPhoneLayout()) return;
     const rows = t.tHead ? t.tHead.rows : [];
     if (rows.length !== 1 || [].some.call(rows[0].cells, function (c) { return c.colSpan > 1; })) { t.dataset.colLock = 'skip'; return; }
     // 내용 줄이 그려진 뒤에만 잼: 줄이 없거나 "없습니다" 한 줄(합친 칸)뿐이면 머리글 글자만으로 폭이 정해져 날짜 칸 등이 너무 좁게 굳었음
@@ -4090,14 +4188,73 @@ window.CLIMB = (function () {
     t.insertBefore(cg, t.firstChild);
     t.style.tableLayout = 'fixed';
     t.dataset.colLock = 'on';
+    t.dataset.colW = [].map.call(cg.children, function (col) { return col.style.width; }).join(','); // 다시 붙일 때 씀(아래)
   }
   function lockTables() { document.querySelectorAll('main table.tbl').forEach(lockTable); }
+  /* ---------- 휴대폰에서 넘치는 표는 줄마다 쌓기 (2026-11-06 기획자 요청을 모든 화면으로: "가로 칸을 넘어간다 싶으면 세로로 내려주고 좌우는 채워") ----------
+   * 처음에는 견적 화면만(SCR-15, 16, 17은 quote.css와 아래 common.css가 따로 정함). 2026-11-06 점검에서 휴대폰(402px)으로 재어 보니
+   * 관리자 화면, 변경 이력, 계약 상세 등 18개 화면의 표가 옆으로 밀렸음. 그래서 휴대폰에서는 화면 폭을 넘는 표만 줄마다 한 덩어리로 쌓음.
+   *   - 머리글 칸 글을 칸마다 data-label로 붙이고(이름은 왼쪽 옅게, 값은 오른쪽 진하게, REQ-UI-32) 머리글 줄은 화면에서만 감춤(common.css .tbl[data-stack])
+   *   - 첫 칸이 줄 제목 링크(.cell-title)면 이름 없이 줄의 제목으로
+   *   - 넘치는지는 쌓지 않은 모양에서 잼(data-stack을 잠깐 떼고). data-stack은 아래 지켜보기가 보는 속성이 아니라 돌고 돌지 않음
+   *   - 화면이 그려지기 전(지켜보기 콜백)에 바로 정해 넓은 표가 한 번 보였다가 쌓이는 흔들림이 없게 함. 창 크기를 바꾸면 다시 잼
+   *   - 인쇄와 넓은 화면은 언제나 표 */
+  const STACK_SKIP = '.q-lines, .qd-lines, .approval-box';
+  const STACK_SEL = 'main table.tbl, [role="dialog"] table.tbl'; // 확인 창과 입력 창 안의 표도(2026-11-06 점검 3회차)
+  // 머리글 칸의 보이는 글(화면낭독기용 .sr-only 글은 뺌). 숨긴 머리글이나 빈 머리글은 이름 없음
+  function headLabel(th) {
+    if (th.hidden) return '';
+    const c = th.cloneNode(true);
+    c.querySelectorAll('.sr-only').forEach(function (x) { x.remove(); });
+    return c.textContent.replace(/\s+/g, ' ').trim();
+  }
+  function stackTable(t) {
+    if (t.matches(STACK_SKIP) || document.body.getAttribute('data-page') === 'SCR-16') return;
+    if (!isPhoneLayout() || !t.offsetParent) { if (t.hasAttribute('data-stack')) t.removeAttribute('data-stack'); return; }
+    const head = t.tHead && t.tHead.rows.length === 1 ? t.tHead.rows[0] : null;
+    if (!head) return;
+    const box = t.closest('.tbl-scroll') || t.parentElement;
+    // 쌓지 않은 모양으로 재기: data-stack, 잠근 칸 폭(lockTable)을 잠깐 풀고 잰 뒤 되돌림. 그동안 화면 자리를 지켜(2026-11-06 점검 3회차:
+    //   잠깐 짧아진 화면 때문에 아래쪽에서 스크롤이 위로 튀었음) 그려지기 전에 원래대로
+    const was = t.hasAttribute('data-stack'), y = window.scrollY;
+    const cg = t.dataset.colLock === 'on' ? t.querySelector('colgroup') : null;
+    if (was) t.removeAttribute('data-stack');
+    if (cg) { cg.style.display = 'none'; t.style.tableLayout = 'auto'; }
+    // 쌓지 않았을 때 휴대폰 규칙이 감추는 칸(예: 서비스, 담당, 상태, 할 일은 고객사 아래 작은 줄로 보임)은 쌓아도 감춤
+    const hiddenCol = {};
+    [].forEach.call(head.cells, function (th, i) { if (getComputedStyle(th).display === 'none') hiddenCol[i] = true; });
+    const over = t.getBoundingClientRect().width > box.clientWidth + 1 || box.scrollWidth > box.clientWidth + 1;
+    if (cg) { cg.style.display = ''; t.style.tableLayout = 'fixed'; }
+    if (over) t.setAttribute('data-stack', '');
+    if (window.scrollY !== y) window.scrollTo(window.scrollX, y);
+    if (!over) return;
+    // 이름 붙이기: 합친 칸을 계산해 열 번호로 맞춤(cellGrid). 칸 수가 머리글과 달라도(권한에 따라 관리 칸이 없는 줄 등) 열마다 이름
+    const labels = [].map.call(head.cells, headLabel);
+    [].forEach.call(t.tBodies, function (b) {
+      cellGrid(b.rows).forEach(function (line) {
+        if (line.length === 1 && line[0].cell.colSpan > 1) return; // "없습니다" 같은 한 줄
+        line.forEach(function (x, k) {
+          const c = x.cell;
+          if (hiddenCol[x.col]) { if (!c.hasAttribute('data-stack-hide')) c.setAttribute('data-stack-hide', ''); return; }
+          // class는 지켜보기가 보는 속성이라 이미 있으면 다시 붙이지 않음(붙이면 지켜보기가 끝없이 돌았음)
+          if (k === 0 && c.querySelector('.cell-title')) { if (!c.classList.contains('stack-title')) c.classList.add('stack-title'); return; }
+          const lab = c.colSpan === 1 ? labels[x.col] : '';
+          if (lab && c.getAttribute('data-label') !== lab) c.setAttribute('data-label', lab);
+        });
+      });
+    });
+  }
+  function stackTables() { document.querySelectorAll(STACK_SEL).forEach(stackTable); }
   function watchTables() {
-    const go = function () { setTimeout(lockTables, 0); };
+    const go = function () { setTimeout(function () { lockTables(); stackTables(); }, 0); };
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(go); else go();
+    stackTables(); // 휴대폰: 처음 그린 표를 보이기 전에 쌓음(2026-11-06 점검)
+    // 창 폭이 바뀔 때만 다시 잼(2026-11-06 점검 3회차: 휴대폰 주소 막대가 들어가고 나올 때도 resize가 와서 스크롤 중에 다시 쟀음)
+    let rz = 0, lastW = window.innerWidth;
+    window.addEventListener('resize', function () { if (window.innerWidth === lastW) return; lastW = window.innerWidth; clearTimeout(rz); rz = setTimeout(function () { lockTables(); stackTables(); }, 100); });
     if (window.MutationObserver) {
       let pending = false;
-      new MutationObserver(function () { if (pending) return; pending = true; setTimeout(function () { pending = false; lockTables(); }, 0); })
+      new MutationObserver(function () { stackTables(); if (pending) return; pending = true; setTimeout(function () { pending = false; lockTables(); stackTables(); }, 0); })
         .observe(document.querySelector('main') || document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'class'] });
     }
   }
@@ -4115,6 +4272,7 @@ window.CLIMB = (function () {
     wireFields(document);
     enhanceDates(document);
     watchTables(); // 표 칸 폭 고정(2026-11-06): 화면 스크립트가 처음 그린 뒤에 잼
+    ensureToast(); // 안내 알림 칸을 비운 채 미리 둠(2026-11-06 점검, 화면낭독기가 첫 안내도 읽게)
     // 앞 화면에서 남긴 안내가 있으면 한 번 보여 줌
     try {
       const msg = sessionStorage.getItem('climb.flash');
@@ -4127,7 +4285,7 @@ window.CLIMB = (function () {
   return {
     // 화면 시작, 사람과 역할
     init: init, getRole: getRole, saveRole: saveRole, hasRole: hasRole, roleLabel: roleLabel, roleShort: roleShort,
-    userName: userName, ownerLabel: ownerLabel, accountOf: accountOf, teamOf: teamOf, leaderAt: leaderAt, duties: duties,
+    restoreFocus: restoreFocus, focusSection: focusSection, dateFieldError: dateFieldError, userName: userName, ownerLabel: ownerLabel, accountOf: accountOf, teamOf: teamOf, leaderAt: leaderAt, duties: duties,
     mailPrefs: mailPrefs, saveMailPrefs: saveMailPrefs, isPhoneLayout: isPhoneLayout,
     // 날짜, 금액, 글자
     daysSince: daysSince, daysUntil: daysUntil, daysBetween: daysBetween, ddayTone: ddayTone, addDays: addDays, monthsLater: monthsLater,
@@ -4183,7 +4341,7 @@ window.CLIMB = (function () {
     canWriteFinOpinion: canWriteFinOpinion, addFinOpinion: addFinOpinion,
     // 시연 저장소 읽기와 더하기(DEMO_KEYS의 이름). 통계의 기간 마감 점검 확인(closeChecks, 기획자 결정 2026-11-02 B-9)이 씀
     loadDemo: loadDemo, pushDemo: pushDemo,
-    // 기획자 결정 2026-11-02 C-10: reconTodo('SCR-62' 영업기회 대사 | 'SCR-63' 인장 기록 대사) 개요 "점검할 일"의 줄들
+    // 기획자 결정 2026-11-02 C-10: reconTodo('SCR-62' 영업기회 대사 | 'SCR-63' 인장 기록 대조) 개요 "점검할 일"의 줄들
     reconTodo: reconTodo,
     currentUser: currentUser, // 견적 화면이 머리글을 그리기 전에 고치기인지 보기인지 정할 때(v0.61)
     allQuotes: allQuotes, findQuote: findQuote, saveQuote: saveQuote, newQuoteNo: newQuoteNo, quoteTotals: quoteTotals, quoteStatus: quoteStatus, quoteLineOverCap: quoteLineOverCap, quoteOverCap: quoteOverCap, canSeeQuote: canSeeQuote, canEditQuote: canEditQuote, newDraftKey: newDraftKey, addNote: addNote, deleteDraft: deleteDraft, flash: flash,
@@ -4233,7 +4391,8 @@ window.CLIMB = (function () {
     changeScreens: changeScreens, changeScreenLabel: changeScreenLabel, changeUntil: changeUntil, changeNoteOf: changeNoteOf,
     // 화면 조각과 부품
     esc: esc, badge: badge, statusBadge: statusBadge, icon: icon, meta: meta, noticeBox: noticeBox, toast: toast, securityNotice: SECURITY_NOTICE,
-    gate: gate, fieldHtml: fieldHtml, formModal: formModal, focusModal: focusModal, setFieldError: setFieldError,
+    gate: gate, fieldHtml: fieldHtml, formModal: formModal, focusModal: focusModal, setFieldError: setFieldError, wireFields: wireFields, // wireFields: 나중에 그린 칸(제품 줄 등)에도 도움말과 오류를 이음(2026-11-06 점검 3회차)
+   
     adminHistoryHtml: adminHistoryHtml, pagerHtml: pagerHtml,
   };
 })();

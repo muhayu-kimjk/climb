@@ -180,10 +180,11 @@
   function canLimit(st) { return canDo && st.ended && !st.done && !st.locked && st.disc.length > 0; }
   function canFinish(st) { return canDo && st.ended && !st.done && st.confirmed === st.rows.length && !st.rows.some(mine); }
   function sigOf(st) { return st.rows.map(function (x) { return x.key; }).sort().join(','); }
+  // 상태는 다른 매월 점검(접속 기록, 영업기회 대사, 인장 기록 대조)과 같게(기획자 결정 2026-11-09): 회색 배지, 기한이 지나면 기한 칸 아래에 "기한 지남",
+  //   달이 끝나기 전은 "예정". 그전에는 기한이 지나면 배지를 분홍 "기한 지남"으로 바꾸고 달이 끝나기 전은 "이달이 끝난 뒤"였음
   function statusBadge(st) {
-    if (!st.ended) return C.badge('line', '이달이 끝난 뒤');
+    if (!st.ended) return C.badge('line', '예정');
     if (st.done) return C.badge('success', '점검 마침');
-    if (st.late) return C.badge('danger', '기한 지남');
     return C.badge('line', st.confirmed || st.limit ? '점검 중' : '점검 전');
   }
 
@@ -248,13 +249,16 @@
   // 관리 칸: 남길 수 있는 사람에게만 칸을 둠(읽기만 하는 역할은 칸 자체가 없음)
   function actCell(x, st) {
     if (!canDo) return '';
-    return '<td class="col-action">' + (canRow(x, st) ? '<button type="button" class="link-act" data-row="' + esc(x.key) + '">확인 남기기</button>' : '-') + '</td>';
+    // 줄마다 같은 "확인 남기기"라 화면낭독기가 어느 줄인지 알게 단추 글 뒤에 고객사와 계약번호를 붙임(열람 제한 계약은 계약번호만). 보이는 글이 이름의 앞(2026-11-06 점검)
+    const row = '<span class="sr-only"> ' + esc(rowTitle(x)) + '</span>'; // 확인 창 제목과 같은 줄 이름(할인과 재무 줄을 나눔)
+    return '<td class="col-action">' + (canRow(x, st) ? '<button type="button" class="link-act" data-row="' + esc(x.key) + '">확인 남기기' + row + '</button>' : '-') + '</td>';
   }
   function discRowHtml(x, st) {
     const d = x.disc, cur = x.c.round || 1;
     // ③ 승인 뒤 ④나 ⑧에서 반려된 차수(지금 반려 상태이거나 다시 기안해 다음 차수가 있음). 할인 승인은 있었으므로 줄은 그대로 둠
     const rej = x.round < cur || x.c.status === 'REJECTED';
-    return '<tr>' + contractCell(x.c, true, rej ? '<span class="cell-meta">' + C.badge('neutral', '반려') + ' 승인 뒤 반려된 차수</span>' : '') +
+    // 반려 표시는 다른 화면과 같은 색과 글(D.STATUS.REJECTED, 분홍)로. 회색이던 것을 바꿈(2026-11-06 점검 4회차)
+    return '<tr>' + contractCell(x.c, true, rej ? '<span class="cell-meta">' + C.badge(D.STATUS.REJECTED.tone, D.STATUS.REJECTED.label) + ' 승인 뒤 반려된 차수</span>' : '') +
       '<td class="center cell-phone-nowrap">' + esc(C.ownerLabel(x.c.requesterId)) + '</td>' +
       (d ? '<td class="num">' + pct(d.top.d) + '<span class="cell-meta">한도 ' + pct(d.top.cap) + '</span>' +
           (st.limit && isOver(x, st) ? '<span class="cell-meta">' + C.badge('attention', '한계값 넘음') + '</span>' : '') + '</td>' +
@@ -281,7 +285,7 @@
       return '<tr' + (st.late ? ' class="is-alert"' : '') + '>' +
         '<td class="nowrap"><a class="cell-title" href="?month=' + ym + '" data-month="' + ym + '"' + (on ? ' aria-current="true"' : '') + '>' + monthLabel(ym) + '</a>' +
           (on ? '<span class="cell-meta">아래에 보는 중</span>' : '') + '</td>' +
-        '<td class="num-left nowrap">' + C.fmtDate(st.due) + '</td>' +
+        '<td class="num-left nowrap">' + C.fmtDate(st.due) + (st.late && !st.done ? '<span class="cell-meta">기한 지남</span>' : '') + '</td>' +
         '<td class="num">' + st.disc.length + '건</td><td class="num">' + st.fin.length + '건</td>' +
         '<td class="num">' + st.confirmed + '/' + st.rows.length + '건</td>' +
         '<td class="nowrap">' + statusBadge(st) +
@@ -418,7 +422,8 @@
       title: PART[x.part] + ' 줄을 확인할까요?',
       desc: '저장하면 확인한 사람과 일시, 의견, 지금 본 내용이 남고 고치거나 되돌릴 수 없습니다.',
       body: '<p class="modal-info">' + esc(rowTitle(x)) + '<br>' + esc(seenOf(x)) + '</p>' +
-        C.fieldHtml({ name: 'opinion', label: need ? '의견' : '의견 (선택)', type: 'textarea', required: need,
+        // 한계값 밑이면 optional로 "(선택)"을 다른 창과 같은 모양으로(2026-11-06 점검 3회차)
+        C.fieldHtml({ name: 'opinion', label: '의견', type: 'textarea', required: need, optional: !need,
           placeholder: x.part === 'DISC' ? '예: 첫 도입 조건과 레퍼런스 확보를 보면 할인 폭이 받아들일 만함. 같은 유닛의 다음 예외는 함께 봄'
             : '예: 결산 자료 준비로 늦음. 재무 리더에게 기한 안 처리를 다시 알림',
           help: need ? (x.disc ? '가장 큰 줄 할인율이 한계값(' + st.limit.limit + '%) 이상이라 의견을 꼭 적습니다.' : '제품 줄이 없어 할인율을 셀 수 없으므로 의견을 꼭 적습니다.') : '' }),
@@ -443,7 +448,8 @@
       title: monthLabel(sel) + ' 할인 예외 점검을 마칠까요?',
       desc: '저장하면 마친 사람과 일시, 메모, 지금 본 건수가 남고 고치거나 되돌릴 수 없습니다.',
       body: '<p class="modal-info">' + esc(doneSeenText(seen)) + '</p>' +
-        C.fieldHtml({ name: 'memo', label: '메모 (선택)', type: 'textarea', placeholder: '예: 한계값을 넘은 2건은 영업 임원과 다음 달 가격 회의에서 함께 봄' }),
+        // 넣지 않아도 되는 칸은 optional로 "(선택)"을 모든 창에서 같은 모양으로(2026-11-06 점검 3회차)
+        C.fieldHtml({ name: 'memo', label: '메모', type: 'textarea', optional: true, placeholder: '예: 한계값을 넘은 2건은 영업 임원과 다음 달 가격 회의에서 함께 봄' }),
       btn: '점검 마침',
       done: function (f) {
         if (save({ type: 'DONE', memo: f.elements.memo.value.trim(), seen: seen })) {
@@ -480,7 +486,8 @@
     if (b.hasAttribute('data-row')) openRow(b.getAttribute('data-row'));
     else if (b.id === 'btn-limit') openLimit();
     else if (b.id === 'btn-done') openDone();
-    else if (b.getAttribute('data-page')) { page = Number(b.getAttribute('data-page')); renderLog(); $('#sec-log').scrollIntoView({ block: 'start' }); }
+    // 쪽 번호: 누른 단추가 다시 그려져 없어지므로 초점도 점검 기록 제목으로(2026-11-06 점검 3회차)
+    else if (b.getAttribute('data-page')) { page = Number(b.getAttribute('data-page')); renderLog(); C.focusSection('#sec-log'); }
   });
   refresh();
 })();

@@ -118,7 +118,8 @@
               <li><strong>저장</strong>하면 작성 중으로 남고 견적서 보기 화면으로 갑니다. 몇 번이고 <strong>고치기</strong>로 다시 고칠 수 있고, 다 되면 <strong>견적서 출력</strong>을 누릅니다.</li>
             </ol>
             <h2 class="doc-h2" id="quote--discount">할인과 할인율 한도</h2>
-            <p class="doc-text">할인하려면 단가를 고칩니다. 줄마다 할인율이 보이고, 할인율 한도를 넘으면 그 줄과 칸 아래에 알림이 나옵니다. 견적 단계에서는 승인을 받지 않지만, 그 가격으로 계약하면 계약 등록 때 영업 리더의 할인 승인(③ 영업 검토)이 필요합니다.</p>
+            <p class="doc-text">할인하려면 단가를 고칩니다. 줄마다 할인율이 보이고, 할인율 한도를 넘으면 그 줄과 칸 아래에 알림이 나옵니다. 견적 단계에서는 승인을 받지 않지만, 그 가격으로 계약하면 계약 등록 때 영업 리더의 할인 승인(③ 영업 검토)이 필요합니다. 한 줄이라도 한도를 <span data-rule="cooOverPp" data-rule-of="PRICE_RULES">10</span>%p 넘게 넘기면 영업 임원도 승인합니다.</p>
+            <!-- 2026-11-06 점검 3회차: 할인 폭이 크면 영업 임원도 승인함을 견적 쪽에도 적음(기획자 결정 2026-11-02 E-3, 값은 PRICE_RULES.cooOverPp를 help.js가 채움) -->
             <h2 class="doc-h2" id="quote--print">출력과 새 판</h2>
             <p class="doc-text">"견적서 출력"을 누르면 출력 기록이 남고, 고객에게 낼 견적서만 A4 세로로 나옵니다(PDF로 저장해 보낼 수 있음. 줄이 많으면 다음 장으로 이어짐). 출력한 판은 고칠 수 없습니다. 내용을 바꾸려면 견적서 화면의 <strong>새 판 만들기</strong>로 2판, 3판을 만듭니다. 지난 판과 그 출력 기록은 그대로 남습니다.</p>
             <p class="doc-text">브라우저의 인쇄 메뉴로 찍으면 다른 화면처럼 내 이름이 든 워터마크가 찍힌 사내 인쇄가 됩니다. 고객에게 낼 견적서는 반드시 "견적서 출력"으로 냅니다.</p>
@@ -147,7 +148,8 @@
                   <tr><td class="nowrap">④ 법무 검토</td><td class="nowrap">법무</td><td>바꾼 계약 조항 검토. 반부패 조항이 있고 약해지지 않았는지, 없으면 그 사유를 고름(간접, 조달 계약은 꼭)</td><td>표준계약서를 바꾼 계약</td></tr>
                   <tr><td class="nowrap">⑤ 개인정보 검토</td><td class="nowrap">정보보호</td><td>개인정보 처리위탁 조항 검토</td><td>개인정보 처리위탁 계약이 있는 계약</td></tr>
                   <tr><td class="nowrap">⑥ 인장 날인 검토</td><td class="nowrap">총무</td><td>계약서 실물을 고객사명, 제품, 금액, 기간과 맞춰 보고 날인. 인장 사용 기록은 구글 폼</td><td>모든 계약</td></tr>
-                  <tr><td class="nowrap">⑦ 체결본 등록</td><td class="nowrap">기안한 영업</td><td>상대방 서명을 받은 체결본(PDF, 스캔 이미지, 50MB까지)을 올리고 서명본에 적힌 체결일을 꼭 적음. 견적서로 대신한 계약은 고객 날인 최종 견적서와 고객 날인일</td><td>모든 계약</td></tr>
+                  <!-- 2026-11-06 점검: ⑦은 처음 기안한 사람이 아니라 지금 영업대표가 맡음(결정 C-44, 영업대표가 바뀌면 새 영업대표) -->
+                  <tr><td class="nowrap">⑦ 체결본 등록</td><td class="nowrap">영업대표</td><td>상대방 서명을 받은 체결본(PDF, 스캔 이미지, 50MB까지)을 올리고 서명본에 적힌 체결일을 꼭 적음. 견적서로 대신한 계약은 고객 날인 최종 견적서와 고객 날인일</td><td>모든 계약</td></tr>
                   <tr><td class="nowrap">⑧ 체결본 확인</td><td class="nowrap">영업지원</td><td>체결본이 승인된 내용과 같은지, 양쪽 서명과 날인이 있는지, ⑦에서 적은 체결일이 체결본과 같은지 확인</td><td>모든 계약</td></tr>
                   <tr><td class="nowrap">⑨ 운영 적용</td><td class="nowrap">고객지원</td><td>라이선스나 도메인 열기, 계약번호, 기간, 금액 설정. 실제 개통일을 꼭 적음</td><td>모든 계약</td></tr>
                   <tr><td class="nowrap">⑩ 재무 확인</td><td class="nowrap">재무</td><td>계약 금액과 회계에 영향을 주는 조건(체크리스트 4번), 체결 전에 남긴 재무 의견 확인</td><td>모든 계약(운영 변경도)</td></tr>
@@ -167,6 +169,8 @@
             <h1 class="page-title" id="t-change" tabindex="-1">변경, 연장, 해지</h1>
             <div class="page-intro">
               <p>원계약과 그 뒤의 변경, 연장, 해지는 한 묶음으로 관리합니다. 원계약 번호 뒤에 차수가 붙습니다(예: 2601CL001-A01).</p>
+              <!-- 2026-11-06 점검 3회차: 영업대표를 바꾼 뒤 새 영업대표가 맡는 일(기획자 결정 2026-11-03 C-44, common.js "영업대표 바꾸기") -->
+              <p>영업대표가 바뀌면 그 뒤로는 새 영업대표가 ⑦ 체결본 등록, 반려 뒤 다시 기안, 변경과 운영 변경과 연장과 해지 기안, 유예 요청을 맡습니다.</p>
             </div>
             <h2 class="doc-h2" id="change--amend">변경(-A)</h2>
             <p class="doc-text">계약서 내용이 바뀔 때. 계약 상세에서 "변경 기안"을 누르면 원계약이 미리 골라진 등록 화면이 열리고, 새 계약처럼 결재를 거칩니다.</p>
@@ -176,7 +180,8 @@
             <p class="doc-text">계약서는 그대로 두고 계약 기간만 바꾸거나 수량을 추가 충전할 때. 계약 상세에서 "운영 변경 기안"을 누르고 한 번에 한 가지만 바꿉니다. 기간이 <span data-rule="periodMonths" data-rule-of="CHANGE_RULES">2</span>개월 넘게 바뀌거나 무상 충전이 같은 계약 연도에 모두 <span data-rule="freeQty" data-rule-of="CHANGE_RULES">50</span>건을 넘으면 ③ 영업 리더가 승인합니다. 그다음 ⑨에서 고객지원(HR 충전은 재무)이 반영하고, ⑩ 재무 확인까지 끝나면 계약 완료가 됩니다. HR 충전은 ⑨를 재무 담당자가 하므로 ⑩은 ⑨를 하지 않은 다른 재무 담당자가 확인합니다. 변경 사유는 CRM 영업활동에 적고 그 링크를 남깁니다.</p>
             <p class="doc-text">무상 충전은 나눠 신청해도 계약 연도마다 더해서 세고, 기안 화면에 이번 계약 연도에 이미 받은 수량과 이번까지의 누적이 보입니다. 유상 충전은 충전할 기능을 꼭 고르고, 기안 화면과 결재 문서에 그날 표준 단가로 계산한 표준 금액과 할인율이 보입니다(보여 주기만 하고 막지 않음).</p>
             <h2 class="doc-h2" id="change--renew">연장(-R)</h2>
-            <p class="doc-text">계약 기간을 이어 갈 때. 만료 예정 계약에서 시작합니다. 만료 90일 전부터 목록에 보이고, D-60과 D-30에 영업대표에게 이메일이 갑니다.</p>
+            <!-- 2026-11-06 점검: 연장은 계약 상세에서도 시작함(contract.js, expiring.js의 "연장 기안" 단추). 자동갱신 계약은 아래 "연장 검토" -->
+            <p class="doc-text">계약 기간을 이어 갈 때. 계약 상세나 만료 예정 계약에서 "연장 기안"을 누릅니다. 만료 예정 목록에는 만료 90일 전부터 보이고, D-60과 D-30에 영업대표에게 이메일이 갑니다.</p>
             <h2 class="doc-h2" id="change--auto">자동갱신 계약의 연장 검토</h2>
             <p class="doc-text">저절로 연장되기 전에 세 갈래 중 하나를 고릅니다. 그대로 연장(새 계약 기간과 이유를 넣고 ③ 영업 리더, ④ 법무, ⑨ 고객지원 기간 연장, ⑩ 재무 확인), 조건을 바꿔 연장(등록 화면에서 연장 기안), 해지.</p>
             <!-- 기획자 결정 2026-11-02 A-5: 알림 일수는 결재선 규칙 값. E-12: 그 유닛 리더는 가장 짧은 날에만 -->
@@ -186,7 +191,8 @@
             <!-- 기획자 결정 2026-11-02 A-10: 만료 처리(고객지원, 해지의 ⑨와 같은 확인, 재무 확인 없음). A-11: 연장 협상 중 유예(사유, 종료일 뒤 30일 안의 기한, 영업 리더 확인) -->
             <h2 class="doc-h2" id="change--expiry">만료 처리와 유예</h2>
             <p class="doc-text">연장이나 새 계약 기안 없이 종료일이 지나면 고객지원의 만료 처리 차례가 됩니다. 해지할 때처럼 라이선스나 도메인을 닫고 계약 종료일을 설정한 뒤 계약 상세에서 "만료 처리"를 누릅니다. 재무 확인은 없고, 처리한 기록은 결재 기록에 남습니다.</p>
-            <p class="doc-text">연장 협상이 종료일을 넘기면 영업대표가 계약 상세나 만료 예정 계약에서 유예를 요청합니다. 사유와 기한(종료일 뒤 <span data-rule="graceMaxDays" data-rule-of="EXPIRY_RULES">30</span>일 안)을 적고, 그 유닛의 영업 리더가 확인하거나 반려합니다. 확인되면 기한까지 서비스를 열어 두고, 기한이 지나면 다시 만료 처리 차례가 됩니다. 서비스를 닫기 전에는 만료된 계약도 연장을 기안할 수 있습니다.</p>
+            <!-- 2026-11-06 점검 3회차: 유예는 종료일이 지난 뒤만이 아니라 종료일 30일 전부터 요청할 수 있음(EXPIRY_RULES.graceAskDays를 help.js가 채움) -->
+            <p class="doc-text">연장 협상이 길어지면 영업대표가 종료일 <span data-rule="graceAskDays" data-rule-of="EXPIRY_RULES">30</span>일 전부터(종료일이 지난 뒤에도) 계약 상세나 만료 예정 계약에서 유예를 요청합니다. 사유와 기한(종료일 뒤 <span data-rule="graceMaxDays" data-rule-of="EXPIRY_RULES">30</span>일 안)을 적고, 그 유닛의 영업 리더가 확인하거나 반려합니다. 확인되면 기한까지 서비스를 열어 두고, 기한이 지나면 다시 만료 처리 차례가 됩니다. 서비스를 닫기 전에는 만료된 계약도 연장을 기안할 수 있습니다.</p>
           </article>
 
           <!-- ===== 역할과 권한 ===== -->
@@ -195,9 +201,9 @@
             <h1 class="page-title" id="t-roles" tabindex="-1">역할별 할 일</h1>
             <div class="page-intro">
               <p id="role-desc">역할은 분야와 등급(담당자, 리더, 임원) 2단계입니다. 역할에 따라 메뉴와 할 일이 다르고, 열람 제한이 없는 계약은 누구나 볼 수 있습니다. 영업 리더를 뺀 리더와 재무 임원은 그 분야 담당자의 화면을 함께 씁니다.</p>
-              <!-- 기획자 결정 2026-11-03(추천은 관리자 아래였으나 다르게 정함): 점검 화면(할인 예외 점검, 영업기회 대사, 인장 기록 대사, 개선 과제와 보류, 설정 변경 확인)은 위 메뉴 줄의 "점검" 아래.
+              <!-- 기획자 결정 2026-11-03(추천은 관리자 아래였으나 다르게 정함): 점검 화면(할인 예외 점검, 영업기회 대사, 인장 기록 대조, 개선 과제와 보류, 설정 변경 확인)은 위 메뉴 줄의 "점검" 아래.
                    점검을 맡은 사람의 개요 "점검할 일"에 자기 점검만 기한과 함께 보임(C-10) -->
-              <p class="sub">점검 화면(할인 예외 점검, 영업기회 대사, 인장 기록 대사, 개선 과제와 보류, 설정 변경 확인)은 위 메뉴 줄의 "점검" 아래에 있고, 그 점검을 맡은 사람과 감사 열람에게만 보입니다. 맡은 점검은 개요의 "점검할 일"에 기한과 함께 보입니다.</p>
+              <p class="sub">점검 화면(할인 예외 점검, 영업기회 대사, 인장 기록 대조, 개선 과제와 보류, 설정 변경 확인)은 위 메뉴 줄의 "점검" 아래에 있고, 그 점검을 맡은 사람과 감사 열람에게만 보입니다. 맡은 점검은 개요의 "점검할 일"에 기한과 함께 보입니다.</p>
             </div>
             <div class="tbl-scroll" tabindex="0" role="region" aria-label="역할별 할 일 표">
               <table class="tbl tbl--compact">
@@ -205,14 +211,15 @@
                 <thead><tr><th scope="col">분야</th><th scope="col">등급</th><th scope="col" class="col-wide">할 일</th><th scope="col">주로 쓰는 화면</th></tr></thead>
                 <tbody>
                   <tr data-role="SALES"><th scope="row" class="nowrap" rowspan="3">영업</th><td class="nowrap role-name"><strong>담당자</strong></td><td>견적서 작성과 출력, 계약 등록과 기안, 보완 요청과 반려를 받은 계약 고치기, ⑦ 체결본 등록(서명본 체결일), 변경과 연장과 해지와 운영 변경 기안, 자동갱신 계약의 연장 검토, 만료 유예 요청, 사후관리 기록</td><td><a href="quote.html">새 견적</a>, <a href="new-contract.html">새 계약 등록</a>, <a href="my-contracts.html">내 등록 목록</a>, <a href="signing.html">체결 대기</a>, <a href="expiring.html">만료 예정 계약</a></td></tr>
-                  <tr data-role="HEAD"><td class="nowrap role-name"><strong>리더</strong></td><td>내 유닛 계약의 ③ 영업 검토(할인 승인, 2개월 넘는 기간 변경, 계약 연도 누적 50건 넘는 무상 충전), 만료 유예 확인과 반려</td><td><a href="review-queue.html">검토 대기</a></td></tr>
+                  <!-- 2026-11-06 점검 3회차: 영업 리더의 "영업대표 바꾸기"(기획자 결정 2026-11-03 C-44, common.js canChangeRep, repActorOf) -->
+                  <tr data-role="HEAD"><td class="nowrap role-name"><strong>리더</strong></td><td>내 유닛 계약의 ③ 영업 검토(할인 승인, 2개월 넘는 기간 변경, 계약 연도 누적 50건 넘는 무상 충전), 만료 유예 확인과 반려, 영업대표가 퇴사하거나 옮기면 계약 상세의 "영업대표 바꾸기"로 새 영업대표 정하기(정하기 전에는 리더가 맡음)</td><td><a href="review-queue.html">검토 대기</a></td></tr>
                   <tr data-role="EXEC"><td class="nowrap role-name"><strong>임원(COO)</strong></td><td>영업 리더 본인 계약의 ③ 영업 검토, 할인 폭이 큰 계약의 ③ 영업 임원 승인, 영업 리더가 자리를 비울 때 대리로 지정되면 대신 결재</td><td><a href="review-queue.html">검토 대기</a></td></tr>
                   <tr data-role="SALES_ADMIN"><th scope="row" class="nowrap" rowspan="2">영업지원</th><td class="nowrap role-name"><strong>담당자</strong></td><td>② 체크리스트 검토, ⑧ 체결본 확인(다르면 다시 등록 요청이나 반려), 매월 판다 수주 목록을 올려 영업기회 대사</td><td><a href="review-queue.html">검토 대기</a>, <a href="review-done.html">검토 완료</a>, <a href="opp-recon.html">영업기회 대사</a></td></tr>
                   <tr data-role="SA_LEAD"><td class="nowrap role-name"><strong>리더</strong></td><td>영업지원 담당자의 차례를 모두 봄. 결재선 규칙에서 담당자나 대신할 사람으로 정해지면 처리. 영업기회 대사도 함께</td><td><a href="review-queue.html">검토 대기</a>, <a href="opp-recon.html">영업기회 대사</a></td></tr>
                   <tr data-role="LEGAL"><th scope="row" class="nowrap">법무</th><td class="nowrap role-name"><strong>담당자</strong></td><td>④ 법무 검토, 사후관리 기록, 다른 법무가 올린 표준계약서 판이 근거와 맞는지 설정 변경 확인</td><td><a href="review-queue.html">검토 대기</a>, <a href="contracts.html">전체 계약</a>, <a href="config-review.html">설정 변경 확인</a></td></tr>
                   <tr data-role="PRIVACY"><th scope="row" class="nowrap" rowspan="2">정보보호</th><td class="nowrap role-name"><strong>담당자</strong></td><td>⑤ 개인정보 검토, 접속 기록 매월 점검, 최고관리자 작업 점검, 분기 권한 검토, 이상 행위 알림 확인</td><td><a href="review-queue.html">검토 대기</a>, <a href="admin-logs.html">접속 기록 점검</a></td></tr>
                   <tr data-role="SEC_LEAD"><td class="nowrap role-name"><strong>리더</strong></td><td>정보보호 담당자의 차례를 모두 봄, 접속 기록 점검과 권한 검토. 담당자나 대신할 사람으로 정해지면 ⑤ 처리</td><td><a href="review-queue.html">검토 대기</a>, <a href="admin-logs.html">접속 기록 점검</a></td></tr>
-                  <tr data-role="GA"><th scope="row" class="nowrap">총무</th><td class="nowrap role-name"><strong>담당자</strong></td><td>⑥ 인장 날인 검토, 견적서에 찍는 회사 인장 그림 올리기, 매월 견적서 인장 기록과 인장 대장 대조</td><td><a href="review-queue.html">검토 대기</a>, <a href="seal-recon.html">인장 기록 대사</a>, <a href="company-settings.html">회사 설정</a></td></tr>
+                  <tr data-role="GA"><th scope="row" class="nowrap">총무</th><td class="nowrap role-name"><strong>담당자</strong></td><td>⑥ 인장 날인 검토, 견적서에 찍는 회사 인장 그림 올리기, 매월 견적서 인장 기록과 인장 대장 대조</td><td><a href="review-queue.html">검토 대기</a>, <a href="seal-recon.html">인장 기록 대조</a>, <a href="company-settings.html">회사 설정</a></td></tr>
                   <tr data-role="CEM"><th scope="row" class="nowrap" rowspan="2">고객지원</th><td class="nowrap role-name"><strong>담당자</strong></td><td>⑨ 운영 적용(실제 개통일. 해지는 운영 종료, 그대로 연장은 기간 연장, 운영 변경은 기간 변경과 CK 추가 충전), 종료일이 지난 계약의 만료 처리</td><td><a href="ops-queue.html">운영 검토 대기</a></td></tr>
                   <tr data-role="CEM_LEAD"><td class="nowrap role-name"><strong>리더</strong></td><td>고객지원 담당자의 차례를 모두 봄. 담당자나 대신할 사람으로 정해지면 처리</td><td><a href="ops-queue.html">운영 검토 대기</a></td></tr>
                   <tr data-role="FINANCE"><th scope="row" class="nowrap" rowspan="3">재무</th><td class="nowrap role-name"><strong>담당자</strong></td><td>⑩ 재무 확인(운영 변경도). 운영 변경의 HR 추가 충전은 ⑨에서 수불부에 반영. 체크리스트 4번이 "예"인 계약은 기안할 때 이메일로 미리 받고, 체결 전에 결재 문서에 재무 의견을 남김. 영업지원 담당자가 기안한 계약은 ②, ⑧을 대신 검토. 기간 말마다 기간 마감 점검 확인</td><td><a href="ops-queue.html">운영 검토 대기</a>, <a href="stats.html#close-panel">기간 마감 점검</a></td></tr>
@@ -238,8 +245,9 @@
               <p>질문을 누르면 답이 펼쳐집니다. 찾는 답이 없으면 차례 위의 "이용 안내에서 찾기"에 낱말을 넣어 보세요.</p>
             </div>
             <div class="faq-list">
+              <!-- 2026-11-06 점검 3회차: 기획자 결정 2026-11-03 C-44로 반려 뒤 다시 기안과 체결 지연 독촉은 처음 기안자가 아니라 지금 영업대표가 맡음(아래 세 곳 "기안자"를 "영업대표"로) -->
               <details class="faq" id="faq-reject"><summary>반려되면 어떻게 하나요?<span class="faq-icon"></span></summary>
-                <div class="faq-body">기안자에게 돌아갑니다. 반려 사유를 보고 보완해 다시 기안하면 다음 차수(2차)가 되고, 결재를 처음부터 다시 받습니다. 지난 차수의 기록은 그대로 남습니다.</div></details>
+                <div class="faq-body">영업대표에게 돌아갑니다. 반려 사유를 보고 보완해 다시 기안하면 다음 차수(2차)가 되고, 결재를 처음부터 다시 받습니다. 지난 차수의 기록은 그대로 남습니다.</div></details>
               <details class="faq" id="faq-fix"><summary>결재자가 보완을 요청했어요.<span class="faq-icon"></span></summary>
                 <div class="faq-body">②~⑤ 결재자는 반려 대신 보완을 요청할 수 있습니다. 요청할 때 결재자가 보완할 항목(체크리스트 답, 제품과 수량과 금액, 계약서 내용, 첨부 파일, 그 밖의 것)을 하나 이상 고르고, 그 항목은 결재 기록과 요청 내용에 함께 보입니다. 통계와 보고서에서는 무엇을 자주 고치는지 이 항목으로 셉니다. 결재 문서에서 요청 내용을 보고 고친 뒤 "보완 완료"를 누르면 요청한 단계부터 이어서 결재합니다. 금액이나 체크리스트 답을 바꿨으면 ② 체크리스트 검토부터 다시 받습니다.</div></details>
               <details class="faq" id="faq-self"><summary>내 계약을 내가 결재하게 되면요?<span class="faq-icon"></span></summary>
@@ -249,24 +257,26 @@
               <details class="faq" id="faq-discount"><summary>할인율이 한도를 넘으면요?<span class="faq-icon"></span></summary>
                 <div class="faq-body">체크리스트 2, 3번이 제품 금액으로 자동 계산되어 ③ 영업 검토(영업 리더 할인 승인)가 결재선에 들어갑니다. 한 줄이라도 한도를 <span data-rule="cooOverPp" data-rule-of="PRICE_RULES">10</span>%p 넘게 넘기면 영업 리더 다음에 영업 임원도 승인합니다. 할인은 법무 검토보다 먼저 확정합니다.</div></details>
               <details class="faq" id="faq-signed"><summary>체결본이 승인된 내용과 다르면요?<span class="faq-icon"></span></summary>
-                <div class="faq-body">오탈자나 스캔 문제처럼 내용은 같으면 ⑧에서 "다시 등록 요청"을 하고, 영업이 체결본을 다시 올립니다. 계약 내용이 다르면 반려하고, 기안자가 다음 차수로 다시 기안합니다.</div></details>
+                <div class="faq-body">오탈자나 스캔 문제처럼 내용은 같으면 ⑧에서 "다시 등록 요청"을 하고, 영업이 체결본을 다시 올립니다. 계약 내용이 다르면 반려하고, 영업대표가 다음 차수로 다시 기안합니다.</div></details>
               <details class="faq" id="faq-away"><summary>담당자가 휴가나 출장으로 자리를 비우면요?<span class="faq-icon"></span></summary>
                 <div class="faq-body">관리자가 결재선 규칙에서 기간과 대신할 사람을 정해 대리 지정을 합니다. 기간 안에는 대신할 사람의 검토 대기에 나오고, 결재 기록에 "누구 대신"과 근거가 남습니다.</div></details>
               <details class="faq" id="faq-delay"><summary>결재가 오래 머물면 어떻게 되나요?<span class="faq-icon"></span></summary>
-                <div class="faq-body">한 단계에 <strong data-rule="approvalDelayDays"></strong>일 이상 머물면 목록에서 강조하고 그 단계 담당자에게 독촉 이메일을 보냅니다. 계약 검토가 끝나고 <strong data-rule="signDelayDays"></strong>일이 지나도 체결본이 없으면 기안자에게 독촉 이메일을 보냅니다.</div></details>
+                <div class="faq-body">한 단계에 <strong data-rule="approvalDelayDays"></strong>일 이상 머물면 목록에서 강조하고 그 단계 담당자에게 독촉 이메일을 보냅니다. 계약 검토가 끝나고 <strong data-rule="signDelayDays"></strong>일이 지나도 체결본이 없으면 영업대표에게 독촉 이메일을 보냅니다.</div></details>
               <details class="faq" id="faq-accounting"><summary>회계에 영향을 주는 조건이 있으면요?<span class="faq-icon"></span></summary>
                 <!-- 기획자 결정 2026-11-02 B-6: 4번 조건의 종류 다섯 가지와 결재선 밖 재무 의견 -->
                 <div class="faq-body">체크리스트 4번에 "예"로 답하면 조건의 종류(무상 기간, 무상 추가 제공, 해지 환불권, 사용량이나 성과에 따른 대가, 반품이나 취소)를 하나 이상 고르고 비고를 적습니다. 기안할 때 재무에 이메일이 가고, 재무는 결재선에 들어가지 않고 체결 전에 결재 문서의 재무 의견 칸에 의견을 남기며 ⑩ 재무 확인에서 다시 봅니다.</div></details>
               <!-- 기획자 결정 2026-11-02 B-8, A-2, B-9: 통계의 체결일과 기간 마감 점검 -->
               <details class="faq" id="faq-signdate"><summary>통계의 체결일은 언제인가요?<span class="faq-icon"></span></summary>
                 <div class="faq-body">⑦에서 받은 서명본 체결일입니다(체결본을 올린 날도 함께 남김). ⑧에서 반려된 계약은 빠지고, 다시 기안해 체결되면 그때 셉니다. 통계와 보고서 맨 아래 기간 마감 점검에서는 재무가 기간 말마다 그 앞뒤 계약을 보고 확인을 남깁니다.</div></details>
+              <!-- 2026-11-06 점검 3회차: common.js canView와 맞춤. 요청자는 그 차수를 기안한 사람(resubmitRecord), 지금 영업대표와 대신 맡는 영업 리더(C-44),
+                   대리 지정된 사람과 만료 처리, 유예 확인 차례인 사람, 체크리스트 4번 "예"의 재무(REQ-CHK-08), 관찰자는 지정되어도 못 봄(A-9) -->
               <details class="faq" id="faq-restrict"><summary>열람 제한 계약은 누가 보나요?<span class="faq-icon"></span></summary>
-                <div class="faq-body">영업대표(요청자), 결재선과 단계 담당자, 관리자, 그리고 관리자가 지정한 열람자만 봅니다. 다른 사람에게는 목록에 "열람 제한 계약"으로만 보입니다. 등록할 때 영업이 걸고, 관리자가 걸거나 풀 수 있습니다. 열람자는 관리자가 조직으로 지정하는 것이 기본이라 인사이동이 저절로 반영되고, 사람으로 지정하면 그 사람이 다른 조직으로 옮길 때 지정이 풀립니다. 지정되면 이메일로 알려 드립니다. 감사 열람 역할은 지정하지 않아도 끝나는 날까지 모든 열람 제한 계약을 보기만 합니다.</div></details>
+                <div class="faq-body">요청자(그 차수를 기안한 사람)와 지금 영업대표(새 영업대표를 정하기 전에는 그 영업 리더), 결재선과 단계 담당자(대리 지정된 사람, 만료 처리와 유예 확인 차례인 사람 포함), 관리자, 관리자가 지정한 열람자(관찰자는 지정되어도 못 봄), 그리고 체크리스트 4번이 "예"인 계약은 재무가 봅니다. 다른 사람에게는 목록에 "열람 제한 계약"으로만 보입니다. 등록할 때 영업이 걸고, 관리자가 걸거나 풀 수 있습니다. 열람자는 관리자가 조직으로 지정하는 것이 기본이라 인사이동이 저절로 반영되고, 사람으로 지정하면 그 사람이 다른 조직으로 옮길 때 지정이 풀립니다. 지정되면 이메일로 알려 드립니다. 감사 열람 역할은 지정하지 않아도 끝나는 날까지 모든 열람 제한 계약을 보기만 합니다.</div></details>
               <details class="faq" id="faq-customer"><summary>거래처가 목록에 없어요.<span class="faq-icon"></span></summary>
                 <div class="faq-body">계약 등록의 거래처 칸에서 상호나 사업자등록번호로 검색하고, 나오지 않으면 "직접 입력하기"를 눌러 상호와 사업자등록번호를 넣습니다. 이렇게 넣은 거래처는 기안할 때 거래처 목록에 등록되고, 결재 문서의 고객사 옆에 "새 거래처"로 보여 ② 체크리스트 검토와 ⑩ 재무 확인이 한 번 더 봅니다. 같은 사업자등록번호는 두 번 등록할 수 없고, 잘못 등록한 거래처는 관리자가 고치거나 합칩니다.</div></details>
               <!-- 기획자 결정 2026-11-02: 점검할 일(C-10), 보류(C-16), 통제 증빙(C-3), 설정 변경 확인과 역할 겹침(C-8, C-5), 바뀐 점(E-15) -->
               <details class="faq" id="faq-check"><summary>개요의 "점검할 일"에는 무엇이 나오나요?<span class="faq-icon"></span></summary>
-                <div class="faq-body">점검을 맡은 사람에게 자기 점검만 기한과 함께 나옵니다. 정보보호는 접속 기록 매월 점검, 최고관리자 작업 점검, 분기 권한 검토, 이상 행위 알림, 재무 임원은 할인 예외 점검, 재무 리더와 법무는 설정 변경 확인, 재무는 기간 마감 점검, 영업지원은 영업기회 대사, 총무는 인장 기록 대사, 컴플라이언스 담당자는 거래처 확인과 개선 과제입니다. 매월 점검의 기한은 다음 달 말일이고, 지나면 강조합니다. 감사 열람과 관찰자는 보기만 해서 점검할 일이 없습니다.</div></details>
+                <div class="faq-body">점검을 맡은 사람에게 자기 점검만 기한과 함께 나옵니다. 정보보호는 접속 기록 매월 점검, 최고관리자 작업 점검, 분기 권한 검토, 이상 행위 알림, 재무 임원은 할인 예외 점검, 재무 리더와 법무는 설정 변경 확인, 재무는 기간 마감 점검, 영업지원은 영업기회 대사, 총무는 인장 기록 대조, 컴플라이언스 담당자는 거래처 확인과 개선 과제입니다. 매월 점검의 기한은 다음 달 말일이고, 지나면 강조합니다. 감사 열람과 관찰자는 보기만 해서 점검할 일이 없습니다.</div></details>
               <details class="faq" id="faq-hold"><summary>거래처나 계약에 "보류 중"이 보여요.<span class="faq-icon"></span></summary>
                 <div class="faq-body">컴플라이언스 담당자가 그 거래처나 계약 묶음에 보류를 건 것입니다. 보류가 풀릴 때까지 새 기안(신규, 변경, 연장, 해지, 운영 변경, 보완 후 재기안), 남은 결재의 승인, 만료 유예 요청과 확인을 할 수 없습니다. 반려, 보완 요청, 다시 등록 요청, 승인 취소, 유예 반려, 만료 처리는 할 수 있습니다. 까닭은 계약 상세와 결재 문서에 보이고, 보류는 컴플라이언스 담당자가 사유를 적고 풉니다.</div></details>
               <details class="faq" id="faq-evidence"><summary>감사에 낼 증빙은 어떻게 꺼내나요?<span class="faq-icon"></span></summary>
@@ -330,7 +340,7 @@
             <ul class="help-list">
               <li><strong>로그인</strong>: 회사 Google 계정으로만 들어오고, 2단계 인증을 켜야 합니다. 계정은 함께 쓰지 않습니다.</li>
               <li><strong>접속 위치</strong>: 사내망이나 VPN에서만 쓸 수 있고, 관리자 기능은 사내망에서만 씁니다. 30분 동안 아무것도 하지 않으면 자동으로 로그아웃됩니다.</li>
-              <li><strong>인쇄와 내려받기</strong>: 인쇄하거나 PDF로 저장하면 내 이름, 이메일, 일시가 워터마크로 찍히고, 쪽마다 "대외비: 무단 복제와 외부 제공 금지"가 찍힙니다. 첨부는 워터마크 PDF로 받고, 휴대폰에서는 미리보기만 됩니다.</li>
+              <li><strong>인쇄와 내려받기</strong>: 인쇄하거나 PDF로 저장하면 내 이름, 이메일, 일시가 워터마크로 찍히고, 쪽마다 "대외비: 무단 복제와 외부 제공 금지"가 찍힙니다. 첨부는 워터마크 PDF로 받고, 휴대폰에서는 미리 보기만 됩니다.</li><!-- 2026-11-06 점검: 단추 이름 "미리 보기"에 맞춰 띄어 씀 -->
               <li><strong>개인정보</strong>: 고객 담당자의 이름과 연락처는 시스템에 적지 않고 CRM에 둡니다.</li>
               <li><strong>외부 반출 금지</strong>: 계약 내용을 개인 메일, 메신저, 외부 AI 서비스에 옮기지 않습니다.</li>
               <li><strong>견적서</strong>: 고객에게 내는 견적서는 견적 화면의 "견적서 출력"으로만 냅니다. 이때는 워터마크 없이 나오는 대신 출력 기록이 남습니다(요구사항 정의서 REQ-QUO-05, 기획자 확인 중).</li>

@@ -23,8 +23,10 @@
 .field-label { display: block; float: none; width: 100%; margin-bottom: var(--gap-label); padding: 0; font-size: var(--fs-body-medium); font-weight: 700; color: var(--text-bolder); }
 .field-label--sm { margin-bottom: 0.4rem; font-size: var(--fs-body-small); }
 .req { margin-left: 0.2rem; color: var(--text-danger); }
+/* 선택 칸 표시 "(선택)": 계약 등록(new-contract.css)에만 있던 모양을 모든 양식과 입력 창이 함께 씀(2026-11-06 점검 3회차) */
+.opt { font-size: var(--fs-body-small); font-weight: 500; color: var(--text-subtle); }
 .tag-tbd { margin-left: 0.6rem; vertical-align: 0.1rem; }
-.field-help { margin-top: 0.6rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
+.field-help { margin-top: 0.6rem; font-size: var(--fs-body-small); color: var(--text-subtle); text-align: left; } /* 작은 도움말은 왼쪽 정렬(기획자 결정 2026-11-09: 양쪽 정렬이면 휴대폰에서 긴 예시가 든 줄의 낱말 사이가 크게 벌어졌음). 본문은 양쪽 정렬 그대로 */
 .field-error { display: flex; align-items: flex-start; gap: 0.4rem; margin-top: 0.6rem; font-size: var(--fs-body-small); font-weight: 700; color: var(--text-danger); }
 .field-error .icon { margin-top: 0.2rem; }
 
@@ -39,8 +41,10 @@
 /* 시작일과 종료일 짝은 휴대폰에서 한 줄에 하나씩 (기획자 결정 2026-11-02 D-7, 모든 화면. PC는 나란히 그대로)
  * 예전에는 칸마다 16rem을 줄 수 있으면 나란히 놓는 위 규칙 때문에 휴대폰에서도 두 칸이 한 줄이었음. 제품 줄 칸(REQ-REG-03)처럼 한 줄에 하나
  * 짝은 "앞 칸보다 앞설 수 없는 날짜 칸"(data-after)이 든 칸 줄로 알아봄: 계약 등록 계약 기간, 연장 검토 새 계약 기간, 견적일과 유효기간, 대리 지정 기간 */
+/* 2026-11-06 점검: 날짜 짝이 아닌 칸 줄도 휴대폰에서는 한 줄에 하나(402px 기준 휴대폰에서 두 칸이 약 160px씩 나란히 놓여 17px 글자에 비좁았고,
+ *   390px 휴대폰에서는 한 줄에 하나라 휴대폰마다 배치가 달랐음. "넘치면 세로로 쌓음" 규칙과 같게) */
 @media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
-  .field-row:has(input[data-after]) { grid-template-columns: minmax(0, 1fr); }
+  .field-row { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ---------- 텍스트 입력, 셀렉트, 여러 줄 입력 ---------- */
@@ -50,7 +54,7 @@
   font-size: var(--fs-body-medium); color: var(--text-basic);
 }
 /* 예시 글자: 흰 바탕 4.5:1 이상이 되게 Dark Gray (KRDS 텍스트 입력, v0.28. 예전 Gray는 3.2:1) */
-.input::placeholder, .textarea::placeholder { color: var(--text-subtle); }
+.input::placeholder, .textarea::placeholder { color: var(--text-placeholder, var(--text-subtle)); } /* 예시 글은 자기 토큰(기획자 결정 2026-11-09, tokens.css --text-placeholder) */
 .input:hover, .select:hover, .textarea:hover { border-color: var(--text-subtle); }
 /* 고른 칸 표시: 파란 테두리 2px를 칸 안쪽에 그림(테두리 1px + 안쪽 그림자 1px, 칸 크기는 그대로. 오류 칸과 같은 방식)
  * 예전처럼 칸 바깥에 3px로 두르면 드롭다운 목록이 열릴 때 아래쪽이 목록에 가려 잘려 보여서 안쪽으로 옮김 (v0.57 기획자 요청) */
@@ -74,7 +78,7 @@
   .select option { white-space: normal; }
   .select::picker-icon { display: none; } /* 화살표는 위 배경 그림 하나만 */
   .select::picker(select) {
-    margin: 0.4rem 0; padding: 0.4rem; border: 1px solid var(--border-gray-light); border-radius: var(--radius-md);
+    margin: 0.4rem 0; padding: 0.4rem; border: 1px solid var(--border-gray); border-radius: var(--radius-md); /* 펼친 목록은 또렷한 선(어두운 화면에서 바탕과 섞였음, 2026-11-06 점검 3회차) */
     background: var(--surface-white); box-shadow: var(--shadow-1); color: var(--text-basic);
     position-try-order: normal; /* 아래에 자리가 있으면 늘 아래로(기본은 위아래 중 넓은 쪽이라 칸 위로 펼쳐지기도 했음). 모자랄 때만 위로 */
   }
@@ -140,7 +144,8 @@
 .file-drop p { margin-bottom: 1.2rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
 .file-drop input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; }
 /* 키보드로 숨은 파일 칸에 오면 "파일 선택" 버튼에 포커스 링을 보여 줌 (KRDS 파일 업로드, v0.28) */
-.file-drop:has(input[type="file"]:focus-visible) .btn { box-shadow: var(--focus-ring); }
+/* 파일 칸 바로 앞의 "파일 선택"에만(2026-11-06 점검 3회차: 같은 상자 안의 다른 단추에도 함께 그려졌음) */
+.file-drop label.btn:has(+ input[type="file"]:focus-visible) { box-shadow: var(--focus-ring); }
 .file-limits { display: block; margin-top: 0.4rem; font-size: var(--fs-body-xsmall); }
 .file-list > li {
   display: flex; align-items: center; justify-content: space-between; gap: 1.2rem; margin-top: 0.8rem; padding: 1.2rem 1.6rem;

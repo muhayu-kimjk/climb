@@ -12,7 +12,7 @@
 .q-combo { position: relative; }
 .q-combo-list {
   position: absolute; left: 0; right: 0; top: calc(100% + 0.4rem); z-index: 12; max-height: 28rem; overflow-y: auto;
-  padding: 0.4rem; border: 1px solid var(--border-gray-light); border-radius: var(--radius-md); background: var(--surface-white); box-shadow: var(--shadow-1);
+  padding: 0.4rem; border: 1px solid var(--border-gray); border-radius: var(--radius-md); background: var(--surface-white); box-shadow: var(--shadow-1); /* 계약 등록 거래처 목록과 같은 또렷한 선(2026-11-06 점검 3회차) */
 }
 .q-combo-item { display: flex; justify-content: space-between; gap: 1.2rem; min-height: var(--touch-min); align-items: center; padding: 0.4rem 0.8rem; border-radius: var(--radius-sm, 0.4rem); font-size: var(--fs-body-small); cursor: pointer; }
 .q-combo-item:hover, .q-combo-item[aria-selected="true"] { background: var(--action-hover); }
@@ -131,7 +131,7 @@
 
 /* ---------- 인쇄 ---------- */
 @media print {
-  .page-actions { display: none !important; }
+  /* .page-actions 감춤은 견적 목록도 쓰도록 common.css 14. 인쇄로 옮김 (2026-11-06 점검) */
   .q-paper { border-color: transparent; } /* 안쪽 여백은 화면과 같게 두어 줄바꿈이 화면 미리 보기와 같음(REQ-UI-10) */
   body.is-quote-print .sheet { page: quote; } /* 고객용 견적서는 아래 @page quote(사내 쪽 아래 문구 없음) */
   /* "견적서 출력" 단추로 찍을 때: 고객에게 낼 견적서만(출력 기록을 남겼으므로 사내 인쇄의 머리와 워터마크는 뺌) */
@@ -140,6 +140,8 @@
   body.is-quote-print .q-history, body.is-quote-print .watermark, body.is-quote-print .toast { display: none !important; }
   .qd-parties { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .qd-lines tr, .qd-party, .qd-total { break-inside: avoid; }
+  /* 합계 줄(tfoot)이 Chrome에서 쪽마다 아래에 되풀이돼 찍혔음. 마지막 줄 뒤에 한 번만 (2026-11-06 점검) */
+  .qd-lines tfoot { display: table-row-group; }
 }
 
 /* 고객용 견적서의 쪽: 크기와 여백은 다른 인쇄와 같고(common.css @page), 쪽 아래의 사내 문구(시스템 이름, 대외비)는 뺌. 쪽 번호는 남김

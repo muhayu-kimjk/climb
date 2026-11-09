@@ -1,5 +1,5 @@
 /* =====================================================================
- * SCR-63 인장 기록 대사 화면 로직 (seal-recon.js)
+ * SCR-63 인장 기록 대조 화면 로직 (seal-recon.js)
  * ---------------------------------------------------------------------
  * 기획자 결정 2026-11-02 E-7 덧붙임 ③: 견적서 출력 기록의 "인장 찍음"을 총무가 매월 인장 대장과 대조. 출력은 막지 않음. 기록은 쌓기만 함
  * 볼 수 있는 사람: 총무(C.checkOwners('SCR-63')), 최고관리자(시연용), 감사 열람(보기만)
@@ -21,7 +21,7 @@
   const esc = C.esc;
   const $ = function (s) { return document.querySelector(s); };
   const SCR = 'SCR-63';
-  if (!C.gate(me, C.checkOwners(SCR).concat(['AUDIT']), '인장 기록 대사는 총무가 씁니다',
+  if (!C.gate(me, C.checkOwners(SCR).concat(['AUDIT']), '인장 기록 대조는 총무가 씁니다',
     '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 화면 맨 위 검은 띠에서 총무, 감사 열람, 최고관리자 가운데 하나로 바꾸면 볼 수 있습니다.')) return;
 
   const canDo = C.canDoCheck(me, SCR);
@@ -57,7 +57,7 @@
   function keysOf(list) { return list.map(function (o) { return o.no + '#' + o.ver + '@' + String(o.at).slice(0, 16); }).join(','); }
   function records() { return (D.SEAL_RECON || []).concat(C.loadDemo('sealRecon')).slice().sort(function (a, b) { return a.at.localeCompare(b.at); }); }
   function recordsOf(ym) { return records().filter(function (r) { return r.month === ym; }); }
-  function resultBadge(r) { return r.result === 'MATCH' ? C.badge('success', RESULT.MATCH) : C.badge('danger', RESULT.DIFF); }
+  function resultBadge(r) { return r.result === 'MATCH' ? C.badge('success', RESULT.MATCH) : C.badge('attention', RESULT.DIFF); } // 맞지 않음은 보라(주의), 설정 변경 확인과 같게(기획자 결정 2026-11-09)
 
   /* ---------- 1. 월별 대조 ---------- */
   let sel = '';
@@ -134,8 +134,23 @@
         '<fieldset class="field" data-field="result"><legend class="field-label">결과<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>' +
           '<div class="choice-row"><label class="choice"><input type="radio" name="result" value="MATCH">' + RESULT.MATCH + '</label>' +
           '<label class="choice"><input type="radio" name="result" value="DIFF">' + RESULT.DIFF + '</label></div><p class="field-error" hidden></p></fieldset>' +
-        C.fieldHtml({ name: 'memo', label: '메모', type: 'textarea', help: '맞으면 선택, 맞지 않는 것이 있으면 꼭 적습니다. 예: 10월 15일 출력이 대장에 없어 출력한 영업에게 대장 기록을 요청함' }),
+        // 메모는 "맞지 않는 것이 있음"을 고를 때만 필수. 처음엔 (선택), 고르면 필수 표시로(아래 open, 2026-11-06 점검 3회차)
+        C.fieldHtml({ name: 'memo', label: '메모', type: 'textarea', optional: true, help: '맞지 않는 것이 있으면 꼭 적습니다. 예: 10월 15일 출력이 대장에 없어 출력한 영업에게 대장 기록을 요청함' })
+          .replace(' <span class="opt">', '<span class="req" aria-hidden="true" hidden>*</span><span class="sr-only req-sr" hidden>(필수)</span> <span class="opt">'),
       btn: '대조 저장',
+      // 결과를 고를 때마다 메모 칸 이름의 필수 표시를 바꿈. 계약 등록의 사용 업체 칸과 같은 방식(new-contract.js syncOrg, 2026-11-06 점검 3회차)
+      open: function (f) {
+        const box = f.querySelector('[data-field="memo"]');
+        const sync = function () {
+          const r = f.querySelector('[name="result"]:checked'), need = !!(r && r.value === 'DIFF');
+          box.querySelector('.req').hidden = !need;
+          box.querySelector('.req-sr').hidden = !need;
+          box.querySelector('.opt').hidden = need;
+          if (!need) C.setFieldError(box, ''); // 맞음으로 바꾸면 앞의 "적으세요" 오류는 맞지 않으므로 지움
+        };
+        f.querySelectorAll('[name="result"]').forEach(function (x) { x.addEventListener('change', sync); });
+        sync();
+      },
       check: function (f) {
         const r = f.querySelector('[name="result"]:checked');
         return { result: r ? '' : '결과를 고르세요.', memo: r && r.value === 'DIFF' && !val(f, 'memo') ? '맞지 않는 것과 한 일을 적으세요.' : '' };
@@ -176,10 +191,12 @@
   $('#f-month').addEventListener('change', function (e) { sel = e.target.value; refresh(); });
   $('#content').addEventListener('click', function (e) {
     const m = e.target.closest('[data-month]');
-    if (m) { sel = m.getAttribute('data-month'); refresh(); $('#sec-detail').scrollIntoView({ block: 'start' }); return; }
+    // 보기: 달 표를 다시 그려 누른 단추가 없어지므로 초점과 화면을 아래 대조 제목으로(2026-11-06 점검 3회차)
+    if (m) { sel = m.getAttribute('data-month'); refresh(); C.focusSection('#sec-detail'); return; }
     if (e.target.closest('#btn-confirm')) { openConfirm(); return; }
     const pg = e.target.closest('#log-pages [data-page]');
-    if (pg && !pg.disabled) { page = Number(pg.getAttribute('data-page')); renderLog(); }
+    // 쪽 번호: 누른 단추가 다시 그려져 없어지므로 초점과 화면을 대조 기록 제목으로(다른 목록과 같게)(2026-11-06 점검 3회차)
+    if (pg && !pg.disabled) { page = Number(pg.getAttribute('data-page')); renderLog(); C.focusSection('#sec-log'); }
   });
   refresh();
 })();

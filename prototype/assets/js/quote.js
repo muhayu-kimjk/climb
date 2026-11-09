@@ -19,7 +19,7 @@
  *     E-7(추천과 다름) 덧붙임 ①: "견적서 출력"으로 내는 고객용 견적서에는 회사 인장 그림을 늘 찍음(공급자 칸 대표자 옆 "(인)" 자리)
  *       인장 그림은 회사 설정(SCR-59, D.COMPANY.seal, 총무가 올림). 없으면 인장 없이 출력하고 출력한 사람에게 알림(출력은 막지 않음)
  *       화면과 브라우저 인쇄(사내 인쇄)에는 찍지 않음: 인장 그림은 "견적서 출력"으로 인쇄하는 동안에만 견적서에 넣고 끝나면 뺌
- *     E-7 ③: 출력 기록에 sealed(인장 찍음), sealVer(찍은 그림의 판)를 남김. 총무가 매월 인장 대장과 맞춰 봄(인장 기록 대사 SCR-63)
+ *     E-7 ③: 출력 기록에 sealed(인장 찍음), sealVer(찍은 그림의 판)를 남김. 총무가 매월 인장 대장과 맞춰 봄(인장 기록 대조 SCR-63)
  *     E-7 ④: 견적서 외부 전자서명은 하지 않음으로 닫음(만들지 않음)
  *     E-8: 고객용 견적서는 사내 워터마크(REQ-SEC-07)의 예외 그대로. 출력 기록을 먼저 남긴 뒤에만 견적서가 나옴(아래 issue)
  *     E-9: 공급자 칸의 사업자등록번호, 대표자, 주소, 대표 연락처는 회사 설정 값(D.COMPANY). 예전 "회사 설정 값" 자리를 바꿈
@@ -61,8 +61,8 @@
     const out = [];
     if (!q.name) out.push(['name', '고객사 상호를 넣으세요.']);
     if (q.opp && !C.isOppNo(q.opp)) out.push(['opp', '영업기회번호는 연도 2자리, 월 2자리, 영문 2자리, 일련번호 3자리입니다. 예: 2610CK012']);
-    if (!q.date) out.push(['date', '견적일을 넣으세요.']);
-    if (!q.validUntil) out.push(['validUntil', '유효기간을 넣으세요.']);
+    if (!q.date) out.push(['date', '견적일을 고르세요.']); // 날짜 칸은 "고르세요"(2026-11-06 점검, 다른 화면과 같게)
+    if (!q.validUntil) out.push(['validUntil', '유효기간을 고르세요.']);
     else if (q.date && q.validUntil < q.date) out.push(['validUntil', '유효기간은 견적일보다 앞설 수 없습니다.']);
     else if (q.validUntil < D.TODAY) out.push(['validUntil', '유효기간이 이미 지났습니다. 오늘 이후로 고치세요.']);
     const lines = q.lines || [];
@@ -78,7 +78,19 @@
   const canCreate = me.role === 'SUPER' || C.hasRole(me, ['SALES']);
   if (!canUse || (params.get('no') && !found) || (found && !C.canSeeQuote(me, found)) || (!found && !canCreate)) {
     $('#page-title').textContent = '견적';
-    $('#notice').innerHTML = C.noticeBox('', !canUse || (found && !C.canSeeQuote(me, found)) ? '이 견적을 볼 수 없습니다' : params.get('no') ? '견적을 찾을 수 없습니다' : '새 견적은 영업이 만듭니다',
+    // 2026-11-06 점검: 견적을 쓸 수 있는 역할인데 주소의 번호나 판이 없으면 역할 권한 설명이 나왔음. 주소를 확인하라고 하고,
+    //   같은 번호의 다른 판이 있고 볼 수 있으면 마지막 판으로 가는 길을 보임. 역할 설명은 정말 권한이 없을 때만
+    if (canUse && params.get('no') && !found) {
+      const latest = C.findQuote(params.get('no'));
+      const seeLatest = !!latest && C.canSeeQuote(me, latest);
+      $('#notice').innerHTML = C.noticeBox('', '견적을 찾을 수 없습니다',
+        '주소의 견적번호나 판을 확인해 주세요.' + (seeLatest ? ' 이 견적번호의 마지막 판은 ' + latest.ver + '판입니다.' : ''),
+        // &view=1: "보기"라는 말대로 견적서 보기로 엶(2026-11-06 점검 3회차: 출력 전의 내 판이면 고치기 화면이 열렸음)
+        (seeLatest ? '<a class="btn btn--secondary btn--md" href="quote.html?no=' + encodeURIComponent(latest.no) + '&ver=' + latest.ver + '&view=1">마지막 판 보기</a>' : '') +
+        '<a class="btn btn--tertiary btn--md" href="quotes.html">견적 목록</a>');
+      return;
+    }
+    $('#notice').innerHTML = C.noticeBox('', !canUse || (found && !C.canSeeQuote(me, found)) ? '이 견적을 볼 수 없습니다' : '새 견적은 영업이 만듭니다',
       '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 견적에는 가격 기준이 담겨 있어 영업, 영업지원, 관리자만 봅니다. 영업 담당자는 내 견적, 영업 리더는 내 유닛 견적을 보고, 새 견적은 영업 담당자가 만듭니다.',
       '<a class="btn btn--tertiary btn--md" href="quotes.html">견적 목록</a>');
     return;
@@ -146,6 +158,7 @@
       // 고른 뒤 상호를 고치면 다른 곳이 됨: 고른 거래처를 풂(v0.61 검토)
       if (picked && nameIn.value !== picked.name) picked = null;
       customerKey = '';
+      clearErr('name'); // 상호를 고치면 바로 "고객사 상호를 넣으세요" 오류를 지움(2026-11-06 점검 3회차: 목록에서 고를 때만 지워졌음)
       renderHits();
     });
     nameIn.addEventListener('focus', renderHits);
@@ -191,13 +204,14 @@
             Object.keys(D.SERVICES).filter(function (k) {
               return k === svc || D.PRODUCTS.some(function (p) { return p.use && p.service === k && D.FEATURES.some(function (f) { return f.product === p.id && sold(f.id); }); });
             }).map(function (k) { return opt(k, D.SERVICES[k], svc); }).join('') + '</select>' +
-          '<select class="select" data-k="product" aria-label="' + n + '번째 줄 제품"' + (svc ? '' : ' disabled') + '><option value="">제품</option>' +
+          // 제품, 기능, 수량, 단가 칸도 줄 오류(q-lines-err)에 이음(2026-11-06 점검 3회차: 서비스 칸만 이어져 있었음)
+          '<select class="select" data-k="product" aria-label="' + n + '번째 줄 제품" aria-describedby="q-lines-err"' + (svc ? '' : ' disabled') + '><option value="">제품</option>' +
             products.map(function (p) { return opt(p.id, p.name, l.product); }).join('') + '</select>' +
-          '<select class="select" data-k="feature" aria-label="' + n + '번째 줄 기능"' + (l.product ? '' : ' disabled') + '><option value="">기능</option>' +
+          '<select class="select" data-k="feature" aria-label="' + n + '번째 줄 기능" aria-describedby="q-lines-err"' + (l.product ? '' : ' disabled') + '><option value="">기능</option>' +
             feats.map(function (f) { return opt(f.id, C.featureText(f.id), l.feature); }).join('') + '</select>' +
         '</div><span class="cell-meta q-meta">' + metaText(l) + '</span></td>' +
-        '<td class="num" data-label="수량"><input class="input q-qty" data-k="qty" inputmode="numeric" value="' + esc(l.raw && l.raw.qty != null ? l.raw.qty : l.qty) + '" aria-label="' + n + '번째 줄 수량"></td>' +
-        '<td class="num" data-label="단가"><input class="input q-price" data-k="unitPrice" inputmode="numeric" value="' + esc(l.raw && l.raw.unitPrice != null ? l.raw.unitPrice : (l.unitPrice == null ? '' : Number(l.unitPrice).toLocaleString('ko-KR'))) + '" aria-label="' + n + '번째 줄 단가(원)"' + (l.feature ? '' : ' disabled') + '></td>' +
+        '<td class="num" data-label="수량"><input class="input q-qty" data-k="qty" inputmode="numeric" maxlength="7" value="' + esc(l.raw && l.raw.qty != null ? l.raw.qty : l.qty) + '" aria-label="' + n + '번째 줄 수량" aria-describedby="q-lines-err"></td>' +
+        '<td class="num" data-label="단가"><input class="input q-price" data-k="unitPrice" inputmode="numeric" value="' + esc(l.raw && l.raw.unitPrice != null ? l.raw.unitPrice : (l.unitPrice == null ? '' : Number(l.unitPrice).toLocaleString('ko-KR'))) + '" aria-label="' + n + '번째 줄 단가(원)" aria-describedby="q-lines-err"' + (l.feature ? '' : ' disabled') + '></td>' +
         '<td class="num q-amount" data-label="금액">' + (l.feature ? C.fmtWon(amount) : '-') + '</td>' +
         // 첫 줄은 "초기화"(고른 것과 수량, 단가를 비움), 둘째 줄부터는 "지우기"(줄을 뺌) (2026-11-06 기획자 요청: 예전에는 한 줄일 때도 "지우기"가 보였으나 눌러도 아무 일이 없었음)
         '<td class="center q-del">' + (i === 0
@@ -288,11 +302,14 @@
     function clearErr(name) { const b = fieldBox(name); if (b && b.classList.contains('is-invalid')) C.setFieldError(b, ''); }
     // 화면의 값을 모은 사본(q.lines는 바꾸지 않음: 검사에 걸려도 화면의 줄과 기록의 줄이 어긋나지 않게, v0.61 검토)
     function collect() {
+      const name = $('#q-name').value.trim();
       return Object.assign({}, q, {
-        name: $('#q-name').value.trim(),
+        name: name,
         // 2026-11-06 기획자 요청: 사업자등록번호는 넣지 않음. 목록에서 고른 거래처면 그 번호를 기록에만 남김(화면과 견적서에는 보이지 않음)
-        bizNo: picked ? picked.bizNo : (customerKey && customerKey === q.customer ? q.bizNo || '' : ''),
-        customer: customerKey,
+        //   상호를 열 때와 같게 두면 저장된 번호를 그대로 둠(2026-11-06 점검: 사업자 정보 DB에서 고른 곳은 거래처 번호가 없어, 다시 저장하면 번호가 빠졌음)
+        bizNo: picked ? picked.bizNo : (name === (q.name || '').trim() || (customerKey && customerKey === q.customer) ? q.bizNo || '' : ''),
+        // 상호를 열 때와 같게 다시 적으면(입력하며 거래처 연결이 풀림) 저장된 거래처를 그대로 둠(2026-11-06 점검)
+        customer: customerKey || (name === (q.name || '').trim() ? q.customer || '' : ''),
         unit: $('#q-unit').value.trim(),
         opp: $('#q-opp').value.trim().toUpperCase(),
         date: $('#q-date').value, validUntil: $('#q-valid').value,
@@ -305,7 +322,8 @@
       const errors = list.map(function (x) {
         const box = fieldBox(x[0]);
         C.setFieldError(box, x[1]);
-        return { msg: x[1], target: box.querySelector('input:not([disabled]), select:not([disabled]), textarea') };
+        // x[2]: 오류 목록을 눌렀을 때 갈 칸을 따로 정할 때(2026-11-06 점검: 틀린 수량, 단가 칸으로 바로 가게)
+        return { msg: x[1], target: x[2] || box.querySelector('input:not([disabled]), select:not([disabled]), textarea') };
       });
       const box = $('#error-summary');
       box.hidden = !errors.length;
@@ -340,7 +358,21 @@
     $('#q-save').addEventListener('click', function () {
       const d = collect();
       // 저장은 고객사만 있으면 됨(작성 중). 출력할 때 모든 항목을 검사
-      if (!d.name) { showErrors([['name', '저장하려면 고객사 상호를 넣으세요.']]); return; }
+      //   2026-11-06 점검: 수량이나 단가 칸에 숫자가 아닌 글자(예: 1.5)가 있으면 저장하지 않음(예전에는 마지막 맞는 숫자로 말없이 저장했음)
+      const errs = [];
+      if (!d.name) errs.push(['name', '저장하려면 고객사 상호를 넣으세요.']);
+      let badBox = null;
+      if (d.lines.some(function (l) { return l.bad; })) {
+        // 줄을 다시 그리면 aria-invalid가 지워지므로 칸의 글자를 다시 봄
+        badBox = $$('#q-lines input[data-k]').filter(function (el) { return !/^[\d,\s]*$/.test(el.value); })[0] || null;
+        if (badBox) badBox.setAttribute('aria-invalid', 'true');
+        errs.push(['lines', '수량과 단가는 숫자로만 넣습니다(쉼표는 괜찮음).', badBox]);
+      }
+      if (errs.length) {
+        showErrors(errs);
+        if (badBox) badBox.focus(); // 틀린 칸 중 첫 칸으로 바로 감
+        return;
+      }
       $('#error-summary').hidden = true;
       const saved = save(d);
       if (!saved) return;
@@ -477,7 +509,7 @@
       vers.map(function (x) {
         const s = C.quoteStatus(x);
         const cur = x.ver === q.ver;
-        return '<tr' + (cur ? ' class="is-current"' : '') + '><td class="center">' + (cur ? '<strong>' + x.ver + '판</strong><span class="sr-only"> (지금 보는 판)</span>' : '<a class="doc-link" href="quote.html?no=' + encodeURIComponent(x.no) + '&ver=' + x.ver + '">' + x.ver + '판</a>') + '</td>' +
+        return '<tr' + (cur ? ' class="is-current"' : '') + '><td class="center">' + (cur ? '<strong>' + x.ver + '판</strong><span class="sr-only"> (지금 보는 판)</span>' : '<a class="doc-link" href="quote.html?no=' + encodeURIComponent(x.no) + '&ver=' + x.ver + '&view=1">' + x.ver + '판</a>' /* 다른 판도 보기로(기획자 결정 2026-11-09) */) + '</td>' +
           '<td class="num-left nowrap">' + C.fmtDate(x.date) + '</td><td class="num">' + C.fmtWon(C.quoteTotals(x).total) + '</td>' +
           '<td class="nowrap">' + C.badge(s.tone, s.label) + '</td><td class="center">' + ((x.issues || []).length ? x.issues.length + '번' : '-') + '</td></tr>';
       }).join('') + '</tbody></table></div>';
@@ -510,7 +542,9 @@
       '<p class="qd-total"><span>합계 금액(부가세 포함)</span><strong>' + esc(koreanWon(t.total)) + ' <span class="nowrap">(' + C.fmtWon(t.total) + ')</span></strong></p>' +
       '<div class="tbl-scroll qd-scroll" tabindex="0" role="region" aria-label="견적 품목 표"><table class="tbl tbl--compact qd-lines"><caption class="sr-only">견적 품목: 번호, 품목, 단위, 수량, 단가, 금액</caption>' +
         '<thead><tr><th scope="col">번호</th><th scope="col" class="col-phone-wide">품목</th><th scope="col">단위</th><th scope="col" class="num">수량</th><th scope="col" class="num">단가</th><th scope="col" class="num">금액</th></tr></thead><tbody>' +
-        q.lines.map(function (l, i) {
+        // 2026-11-06 점검: 줄이 없는 견적은 품목 표가 텅 빈 채 0원만 보였음. 빈 줄 하나로 까닭과 할 일을 알림(목록 화면의 빈 줄과 같은 꼴)
+        (!(q.lines || []).length ? '<tr><td class="empty-row" colspan="6">아직 넣은 품목이 없습니다. 고치기에서 제품을 넣은 뒤 출력합니다.</td></tr>' : '') +
+        (q.lines || []).map(function (l, i) {
           const f = featureOf(l.feature);
           // data-label: 휴대폰에서 줄을 세로로 쌓을 때 값 앞에 붙는 이름(quote.css, 2026-11-06 기획자 요청: 휴대폰은 옆으로 밀지 않게)
           return '<tr><td class="center qd-no">' + (i + 1) + '</td><td class="qd-item">' + esc(C.featureLabel({ product: f ? f.product : '', feature: l.feature })) + '</td><td class="center cell-phone-nowrap" data-label="단위">' + esc(l.unit) + '</td>' +

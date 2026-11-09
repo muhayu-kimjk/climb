@@ -274,13 +274,14 @@
           <!-- 이 기간 말의 확인 기록(누가, 언제, 메모, 확인 때 본 숫자). 기록이 없으면 안내 한 줄 -->
           <div class="close-record" id="close-record"></div>
 
+          <!-- 2026-11-06 점검: 아래 세 표의 띄어 쓴 계약 종류를 다른 화면과 같게 "계약종류"로 붙여 씀(v0.34 결정) -->
           <h3 class="chart-title close-title">기간 말 앞뒤에 체결한 계약</h3>
           <p class="close-desc" id="close-a-desc"></p>
           <div class="close-split" id="close-a-split"></div>
           <div class="tbl-scroll" tabindex="0" role="region" aria-label="기간 말 앞뒤에 체결한 계약 표">
             <table class="tbl tbl--compact">
-              <caption class="sr-only">기간 말 앞뒤에 체결한 계약: 고객사, 계약 종류, 체결일과 올린 날, 금액, 지금 상태</caption>
-              <thead><tr><th scope="col">고객사</th><th scope="col">계약 종류</th><th scope="col">체결일 (올린 날)</th><th scope="col" class="num">금액</th><th scope="col">지금</th></tr></thead>
+              <caption class="sr-only">기간 말 앞뒤에 체결한 계약: 고객사, 계약종류, 체결일과 올린 날, 금액, 지금 상태</caption>
+              <thead><tr><th scope="col">고객사</th><th scope="col">계약종류</th><th scope="col">체결일 (올린 날)</th><th scope="col" class="num">금액</th><th scope="col">지금</th></tr></thead>
               <tbody id="close-a-rows"></tbody>
             </table>
           </div>
@@ -289,8 +290,8 @@
           <p class="close-desc">기간 말까지 계약 검토가 승인됐지만 그때 아직 체결하지 않은 계약입니다. 그때 단계는 기간 말에 차례였던 단계입니다.</p>
           <div class="tbl-scroll" tabindex="0" role="region" aria-label="승인됐지만 체결 전이던 계약 표">
             <table class="tbl tbl--compact">
-              <caption class="sr-only">승인됐지만 체결 전이던 계약: 고객사, 계약 종류, 승인일, 그때 단계, 금액, 지금 상태</caption>
-              <thead><tr><th scope="col">고객사</th><th scope="col">계약 종류</th><th scope="col">승인일</th><th scope="col">그때 단계</th><th scope="col" class="num">금액</th><th scope="col">지금</th></tr></thead>
+              <caption class="sr-only">승인됐지만 체결 전이던 계약: 고객사, 계약종류, 승인일, 그때 단계, 금액, 지금 상태</caption>
+              <thead><tr><th scope="col">고객사</th><th scope="col">계약종류</th><th scope="col">승인일</th><th scope="col">그때 단계</th><th scope="col" class="num">금액</th><th scope="col">지금</th></tr></thead>
               <tbody id="close-b-rows"></tbody>
             </table>
           </div>
@@ -299,8 +300,8 @@
           <p class="close-desc">기간 말에 운영 적용(⑨)이나 재무 확인(⑩) 차례였던 계약입니다. 해지와 운영 변경도 보이지만 금액은 "-"로 두고 합계에 넣지 않습니다.</p>
           <div class="tbl-scroll" tabindex="0" role="region" aria-label="⑨ ⑩을 기다리던 계약 표">
             <table class="tbl tbl--compact">
-              <caption class="sr-only">⑨ ⑩을 기다리던 계약: 고객사, 계약 종류, 그때 단계, 차례가 온 날, 금액, 지금 상태</caption>
-              <thead><tr><th scope="col">고객사</th><th scope="col">계약 종류</th><th scope="col">그때 단계</th><th scope="col">차례 온 날</th><th scope="col" class="num">금액</th><th scope="col">지금</th></tr></thead>
+              <caption class="sr-only">⑨ ⑩을 기다리던 계약: 고객사, 계약종류, 그때 단계, 차례가 온 날, 금액, 지금 상태</caption>
+              <thead><tr><th scope="col">고객사</th><th scope="col">계약종류</th><th scope="col">그때 단계</th><th scope="col">차례 온 날</th><th scope="col" class="num">금액</th><th scope="col">지금</th></tr></thead>
               <tbody id="close-c-rows"></tbody>
             </table>
           </div>

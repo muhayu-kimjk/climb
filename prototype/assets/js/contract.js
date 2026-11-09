@@ -278,18 +278,20 @@
       // REQ-SIGN-04: 배지는 결재 문서와 같게 "확인한 최종 견적서". B-5: 견적서로 대신한 계약은 서명본 체결일 대신 고객 날인일
       (quote ? ' ' + C.badge('line', '계약서 대신') : '') + (x.v.checked ? ' ' + C.badge('success', quote ? '확인한 최종 견적서' : '확인한 체결본') : '') + ' <span class="file-name">' + esc(x.v.name) + '</span>' +
       '<span class="file-size">' + esc(x.c.id) + ' ' + x.v.round + '차 기안, ' + C.fmtDateTime(x.v.at) + ' 등록' + (x.v.signDate ? ', ' + (quote ? '고객 날인일 ' : '서명본 체결일 ') + C.fmtDate(x.v.signDate) : '') + (fate ? ', ' + fate : '') + '</span></span>' +
-      '<span class="file-acts"><button type="button" class="btn-text" data-file="preview">미리보기</button>' +
-      '<button type="button" class="btn-text file-dl" data-file="pdf">PDF 내려받기</button>' +
-      (canOriginal ? '<button type="button" class="btn-text file-dl" data-file="original">원본 내려받기</button>' : '') + '</span></li>';
+      // 단추 뒤에 파일 이름 (2026-11-06 점검: 줄마다 같은 단추 이름이라 화면낭독기가 어느 것인지 알게 보이지 않는 글을 붙임. 보이는 글이 이름의 앞)
+      //   (2026-11-06 점검: 단추 이름 "미리보기"를 맞춤법대로 "미리 보기"로. 결재 문서와 같음)
+      '<span class="file-acts"><button type="button" class="btn-text" data-file="preview">미리 보기<span class="sr-only"> ' + esc(x.v.name) + '</span></button>' +
+      '<button type="button" class="btn-text file-dl" data-file="pdf">PDF 내려받기<span class="sr-only"> ' + esc(x.v.name) + '</span></button>' +
+      (canOriginal ? '<button type="button" class="btn-text file-dl" data-file="original">원본 내려받기<span class="sr-only"> ' + esc(x.v.name) + '</span></button>' : '') + '</span></li>';
   }).join('') : '<li class="empty">아직 등록된 체결본이 없습니다.</li>';
   $('#signed').addEventListener('click', function (e) {
     const btn = e.target.closest('[data-file]');
     if (!btn) return;
     const kind = btn.getAttribute('data-file');
-    C.toast(kind === 'pdf'
-      ? '프로토타입: 실제 시스템에서는 이름과 일시 워터마크를 찍은 PDF로 내려받고, 누가 언제 받았는지 기록에 남깁니다.'
-      : kind === 'original' ? '프로토타입: 실제 시스템에서는 원본을 내려받고 기록에 남깁니다. 원본은 지금 영업대표, 법무, 관리자만 받을 수 있습니다.'
-        : '프로토타입: 실제 시스템에서는 새 창에서 파일 미리보기가 열립니다.');
+    // 2026-11-06 점검: 결재 문서(review.js)와 같은 한 문장 "(시안)" 문구로 맞춤(KRDS 토스트, v0.28). 원본 문장은 두 문장이었음
+    C.toast(kind === 'pdf' ? '실제 시스템에서는 이름과 일시 워터마크를 찍은 PDF로 받고, 받은 기록이 남습니다(시안).'
+      : kind === 'original' ? '원본은 지금 영업대표, 법무, 관리자만 받고, 받은 기록이 남습니다(시안).'
+      : '실제 시스템에서는 새 창에서 미리 보기가 열립니다(시안).');
   });
 
   /* ---------- 4. 체결 후 의무 (v0.53 기획자 결정, REQ-FLOW-33~36) ----------

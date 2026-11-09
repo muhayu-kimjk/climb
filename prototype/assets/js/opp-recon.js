@@ -39,7 +39,7 @@
   function monthLabel(ym) { return ym.slice(0, 4) + '년 ' + Number(ym.slice(5, 7)) + '월'; }
   function stamp() { return C.nowStamp().slice(0, 16); }
   function val(f, n) { return (f.elements[n].value || '').trim(); }
-  // 대사 월: 운영을 시작한 달부터 이달까지(새것부터). due: 다음 달 말일, ended: 끝난 달
+  // 대상 월: 운영을 시작한 달부터 이달까지(새것부터). due: 다음 달 말일, ended: 끝난 달
   function months() {
     const out = [];
     let y = Number(START.slice(0, 4)), m = Number(START.slice(5, 7));
@@ -137,8 +137,10 @@
     return n ? '<span class="recon-note">' + esc(n.text) + '</span><span class="cell-meta">' + esc(C.ownerLabel(n.by, n.dept)) + ' ' + esc(C.fmtDateTime(n.at)) + '</span>'
       : '<span class="recon-none">의견 없음</span>';
   }
-  function noteBtn(key, n, ended) {
-    return canDo && ended ? '<button type="button" class="link-act" data-note="' + esc(key) + '">' + (n ? '의견 더하기' : '의견 남기기') + '</button>' : '-';
+  // row: 줄 이름(영업기회번호나 계약번호). 줄마다 같은 단추 글이라 화면낭독기가 어느 줄인지 알게 뒤에 붙임(2026-11-06 점검)
+  function noteBtn(key, n, ended, row) {
+    return canDo && ended ? '<button type="button" class="link-act" data-note="' + esc(key) + '">' + (n ? '의견 더하기' : '의견 남기기') +
+      '<span class="sr-only"> ' + esc(row) + '</span></button>' : '-';
   }
   function ordersTable(ym, list, ended) {
     return '<div class="tbl-scroll" tabindex="0" role="region" aria-label="계약이 없는 수주 표"><table class="tbl tbl--compact">' +
@@ -149,7 +151,7 @@
         return '<tr' + (n ? '' : ' class="is-alert"') + '><td class="num-left nowrap">' + C.fmtDate(r.wonAt) + '</td><td class="nowrap">' + C.pandaLink(r.opp) + '</td>' +
           '<td><span class="cell-strong">' + esc(r.customer || '-') + '</span>' + (r.bizNo ? '<span class="cell-meta">' + esc(r.bizNo) + '</span>' : '') +
             (r.sales ? '<span class="cell-meta">담당 영업 ' + esc(r.sales) + '</span>' : '') + '</td>' +
-          '<td class="num">' + C.fmtWon(r.amount) + '</td><td>' + noteCell(n) + '</td><td class="col-action">' + noteBtn(key, n, ended) + '</td></tr>';
+          '<td class="num">' + C.fmtWon(r.amount) + '</td><td>' + noteCell(n) + '</td><td class="col-action">' + noteBtn(key, n, ended, '영업기회 ' + r.opp) + '</td></tr>';
       }).join('') : '<tr><td class="empty-row" colspan="6">계약이 없는 수주가 없습니다.</td></tr>') + '</tbody></table></div>';
   }
   function contractsTable(ym, list, ended) {
@@ -162,9 +164,11 @@
           '<td class="nowrap">' + (see ? '<a class="doc-link" href="review.html?id=' + encodeURIComponent(c.id) + '">' + esc(c.id) + '</a>' : esc(c.id)) +
             '<span class="cell-meta">' + esc(C.kindLabel(c)) + ', ' + esc((D.STATUS[c.status] || {}).label || c.status) + '</span></td>' +
           // 볼 수 없는 열람 제한 계약은 고객사와 금액을 가림(REQ-AUTH-09)
-          '<td>' + (see ? '<span class="cell-strong">' + esc(c.counterparty) + '</span><span class="cell-meta">영업대표 ' + esc(C.ownerLabel(c.requesterId)) + '</span>' : '<span class="recon-none">열람 제한 계약</span>') + '</td>' +
+          //   영업대표는 지금 영업대표(C-44). 처음 기안한 사람을 보이던 것을 고침(2026-11-06 점검). 바뀌었으면 작은 줄에 처음 기안한 사람(진행 현황과 같음)
+          '<td>' + (see ? '<span class="cell-strong">' + esc(c.counterparty) + '</span><span class="cell-meta">영업대표 ' + esc(C.ownerLabel(C.salesRepOf(c))) + '</span>' +
+            (C.salesRepOf(c) !== c.requesterId ? '<span class="cell-meta">처음 기안 ' + esc(C.ownerLabel(c.requesterId)) + '</span>' : '') : '<span class="recon-none">열람 제한 계약</span>') + '</td>' +
           '<td class="nowrap">' + (no ? C.pandaLink(no) : '<span class="recon-none">없음</span>') + '</td>' +
-          '<td class="num">' + (see ? C.fmtWon(c.amount) : '-') + '</td><td>' + noteCell(n) + '</td><td class="col-action">' + noteBtn(key, n, ended) + '</td></tr>';
+          '<td class="num">' + (see ? C.fmtWon(c.amount) : '-') + '</td><td>' + noteCell(n) + '</td><td class="col-action">' + noteBtn(key, n, ended, '계약 ' + c.id) + '</td></tr>';
       }).join('') : '<tr><td class="empty-row" colspan="7">수주 목록에 없는 계약이 없습니다.</td></tr>') + '</tbody></table></div>';
   }
   function confirmHtml(x, r) {
@@ -246,13 +250,24 @@
     });
     return { rows: rows, skipped: skipped, dropped: dropped, ignored: ignored };
   }
-  // 읽은 결과를 보여 주고 올릴지 물음. 그 달 수주가 하나도 없고 다른 달 수주만 있으면 대사 월을 확인하라고 알림
+  // 읽은 결과를 보여 주고 올릴지 물음. 그 달 수주가 하나도 없으면 받지 않고 까닭에 맞춰 알림(아래)
   function offer(fileName, text) {
     if (!canDo) return;
     const ym = sel, p = parse(text, ym);
     if (p.error) { C.toast(p.error, true); return; }
-    if (!p.rows.length && p.skipped.other) { C.toast('이 파일에는 ' + monthLabel(ym) + ' 수주가 없습니다(다른 달 수주 ' + p.skipped.other + '줄). 대사 월을 확인하세요.', true); return; }
     const s = p.skipped;
+    // REQ-REG-26 ①: 그달 수주가 하나도 없는 파일은 까닭과 관계없이 받지 않음. 알림 글은 뺀 까닭(다른 달, 운영 시작 전, 읽지 못함)대로 고름.
+    // 전에는 다른 달 수주만 있을 때만 막아, 운영 시작 전 수주만 있거나 읽지 못한 줄만 있는 파일은 0줄로 올라갔음(2026-11-06 점검 4회차)
+    if (!p.rows.length) {
+      const why = [];
+      if (s.other) why.push('다른 달 수주 ' + s.other + '줄');
+      if (s.before) why.push('운영 시작(' + monthLabel(START) + ') 전 수주 ' + s.before + '줄');
+      if (s.bad) why.push('번호나 날짜를 읽지 못한 줄 ' + s.bad + '줄');
+      // 운영 시작 전 수주만 있으면 달을 바꿔도 안 되므로 파일을 확인하라고(2026-11-06 점검 4회차)
+      const tip = s.other ? '대상 월을 확인하세요.' : s.before ? '운영 시작 뒤 수주가 든 파일인지 확인하세요.' : '판다에서 내려받은 그대로의 CSV인지 확인하세요.';
+      C.toast('이 파일에는 ' + monthLabel(ym) + ' 수주가 없습니다' + (why.length ? '(' + why.join(', ') + ')' : '') + '. ' + tip, true);
+      return;
+    }
     C.formModal({
       title: '이 파일로 ' + monthLabel(ym) + ' 대사를 할까요?',
       desc: '올리면 마지막 파일로 맞춰 보고 올린 기록이 남습니다. 뺀 칸의 값은 저장하지 않습니다.',
@@ -322,7 +337,8 @@
       title: monthLabel(ym) + ' 영업기회 대사를 확인할까요?',
       desc: '저장하면 확인한 사람과 일시, 그때 본 숫자가 남고 고칠 수 없습니다.',
       body: '<p class="modal-info">' + esc(seenText(r)) + '</p>' +
-        C.fieldHtml({ name: 'memo', label: '메모', type: 'textarea', help: '선택. 예: 예외 두 줄 모두 영업대표에게 확인함' }),
+        // 넣지 않아도 되는 칸은 optional로 "(선택)"을 모든 창에서 같은 모양으로(2026-11-06 점검 3회차)
+        C.fieldHtml({ name: 'memo', label: '메모', type: 'textarea', optional: true, help: '예: 예외 두 줄 모두 영업대표에게 확인함' }),
       btn: '대사 확인',
       // 창을 연 사이에 다른 탭에서 새 파일을 올렸으면 저장하지 않음
       check: function () { const now = compare(ym); return now && !now.missing && now.keys === r.keys ? {} : { memo: '그사이 대사 내용이 바뀌었습니다. 창을 닫고 다시 보세요.' }; },
@@ -371,13 +387,15 @@
   $('#f-month').addEventListener('change', function (e) { sel = e.target.value; refresh(); });
   $('#content').addEventListener('click', function (e) {
     const m = e.target.closest('[data-month]');
-    if (m) { sel = m.getAttribute('data-month'); refresh(); $('#sec-detail').scrollIntoView({ block: 'start' }); return; }
+    // 보기: 달 표를 다시 그려 누른 단추가 없어지므로 초점과 화면을 아래 대사 제목으로(2026-11-06 점검 3회차)
+    if (m) { sel = m.getAttribute('data-month'); refresh(); C.focusSection('#sec-detail'); return; }
     const n = e.target.closest('[data-note]');
     if (n) { openNote(n.getAttribute('data-note')); return; }
     if (e.target.closest('#btn-confirm')) { openConfirm(); return; }
     if (e.target.closest('#btn-sample') && canDo) { offer(D.OPP_SAMPLE.fileName, sampleText()); return; }
     const pg = e.target.closest('#log-pages [data-page]');
-    if (pg && !pg.disabled) { page = Number(pg.getAttribute('data-page')); renderLog(); }
+    // 쪽 번호: 누른 단추가 다시 그려져 없어지므로 초점과 화면을 대사 기록 제목으로(다른 목록과 같게)(2026-11-06 점검 3회차)
+    if (pg && !pg.disabled) { page = Number(pg.getAttribute('data-page')); renderLog(); C.focusSection('#sec-log'); }
   });
   $('#content').addEventListener('change', function (e) {
     if (e.target.id === 'f-csv' && canDo) { readFile(e.target.files[0]); e.target.value = ''; }

@@ -240,7 +240,8 @@
         '<div class="field-row">' +
           C.fieldHtml({ name: 'on', label: '확인한 날', type: 'date', required: true, value: D.TODAY, attrs: ' max="' + D.TODAY + '"' }) +
           C.fieldHtml({ name: 'next', label: '다음 확인일', type: 'date', required: true, value: C.monthsLater(D.TODAY, 12 * CK.nextYears),
-            attrs: ' data-after="fm-on" data-after-msg="다음 확인일은 확인한 날 뒤여야 합니다."', help: '처음 값은 확인한 날 ' + CK.nextYears + '년 뒤. 앞당길 수 있습니다.' }) +
+            // min: 확인한 날 다음 날부터만 달력에서 고르게 함. 확인한 날을 바꾸면 아래 open에서 함께 바꿈(2026-11-06 점검 3회차)
+            attrs: ' min="' + C.addDays(D.TODAY, 1) + '" data-after="fm-on" data-after-msg="다음 확인일은 확인한 날 뒤여야 합니다."', help: '처음 값은 확인한 날 ' + CK.nextYears + '년 뒤. 앞당길 수 있습니다.' }) +
         '</div>' +
         fileFieldHtml(cu) +
         C.fieldHtml({ name: 'note', label: '확인한 방법과 판단', type: 'textarea', required: true, placeholder: '예: 제재 명단과 입찰 참가 제한 업체, 신문 검색, 주주명부로 확인함',
@@ -260,7 +261,12 @@
         let touched = false;
         f.elements.next.addEventListener('input', function () { touched = true; });
         ['input', 'change'].forEach(function (t) {
-          f.elements.on.addEventListener(t, function () { if (!touched && f.elements.on.value) f.elements.next.value = C.monthsLater(f.elements.on.value, 12 * CK.nextYears); });
+          f.elements.on.addEventListener(t, function () {
+            if (!f.elements.on.value) return;
+            // 다음 확인일 달력이 확인한 날 당일을 내놓지 않게 min을 다음 날로(2026-11-06 점검 3회차: 고르면 오류가 났음)
+            f.elements.next.min = C.addDays(f.elements.on.value, 1);
+            if (!touched) f.elements.next.value = C.monthsLater(f.elements.on.value, 12 * CK.nextYears);
+          });
         });
         const showName = function () { f.querySelector('[data-file-name]').textContent = '고른 파일: ' + (fileNameOf(f) || '없음'); };
         f.elements.file.addEventListener('change', function () { f.removeAttribute('data-demo-name'); showName(); });
@@ -274,8 +280,9 @@
         const on = val(f, 'on'), next = val(f, 'next'), errs = {};
         CK.ITEMS.forEach(function (it) { errs[it.key] = val(f, it.key) ? '' : it.label + ' 결과를 고르세요.'; });
         errs.result = val(f, 'result') ? '' : '확인 상태를 고르세요.';
-        errs.on = !on ? '확인한 날을 적으세요.' : on > D.TODAY ? '오늘(' + C.fmtDate(D.TODAY) + ')보다 뒤 날짜는 적을 수 없습니다.' : '';
-        errs.next = !next ? '다음 확인일을 적으세요.' : on && next <= on ? '다음 확인일은 확인한 날 뒤여야 합니다.' : '';
+        // 날짜 칸은 "고르세요", 없는 날짜를 적었으면 그렇다고 알림(C.dateFieldError, 2026-11-06 점검 3회차)
+        errs.on = !on ? C.dateFieldError(f.elements.on, '확인한 날을 고르세요.') : on > D.TODAY ? '오늘(' + C.fmtDate(D.TODAY) + ')보다 뒤 날짜는 고를 수 없습니다.' : '';
+        errs.next = !next ? C.dateFieldError(f.elements.next, '다음 확인일을 고르세요.') : on && next <= on ? '다음 확인일은 확인한 날 뒤여야 합니다.' : '';
         errs.file = fileNameOf(f) ? '' : '증빙 파일을 고르세요.';
         errs.note = val(f, 'note') ? '' : '확인한 방법과 판단을 적으세요.';
         return errs;
@@ -339,8 +346,8 @@
     C.formModal({
       title: cu.name + ' 거래처를 고칠까요?',
       desc: '상호를 바꾸면 이 거래처의 모든 계약에 새 상호가 보입니다. 사용 안 함으로 돌리면 계약 등록에서 고를 수 없습니다.',
-      body: C.fieldHtml({ name: 'cuName', label: '상호', required: true, value: cu.name, help: '사업자등록증의 상호' }) +
-        C.fieldHtml({ name: 'bizNo', label: '사업자등록번호', required: true, value: cu.bizNo, help: "'-' 없이 숫자만 넣으면 됩니다.", attrs: ' inputmode="numeric" maxlength="12"' }) +
+      body: C.fieldHtml({ name: 'cuName', label: '상호', required: true, value: cu.name, help: '사업자등록증의 상호', attrs: ' maxlength="60"' }) /* 기획자 결정 2026-11-09: 사업자등록번호, 상호, 수량은 모든 화면 같은 규칙 */ +
+        C.fieldHtml({ name: 'bizNo', label: '사업자등록번호', required: true, value: cu.bizNo, help: "숫자 10자리를 넣으면 '-'가 저절로 붙습니다.", attrs: ' inputmode="numeric" maxlength="12"' }) +
         C.fieldHtml({ name: 'use', label: '상태', type: 'select', value: String(cu.use), options: [['true', '사용 중'], ['false', '사용 안 함']] }) +
         C.fieldHtml({ name: 'reason', label: '고치는 사유', type: 'textarea', required: true, placeholder: '예: 사업자등록증의 상호로 바로잡음' }),
       btn: '저장',
@@ -370,8 +377,8 @@
     C.formModal({
       title: '거래처를 추가할까요?',
       desc: '추가하면 계약 등록의 거래처 목록에서 고를 수 있습니다.',
-      body: C.fieldHtml({ name: 'cuName', label: '상호', required: true, placeholder: '예: 삼성전자 주식회사', help: '사업자등록증의 상호' }) +
-        C.fieldHtml({ name: 'bizNo', label: '사업자등록번호', required: true, placeholder: '예: 124-81-00998', help: "'-' 없이 숫자만 넣으면 됩니다.", attrs: ' inputmode="numeric" maxlength="12"' }) +
+      body: C.fieldHtml({ name: 'cuName', label: '상호', required: true, placeholder: '예: 삼성전자 주식회사', help: '사업자등록증의 상호', attrs: ' maxlength="60"' }) +
+        C.fieldHtml({ name: 'bizNo', label: '사업자등록번호', required: true, placeholder: '예: 124-81-00998', help: "숫자 10자리를 넣으면 '-'가 저절로 붙습니다.", attrs: ' inputmode="numeric" maxlength="12"' }) +
         C.fieldHtml({ name: 'reason', label: '추가하는 사유', type: 'textarea', required: true, placeholder: '예: 조달 계약 예정 기관을 미리 등록' }),
       btn: '추가',
       open: formatOnInput,
@@ -379,7 +386,10 @@
         return { cuName: !val(f, 'cuName') ? '상호를 넣으세요.' : nameTaken(val(f, 'cuName'), null) ? '같은 상호의 거래처가 이미 있습니다(' + nameTaken(val(f, 'cuName'), null).id + ').' : '', bizNo: bizNoError(val(f, 'bizNo'), null), reason: val(f, 'reason') ? '' : '추가하는 사유를 적으세요.' };
       },
       done: function (f) {
-        const cu = { id: 'C-' + String(D.CUSTOMERS.length + 1).padStart(4, '0'), name: val(f, 'cuName'), bizNo: val(f, 'bizNo') };
+        // 거래처 번호는 가장 큰 번호 + 1(계약 기안에서도 거래처가 등록되므로 개수 + 1이면 겹칠 수 있음), 등록 경로는 ADMIN
+        //   (데이터 정의서 6장 registered_via, 계약 등록의 registerCustomer와 같은 셈) (2026-11-06 점검 4회차)
+        const maxNo = D.CUSTOMERS.reduce(function (m, x) { return Math.max(m, Number(String(x.id).replace(/\D/g, '')) || 0); }, 0);
+        const cu = { id: 'C-' + String(maxNo + 1).padStart(4, '0'), name: val(f, 'cuName'), bizNo: val(f, 'bizNo'), registeredVia: 'ADMIN', registeredContractNo: null };
         C.adminSave('CUSTOMER', tag(cu), '거래처 추가: ' + cu.bizNo, val(f, 'reason'), { k: 'CUSTOMER_ADD', cu: cu });
         render();
         C.toast(cu.name + ' 거래처를 추가했습니다.' + uniqueNote(cu.bizNo));
@@ -389,7 +399,8 @@
 
   /* ---------- 이벤트 ---------- */
   $('#filter').addEventListener('input', function () { page = 1; render(); });
-  $('#filter').addEventListener('change', function () { page = 1; render(); });
+  // 검색 칸은 'input'이 이미 그렸으므로 'change'(칸을 떠날 때)에서 다시 그리지 않음. 다시 그리면 누르던 줄이나 쪽 번호가 바뀌어 클릭이 사라짐(2026-11-06 점검 4회차)
+  $('#filter').addEventListener('change', function (e) { if (e.target.matches('input[type=search], input[type=text]')) return; page = 1; render(); });
   $('#filter').addEventListener('reset', function () { setTimeout(function () { page = 1; render(); }, 0); });
   $('#filter').addEventListener('submit', function (e) { e.preventDefault(); });
   $('#content').addEventListener('change', function (e) {
@@ -410,8 +421,9 @@
     else if (b.getAttribute('data-page') && !b.disabled) {
       // 쪽 번호: 거래처 목록과 거래처 확인 기록이 따로 넘김
       const n = Number(b.getAttribute('data-page'));
-      if (b.closest('#check-pages')) { checkPage = n; renderChecks(); $('#sec-checks').scrollIntoView({ block: 'start' }); }
-      else { page = n; render(); $('#sec-list').scrollIntoView({ block: 'start' }); }
+      // 누른 쪽 번호 단추가 다시 그려져 없어지므로 초점도 그 묶음 제목으로(2026-11-06 점검 3회차)
+      if (b.closest('#check-pages')) { checkPage = n; renderChecks(); C.focusSection('#sec-checks'); }
+      else { page = n; render(); C.focusSection('#sec-list'); }
     }
   });
   render();

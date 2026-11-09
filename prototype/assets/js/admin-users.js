@@ -270,7 +270,8 @@
     const people = all.filter(function (x) { return x.status !== 'SUSPENDED'; })
       .map(function (x) { return [x.id, (x.dept ? x.dept + ' ' : '') + x.name]; })
       .sort(function (p, q) { return p[1].localeCompare(q[1], 'ko'); });
-    return C.fieldHtml({ name: 'requestedBy', label: '요청한 사람 (선택)', type: 'select', options: [['', '고르지 않음']].concat(people),
+    // 넣지 않아도 되는 칸은 optional로 "(선택)"을 모든 창에서 같은 모양으로(2026-11-06 점검 3회차)
+    return C.fieldHtml({ name: 'requestedBy', label: '요청한 사람', type: 'select', optional: true, options: [['', '고르지 않음']].concat(people),
       help: '권한을 바꿔 달라고 요청한 사람(예: 유닛 리더)이 있으면 고릅니다. 권한 변경 이력에 함께 남습니다.' });
   }
   // 역할 겹침 알림과 까닭 칸(C-5): 겹칠 때만 보임. 창 맨 아래에 두어 위 칸은 움직이지 않음
@@ -498,7 +499,8 @@
 
   /* ---------- 이벤트 ---------- */
   $('#filter').addEventListener('input', function () { page = 1; render(); });
-  $('#filter').addEventListener('change', function () { page = 1; render(); });
+  // 검색 칸은 'input'이 이미 그렸으므로 'change'(칸을 떠날 때)에서 다시 그리지 않음. 다시 그리면 누르던 줄이나 쪽 번호가 바뀌어 클릭이 사라짐(2026-11-06 점검 4회차)
+  $('#filter').addEventListener('change', function (e) { if (e.target.matches('input[type=search], input[type=text]')) return; page = 1; render(); });
   $('#filter').addEventListener('reset', function () { setTimeout(function () { page = 1; render(); }, 0); });
   $('#filter').addEventListener('submit', function (e) { e.preventDefault(); });
   $('#pagination').addEventListener('click', function (e) {
@@ -506,8 +508,8 @@
     if (!b || b.disabled) return;
     page = Number(b.getAttribute('data-page'));
     render();
-    // 쪽을 바꾸면 목록 맨 위로
-    $('#users').scrollIntoView({ block: 'start' });
+    // 쪽을 바꾸면 목록 맨 위로. 누른 단추가 없어지므로 초점도 목록 제목으로(2026-11-06 점검 3회차)
+    C.focusSection('#users-title');
   });
 
   render();

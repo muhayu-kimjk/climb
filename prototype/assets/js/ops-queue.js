@@ -27,7 +27,8 @@
   // ⑨ 운영 적용, ⑩ 재무 확인, ⑨ 만료 처리(SXP, 2026-11-02 A-10. 계약이 끝난 뒤의 차례라 common.js pendingQueue가 만료된 계약에서도 찾음)
   const OPS_STEPS = ['S09', 'S10', 'SXP'];
 
-  const seeAll = me.role === 'SUPER' || me.role === 'ADMIN';
+  // 관리자 보기는 뺌(기획자 결정 2026-11-09: 관리자는 처리하지 않고, 이 화면은 관리자 메뉴에도 없었음). 최고관리자는 시연용으로 모두 봄
+  const seeAll = me.role === 'SUPER';
   const lead = !seeAll && C.isLead(me);
   const showWho = seeAll || lead; // 담당자 칸을 보이는지
   if (!seeAll && !C.hasRole(me, ['CEM', 'FINANCE'])) {
@@ -95,7 +96,8 @@
           : '<td><span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>' + waitSub + '</td>') +
         '<td class="col-service">' + (see ? service : '-') + '</td>' +
         // 운영 변경(v0.26)은 단계 이름을 "운영 변경"으로, 대리 지정으로 내 차례가 된 건은 누구 대신인지 표시
-        '<td class="nowrap">' + esc(C.stepLabel(x.s.step, x.c)) + accBadge +
+        // 보류 중이면 배지(기획자 결정 2026-11-09: 결재하는 사람이 목록에서 바로 알게. 전체 진행 현황 progress.js와 같은 모양, REQ-CMP-04 ③)
+        '<td class="nowrap">' + esc(C.stepLabel(x.s.step, x.c)) + accBadge + (C.holdOf(x.c) ? '<span class="cell-meta">' + C.holdBadge(C.holdOf(x.c)) + '</span>' : '') +
           (see && C.isChange(x.c) ? '<span class="cell-meta">' + esc(D.CHANGE_TYPES[x.c.changeType] || C.kindLabel(x.c)) + '</span>' : '') +
           (see && expiry && expiry.note ? '<span class="cell-meta">' + esc(expiry.note) + '</span>' : '') +
           (!showWho && x.s.userId !== me.id ? '<span class="cell-meta">' + esc(C.ownerLabel(x.s.userId)) + ' 대신 (대리 지정)</span>' : '') + '</td>' +
@@ -109,7 +111,8 @@
   }
 
   $('#filter').addEventListener('input', function () { page = 1; render(); });
-  $('#filter').addEventListener('change', function () { page = 1; render(); });
+  // 검색 칸은 'input'이 이미 그렸으므로 'change'(칸을 떠날 때)에서 다시 그리지 않음. 다시 그리면 누르던 줄이나 쪽 번호가 바뀌어 클릭이 사라짐(2026-11-06 점검 4회차)
+  $('#filter').addEventListener('change', function (e) { if (e.target.matches('input[type=search], input[type=text]')) return; page = 1; render(); });
   $('#filter').addEventListener('reset', function () { setTimeout(function () { page = 1; render(); }, 0); });
   $('#filter').addEventListener('submit', function (e) { e.preventDefault(); });
   $('#pagination').addEventListener('click', function (e) {
@@ -117,7 +120,8 @@
     if (!b || b.disabled) return;
     page = Number(b.getAttribute('data-page'));
     render();
-    $('#list').scrollIntoView({ block: 'start' });
+    // 쪽 번호를 다시 그려 누른 단추가 없어지므로 초점을 목록 제목으로 옮기고 화면도 거기로(2026-11-06 점검 3회차)
+    C.focusSection('#list-title');
   });
   render();
 })();
