@@ -10,6 +10,8 @@
  *        저장하는 값(user_mail_pref: 선택 알림마다 받기)은 그대로. 저장은 시연 기록(시연 기록 지우기로 처음 값)
  *      기획자 결정 2026-11-02 E-12: 해지 통지 기한 이메일을 영업 리더도 받음(기안자 유닛 리더, 두 번째 이메일만). 리더에게 "내 역할에 오는 알림"으로 보임
  *        보내는 날은 결재선 규칙에서 바꾼 값(ALERT_RULES.noticeMailDays, A-5)으로 쓰고, 미리 보기는 영업대표가 받는 메일과 리더가 받는 메일 두 통
+ *      기획자 결정 2026-11-09 5회차: 유닛 계정 목록 확인(5번), 결재 차례와 독촉은 대리 기간에 대신할 사람도(6번), 만료 유예 결과(7번, 미리 보기 두 통),
+ *        독촉은 처리될 때까지 같은 날수마다(8번), 회계 영향 조건은 ⑩ 담당자만(10번, 재무 리더와 임원은 "내 역할에는 오지 않는 알림")
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -65,8 +67,24 @@
   //   해지 통지 기한도 같음(A-5). 영업 리더는 내 유닛 영업의 계약을 가장 짧은 날에만 받음(E-12)
   function whenText(t) {
     const R = D.ALERT_RULES;
-    if (t.code === 'REMIND') return '내 차례가 ' + R.approvalDelayDays + '일 넘게 머물거나, 승인 뒤 ' + R.signDelayDays + '일 동안 체결본이 없을 때';
-    if (t.code === 'OBLIGATION') return '내 분야가 맡은 체결 후 의무의 기한 ' + R.obligationMailDays.join('일 전과 ') + '일 전, 기한이 지나면 다음 날';
+    // 독촉 기준은 "5일 이상"(03 v0.47, 화면 강조 wait >= approvalDelayDays와 같게). "넘게"로 적혀 있던 것을 고침(2026-11-09 5회차 점검 MAIL-01)
+    //   기준일에 한 번, 그 뒤 처리될 때까지 같은 날수마다 다시(예: 5일째, 10일째, 15일째) (기획자 결정 2026-11-09 5회차 8번)
+    //   대리 지정 기간에는 담당자와 대신할 사람 둘 다에게 (기획자 결정 2026-11-09 5회차 6번)
+    if (t.code === 'REMIND') {
+      const n = R.approvalDelayDays;
+      return '내 차례(대신할 사람으로 지정된 기간에는 담당자의 차례도)가 ' + n + '일 이상 머물거나 승인 뒤 ' + R.signDelayDays + '일 동안 체결본이 없을 때, ' +
+        '그 뒤 처리될 때까지 같은 날수마다(' + n + '일째, ' + (n * 2) + '일째, ' + (n * 3) + '일째)';
+    }
+    if (t.code === 'OBLIGATION') {
+      const days = R.obligationMailDays.join('일 전과 ') + '일 전';
+      // 의무 알림은 담당자에게 기한 전, 기한이 지나면 그 분야 리더에게도(REQ-ENV-10 ⑭). 리더 역할로 들어온 사람에게는 리더가 받는 때를 따로 보임
+      //   (해지 통지 기한 E-12와 같은 식, 2026-11-09 5회차 점검 MAIL-02)
+      //   [가정] "맡은 분야"(기한 전 메일)에 리더는 들지 않음. 재무 임원(FIN_EXEC)도 재무 분야의 리더로 봄
+      if (me.role !== 'SUPER' && me.role !== me.base && C.hasRole(me, ['PRIVACY', 'CEM', 'FINANCE'])) {
+        return '내 분야 담당자에게는 체결 후 의무의 기한 ' + days + ', 리더인 나에게는 기한이 지나면 다음 날';
+      }
+      return '내 분야가 맡은 체결 후 의무의 기한 ' + days + ', 기한이 지나면 다음 날';
+    }
     if (t.code === 'NOTICE_DEADLINE') {
       const all = R.noticeMailDays.join('일 전과 ') + '일 전', last = Math.min.apply(null, R.noticeMailDays) + '일 전';
       if (me.role !== 'SUPER' && C.hasRole(me, ['HEAD'])) return '내가 맡은 자동갱신 계약은 해지 통지 기한 ' + all + ', 내 유닛 영업이 맡은 계약은 ' + last;
@@ -140,6 +158,10 @@
       const parts = [['영업대표가 받는 메일', t.sample], ['유닛 리더가 받는 메일', t.leadSample]];
       if (me.role !== 'SUPER' && C.hasRole(me, ['HEAD'])) parts.reverse();
       body = parts.map(function (p) { return '<h3 class="mail-sample-title">' + esc(p[0]) + '</h3>' + mailHtml(t, p[1]); }).join('');
+    } else if (t.altSample) {
+      // 같은 사람이 결과에 따라 받는 두 통(만료 유예 결과의 확인과 반려). 작은 제목은 예시의 label("유예를 확인했을 때")
+      //   영업대표, 유닛 리더로 정해 둔 위 제목을 쓰지 않음 (기획자 결정 2026-11-09 5회차 7번)
+      body = [t.sample, t.altSample].map(function (s) { return '<h3 class="mail-sample-title">' + esc(s.label || '') + '</h3>' + mailHtml(t, s); }).join('');
     }
     // 보내는 때는 결재선 규칙에서 바꾼 일수로(whenText, A-5)
     C.formModal({ title: t.name + ' 이메일 미리 보기', desc: whenText(t) + ' 보내는 메일의 예시입니다. 버튼을 누르면 그 화면으로 갑니다.', body: body, btn: false });

@@ -18,8 +18,16 @@
  *      [가정] 기한은 분기가 끝난 다음 달 말일
  *      점검과 검토 결과에는 그때 창에서 본 자료(seen)를 함께 남김(v0.63, G-23 ③. 계산값이라 나중에 다시 만들 수 없음)
  *      기획자 결정 2026-11-02 C-2: 끝나는 날이 지나 저절로 풀린 감사 열람도 권한을 바꾼 기록으로 셈
+ *      기획자 결정 2026-11-09 5회차 2번: 정보보호와 관리자 역할을 함께 가진 사람은 그 분기부터 지금까지 자기가 권한을 바꾼 기록이 있으면 남기지 못함(다른 정보보호 담당자가 남김)
+ *      기획자 결정 2026-11-09 5회차 15번(인사 명단 파일을 올려 대조)은 기획자 결정 2026-11-10 21번으로 바꿈: 파일 올리기는 뺌.
+ *        유닛 리더(대리 지정 기간에는 대신할 사람)가 유닛 계정 확인 화면에서 계정마다 "퇴사", "휴직", "이동"을 표시하면
+ *        이 검토에 "조치할 계정"으로 올라오고, 처리되지 않은(사용 중지나 조직 옮기기 전) 계정이 있으면 "이상 없음"을 남기지 못함
+ *   9. 보낸 메일 (기획자 결정 2026-11-10 20번, 5회차 9번): 보낸 사실만(알림 종류, 받은 사람, 계약번호, 보낸 일시, 성공과 실패의 까닭). 본문은 없음
+ *      정보보호와 감사 열람만 봄(시연에서는 최고관리자도, 이 화면의 다른 묶음과 같음). 달과 알림 종류로 거름, 한 쪽 20건
+ *   최고관리자 작업 점검의 "조치함"도 매월 기록 점검처럼 컴플라이언스에 넘김(기획자 결정 2026-11-10 17번, X.raiseIssue)
  *   6. 분기 권한 검토 자료 (기획자 결정 2026-11-02 C-2, C-5, C-7): 고른 분기의 감사 열람 계정, 모든 지정 열람자, 역할 충돌 계정,
- *      유닛 리더에게 계정 목록 보내기(보내기만 하고 답은 받지 않음. 보낸 사람, 일시, 유닛과 받은 리더를 남김)
+ *      유닛 리더에게 계정 목록 보내기(보낸 사람, 일시, 유닛과 받은 리더를 남김)
+ *      기획자 결정 2026-11-09 5회차 5번: 메일에는 확인 요청과 계정 수만. 리더는 유닛 계정 확인 화면(unit-accounts.html)에서 자기 유닛 목록만 보고 "확인함"을 남김
  *      [가정, 기획자 확인 필요] 2026-11-03 C-44: 요약 줄에 "영업대표가 바뀐 열람 제한 계약의 앞 기안자(그 묶음 계약을 기안한 사람)"(묶음 번호만, 고객사 이름 없음)
  *   7. 접속 기록 조회: 사람, 한 일, 기간으로 거르기. 한 쪽 20건
  *   8. 관리자 변경 이력 (기획자 결정 2026-11-02 C-2): 모든 영역의 변경 기록과 점검 기록, 저절로 풀린 역할. 감사 열람이 보는 곳. 보기만, 한 쪽 20건
@@ -42,6 +50,7 @@
   /* 누가 무엇을 남기는지 (기획자 결정 2026-11-02 C-2, C-6)
    *   감사 열람(읽기만 하는 역할): 보기만. 어느 표에도 단추를 그리지 않음
    *   정보보호(담당자, 리더): 알림 확인, 매월 점검, 최고관리자 작업 점검, 분기 검토, 유닛 리더에게 계정 목록 보내기
+ *     관리자 역할도 함께 가져 그 분기에 권한을 바꿨으면 그 분기 검토는 못함(기획자 결정 2026-11-09 5회차 2번)
    *   최고관리자: 시연으로 알림 확인과 매월 점검을 남기되 자기 작업이 든 달과 자기에 대한 알림은 못함.
    *     최고관리자 작업 점검과 분기 검토(자기 계정과 자기가 준 권한이 늘 듦)는 못함. 못 하는 곳에는 누를 수 없는 단추와 짧은 까닭 */
   const readOnly = C.isReadOnly(me);
@@ -182,13 +191,15 @@
     return '설정 변경 ' + list.length + '건(' + Object.keys(X.AREA_SET).filter(function (k) { return by[k]; }).map(function (k) { return X.AREA_SET[k] + ' ' + by[k] + '건'; }).join(', ') + '), ' +
       (wait.length ? '확인 기다림 ' + wait.length + '건(' + [waitFin ? '재무 리더 ' + waitFin + '건' : '', waitLegal ? '법무 ' + waitLegal + '건' : ''].filter(Boolean).join(', ') + ')' : '확인할 것 모두 확인함');
   }
-  function resultFields(okLabel) {
+  // issue: "조치함"이면 컴플라이언스에 넘기는 점검(매월 기록 점검, 최고관리자 작업 점검)이면 true. 조치 칸 도움말 끝에 다른 점검 화면과 같은 안내 한 문장(X.ISSUE_HELP)
+  //   (기획자 결정 2026-11-10 17번: 최고관리자 작업 점검도 매월 기록 점검과 같게 넘기므로 같은 안내를 둘 다에 붙임)
+  function resultFields(okLabel, issue) {
     return '<fieldset class="field" data-field="result"><legend class="field-label">결과<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>' +
         '<div class="choice-row"><label class="choice"><input type="radio" name="result" value="OK">' + esc(okLabel) + '</label>' +
         '<label class="choice"><input type="radio" name="result" value="ACTION">조치함</label></div><p class="field-error" hidden></p></fieldset>' +
       C.fieldHtml({ name: 'note', label: '확인한 내용', type: 'textarea', required: true }) +
       // 조치는 "조치함"을 고를 때만 필수. 처음엔 (선택)으로 보이고, 조치함을 고르면 필수 표시로 바꿈(wireAct, 2026-11-06 점검 3회차)
-      C.fieldHtml({ name: 'act', label: '조치', type: 'textarea', optional: true, help: '조치함을 고르면 꼭 적습니다. 예: 퇴사자 계정 사용 중지 요청(관리자, 2026-10-02 처리)' })
+      C.fieldHtml({ name: 'act', label: '조치', type: 'textarea', optional: true, help: '조치함을 고르면 꼭 적습니다. 예: 퇴사자 계정 사용 중지 요청(관리자, 2026-10-02 처리)' + (issue ? ' ' + X.ISSUE_HELP : '') })
         .replace(' <span class="opt">', '<span class="req" aria-hidden="true" hidden>*</span><span class="sr-only act-sr" hidden>(필수)</span> <span class="opt">');
   }
   // 결과를 고를 때마다 조치 칸 이름의 필수 표시를 바꿈. 계약 등록의 사용 업체 칸과 같은 방식(new-contract.js syncOrg, 2026-11-06 점검 3회차)
@@ -220,15 +231,19 @@
       title: monthLabel(ym) + ' 기록 점검 결과를 남길까요?',
       desc: '저장하면 점검한 사람과 일시, 결과가 남고 고칠 수 없습니다.',
       body: '<div class="modal-info"><ul class="summary-list">' + lines.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') +
-        '<li>설정 변경과 최고관리자 작업의 자세한 목록은 화면의 "설정 변경", "최고관리자 작업" 묶음에서 봅니다.</li></ul></div>' + resultFields('이상 없음'),
+        '<li>설정 변경과 최고관리자 작업의 자세한 목록은 화면의 "설정 변경", "최고관리자 작업" 묶음에서 봅니다.</li></ul></div>' +
+        resultFields('이상 없음', true), // 조치함이면 컴플라이언스에 넘긴다는 안내(기획자 결정 2026-11-10 17번에서 최고관리자 작업 점검과 함께 붙임)
       btn: '점검 결과 저장',
       open: function (f) { wireAct(f); f.elements.note.placeholder = '예: 접속 기록과 내려받기 기록 확인. 업무 시간 밖 접속은 모두 결재 처리로 확인함'; },
       check: checkResult,
       done: function (f) {
         const r = { month: ym, result: f.querySelector('[name="result"]:checked').value, note: val(f, 'note'), action: val(f, 'act'), seen: lines.join(' / ') };
-        C.adminSave('AUDIT', monthLabel(ym) + ' 기록 점검', '결과: ' + (r.result === 'OK' ? '이상 없음' : '조치함'), r.note + (r.action ? ' / 조치: ' + r.action : ''), { k: 'LOG_REVIEW', r: r });
+        const saved = C.adminSave('AUDIT', monthLabel(ym) + ' 기록 점검', '결과: ' + (r.result === 'OK' ? '이상 없음' : '조치함'), r.note + (r.action ? ' / 조치: ' + r.action : ''), { k: 'LOG_REVIEW', r: r });
+        // "조치함"이면 컴플라이언스에 넘김(기획자 결정 2026-11-09 5회차 13번, control-checks.js X.raiseIssue). 개요 점검할 일과 이메일
+        const issue = !saved.refused && r.result === 'ACTION' ? X.raiseIssue({ source: 'LOG', title: monthLabel(ym) + ' 기록 점검: 조치함',
+          note: r.note + (r.action ? ' / 조치: ' + r.action : ''), href: 'admin-logs.html', ref: ym }) : null;
         refresh();
-        C.toast(monthLabel(ym) + ' 기록 점검 결과를 남겼습니다.');
+        C.toast(monthLabel(ym) + ' 기록 점검 결과를 남겼습니다.' + X.issueToast(issue));
       },
     });
   }
@@ -281,15 +296,18 @@
           (list.length ? list.map(function (l) {
             return '<tr><td class="num-left">' + dt(l.at) + '</td><td class="center">' + esc(C.ownerLabel(l.userId)) + '</td><td class="nowrap">' + esc(X.ACTS[l.act]) + '</td><td>' + esc(l.target) + '</td></tr>';
           }).join('') : '<tr><td class="empty-row" colspan="4">이달 최고관리자 작업이 없습니다.</td></tr>') + '</tbody></table></div>' +
-        resultFields('이상 없음'),
+        resultFields('이상 없음', true), // 조치함이면 컴플라이언스에 넘긴다는 안내(기획자 결정 2026-11-10 17번)
       btn: '점검 결과 저장',
       open: function (f) { wireAct(f); f.elements.note.placeholder = '예: 9월 1일 시스템 도입 설정과 감사 열람 부여 1건 확인. 결재 단계 처리 없음'; },
       check: checkResult,
       done: function (f) {
         const r = { month: ym, result: f.querySelector('[name="result"]:checked').value, note: val(f, 'note'), action: val(f, 'act'), seen: seen };
-        C.adminSave('AUDIT', monthLabel(ym) + ' 최고관리자 작업 점검', '결과: ' + (r.result === 'OK' ? '이상 없음' : '조치함'), r.note + (r.action ? ' / 조치: ' + r.action : ''), { k: 'SUPER_REVIEW', r: r });
+        const saved = C.adminSave('AUDIT', monthLabel(ym) + ' 최고관리자 작업 점검', '결과: ' + (r.result === 'OK' ? '이상 없음' : '조치함'), r.note + (r.action ? ' / 조치: ' + r.action : ''), { k: 'SUPER_REVIEW', r: r });
+        // "조치함"이면 매월 기록 점검과 같이 컴플라이언스에 넘김(기획자 결정 2026-11-10 17번, X.raiseIssue). 찾은 곳은 기록 점검(LOG), 개요 점검할 일과 이메일
+        const issue = !saved.refused && r.result === 'ACTION' ? X.raiseIssue({ source: 'LOG', title: monthLabel(ym) + ' 최고관리자 작업 점검: 조치함',
+          note: r.note + (r.action ? ' / 조치: ' + r.action : ''), href: 'admin-logs.html', ref: 'SUPER:' + ym }) : null;
         refresh();
-        C.toast(monthLabel(ym) + ' 최고관리자 작업 점검 결과를 남겼습니다.');
+        C.toast(monthLabel(ym) + ' 최고관리자 작업 점검 결과를 남겼습니다.' + X.issueToast(issue));
       },
     });
   }
@@ -359,16 +377,29 @@
     return out.reverse();
   }
   // C-6: 분기 검토에는 최고관리자 자기 계정(관리자 권한 줄)과 자기가 준 권한(감사 열람 등)이 늘 들어 있어 최고관리자는 남기지 못함
+  // 정보보호와 관리자 역할을 함께 가진 사람이 그 분기에 권한을 바꾼 기록(관리자 변경 이력 USER)을 남겼으면 그 분기 검토를 남기지 못함.
+  //   다른 정보보호 담당자가 남김. 최고관리자의 C-6과 같은 규칙으로, 06 CTL-102 "권한을 준 관리자가 스스로 검토하지 않는다"를 지킴
+  //   셈하는 기간: 그 분기 첫날부터 지금까지. 검토 창의 "권한을 바꾼 기록"은 지난 검토 뒤 오늘까지라 분기 뒤 검토 전에 바꾼 것도 검토 자료에 들기 때문
+  //   (기획자 결정 2026-11-09 5회차 2번)
+  function selfUserChanges(q) {
+    return C.adminLog(['USER']).filter(function (e) { return e.by === me.id && e.at.slice(0, 10) >= q.start; }).length;
+  }
   function quarterAction(x) {
     if (readOnly) return '-';
-    // 줄 이름: 분기(2026-11-06 점검)
-    if (isPrivacy) return '<button type="button" class="link-act" data-quarter="' + x.key + '">결과 남기기' + rowName(x.label) + '</button>';
+    if (isPrivacy) {
+      const n = selfUserChanges(x); // 2026-11-09 5회차 2번: 본인 권한 변경이 든 분기는 누를 수 없는 단추와 까닭 한 줄
+      if (n) return offBtn('결과 남기기', '본인 권한 변경 ' + n + '건, 다른 정보보호 담당자가 남김', x.label);
+      // 줄 이름: 분기(2026-11-06 점검)
+      return '<button type="button" class="link-act" data-quarter="' + x.key + '">결과 남기기' + rowName(x.label) + '</button>';
+    }
     return isSuper ? offBtn('결과 남기기', '본인 계정이 듦', x.label) : '-';
   }
   function renderQuarters() {
     $('#quarter-rows').innerHTML = quarters().map(function (x) {
       const rec = D.ACCESS_REVIEWS.filter(function (r) { return r.quarter === x.key; })[0];
-      return reviewRow(x.label, x.due, rec, x.ended, quarterAction(x), '분기가 끝난 뒤 검토', '검토');
+      // 검토 때 본 조치할 계정 수 한 줄(기획자 결정 2026-11-10 21번, 인사 명단 대조 줄을 갈음). 그전 기록(예시)에는 없어 보이지 않음
+      return reviewRow(x.label, x.due, rec, x.ended, quarterAction(x), '분기가 끝난 뒤 검토', '검토',
+        rec && rec.marks ? '<span class="cell-meta">조치할 계정 ' + rec.marks.total + '개(검토 때 처리 전 ' + rec.marks.open + '개)</span>' : '');
     }).join('');
   }
   // 이 분기에 실제로 걸쳐 있던 대리 지정 (v0.63, 통제와 표준 대응표 G-23 ②): 누가 누구 대신 결재할 수 있었는지 분기마다 봄.
@@ -386,6 +417,45 @@
     return D.ADMIN_LOG.filter(function (e) { return e.op && e.op.k === 'UNIT_LIST_SENT' && e.op.r && e.op.r.quarter === q.key; })
       .map(function (e) { return Object.assign({ by: e.by, at: e.at }, e.op.r); })
       .sort(function (a, b) { return b.at.localeCompare(a.at); });
+  }
+  // 유닛 리더가 유닛 계정 확인 화면(unit-accounts.html)에서 남긴 "확인함"(기획자 결정 2026-11-09 5회차 5번)
+  //   { 유닛: 그 분기 그 유닛의 마지막 확인 { by, at, n, note } }. 기록은 관리자 변경 이력의 점검 기록(AUDIT, op.k UNIT_LIST_ACK)
+  function acksOf(q) {
+    const out = {};
+    D.ADMIN_LOG.filter(function (e) { return e.op && e.op.k === 'UNIT_LIST_ACK' && e.op.r && e.op.r.quarter === q.key; })
+      .sort(function (a, b) { return a.at.localeCompare(b.at); })
+      .forEach(function (e) { out[e.op.r.unit] = Object.assign({ by: e.by, at: e.at }, e.op.r); });
+    return out;
+  }
+  // 확인한 사람 글: "비즈니스유닛 문태호(비즈니스2유닛 고은성 대신)". 대리 지정 기간에 대신할 사람이 남긴 확인(기획자 결정 2026-11-10 19번)
+  function ackWho(k) { return C.ownerLabel(k.by) + (k.onBehalfOf ? '(' + C.ownerLabel(k.onBehalfOf) + ' 대신)' : ''); }
+
+  /* 조치할 계정 (기획자 결정 2026-11-10 21번: 5회차 15번의 인사 명단 파일 올리기를 갈음)
+   * 유닛 리더(대리 지정 기간에는 대신할 사람)가 유닛 계정 확인(unit-accounts.js)에서 "확인함"을 남길 때 계정마다 고른 표시(선택)
+   *   그 분기 그 유닛의 마지막 확인(acksOf)의 marks [{ id, name, email, mark, note }]. mark: RESIGN 퇴사, LEAVE 휴직, MOVE 이동
+   * 처리 여부는 지금 계정으로 봄(뺀 인사 명단 대조와 같은 규칙): 퇴사와 휴직은 사용 중지면 처리함, 이동은 사용 중지이거나 조직이 그 유닛이 아니면 처리함
+   *   처리 전인 계정이 있으면 분기 검토에 "이상 없음"을 남기지 못함(조치함을 고르고 관리자에게 사용 중지나 조직 옮기기를 요청한 것을 적음)
+   * 표시 이름은 unit-accounts.js의 MARKS와 같음 */
+  const MARKS = { RESIGN: '퇴사', LEAVE: '휴직', MOVE: '이동' };
+  function markList(q) {
+    const acks = acksOf(q), out = [];
+    Object.keys(acks).forEach(function (unit) {
+      const k = acks[unit];
+      (k.marks || []).forEach(function (m) {
+        const a = C.accountOf(m.id) || D.ACCOUNTS.filter(function (x) { return x.email === m.email; })[0] || null;
+        const done = !a || a.status === 'SUSPENDED' || (m.mark === 'MOVE' && a.dept !== unit);
+        const st = a ? ((D.ACCOUNT_STATUS[a.status] || {}).label || a.status) + (a.dept && a.dept !== unit ? ', 지금 ' + a.dept : '') : '계정 없음';
+        out.push({ unit: unit, ack: k, m: m, a: a, open: !done, now: st });
+      });
+    });
+    return out;
+  }
+  // 남기는 자료 한 줄: "조치할 계정(유닛 리더 표시) 2개, 처리 전 1개: 비즈니스1유닛 김태윤 퇴사(표시 비즈니스1유닛 최민준, 지금 사용 중) ..."
+  function markLine(list) {
+    const open = list.filter(function (x) { return x.open; });
+    return '조치할 계정(유닛 리더가 퇴사, 휴직, 이동으로 표시) ' + list.length + '개' + (list.length ? ', 처리 전 ' + open.length + '개: ' + list.map(function (x) {
+      return x.unit + ' ' + x.m.name + ' ' + MARKS[x.m.mark] + (x.m.note ? '(' + x.m.note + ')' : '') + ' 표시 ' + ackWho(x.ack) + ', 지금 ' + x.now + (x.open ? ', 처리 전' : ', 처리함');
+    }).join('; ') : '');
   }
   const ZWSP = new RegExp(String.fromCharCode(0x200b), 'g'); // C.fmtPeriod가 물결표 뒤에 넣는 폭 없는 빈칸
   function plain(s) { return String(s).replace(ZWSP, ''); } // 기간 글의 폭 없는 빈칸을 뺀 글(남기는 자료용)
@@ -438,25 +508,55 @@
       '역할 충돌 계정 ' + conflicts.length + '명' + (conflicts.length ? ': ' + conflicts.map(function (x) {
         return x.who + '(' + x.conflicts.map(function (y) { return y.text; }).join(', ') + ' ' + (x.accepted ? '까닭 있음' : '까닭 없음') + ')';
       }).join(', ') : ''),
-      // C-7: 유닛 리더에게 계정 목록을 보냈는지(보내기만 함)
-      '유닛 리더에게 보낸 계정 목록: ' + (sends.length ? C.fmtDateTime(sends[0].at) + ' ' + C.ownerLabel(sends[0].by) + ', 유닛 ' + sends[0].units.length + '곳' : '아직 보내지 않음'),
+      // C-7: 유닛 리더에게 계정 목록 확인을 요청했는지. 2026-11-09 5회차 5번: 리더가 "확인함"을 남긴 유닛 수와 적은 이상한 계정 수도
+      '유닛 리더에게 보낸 계정 목록 확인 요청: ' + (sends.length ? C.fmtDateTime(sends[0].at) + ' ' + C.ownerLabel(sends[0].by) + ', 유닛 ' + sends[0].units.length + '곳, ' + ackText(q, sends[0]) : '아직 보내지 않음'),
+      // 기획자 결정 2026-11-10 21번: 유닛 리더가 퇴사, 휴직, 이동으로 표시한 조치할 계정과 처리 여부
+      markLine(markList(q)),
     ];
+  }
+  // "확인함 3곳(이상한 계정 적음 1곳, 대신 확인 1곳), 확인 전 7곳" (기획자 결정 2026-11-09 5회차 5번)
+  //   대리 지정 기간에 대신할 사람이 남긴 확인 수도(기획자 결정 2026-11-10 19번)
+  function ackText(q, s) {
+    const acks = acksOf(q);
+    const done = s.units.filter(function (u) { return acks[u.unit]; });
+    const noted = done.filter(function (u) { return acks[u.unit].note; }).length;
+    const proxy = done.filter(function (u) { return acks[u.unit].onBehalfOf; }).length;
+    const extra = [noted ? '이상한 계정 적음 ' + noted + '곳' : '', proxy ? '대신 확인 ' + proxy + '곳' : ''].filter(Boolean).join(', ');
+    return '확인함 ' + done.length + '곳' + (extra ? '(' + extra + ')' : '') + ', 확인 전 ' + (s.units.length - done.length) + '곳';
   }
   function accessSummary(q) {
     return '<ul class="summary-list">' + accessLines(q).map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>';
   }
+  /* 분기 권한 검토 결과 남기기
+   *   기획자 결정 2026-11-10 21번: 인사 명단 파일 올리기와 대조(5회차 15번)를 뺌. 대신 유닛 리더가 표시한 조치할 계정(markList)을 보이고,
+   *   처리 전인 계정이 있으면 "이상 없음"을 고르지 못하게 함. 검토 기록에는 그때의 조치할 계정 수(r.marks)와 줄마다의 글(seen)을 남김 */
   function openQuarter(key) {
     const q = quarters().filter(function (x) { return x.key === key; })[0];
+    // 단추가 잠겨 있어도 한 번 더 막음(기획자 결정 2026-11-09 5회차 2번)
+    if (selfUserChanges(q)) { C.toast('이 분기에 본인이 권한을 바꾼 기록이 있어 다른 정보보호 담당자가 검토 결과를 남깁니다.', true); return; }
+    const marks = markList(q), open = marks.filter(function (x) { return x.open; });
     C.formModal({
       title: q.label + ' 권한 검토 결과를 남길까요?',
       desc: '저장하면 검토한 사람과 일시, 결과가 남고 고칠 수 없습니다. 권한을 바꿔야 하면 관리자에게 요청하고 조치에 적습니다.',
-      body: '<div class="modal-info">' + accessSummary(q) + '</div>' + resultFields('이상 없음'),
+      body: '<div class="modal-info">' + accessSummary(q) + '</div>' +
+        // 처리 전인 조치할 계정(2026-11-10 21번): 누구를 관리자에게 요청해야 하는지 한눈에
+        (open.length ? '<div class="modal-info"><p><strong>처리 전인 조치할 계정 ' + open.length + '개</strong>: 사용 중지나 조직 옮기기를 관리자에게 요청하고 "조치함"으로 남깁니다.</p><ul class="summary-list">' +
+          open.map(function (x) { return '<li>' + esc(x.unit + ' ' + x.m.name + ': ' + MARKS[x.m.mark] + (x.m.note ? '(' + x.m.note + ')' : '') + ', 지금 ' + x.now + ', 표시 ' + ackWho(x.ack)) + '</li>'; }).join('') +
+          '</ul></div>' : '') +
+        resultFields('이상 없음'),
       btn: '검토 결과 저장',
       open: function (f) { wireAct(f); f.elements.note.placeholder = '예: 모든 계정의 권한이 하는 일에 맞음. 권한을 바꾼 기록 모두 사유 있음'; },
-      check: checkResult,
+      check: function (f) {
+        const err = checkResult(f), r = f.querySelector('[name="result"]:checked');
+        // 처리 전인 조치할 계정이 있으면 "이상 없음"을 남기지 못함(2026-11-10 21번)
+        if (open.length && r && r.value === 'OK') err.result = '처리 전인 조치할 계정이 ' + open.length + '개 있어 "이상 없음"을 고를 수 없습니다. "조치함"을 고르고 조치를 적습니다.';
+        return err;
+      },
       done: function (f) {
-        const r = { quarter: key, result: f.querySelector('[name="result"]:checked').value, note: val(f, 'note'), action: val(f, 'act'), seen: accessLines(q).join(' / ') };
-        C.adminSave('AUDIT', q.label + ' 권한 검토', '결과: ' + (r.result === 'OK' ? '이상 없음' : '조치함'), r.note + (r.action ? ' / 조치: ' + r.action : ''), { k: 'ACCESS_REVIEW', r: r });
+        const r = { quarter: key, result: f.querySelector('[name="result"]:checked').value, note: val(f, 'note'), action: val(f, 'act'),
+          seen: accessLines(q).join(' / '), marks: { total: marks.length, open: open.length } }; // 그때 본 조치할 계정 수(2026-11-10 21번, 예전 r.hr를 갈음)
+        C.adminSave('AUDIT', q.label + ' 권한 검토', '결과: ' + (r.result === 'OK' ? '이상 없음' : '조치함') + (marks.length ? ', 조치할 계정 ' + marks.length + '개(처리 전 ' + open.length + '개)' : ''),
+          r.note + (r.action ? ' / 조치: ' + r.action : ''), { k: 'ACCESS_REVIEW', r: r });
         refresh();
         C.toast(q.label + ' 권한 검토 결과를 남겼습니다.');
       },
@@ -510,17 +610,38 @@
           : C.badge('attention', '까닭 없음') + '<span class="cell-meta">저장할 때 까닭을 받지 않은 겹침</span>') + '</td></tr>';
     }).join('') : empty(4, '역할 충돌 계정이 없습니다.');
     // 유닛 리더에게 보낸 계정 목록 (C-7): 그 분기에 보낸 기록
-    const sends = sendsOf(q);
+    //   2026-11-09 5회차 5번: 유닛마다 리더의 "확인함"(일시, 적은 이상한 계정)을 함께 보임. 접힌 줄에 확인한 유닛 수
+    const sends = sendsOf(q), acks = acksOf(q);
     $('#send-rows').innerHTML = sends.length ? sends.map(function (s) {
       const leaders = s.units.map(function (u) { return u.to; }).filter(function (x, i, a) { return a.indexOf(x) === i; }).length;
       const total = s.units.reduce(function (n, u) { return n + (u.n || 0); }, 0);
       return '<tr><td class="num-left">' + dt(s.at) + '</td><td class="center">' + esc(C.ownerLabel(s.by)) + '</td>' +
-        '<td><details class="seen-data"><summary>유닛 ' + s.units.length + '곳, 리더 ' + leaders + '명</summary><ul class="summary-list cell-meta">' +
-          s.units.map(function (u) { return '<li>' + esc(u.unit + ': ' + C.ownerLabel(u.to) + '(계정 ' + u.n + '개)') + '</li>'; }).join('') + '</ul></details></td>' +
+        '<td><details class="seen-data"><summary>유닛 ' + s.units.length + '곳, 리더 ' + leaders + '명, ' + esc(ackText(q, s)) + '</summary><ul class="summary-list cell-meta">' +
+          s.units.map(function (u) {
+            const k = acks[u.unit];
+            // 대신할 사람이 남긴 확인은 "누구 대신"(2026-11-10 19번), 퇴사, 휴직, 이동 표시 수(2026-11-10 21번)
+            return '<li>' + esc(u.unit + ': ' + C.ownerLabel(u.to) + '(계정 ' + u.n + '개), ' +
+              (k ? '확인함 ' + C.fmtDateTime(k.at) + (k.onBehalfOf ? ' ' + ackWho(k) : '') + (k.marks && k.marks.length ? ', 퇴사 휴직 이동 표시 ' + k.marks.length + '개' : '') +
+                (k.note ? ', 이상한 계정: ' + k.note : '') : '확인 전')) + '</li>';
+          }).join('') + '</ul></details></td>' +
         '<td class="num">' + total + '개</td></tr>';
     }).join('') : empty(4, '이 분기에는 아직 보내지 않았습니다.');
+    // 조치할 계정 (기획자 결정 2026-11-10 21번): 유닛 리더가 표시한 계정과 지금 처리 여부. 처리 전을 위로
+    const marks = markList(q).sort(function (a, b) { return (a.open ? 0 : 1) - (b.open ? 0 : 1); });
+    $('#mark-rows').innerHTML = marks.length ? marks.map(function (x) {
+      return '<tr' + (x.open ? ' class="is-alert"' : '') + '><td><span class="cell-strong">' + esc(x.m.name) + '</span><span class="cell-meta">' + esc(x.m.email || '') + '</span></td>' +
+        '<td>' + esc(x.unit) + '</td>' +
+        '<td><span class="ua-mark-tag">' + esc(MARKS[x.m.mark] || x.m.mark) + '</span>' + (x.m.note ? '<span class="cell-meta">' + esc(x.m.note) + '</span>' : '') + '</td>' +
+        '<td class="center">' + esc(ackWho(x.ack)) + '<span class="cell-meta">' + C.fmtDateTime(x.ack.at) + '</span></td>' +
+        '<td class="nowrap">' + (x.open ? C.badge('danger', '처리 전') : C.badge('success', '처리함')) + '<span class="cell-meta">' + esc(x.now) + '</span></td></tr>';
+    }).join('') : empty(5, '이 분기에 유닛 리더가 표시한 계정이 없습니다.');
   }
-  /* 유닛 리더에게 계정 목록 보내기 (C-7): 유닛마다 그 유닛 계정 목록(이름, 이메일, 역할, 상태, 마지막 로그인)을 리더에게 이메일로. 답은 받지 않음
+  /* 유닛 리더에게 계정 목록 보내기 (C-7)
+   *   기획자 결정 2026-11-09 5회차 5번(C-7의 "목록을 이메일로, 답은 받지 않음"을 바꿈):
+   *     이메일에는 "유닛 계정 목록을 확인해 주세요"와 그 유닛 계정 수만 담고, 직원 정보(이름, 이메일, 역할)는 메일로 내보내지 않음
+   *     메일의 버튼은 유닛 계정 확인 화면(unit-accounts.html?q=분기)으로 감. 리더는 로그인해 자기 유닛 계정 목록만
+   *     (이름, 이메일, 역할, 상태, 마지막 로그인) 보고 "확인함"을 남김(op.k UNIT_LIST_ACK). 이 화면의 검토 자료에 유닛마다 확인 여부가 보임
+   *     메일 종류는 UNIT_LIST(꼭 받는 알림, 받는 사람 유닛 리더) [mock-data.js EMAIL_TYPES와 03 CODE-MAIL에 더할 것]
    *   유닛: 사용 중지가 아닌 계정의 조직. 받는 리더 [가정]: 영업 유닛은 유닛별 리더 표, 그 밖은 그 조직의 리더나 임원 역할,
    *   없으면 상위 조직의 리더나 임원(예: 경영지원유닛 → 경영지원실의 재무 임원). 그래도 없으면 보내지 않고 "받을 리더 없음"
    *   분기가 끝난 뒤에만 보냄. 여러 번 보내면 한 줄씩 더 남음(쌓기만 함). 기록은 관리자 변경 이력의 점검 기록(AUDIT, op.k UNIT_LIST_SENT) */
@@ -552,20 +673,21 @@
     const leaders = ok.map(function (r) { return r.to; }).filter(function (x, i, a) { return a.indexOf(x) === i; }).length;
     const total = ok.reduce(function (n, r) { return n + r.n; }, 0);
     const prev = sendsOf(q).length;
+    // 2026-11-09 5회차 5번: 메일에는 확인 요청과 계정 수만, 목록은 리더가 시스템 화면에서 봄
     C.formModal({
-      title: q.label + ' 계정 목록을 유닛 리더에게 보낼까요?',
-      desc: '보내면 유닛마다 그 유닛 계정 목록을 리더에게 이메일로 보내고, 보낸 사람과 일시, 받은 리더가 남습니다. 답은 받지 않습니다.' + (prev ? ' 이 분기에 이미 ' + prev + '번 보냈고, 한 줄 더 남습니다.' : ''),
+      title: q.label + ' 계정 목록 확인을 유닛 리더에게 요청할까요?',
+      desc: '보내면 유닛마다 리더에게 "유닛 계정 목록을 확인해 주세요"와 계정 수만 이메일로 보내고, 보낸 사람과 일시, 받은 리더가 남습니다. 리더는 메일의 버튼으로 자기 유닛 목록만 보고 "확인함"을 남깁니다.' + (prev ? ' 이 분기에 이미 ' + prev + '번 보냈고, 한 줄 더 남습니다.' : ''),
       body: '<div class="modal-info"><ul class="summary-list">' +
         ok.map(function (r) { return '<li>' + esc(r.unit + ': ' + C.ownerLabel(r.to) + '(계정 ' + r.n + '개)') + '</li>'; }).join('') +
         none.map(function (r) { return '<li>' + esc(r.unit + ': 받을 리더 없음(계정 ' + r.n + '개). 따로 전달합니다') + '</li>'; }).join('') +
-        '<li>목록에 드는 것: 이름, 이메일, 지금 역할, 상태, 마지막 로그인. 리더가 보고 이상하면 관리자나 정보보호에 알립니다.</li></ul></div>',
+        '<li>메일에는 직원 이름, 이메일, 역할을 넣지 않습니다. 리더는 시스템에서 이름, 이메일, 지금 역할, 상태, 마지막 로그인을 보고, 이상한 계정이 있으면 적어 남깁니다.</li></ul></div>',
       btn: '보내기',
       done: function () {
-        C.adminSave('AUDIT', q.label + ' 유닛별 계정 목록', '유닛 리더 ' + leaders + '명에게 보냄(유닛 ' + ok.length + '곳, 계정 ' + total + '개)',
-          '분기 권한 검토 때 유닛마다 계정 목록을 유닛 리더에게 보냄(답은 받지 않음)',
+        C.adminSave('AUDIT', q.label + ' 유닛별 계정 목록', '유닛 리더 ' + leaders + '명에게 확인 요청 메일 보냄(유닛 ' + ok.length + '곳, 계정 ' + total + '개)',
+          '분기 권한 검토 때 유닛마다 리더에게 계정 목록 확인을 요청함(메일에는 계정 수만, 목록은 시스템에서 봄)',
           { k: 'UNIT_LIST_SENT', r: { quarter: q.key, units: ok.map(function (r) { return { unit: r.unit, to: r.to, n: r.n }; }) } });
         refresh();
-        C.toast('유닛 리더 ' + leaders + '명에게 계정 목록을 보냈습니다.');
+        C.toast('유닛 리더 ' + leaders + '명에게 계정 목록 확인을 요청했습니다.');
       },
     });
   }
@@ -594,6 +716,49 @@
         '<td class="nowrap">' + esc(X.ACTS[l.act]) + '</td><td>' + esc(l.target) + '</td><td class="nowrap">' + esc(l.place) + '</td></tr>';
     }).join('') : '<tr><td class="empty-row" colspan="5">조건에 맞는 기록이 없습니다.</td></tr>';
     $('#pagination').innerHTML = C.pagerHtml(page, pages, list.length, from, rows.length, PAGE_SIZE, '건');
+  }
+
+  /* ---------- 9. 보낸 메일 (기획자 결정 2026-11-10 20번, 2026-11-09 5회차 9번) ----------
+   * 독촉과 알림에 기대는 통제(CTL-62)의 증빙: 보낸 사실만(알림 종류, 받은 사람, 계약번호, 보낸 일시, 성공과 실패의 까닭). 메일 본문과 제목은 보이지 않음
+   * 보는 사람: 정보보호 담당자와 감사 열람만(시연에서는 최고관리자도, 이 화면의 다른 묶음과 같음). 그 밖의 역할이 이 화면에 들어오게 되어도 이 묶음은 지움
+   *   (화면을 열 때 정해 자리가 흔들리지 않음). 보기만, 단추 없음
+   * 열람 제한 계약은 계약번호만(고객사 이름 없음, REQ-AUTH-09). 그 밖의 계약은 번호 아래 고객사 이름
+   * 거르기: 보낸 달(전체 또는 이 시스템을 쓰기 시작한 달부터 이달까지), 알림 종류(EMAIL_TYPES). 최근 것부터 한 쪽 20건
+   * 프로토타입: 예시 기록(D.MAIL_LOG)만 보임. 시연에서 이 브라우저로 보낸 메일(계정 목록 확인 요청, 컴플라이언스에 넘김 등)은 더하지 않음.
+   *   실제 시스템은 메일을 보낼 때마다 서버가 한 줄씩 남기고 고치거나 지울 수 없음 */
+  const canSeeMail = me.role === 'SUPER' || C.hasRole(me, ['PRIVACY', 'AUDIT']);
+  if (!canSeeMail) $('#sec-mail').closest('section').remove();
+  const MAIL_TYPE = {};
+  D.EMAIL_TYPES.forEach(function (t) { MAIL_TYPE[t.code] = t.name; });
+  let mailPage = 1;
+  if (canSeeMail) {
+    $('#mail-month').innerHTML = '<option value="">전체</option>' + months().map(function (x) { return '<option value="' + x.ym + '">' + monthLabel(x.ym) + '</option>'; }).join('');
+    $('#mail-type').innerHTML = '<option value="">전체</option>' + D.EMAIL_TYPES.map(function (t) { return '<option value="' + esc(t.code) + '">' + esc(t.name) + '</option>'; }).join('');
+  }
+  function mailContract(id) {
+    if (!id) return '-';
+    const c = D.CONTRACTS.filter(function (x) { return x.id === id; })[0];
+    // 열람 제한 계약은 번호만(볼 수 있는 사람에게도 이 표에서는 번호만, 2026-11-10 20번)
+    return '<span class="cell-strong">' + esc(id) + '</span>' + (c && c.restricted ? ' ' + C.icon('lock', 'sm') : c && c.counterparty ? '<span class="cell-meta">' + esc(c.counterparty) + '</span>' : '');
+  }
+  function renderMail() {
+    if (!canSeeMail) return;
+    const ym = $('#mail-month').value, type = $('#mail-type').value;
+    const all = (D.MAIL_LOG || []).slice().sort(function (a, b) { return b.at.localeCompare(a.at); });
+    const list = all.filter(function (m) { return (!ym || m.at.slice(0, 7) === ym) && (!type || m.type === type); });
+    const fail = list.filter(function (m) { return !m.ok; }).length;
+    const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+    if (mailPage > pages) mailPage = pages;
+    const from = (mailPage - 1) * PAGE_SIZE, rows = list.slice(from, from + PAGE_SIZE);
+    $('#mail-count').innerHTML = C.meta([[(list.length !== all.length ? '검색 결과' : '전체'), '<strong>' + list.length + '건</strong>'], ['실패', fail + '건'], '본문은 남기지 않음']);
+    $('#mail-rows').innerHTML = rows.length ? rows.map(function (m) {
+      return '<tr' + (m.ok ? '' : ' class="is-alert"') + '><td class="num-left">' + dt(m.at) + '</td>' +
+        '<td>' + esc(MAIL_TYPE[m.type] || m.type) + '</td>' +
+        '<td class="center">' + esc(C.ownerLabel(m.to)) + '</td>' +
+        '<td class="center">' + mailContract(m.contractId) + '</td>' +
+        '<td>' + (m.ok ? C.badge('success', '성공') : C.badge('danger', '실패') + '<span class="cell-meta">' + esc(m.error || '까닭 없음') + '</span>') + '</td></tr>';
+    }).join('') : empty(5, '조건에 맞는 보낸 메일이 없습니다.');
+    $('#mail-pagination').innerHTML = C.pagerHtml(mailPage, pages, list.length, from, rows.length, PAGE_SIZE, '건');
   }
 
   /* ---------- 8. 관리자 변경 이력 (기획자 결정 2026-11-02 C-2) ----------
@@ -632,7 +797,13 @@
     renderQuarters();
     renderQData();
     renderLogs();
+    renderMail(); // 보낸 메일(기획자 결정 2026-11-10 20번). 볼 수 없는 역할이면 아무것도 하지 않음
     renderAdminLog(); // 이 화면에서 남긴 점검 기록도 바로 보이게(C-2)
+  }
+  // 보낸 메일 거르기(2026-11-10 20번): 고르기 칸 둘이라 change만 봄
+  if (canSeeMail) {
+    $('#mail-filter').addEventListener('change', function () { mailPage = 1; renderMail(); });
+    $('#mail-filter').addEventListener('submit', function (e) { e.preventDefault(); });
   }
   $('#filter').addEventListener('input', function () { page = 1; renderLogs(); });
   // 검색 칸은 'input'이 이미 그렸으므로 'change'(칸을 떠날 때)에서 다시 그리지 않음. 다시 그리면 누르던 줄이나 쪽 번호가 바뀌어 클릭이 사라짐(2026-11-06 점검 4회차)
@@ -660,6 +831,7 @@
     // 쪽 번호: 누른 단추가 다시 그려져 없어지므로 초점도 그 묶음 제목으로(2026-11-06 점검 3회차)
     else if (b.getAttribute('data-page') && b.closest('#cfg-pagination')) { cfgPage = Number(b.getAttribute('data-page')); renderConfig(); C.focusSection('#sec-config'); }
     else if (b.getAttribute('data-page') && b.closest('#adm-pagination')) { admPage = Number(b.getAttribute('data-page')); renderAdminLog(); C.focusSection('#sec-admin-log'); }
+    else if (b.getAttribute('data-page') && b.closest('#mail-pagination')) { mailPage = Number(b.getAttribute('data-page')); renderMail(); C.focusSection('#sec-mail'); } // 2026-11-10 20번
     else if (b.getAttribute('data-page')) { page = Number(b.getAttribute('data-page')); renderLogs(); C.focusSection('#sec-log'); }
   });
   refresh();

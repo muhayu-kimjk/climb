@@ -22,6 +22,7 @@
  *      기획자 결정 2026-11-02 A-5(추천과 다름): 고정값이던 알림 일수 네 칸을 지금 바로 둠. 바꾸는 방식(사유 필수, 변경 이력)은 앞의 둘과 같음
  *   4. 변경 이력: 누가, 언제, 무엇을, 사유. 고치거나 지울 수 없음
  *   기획자 결정 2026-11-02 C-5: 담당자, 유닛 리더, 대리 지정을 저장할 때 겹치면 안 되는 일이 생기면 알리고 까닭을 받아 저장(아래 "역할 겹침 확인")
+ *   기획자 결정 2026-11-09 5회차 1번: 저장하는 관리자 본인은 단계 담당자, 유닛 리더, 대신할 사람으로 고를 수 없음(candidates). 다른 관리자가 정함(CTL-99와 같은 규칙)
  * 프로토타입: 바꾼 내용은 이 브라우저에만 저장(시연 기록). 실제 시스템은 서버에 저장하고 사내망에서만 씀(REQ-SEC-04)
  * ===================================================================== */
 (function () {
@@ -62,9 +63,15 @@
     return '<span class="cell-strong">' + esc(a ? (a.dept ? a.dept + ' ' : '') + a.name : C.ownerLabel(id)) + '</span>';
   }
   // 그 역할(또는 그 분야 리더)이 있는, 사용 중지가 아닌 사람 (v0.29: 영업지원, 정보보호, 고객지원 리더도 고를 수 있음 [가정])
+  //   저장하는 관리자 본인(me.id)은 단계 담당자, 유닛 리더, 대신할 사람 어디에도 고를 수 없음. 본인은 다른 관리자가 정함
+  //   사용자 권한 관리의 "자기 권한은 다른 관리자가 바꿈"(CTL-99)과 같은 규칙. 관리자와 법무를 함께 가진 사람이 자기를 ④ 담당자로 정하던 길을 막음
+  //   (기획자 결정 2026-11-09 5회차 1번)
   function candidates(role, exceptId) {
-    return D.ACCOUNTS.filter(function (a) { return C.canTake(a.roles, role) && a.status !== 'SUSPENDED' && a.id !== exceptId; });
+    return D.ACCOUNTS.filter(function (a) { return C.canTake(a.roles, role) && a.status !== 'SUSPENDED' && a.id !== exceptId && a.id !== me.id; });
   }
+  // 고르는 칸 도움말 끝에 붙이는 한 줄: 본인이 목록에 없는 까닭 (기획자 결정 2026-11-09 5회차 1번)
+  //   창을 열 때 정해진 도움말이라 고르는 동안 줄이 생기거나 사라지지 않음(화면이 흔들리지 않게)
+  const SELF_NOTE = ' 본인은 다른 관리자가 정합니다.';
   // 그 줄의 지금 차례 (2026-11-03: HR 충전의 ⑩도 ⑩ 줄에서 셈. ⑨를 해 다른 재무 담당자에게 간 건은 아래 holders에 그 사람 이름으로)
   function rowQueue(code) { return C.pendingQueue(me, true, [code]); }
   function pendingCount(code) { return rowQueue(code).length; }
@@ -173,7 +180,7 @@
       title: team + ' 리더를 바꿀까요?',
       desc: '바꾸면 ' + team + ' 계약 중 아직 ③ 영업 검토 차례가 오지 않은 것부터 새 리더에게 갑니다.' + (n ? ' 지금 차례인 ' + n + '건은 ' + C.josa(C.ownerLabel(cur), '이', '가') + ' 그대로 처리합니다.' : ''),
       body: '<p class="modal-info">지금 리더: ' + (cur ? esc(C.ownerLabel(cur)) : '없음') + '</p>' +
-        C.fieldHtml({ name: 'to', label: '새 리더', type: 'select', required: true, options: [['', '고르세요']].concat(opts), help: '영업 리더 역할이 있는 사람만 고를 수 있습니다.' }) +
+        C.fieldHtml({ name: 'to', label: '새 리더', type: 'select', required: true, options: [['', '고르세요']].concat(opts), help: '영업 리더 역할이 있는 사람만 고를 수 있습니다.' + SELF_NOTE /* 본인 뺌(기획자 결정 2026-11-09 5회차 1번) */ }) +
         C.fieldHtml({ name: 'reason', label: '바꾸는 사유', type: 'textarea', required: true, placeholder: '예: 10월 20일 비즈니스2유닛 리더 발령' }) +
         conflictHtml(),
       btn: '리더 바꾸기',
@@ -211,7 +218,7 @@
       desc: '더하면 그 유닛 사람이 기안하는 계약의 ③ 영업 검토가 정한 리더에게 갑니다. 표에 없는 유닛의 계약은 영업 임원이 검토합니다.',
       body: C.fieldHtml({ name: 'unit', label: '유닛', type: 'select', required: true, options: [['', '고르세요']].concat(units.map(function (x) { return [x.label, x.label]; })),
           help: '2단계 유닛 중 영업 담당자나 영업 리더가 있고 아직 표에 없는 유닛만 고를 수 있습니다.' }) +
-        C.fieldHtml({ name: 'to', label: '리더', type: 'select', required: true, options: [['', '고르세요']].concat(opts), help: '영업 리더 역할이 있는 사람만 고를 수 있습니다.' }) +
+        C.fieldHtml({ name: 'to', label: '리더', type: 'select', required: true, options: [['', '고르세요']].concat(opts), help: '영업 리더 역할이 있는 사람만 고를 수 있습니다.' + SELF_NOTE /* 본인 뺌(기획자 결정 2026-11-09 5회차 1번) */ }) +
         C.fieldHtml({ name: 'reason', label: '더하는 사유', type: 'textarea', required: true, placeholder: '예: 2027년 1월 조직 개편으로 비즈니스4유닛 신설' }) +
         conflictHtml(),
       btn: '유닛 추가',
@@ -236,10 +243,11 @@
     // 기획자 결정 2026-11-03(C-18 ⑤): HR 충전의 ⑩을 재무 리더가 맡던 따로 한 줄('S10:HR')을 없애, ⑩ 줄도 다른 줄처럼 재무 담당자만 고름
     //   (2026-11-02에는 ⑩ 줄과 'S10:HR' 줄이 서로의 담당자를 고르지 못하게 뺐음. 이제 ⑨를 한 사람과 겹치면 다른 재무 담당자에게 감, common.js otherFinance)
     const opts = candidates(role, cur).map(function (a) { return [a.id, (a.dept ? a.dept + ' ' : '') + a.name]; });
-    if (!opts.length) { C.toast('바꿀 수 있는 ' + C.roleLabel(role) + ' 역할의 사람이 없으니 사용자 권한 관리에서 먼저 역할을 주세요.', true); return; }
+    // 본인을 빼서 고를 사람이 없어질 수도 있어 까닭에 함께 적음(기획자 결정 2026-11-09 5회차 1번)
+    if (!opts.length) { C.toast('바꿀 수 있는 ' + C.roleLabel(role) + ' 역할의 사람이 없으니 사용자 권한 관리에서 먼저 역할을 주세요. 본인은 다른 관리자가 정합니다.', true); return; }
     // 그 분야 리더도 고를 수 있음 (v0.29 가정, C.canTake)
     const help = C.roleLabel(role) + ' 역할' + (D.STEP_LEADS.some(function (r) { return D.ROLE_BASE[r] === role; }) ? '이나 그 분야 리더 역할' : '') + '이 있는 사람만 고를 수 있습니다.' +
-      (code === 'S10' ? ' HR 충전은 이 담당자가 ⑨를 하므로 그 ⑩은 다른 재무 담당자가 확인합니다.' : '');
+      (code === 'S10' ? ' HR 충전은 이 담당자가 ⑨를 하므로 그 ⑩은 다른 재무 담당자가 확인합니다.' : '') + SELF_NOTE; // 본인 뺌(기획자 결정 2026-11-09 5회차 1번)
     // 기획자 결정 2026-11-02 C-5: 새 담당자에게 겹치는 일이 생기면 알리고 까닭을 받음(③ 줄은 영업 임원의 ③으로 셈)
     const listFor = function (f) { const to = val(f, 'to'); return to ? C.roleConflicts(to, { addSteps: [code] }) : []; };
     C.formModal({
@@ -304,7 +312,7 @@
       desc: '기간 안에는 대신할 사람이 이 담당자의 차례를 처리하고, 결재 기록에 누구 대신인지와 근거가 남습니다.',
       body: C.fieldHtml({ name: 'absent', label: '자리를 비우는 담당자', type: 'select', required: true, options: [['', '고르세요']].concat(absentOpts) }) +
         C.fieldHtml({ name: 'sub', label: '대신할 사람', type: 'select', required: true, options: [['', '담당자를 먼저 고르세요']],
-          help: '같은 역할(영업지원, 정보보호, 고객지원은 그 분야 리더도)이 있는 사람만 고를 수 있습니다. 영업 리더는 영업 임원도 고를 수 있습니다.' }) +
+          help: '같은 역할(영업지원, 정보보호, 고객지원은 그 분야 리더도)이 있는 사람만 고를 수 있습니다. 영업 리더는 영업 임원도 고를 수 있습니다.' + SELF_NOTE /* 본인 뺌(기획자 결정 2026-11-09 5회차 1번) */ }) +
         '<div class="field-row">' +
           C.fieldHtml({ name: 'from', label: '시작일', type: 'date', required: true, value: D.TODAY, attrs: ' min="' + D.TODAY + '"' }) +
           C.fieldHtml({ name: 'to', label: '종료일', type: 'date', required: true, attrs: ' min="' + D.TODAY + '" data-after="fm-from" data-after-msg="종료일은 시작일보다 앞설 수 없습니다."' }) +

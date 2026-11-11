@@ -314,8 +314,16 @@
   .cal-day { width: 4rem; height: 4rem; font-size: var(--fs-body-medium); }
   .cal-foot { padding: 0.8rem; }
   .cal-foot .btn { height: var(--touch-min); }
+  /* 화면 높이를 넘지 않게 하고 넘치면 달력 안에서 스크롤(2026-11-09 5회차 점검: 휴대폰을 가로로 눕히면(높이 402px) 달력이 약 420px이라
+   *   아래 '취소', '확인' 단추가 화면 밖으로 잘렸고, 달력이 fixed라 화면을 내려도 볼 수 없었음). dvh는 주소 막대를 뺀 지금 보이는 높이,
+   *   dvh를 모르는 브라우저는 앞 줄(vh)을 씀. 자리는 common.js calPlace가 화면 안으로 맞춤 */
+  .cal { max-height: calc(100vh - 1.6rem); max-height: calc(100dvh - 1.6rem); overflow-y: auto; }
 }
 @media print { .date-btn, .cal { display: none !important; } .date-input .input { padding-right: 1.6rem; } }
 /* 막지는 않지만 알릴 것(고유번호 검증 숫자, 국세청 휴업 등, v0.39): 굵은 기본 글자 + Pink 아이콘 */
 .field-warn { display: flex; align-items: flex-start; gap: 0.4rem; margin-top: 0.6rem; font-size: var(--fs-body-small); font-weight: 700; color: var(--text-basic); }
 .field-warn .icon { flex-shrink: 0; margin-top: 0.2rem; color: var(--status-notice-icon); }
+/* 자리를 미리 두는 알림 한 줄: 비어도 한 줄 높이를 두고, 글이 길어도 두 줄로 늘지 않음(견적 할인율 한도 알림 #q-cap-warn).
+   알림이 생기며 아래가 밀렸음(기획자 결정 2026-11-09 5회차 11번. 견적 .q-meta:empty와 같은 방식) */
+.field-warn--reserve { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.field-warn--reserve:empty::before { content: "\00a0"; }

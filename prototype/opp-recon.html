@@ -25,8 +25,8 @@
   - 영업지원이 매월 판다 수주 목록 파일을 올려 시스템의 계약과 맞춰 봅니다.
   - 계약이 없는 수주와 수주 목록에 없는 계약을 보여 주고, 줄마다 의견을 받아 확인합니다. 운영 시작 뒤 수주한 건만 봅니다.
   - 파일에서 고객 담당자 이름과 연락처는 빼고 올립니다. 남긴 기록은 쌓기만 하고 고치거나 지우지 않습니다(누가, 언제).
-  - 볼 수 있는 사람: 영업지원(담당자, 리더), 최고관리자(시연용), 감사 열람(보기만). 메뉴는 위 메뉴 줄의 "점검"(기획자 결정 2026-11-03, common.js MENU, CHECK_OWNERS).
-    확인을 남길 수 있는지는 C.canDoCheck(me, 'SCR-62'). 읽기만 하는 역할에는 단추가 없습니다.
+  - 볼 수 있는 사람: 영업지원(담당자, 리더), 최고관리자(시연용), 감사 열람(보기만), 컴플라이언스(보기만, 기획자 결정 2026-11-10 16번). 메뉴는 위 메뉴 줄의 "점검"(기획자 결정 2026-11-03, common.js MENU, CHECK_OWNERS).
+    확인을 남길 수 있는지는 C.canDoCheck(me, 'SCR-62'). 읽기만 하는 역할과 컴플라이언스에는 단추가 없고, 월별 대사 안내(months-desc) 끝에 "보기만 합니다"가 붙습니다.
   - 묶음: 월별 대사(달마다 한 줄, 기한과 확인) → 고른 달의 대사(파일 올리기, 맞춰 본 숫자, 계약이 없는 수주, 수주 목록에 없는 계약, 확인) → 대사 기록(쌓기만 함)
   - 계약과 수주는 영업기회번호로 맞춤(계약의 번호는 C.oppOf). 반려된 계약도 계약으로 셈(다시 기안하면 같은 계약). 변경과 연장은 각자 번호
   - 동작은 assets/js/opp-recon.js
@@ -54,7 +54,8 @@
         <!-- 월별 대사: 운영을 시작한 달부터 이달까지 한 줄씩(opp-recon.js renderMonths) -->
         <section class="panel" id="app" aria-labelledby="app-title">
           <div class="panel-head"><h2 class="panel-title" id="app-title">월별 대사</h2></div>
-          <p class="panel-desc">지난달 수주 목록은 다음 달 말일까지 맞춰 보고 확인합니다. 운영을 시작한 달부터의 수주만 봅니다.</p>
+          <!-- 보기만 하는 사람(감사 열람, 컴플라이언스)에게는 opp-recon.js가 이 안내 끝에 "보기만 합니다"를 붙임(기획자 결정 2026-11-10 16번) -->
+          <p class="panel-desc" id="months-desc">지난달 수주 목록은 다음 달 말일까지 맞춰 보고 확인합니다. 운영을 시작한 달부터의 수주만 봅니다.</p>
           <div class="tbl-scroll" tabindex="0" role="region" aria-label="월별 대사 표">
             <table class="tbl tbl--compact">
               <caption class="sr-only">월별 대사: 대상 월, 기한, 올린 파일, 맞춰 본 결과, 확인, 보기</caption>
@@ -97,6 +98,7 @@
 
   <script src="assets/js/mock-data.js"></script>
   <script src="assets/js/common.js"></script>
+  <script src="assets/js/control-checks.js"></script><!-- 점검 문제를 컴플라이언스에 넘기기(기획자 결정 2026-11-09 5회차 13번) -->
   <script src="assets/js/opp-recon.js"></script>
 </body>
 </html>

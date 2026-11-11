@@ -38,8 +38,10 @@ def main():
         cdp.call('Page.enable')
         cdp.call('Runtime.enable')
         for ck in checks:
-            cdp.call('Emulation.setDeviceMetricsOverride', width=ck.get('w', 1000), height=ck.get('h', 1300), deviceScaleFactor=ck.get('dpr', 1), mobile=False)
-            feats = [{'name': 'prefers-color-scheme', 'value': 'dark' if ck.get('dark') else 'light'}]
+            cdp.call('Emulation.setDeviceMetricsOverride', width=ck.get('w', 1000), height=ck.get('h', 1300), deviceScaleFactor=ck.get('dpr', 1), mobile=bool(ck.get('touch')))
+            # "touch": true면 손가락 기기처럼(hover: none, pointer: coarse). 휴대폰 가로(874x402)가 휴대폰 배치를 받는지 볼 때 씀(2026-11-09)
+            cdp.call('Emulation.setTouchEmulationEnabled', enabled=bool(ck.get('touch')), maxTouchPoints=5 if ck.get('touch') else 1)
+            feats =[{'name': 'prefers-color-scheme', 'value': 'dark' if ck.get('dark') else 'light'}]
             for name in ('forced-colors', 'prefers-contrast', 'prefers-reduced-motion'):
                 feats.append({'name': name, 'value': ck.get('features', {}).get(name, '')})
             cdp.call('Emulation.setEmulatedMedia', media=ck.get('media', 'screen'), features=feats)

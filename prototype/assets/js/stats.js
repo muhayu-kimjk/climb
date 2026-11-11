@@ -23,6 +23,8 @@
  *   - 금액이 있는 계약만(신규, 변경, 연장). 해지와 운영 변경, 작성 중은 넣지 않음
  *   - 열람 제한 계약 중 이 사람이 볼 수 없는 건은 어디에도 넣지 않음(합계로도 드러나지 않게)
  * 그래프(dataviz 기준): 막대는 한 색(--chart-bar), 값은 막대 끝에 글자로, 그래프마다 "표로 보기"
+ *   "표로 보기" 표의 금액은 정확한 금액(C.fmtWon, 예: 120,000,000원, 합계 줄 포함). 그래프 눈금, 막대 글자, 마우스 설명,
+ *   맨 위 요약 칸은 줄인 금액(1.2억, 1억 2,000만 원) 그대로 (기획자 결정 2026-11-09 5회차 12번: 다른 표와 꼴을 맞춤)
  *   색만으로 뜻을 전하지 않음(기준을 넘은 단계는 "기준 넘음" 글자를 붙임)
  * 볼 수 있는 사람: 모두 (전체 계약과 같음). 기간 마감 점검의 확인은 재무(담당자, 리더, 임원)만 남김. 통제 지표 묶음은 리더, 임원, 감사 열람만(C-1)
  *   통제 증빙 내보내기는 감사 열람(과 시연용 최고관리자)만(C-3). 감사 열람은 열람 제한 계약까지 모두 셈(C.canView, C-2)
@@ -123,7 +125,8 @@
   options($('#f-service'), [['', '전체']].concat(Object.keys(D.SERVICES).map(function (k) { return [k, D.SERVICES[k]]; })));
   options($('#f-unit'), [['', '전체']].concat(units.map(function (u) { return [u, u]; })));
 
-  $('#intro-sub').textContent = '해지와 운영 변경은 금액에 넣지 않고, ⑧에서 반려된 계약도 넣지 않습니다. 진행 중인 금액은 기간과 상관없이 지금 검토부터 체결본 등록 전까지인 계약의 금액입니다.' +
+  // 2026-11-09 5회차 점검: 조건 그대로 연장은 ⑩ 재무 확인 전까지 진행 중으로 셈(아래 pipe)
+  $('#intro-sub').textContent = '해지와 운영 변경은 금액에 넣지 않고, ⑧에서 반려된 계약도 넣지 않습니다. 진행 중인 금액은 기간과 상관없이 지금 검토부터 체결본 등록 전까지(조건 그대로 연장은 ⑩ 재무 확인 전까지)인 계약의 금액입니다.' +
     (hiddenCount ? ' 열람 제한 계약 중 볼 수 없는 ' + hiddenCount + '건은 넣지 않았습니다.' : '');
 
   /* ---------- 그래프 조각 ---------- */
@@ -193,7 +196,11 @@
     // 1. 한눈에 보기
     const kinds = {};
     signed.forEach(function (c) { kinds[c.kind] = (kinds[c.kind] || 0) + 1; });
-    const pipe = base.filter(function (c) { return PIPELINE.indexOf(c.status) > -1 && !signDate(c) && counted(c); });
+    // 2026-11-09 5회차 점검: 조건 그대로 연장은 ④ 뒤 바로 ⑨, ⑩(운영 검토)으로 가고 체결일이 ⑩ 재무 확인일이라,
+    //   운영 검토 동안 진행 중인 금액과 체결 금액 어디에도 들지 않았음(예: 2512CL001-R01). 그래서 이것도 진행 중으로 셈(REQ-DASH-19)
+    const pipe = base.filter(function (c) {
+      return (PIPELINE.indexOf(c.status) > -1 || (c.renewMode === 'AUTO' && c.status === 'OPS_REVIEW')) && !signDate(c) && counted(c);
+    });
     // 기안부터 체결까지: 서명본 체결일까지(B-8). 날짜만 있어 그날 0시로 셈. 서명이 기안보다 앞선 예외는 0일
     const lead = signed.map(function (c) { return Math.max(0, daysFrom(c.requestedAt, signDate(c))); });
     // 체결한 달 뒤에 체결본을 올린 계약(B-8: 올린 때도 남김). 기간 말 앞뒤 확인은 아래 기간 마감 점검
@@ -201,7 +208,8 @@
     const tiles = [
       ['체결 금액', fmtMoney(sum(signed)), '서명본 체결일 기준' + (lateUp ? ', 체결한 달 뒤에 올린 ' + lateUp + '건 포함' : '')],
       ['체결 건수', signed.length + '건', AMOUNT_KINDS.filter(function (k) { return kinds[k]; }).map(function (k) { return D.KINDS[k] + ' ' + kinds[k] + '건'; }).join(', ') || '없음'],
-      ['진행 중인 금액', fmtMoney(sum(pipe)), '기간과 상관없이 지금 검토부터 체결본 등록 전까지 ' + pipe.length + '건'],
+      // 2026-11-09 5회차 점검: 조건 그대로 연장은 ⑩ 재무 확인 전까지 진행 중(위 pipe)이라 아래 줄에도 적음
+      ['진행 중인 금액', fmtMoney(sum(pipe)), '기간과 상관없이 지금 검토부터 체결본 등록 전까지(조건 그대로 연장은 ⑩ 재무 확인 전까지) ' + pipe.length + '건'],
       ['기안부터 체결까지', lead.length ? '평균 ' + fmtDays(lead.reduce(function (a, b) { return a + b; }, 0) / lead.length) : '-',
         lead.length ? '가장 길었던 계약 ' + fmtDays(Math.max.apply(null, lead)) : '체결한 계약 없음'],
     ];
@@ -216,10 +224,11 @@
     $('#month-desc').innerHTML = from + '~' + to + '. 막대 위 글자는 가장 큰 달' + (months.indexOf(todayKey) > -1 ? '과 이번 달' : '') + '입니다.' +
       '<span class="no-print"> 달마다 건수와 금액은 막대에 마우스를 올리거나 아래 "표로 보기"를 펼쳐 봅니다.</span>';
     $('#month-chart').innerHTML = columnChart(months, by);
+    // 표로 보기는 정확한 금액(합계 줄도). 그래프는 줄인 금액 그대로 (기획자 결정 2026-11-09 5회차 12번)
     $('#month-rows').innerHTML = months.map(function (k) {
       return '<tr><td class="center">' + monthLong(k) + (k === todayKey ? '<span class="cell-meta">' + Number(D.TODAY.slice(8)) + '일까지</span>' : '') + '</td>' +
-        '<td class="num">' + by[k].count + '건</td><td class="num">' + fmtMoney(by[k].sum) + '</td></tr>';
-    }).join('') + '<tr class="row-total"><th scope="row" class="center">합계</th><td class="num">' + signed.length + '건</td><td class="num">' + fmtMoney(sum(signed)) + '</td></tr>';
+        '<td class="num">' + by[k].count + '건</td><td class="num">' + C.fmtWon(by[k].sum) + '</td></tr>';
+    }).join('') + '<tr class="row-total"><th scope="row" class="center">합계</th><td class="num">' + signed.length + '건</td><td class="num">' + C.fmtWon(sum(signed)) + '</td></tr>';
 
     // 3. 서비스마다, 영업 유닛마다 (두 서비스를 함께 계약한 건은 "함께"로 따로 셈: 금액을 나누지 않음)
     function group(keyOf) {
@@ -235,8 +244,9 @@
     };
     $('#service-chart').innerHTML = barChart(toRows(svc), { labelW: '10rem', valW: '7.2rem' });
     $('#unit-chart').innerHTML = barChart(toRows(unt), { labelW: '10rem', valW: '7.2rem' });
+    // 표로 보기는 정확한 금액. 가로 막대 글자와 마우스 설명은 줄인 금액 그대로 (기획자 결정 2026-11-09 5회차 12번)
     $('#split-rows').innerHTML = [['서비스', svc], ['영업 유닛', unt]].map(function (p) {
-      return p[1].map(function (g) { return '<tr><td class="center">' + p[0] + '</td><td>' + esc(g.label) + '</td><td class="num">' + g.count + '건</td><td class="num">' + fmtMoney(g.sum) + '</td></tr>'; }).join('');
+      return p[1].map(function (g) { return '<tr><td class="center">' + p[0] + '</td><td>' + esc(g.label) + '</td><td class="num">' + g.count + '건</td><td class="num">' + C.fmtWon(g.sum) + '</td></tr>'; }).join('');
     }).join('') || '<tr><td colspan="4" class="empty-row">이 조건에서 체결한 계약이 없습니다.</td></tr>';
 
     // 4. 결재 단계마다 걸린 날: 기간 안에 처리한 단계(차례가 온 때 → 처리한 때)
@@ -374,15 +384,24 @@
    * 열람 제한 계약 가운데 볼 수 없는 건은 넣지 않음(위 조건의 base와 signed가 이미 뺌). 감사 열람은 모두 셈 */
   const RISK_DAYS = 30, QEND_DAYS = 5;
   function pct1(n) { return (Math.round(n * 1000) / 10).toLocaleString('ko-KR') + '%'; }
+  // 2026-11-09 5회차 점검: 줄의 표준 단가와 한도. E-4대로 기안 때 줄에 남긴 값(l.listPrice, l.cap)을 먼저, 없으면 기안한 날의 가격 줄
+  //   (예전에는 기안한 날의 가격 줄만 봐서, 기안한 날부터 적용하는 가격을 더하면 통계만 할인 예외 점검, 결재 문서와 다른 할인율이 나왔음.
+  //   discount-review.js, common.js capOver와 같은 모양. 줄에 단가가 있으면 가격 줄이 없어도 셈)
+  function lineStd(l, price) {
+    const p = price[l.feature];
+    const list = l.listPrice != null ? Number(l.listPrice) : p ? p.listPrice : null;
+    const cap = l.cap != null ? Number(l.cap) : p ? p.discountCap || 0 : 0;
+    return list == null ? null : { list: list, cap: cap };
+  }
   // 계약의 할인율(표준 금액 대비). 셀 수 없으면 null
   function discountOf(c) {
     const lines = c.products || (c.form && c.form.products) || [], day = String(c.requestedAt || D.TODAY).slice(0, 10);
     const price = C.pricesAt(day);
     let std = 0, amt = 0;
     lines.forEach(function (l) {
-      const p = price[l.feature], q = Number(l.qty) || 0;
-      if (!p || !q) return;
-      std += p.listPrice * q; amt += Number(l.amount) || 0;
+      const s = lineStd(l, price), q = Number(l.qty) || 0;
+      if (!s || !q) return;
+      std += s.list * q; amt += Number(l.amount) || 0;
     });
     return std ? (std - amt) / std : null;
   }
@@ -392,9 +411,9 @@
     const price = C.pricesAt(day);
     let max = null;
     lines.forEach(function (l) {
-      const p = price[l.feature], q = Number(l.qty) || 0;
-      if (!p || !q) return;
-      const pp = Math.round(((p.listPrice * q - (Number(l.amount) || 0)) / (p.listPrice * q) - (p.discountCap || 0)) * 1000) / 10;
+      const s = lineStd(l, price), q = Number(l.qty) || 0;
+      if (!s || !q || !s.list) return;
+      const pp = Math.round(((s.list * q - (Number(l.amount) || 0)) / (s.list * q) - s.cap) * 1000) / 10;
       max = max == null ? pp : Math.max(max, pp);
     });
     return max;

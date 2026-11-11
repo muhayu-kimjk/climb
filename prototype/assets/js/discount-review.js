@@ -3,8 +3,10 @@
  * ---------------------------------------------------------------------
  * 기획자 결정 2026-11-02 C-9(G-14, 05 4장 11번): 승인된 할인 예외를 매월 재무 임원(CFO)이 다시 봄. 기한은 다음 달 말일, 기록은 쌓기만 함
  *   재무 임원은 결재 단계를 맡지 않아 ③ 승인과 떨어져 있음. E-3(A안)으로 할인 폭이 큰 계약은 ③에서 영업 임원도 승인하므로 그 승인도 함께 봄
- * 볼 수 있는 사람: 재무 임원(C.checkOwners('SCR-61')), 최고관리자(시연용), 감사 열람(보기만)
- * 남길 수 있는지: C.canDoCheck(me, 'SCR-61'). 읽기만 하는 역할(감사 열람, 끝난 역할)은 false라 단추와 관리 칸을 그리지 않음
+ * 볼 수 있는 사람: 재무 임원(C.checkOwners('SCR-61')), 최고관리자(시연용), 감사 열람(보기만), 컴플라이언스(보기만)
+ *   기획자 결정 2026-11-10 16번: 컴플라이언스도 감사 열람처럼 보기만 함. 넘어온 일("문제 있음" 줄)의 원래 기록을 바로 봄
+ * 남길 수 있는지: C.canDoCheck(me, 'SCR-61')이면서 컴플라이언스가 아님. 읽기만 하는 역할(감사 열람, 끝난 역할)과 컴플라이언스는 false라
+ *   단추와 관리 칸을 그리지 않고 "보기만 합니다" 안내를 덧붙임
  * 하는 일
  *   1. 매월 점검: 이 시스템을 쓰기 시작한 달(D.SERVICE_START_MONTH)부터 이달까지. 기한(다음 달 말일), 줄 수, 확인한 줄, 상태
  *      기한이 지나도 마치지 않았으면 줄을 강조. 대상 월을 누르면 아래에 그달 점검(주소 ?month=2026-09, 처음에는 지난달)
@@ -19,6 +21,8 @@
  * 기록: D.DISCOUNT_REVIEWS(예시) + 시연 기록(C.pushDemo 'discountReviews', 이 브라우저에만). 실제 시스템은 서버의 점검 기록
  *   기록의 칸은 mock-data.js DISCOUNT_REVIEWS 주석
  * 최고관리자(시연)는 자기 작업이 든 줄(기안했거나 ③, ⑩을 처리함)을 확인하지 못하고, 그런 줄이 있으면 점검 마침도 남기지 않음(C-6)
+ * 기획자 결정 2026-11-09 5회차 13번: 줄 확인 창에 "문제 있음"을 두고, 고르면 의견 필수. 저장하면 컴플라이언스에 넘김(control-checks.js X.raiseIssue)
+ *   컴플라이언스 담당자의 개요 점검할 일에 올라가고 이메일이 감. 줄 기록에 issue(문제 있음), issueId(넘어온 일 번호)를 남김
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -27,10 +31,12 @@
   const esc = C.esc;
   const $ = function (s) { return document.querySelector(s); };
   const SCR = 'SCR-61';
-  if (!C.gate(me, C.checkOwners(SCR).concat(['AUDIT']), '할인 예외 점검은 재무 임원이 씁니다',
-    '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 화면 맨 위 검은 띠에서 재무 임원, 감사 열람, 최고관리자 가운데 하나로 바꾸면 볼 수 있습니다.')) return;
+  // 문: 맡은 사람, 감사 열람, 컴플라이언스(보기만, 기획자 결정 2026-11-10 16번)
+  if (!C.gate(me, C.checkOwners(SCR).concat(['AUDIT', 'COMPLIANCE']), '할인 예외 점검은 재무 임원이 씁니다',
+    '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 화면 맨 위 검은 띠에서 재무 임원, 감사 열람, 컴플라이언스, 최고관리자 가운데 하나로 바꾸면 볼 수 있습니다.')) return;
 
-  const canDo = C.canDoCheck(me, SCR); // 재무 임원, 최고관리자(시연). 감사 열람은 보기만
+  // 재무 임원, 최고관리자(시연). 감사 열람과 컴플라이언스는 보기만(기획자 결정 2026-11-10 16번)
+  const canDo = C.canDoCheck(me, SCR) && !(me.role !== 'SUPER' && C.hasRole(me, ['COMPLIANCE']));
   const PAGE_SIZE = 20;                // 점검 기록 한 쪽 (REQ-ADM-04)
   const START_MONTH = D.SERVICE_START_MONTH;
   const THIS_MONTH = D.TODAY.slice(0, 7);
@@ -146,6 +152,17 @@
     return (D.DISCOUNT_REVIEWS || []).concat(C.loadDemo('discountReviews'))
       .slice().sort(function (a, b) { return String(a.at).localeCompare(String(b.at)); });
   }
+  /* 컴플라이언스에 넘기기(기획자 결정 2026-11-09 5회차 13번): control-checks.js의 X.raiseIssue를 씀
+   *   discount-review.html이 아직 control-checks.js를 부르지 않아, 필요할 때 한 번 불러 씀(HTML에 script 줄을 더하면 바로 window.CLIMB_CTL을 씀)
+   *   남길 수 있는 사람에게는 화면을 열 때 미리 불러 둠(아래 시작). 불러오지 못하면 넘기지 못하고 알림 */
+  function withCtl(then) {
+    if (window.CLIMB_CTL) { then(window.CLIMB_CTL); return; }
+    const s = document.createElement('script');
+    s.src = 'assets/js/control-checks.js';
+    s.onload = function () { then(window.CLIMB_CTL || null); };
+    s.onerror = function () { then(null); };
+    document.head.appendChild(s);
+  }
   // 읽기만 하는 역할은 남기지 않음(단추를 그리지 않는 것과 겹으로 막음)
   function save(rec) {
     if (!canDo) return false;
@@ -241,7 +258,9 @@
   function checkCell(x, st) {
     const r = st.got[x.key];
     if (r) {
-      return '<td>' + C.badge('success', '확인함') + '<span class="cell-meta">' + esc(C.ownerLabel(r.by, r.dept)) + ', ' + C.fmtDateTime(r.at) + '</span>' +
+      // 문제 있음으로 확인한 줄은 보라 "문제 있음"과 넘어온 일 번호(기획자 결정 2026-11-09 5회차 13번)
+      return '<td>' + (r.issue ? C.badge('attention', '문제 있음') : C.badge('success', '확인함')) + '<span class="cell-meta">' + esc(C.ownerLabel(r.by, r.dept)) + ', ' + C.fmtDateTime(r.at) + '</span>' +
+        (r.issue ? '<span class="cell-meta">컴플라이언스에 넘김' + (r.issueId ? '(' + esc(r.issueId) + ')' : '') + '</span>' : '') +
         (r.opinion ? '<span class="dr-opinion">' + esc(r.opinion) + '</span>' : '<span class="cell-meta">의견 없음</span>') + '</td>';
     }
     return '<td>' + C.badge('line', '확인 전') + (canDo && mine(x) ? '<span class="cell-meta">내 작업이 든 줄이라 다른 사람이 확인합니다</span>' : '') + '</td>';
@@ -359,7 +378,9 @@
   function recText(r) {
     if (r.type === 'LIMIT') return '가장 큰 줄 할인율 ' + esc(String(r.limit)) + '% 이상은 의견 필수' + (r.reason ? '<span class="cell-meta">바꾼 까닭: ' + esc(r.reason) + '</span>' : '');
     if (r.type === 'ROW') {
-      return '<span class="dr-line">' + esc(r.contractId) + ' ' + esc(PART[r.part] || '') + (r.over ? ' ' + C.badge('attention', '의견 필수') : '') + '</span>' +
+      return '<span class="dr-line">' + esc(r.contractId) + ' ' + esc(PART[r.part] || '') + (r.over ? ' ' + C.badge('attention', '의견 필수') : '') +
+          (r.issue ? ' ' + C.badge('attention', '문제 있음') : '') + '</span>' + // 2026-11-09 5회차 13번
+        (r.issue ? '<span class="cell-meta">컴플라이언스에 넘김' + (r.issueId ? '(' + esc(r.issueId) + ')' : '') + '</span>' : '') +
         (r.opinion ? '<span class="dr-opinion">' + esc(r.opinion) + '</span>' : '<span class="cell-meta">의견 없음</span>') +
         (r.seen ? '<details class="seen-data"><summary>확인 때 본 내용</summary><p class="cell-meta">' + esc(r.seen) + '</p></details>' : '');
     }
@@ -418,23 +439,49 @@
     const x = st.rows.filter(function (r) { return r.key === key; })[0];
     if (!x || !canRow(x, st)) return;
     const need = isOver(x, st);
+    // 의견 칸: 한계값 밑이면 (선택). "문제 있음"을 고르면 필수 표시로 바꿀 수 있게 숨긴 필수 표시를 미리 둠(설정 변경 확인의 의견 칸과 같은 방식, 2026-11-09 5회차 13번)
+    let opinionHtml = C.fieldHtml({ name: 'opinion', label: '의견', type: 'textarea', required: need, optional: !need,
+      placeholder: x.part === 'DISC' ? '예: 첫 도입 조건과 레퍼런스 확보를 보면 할인 폭이 받아들일 만함. 같은 유닛의 다음 예외는 함께 봄'
+        : '예: 결산 자료 준비로 늦음. 재무 리더에게 기한 안 처리를 다시 알림',
+      help: need ? (x.disc ? '가장 큰 줄 할인율이 한계값(' + st.limit.limit + '%) 이상이라 의견을 꼭 적습니다.' : '제품 줄이 없어 할인율을 셀 수 없으므로 의견을 꼭 적습니다.') : '' });
+    if (!need) opinionHtml = opinionHtml.replace(' <span class="opt">', '<span class="req" aria-hidden="true" hidden>*</span><span class="sr-only req-sr" hidden>(필수)</span> <span class="opt">');
     C.formModal({
       title: PART[x.part] + ' 줄을 확인할까요?',
       desc: '저장하면 확인한 사람과 일시, 의견, 지금 본 내용이 남고 고치거나 되돌릴 수 없습니다.',
-      body: '<p class="modal-info">' + esc(rowTitle(x)) + '<br>' + esc(seenOf(x)) + '</p>' +
-        // 한계값 밑이면 optional로 "(선택)"을 다른 창과 같은 모양으로(2026-11-06 점검 3회차)
-        C.fieldHtml({ name: 'opinion', label: '의견', type: 'textarea', required: need, optional: !need,
-          placeholder: x.part === 'DISC' ? '예: 첫 도입 조건과 레퍼런스 확보를 보면 할인 폭이 받아들일 만함. 같은 유닛의 다음 예외는 함께 봄'
-            : '예: 결산 자료 준비로 늦음. 재무 리더에게 기한 안 처리를 다시 알림',
-          help: need ? (x.disc ? '가장 큰 줄 할인율이 한계값(' + st.limit.limit + '%) 이상이라 의견을 꼭 적습니다.' : '제품 줄이 없어 할인율을 셀 수 없으므로 의견을 꼭 적습니다.') : '' }),
+      body: '<p class="modal-info">' + esc(rowTitle(x)) + '<br>' + esc(seenOf(x)) + '</p>' + opinionHtml +
+        // 기획자 결정 2026-11-09 5회차 13번: 문제가 있는 줄은 컴플라이언스에 넘김. 고르면 의견 필수, 저장하면 컴플라이언스 담당자 점검할 일과 이메일
+        '<div class="field" data-field="issue"><label class="choice"><input type="checkbox" name="issue" value="Y">문제 있음: 컴플라이언스 담당자에게 넘깁니다</label>' +
+          '<p class="field-help">고르면 의견을 꼭 적습니다. 저장하면 컴플라이언스 담당자의 점검할 일에 올라가고 이메일로 알립니다.</p></div>',
       btn: '확인 남기기',
-      check: function (f) { return { opinion: need && !f.elements.opinion.value.trim() ? '의견을 적으세요.' : '' }; },
+      open: function (f) {
+        if (need) return; // 이미 의견 필수인 줄은 바꿀 표시가 없음
+        const box = f.querySelector('[data-field="opinion"]');
+        const sync = function () {
+          const on = f.elements.issue.checked;
+          box.querySelector('.req').hidden = !on;
+          box.querySelector('.req-sr').hidden = !on;
+          box.querySelector('.opt').hidden = on;
+          if (!on) C.setFieldError(box, ''); // 문제 있음을 풀면 "적으세요" 오류는 맞지 않으므로 지움
+        };
+        f.elements.issue.addEventListener('change', sync);
+        sync();
+      },
+      check: function (f) { return { opinion: (need || f.elements.issue.checked) && !f.elements.opinion.value.trim() ? '의견을 적으세요.' : '' }; },
       done: function (f) {
-        if (save({ type: 'ROW', key: x.key, contractId: x.c.id, part: x.part, over: need, limit: st.limit ? st.limit.limit : null,
-          opinion: f.elements.opinion.value.trim(), seen: seenOf(x) })) {
+        const issue = f.elements.issue.checked;
+        const rec = { type: 'ROW', key: x.key, contractId: x.c.id, part: x.part, over: need, limit: st.limit ? st.limit.limit : null,
+          opinion: f.elements.opinion.value.trim(), seen: seenOf(x), issue: issue };
+        // 문제 있음이면 넘긴 뒤 넘어온 일 번호를 줄 기록에 함께 남김. 고객사 이름은 넣지 않고 계약번호만(열람 제한 계약 보호)
+        const finish = function (X, i) {
+          if (!save(Object.assign(rec, { issueId: i ? i.id : null }))) return;
           refresh();
-          C.toast(x.c.id + ' ' + PART[x.part] + ' 줄 확인을 남겼습니다.');
-        }
+          C.toast(x.c.id + ' ' + PART[x.part] + ' 줄 확인을 남겼습니다.' + (issue ? (X ? X.issueToast(i) : ' 컴플라이언스에 넘기지 못했습니다. 화면을 새로 고친 뒤 컴플라이언스 담당자에게 알려 주세요.') : ''), issue && !i);
+        };
+        if (!issue) { finish(null, null); return; }
+        withCtl(function (X) {
+          finish(X, X ? X.raiseIssue({ source: 'DISCOUNT', title: monthLabel(sel) + ' 할인 예외 점검: ' + x.c.id + ' ' + PART[x.part] + ' 문제 있음',
+            note: rec.opinion, href: 'discount-review.html?month=' + sel, ref: x.key }) : null);
+        });
       },
     });
   }
@@ -461,11 +508,11 @@
   }
 
   /* ---------- 시작 ---------- */
-  // 읽기만 하는 역할: 관리 칸을 빼고 안내 한 줄을 덧붙임(역할은 화면을 여는 동안 바뀌지 않아 자리가 흔들리지 않음)
+  // 읽기만 하는 역할과 컴플라이언스(기획자 결정 2026-11-10 16번): 관리 칸을 빼고 안내 한 줄을 덧붙임(역할은 화면을 여는 동안 바뀌지 않아 자리가 흔들리지 않음)
   if (!canDo) {
     document.querySelectorAll('th[data-act-col]').forEach(function (th) { th.remove(); });
     $('#months-desc').textContent += ' 보기만 합니다. 한계값과 줄 확인, 점검 마침은 재무 임원이 남깁니다.';
-  }
+  } else withCtl(function () {}); // 남길 수 있는 사람: 컴플라이언스에 넘길 때 쓸 control-checks.js를 미리 불러 둠(2026-11-09 5회차 13번)
   // 대상 월 고르기: 주소를 바꾸고(새로 고쳐도 같은 달) 아래 그달 점검으로 포커스를 옮김
   function pick(ym) {
     sel = ym;

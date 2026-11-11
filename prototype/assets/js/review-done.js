@@ -44,7 +44,7 @@
   }
   // 한 일: ⑥⑧⑨⑩의 승인은 "완료"로 함께 셈. 체결본 등록(⑦, 영업)은 최고관리자, 관리자 보기에서만 나옴
   //   보완 요청(②~⑤)과 보완 완료(기안자, 최고관리자와 관리자 보기)도 목록에 나오므로 거르기에 둠 (v0.63 점검에서 고침)
-  $('#f-action').innerHTML = options('전체', [['APPROVE', '승인, 완료'], ['REJECT', '반려'], ['SUPPLEMENT', '보완 요청'], ['CANCEL', '승인 취소'], ['RETURN', '다시 등록 요청']]
+  $('#f-action').innerHTML = options('전체', [['APPROVE', '승인, 완료'], ['REJECT', '반려'], ['SUPPLEMENT', '보완 요청'], ['CANCEL', '승인 취소'], ['RETURN', '다시 등록 요청'], ['CONFLICT', '이해관계 있음'], ['ASSIGN', '결재자 지정']] /* 결재자 지정은 기획자 결정 2026-11-10 18번,  기획자 결정 2026-11-09 5회차 14번 */
     .concat(seeAll ? [['REGISTER', '체결본 등록'], ['RESUBMIT', '보완 완료']] : [])); // 체결본 등록과 보완 완료는 영업의 일이라 모두 보는 보기에서만
   $('#f-step').innerHTML = options('전체 단계', D.REVIEW_GROUPS.concat(D.POST_GROUPS).reduce(function (a, g) { return a.concat(g); }, []).map(function (code) { return [code, C.stepLabel(code)]; }));
   $('#f-status').innerHTML = options('전체 상태', Object.keys(D.STATUS).filter(function (k) { return k !== 'DRAFT'; }).map(function (k) { return [k, D.STATUS[k].label]; }));
@@ -90,7 +90,7 @@
     const rows = list.slice(from, from + PAGE_SIZE);
     const count = function (a) { return list.filter(function (x) { return x.h.action === a; }).length; };
     $('#list-count').innerHTML = C.meta([[(list.length !== all.length ? '검색 결과' : '전체'), '<strong>' + list.length + '건</strong>'],
-      ['승인, 완료', count('APPROVE') + '건'], ['반려', count('REJECT') + '건'], ['보완 요청', count('SUPPLEMENT') + '건'], ['승인 취소', count('CANCEL') + '건'], ['다시 등록 요청', count('RETURN') + '건']]);
+      ['승인, 완료', count('APPROVE') + '건'], ['반려', count('REJECT') + '건'], ['보완 요청', count('SUPPLEMENT') + '건'], ['승인 취소', count('CANCEL') + '건'], ['다시 등록 요청', count('RETURN') + '건'], ['이해관계 있음', count('CONFLICT') + '건'], ['결재자 지정', count('ASSIGN') + '건']]); /* 기획자 결정 2026-11-10 18번 */ // 기획자 결정 2026-11-09 5회차 14번
     const cols = seeAll ? 7 : 6;
     $('#rows').innerHTML = rows.length ? rows.map(function (x) {
       const a = D.APPROVAL_ACTIONS[x.h.action];

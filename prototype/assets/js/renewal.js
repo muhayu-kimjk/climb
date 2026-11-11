@@ -86,7 +86,8 @@
     info('고객사', esc(root.counterparty)),
     info('계약번호', '<a href="' + back + '">' + esc(b.id) + '</a>' + (cur !== root ? ' (지금 유효: ' + esc(cur.id) + ')' : '')),
     // 늦은 연장(A-11)은 만료 처리 상태를 함께("만료, 서비스 닫기 전", "유예 중 (~2026-11-06)")
-    info('계약 기간', C.fmtPeriod(b.start, b.end) + '<span class="cell-meta">' + (late ? esc(ex.label) : '만료까지 ' + C.daysUntil(b.end) + '일') + '</span>'),
+    // 2026-11-09 5회차 점검: 종료일이 오늘이면 "만료까지 0일" 대신 "오늘 만료"(다른 화면의 "오늘"과 같은 말)
+    info('계약 기간', C.fmtPeriod(b.start, b.end) + '<span class="cell-meta">' + (late ? esc(ex.label) : C.daysUntil(b.end) ? '만료까지 ' + C.daysUntil(b.end) + '일' : '오늘 만료') + '</span>'),
     info('계약 금액', Number(cur.amount || 0).toLocaleString('ko-KR') + '원<span class="cell-meta">' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도</span>', 'amount'),
     info('해지 통지 기한', noticeDay ? '<span class="keep">' + C.fmtDate(noticeDay) + (C.daysUntil(noticeDay) < 0 ? ' <span class="wait-long">지남</span>' : '') + '</span><span class="cell-meta">만료 ' + b.noticeDays + '일 전까지 상대방에게 알려야 연장되지 않음</span>' : '-'),
     // 기획자 결정 2026-11-03(C-44): 지금 영업대표. 바뀌었으면 처음 기안한 사람, 맡을 수 없으면 "담당 지정 필요"(계약 상세와 같음)

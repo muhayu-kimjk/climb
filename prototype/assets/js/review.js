@@ -27,6 +27,13 @@
  *      C-44 영업대표 칸은 지금 영업대표(바뀌었으면 작은 줄에 처음 기안한 사람, 사용 중지라 정하기 전이면 "담당 지정 필요 (영업 리더가 맡음)").
  *        보완 완료, 보완 후 재기안, 원본 내려받기는 지금 영업대표(C.isSalesRep). 결재란의 기안 칸과 결재 기록의 기안 줄은 처음 기안한 사람 그대로
  *      C-18 ⑤ HR 충전의 ⑩은 재무 담당자(⑨를 하지 않은 다른 재무 담당자). 결재란 설명과 변경 내용의 ⑩ 줄
+ *   8. 기획자 결정 2026-11-09 5회차 14번: ③을 영업 리더가 맡고 있으면 처리 막대에 "이해관계 있음"(C.canDeclareInterest).
+ *      사유(필수)를 받고 이 계약의 ③만 영업 임원에게 넘김(결재 기록 CONFLICT, common.js stepUser). 컴플라이언스 담당자에게 이메일.
+ *      ③ 승인 창의 예전 "관리자에게 알려 주세요"를 바꿈
+ *   9. 기획자 결정 2026-11-10 18번: 영업 임원(과 컴플라이언스가 앞서 정한 결재자)이 맡은 ③과 ③ 영업 임원 승인에도 "이해관계 있음".
+ *      누르면 그 계약 묶음에 보류가 걸리고(사유 "③ 이해관계: 결재자 지정 필요") 컴플라이언스 담당자에게 이메일. 컴플라이언스 담당자가
+ *      개선 과제와 보류에서 다른 임원을 이 계약의 ③ 결재자로 정하면 보류가 풀림(C.declareInterest, C.interestMode 'HOLD').
+ *      8번의 "영업 임원이 맡은 ③은 컴플라이언스 담당자에게 알려 주세요"를 이 단추로 바꿈
  * 결재 상태 계산(누가 차례인지, 반려와 승인 완료)은 common.js(buildReview)가 결재 기록으로 합니다.
  * 프로토타입: 계약 상세 값 중 예시 데이터에 없는 것(사업자등록번호, 제품 줄 등)은 이 파일에서 만들어 보여 줍니다.
  * ===================================================================== */
@@ -126,17 +133,12 @@
     return { on: true, list: list, hidden: all.length - list.length };
   })();
   const recentCount = recent.list.length + recent.hidden;
-  // 제품 줄: 예시 데이터에 없으면 서비스별 기본 기능을 표준 단가 그대로 넣은 줄을 만듦 (줄의 feature가 기능 id, v0.49)
+  // 제품 줄 (줄의 feature가 기능 id, v0.49)
+  //   2026-11-09 5회차 점검: 제품 줄이 없는 계약(시스템 도입 전 계약)에 예시 줄을 지어내지 않음. 예전에는 서비스별 기본 기능으로 수량을 셈해
+  //   할인율이 체크리스트 2번, 3번 답과 어긋났음(예: 2509CL003 "60% 할인"인데 2번, 3번 예). 통계가 이런 계약을 "셀 수 없음"으로 빼는 것과 같게
+  //   표준 금액과 할인율은 "-"로 두고 서비스와 계약 금액만 보임(renderAmount)
   function productRows() {
-    let list = c.products || f.products;
-    if (!list) {
-      const base = { CK: 'CK_CAMPUS_PLAG', HR: 'HR_PRISM_DEFECT' };
-      const share = c.amount / (c.services || []).length;
-      list = c.amount ? (c.services || []).map(function (s) {
-        const p = PRICE[base[s]];
-        return { feature: p.feature, qty: Math.max(1, Math.floor(share / p.listPrice)), amount: share };
-      }) : [];
-    }
+    const list = c.products || f.products || [];
     return list.map(function (r) {
       // E-4: 기안 때 줄에 남긴 표준 단가와 한도를 먼저(그 뒤 가격 기준이 바뀌어도 ③이 본 할인율 그대로)
       const p = Object.assign({}, PRICE[r.feature], r.listPrice != null ? { listPrice: Number(r.listPrice) } : {}, r.cap != null ? { discountCap: Number(r.cap) } : {});
@@ -332,7 +334,11 @@
         : esc(TODO[C.isReviewStep(s.step) ? 'review' : s.step]);
       // 기획자 결정 2026-11-02: 승인 창에서 새로 꼭 표시하는 것을 미리 알림. ② 같은 거래처 최근 계약(E-2), ③ 이해관계 없음(C-14), ④ 반부패 조항(C-15)
       const must = s.step === 'S02' && recentCount ? '<br><strong>같은 거래처 최근 계약 ' + recentCount + '건</strong>이 있어 승인할 때 나눠 맺은 계약이 아닌지 꼭 표시합니다(기본 정보 아래 상자).'
-        : s.step === 'S03' || s.step === 'S03C' ? '<br>승인할 때 이 거래처와 개인적 이해관계가 없음을 꼭 표시합니다.'
+        // 기획자 결정 2026-11-09 5회차 14번: 리더가 맡은 ③이면 이해관계가 있을 때 할 일도 함께
+        // 기획자 결정 2026-11-10 18번: 임원이 맡은 ③이면 이해관계 있음이 보류와 결재자 지정 요청이 됨
+        : s.step === 'S03' || s.step === 'S03C' ? '<br>승인할 때 이 거래처와 개인적 이해관계가 없음을 꼭 표시합니다.' +
+          (!interestOk(s.step) ? '' : interestPass(s.step) ? ' 이해관계가 있으면 이해관계 있음을 눌러 이 계약만 영업 임원에게 넘깁니다.'
+            : ' 이해관계가 있으면 이해관계 있음을 눌러 주세요. 이 계약에 보류가 걸리고 컴플라이언스 담당자가 다른 임원을 결재자로 정합니다.')
         : s.step === 'S04' && abRequired ? '<br>간접, 조달 계약이라 승인할 때 반부패 조항 판단을 꼭 고릅니다.' : '';
       html = notice('', C.stepLabel(s.step, c) + ' 차례입니다 (' + C.waitDays(c, s) + '일째)', todo + must + behalf + ret);
     } else if (c.status === 'SUPPLEMENT' && c.supplement) {
@@ -641,6 +647,20 @@
       return;
     }
     const rows = productRows();
+    // 2026-11-09 5회차 점검: 제품 줄이 없고 금액이 있는 계약(시스템 도입 전 계약)은 같은 표 모양으로 서비스와 계약 금액만. 표준 금액과 할인율은 "-"
+    if (!rows.length && c.amount) {
+      const before = String(c.requestedAt || '').slice(0, 7) < (D.SERVICE_START_MONTH || '2026-09');
+      $('#amount').innerHTML =
+        '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
+          '<caption class="sr-only">제품별 금액: 제품 줄이 없어 서비스와 계약 금액만 보임. 표준 금액과 할인율은 셀 수 없음</caption>' +
+          '<thead><tr><th scope="col">제품과 기능</th><th scope="col" class="num">수량</th><th scope="col" class="num">표준 금액</th><th scope="col" class="num">계약 금액</th><th scope="col" class="num">할인율</th></tr></thead>' +
+          '<tbody><tr><td>' + esc(C.serviceLabel(c.services)) + '<span class="product-unit">' + (before ? '제품 줄 없음(시스템 도입 전 계약)' : '제품 줄 없음') + '</span></td>' +
+            '<td class="num">-</td><td class="num">-</td><td class="num">' + won(c.amount) + '</td><td class="num">-</td></tr></tbody>' +
+          '<tfoot><tr><th scope="row">총액 (부가세 별도)</th><td></td><td class="num total">-</td>' +
+            '<td class="num total">' + won(c.amount) + '<span class="total-read">' + esc(C.fmtKRW(c.amount)) + '</span></td><td class="num total">-</td></tr></tfoot>' +
+        '</table></div>';
+      return;
+    }
     if (!rows.length) { $('#amount').innerHTML = '<p class="empty">제품 정보가 없습니다.</p>'; return; }
     const total = rows.reduce(function (a, r) { return a + r.amount; }, 0);
     const stdTotal = rows.reduce(function (a, r) { return a + r.std; }, 0);
@@ -856,10 +876,16 @@
     if (action === 'REGISTER' && quote) return '견적서 등록'; // 기획자 결정 2026-11-02 B-5 (결재 기록의 이름 C.actionLabel과 같게)
     return D.APPROVAL_ACTIONS[action].label;
   }
-  const BTN_CLASS = { APPROVE: 'btn--primary', REGISTER: 'btn--primary', REJECT: 'btn--tertiary btn-reject', RETURN: 'btn--tertiary', SUPPLEMENT: 'btn--tertiary' };
+  // CONFLICT(이해관계 있음)는 흰 바탕 단추. 휴대폰에서는 한 줄을 다 쓰고 맨 아래로(review.css .btn-interest) (기획자 결정 2026-11-09 5회차 14번)
+  const BTN_CLASS = { APPROVE: 'btn--primary', REGISTER: 'btn--primary', REJECT: 'btn--tertiary btn-reject', RETURN: 'btn--tertiary', SUPPLEMENT: 'btn--tertiary',
+    CONFLICT: 'btn--tertiary btn-interest' };
   //   기획자 결정 2026-11-02 C-16: 보류 중에는 승인과 체결본 등록 단추를 빼고(holdStops), 그 자리에 까닭 한 줄(holdNote)
+  //   기획자 결정 2026-11-09 5회차 14번: ③을 영업 리더가 맡고 있으면 맨 앞에 "이해관계 있음"(C.canDeclareInterest). 승인이 아니라 보류 중에도 누를 수 있음
+  function interestOk(code) { return C.canDeclareInterest(c, (c.approvals || []).find(function (x) { return x.step === code; }), me); }
+  //   기획자 결정 2026-11-10 18번: 영업 리더가 맡은 ③이면 true(14번, 영업 임원에게 넘김). 영업 임원이나 정한 결재자가 맡은 ③과 ③ 영업 임원 승인은 false(보류와 결재자 지정)
+  function interestPass(code) { return C.interestMode(c, (c.approvals || []).find(function (x) { return x.step === code; })) === 'PASS'; }
   function buttonsHtml(code) {
-    return actionsOf(code).filter(function (a) { return !holdStops(a, code); }).map(function (a) {
+    return (interestOk(code) ? ['CONFLICT'] : []).concat(actionsOf(code)).filter(function (a) { return !holdStops(a, code); }).map(function (a) {
       return '<button type="button" class="btn ' + BTN_CLASS[a] + ' btn--md" data-open="' + a + '" data-step="' + code + '">' + esc(buttonLabel(a, code)) + '</button>';
     }).join('');
   }
@@ -960,10 +986,27 @@
       info: recentCount ? '<strong>같은 거래처 최근 계약 ' + recentCount + '건</strong>' + (recent.hidden ? '(볼 수 없는 열람 제한 계약 ' + recent.hidden + '건 포함)' : '') +
         '이 있습니다. 기본 정보 아래 상자를 보고 금액을 나눠 맺은 계약이 아닌지 확인해 주세요.' : '',
       record: recent.on ? { recentSame: recentCount } : null };
+    // ③ 이해관계 있음 (기획자 결정 2026-11-09 5회차 14번): 사유 필수. 이 계약의 ③만 영업 임원에게 넘기고 컴플라이언스 담당자에게 이메일
+    //   결재 기록에 { action: 'CONFLICT', comment: 사유 }. 넘기는 규칙은 common.js stepUser(리더 본인 계약과 같음)
+    if (action === 'CONFLICT') {
+      // 기획자 결정 2026-11-10 18번: 임원(또는 정한 결재자)이 맡은 ③이면 넘길 사람이 없어 보류를 걸고 컴플라이언스 담당자가 결재자를 정함
+      if (!interestPass(code)) return { title: '이해관계가 있어 결재자 지정을 요청할까요?', label: '이해관계 내용 (필수)', btn: '결재자 지정 요청', required: true, tone: 'secondary',
+        desc: '요청하면 이 계약 묶음에 보류가 걸려 남은 결재의 승인이 멈추고, 컴플라이언스 담당자에게 이메일로 알립니다. ' +
+          '컴플라이언스 담당자가 이해관계 없는 다른 임원을 이 계약의 ' + D.STEPS[code].no + ' 결재자로 정하면 보류가 풀립니다. ' +
+          '결재 기록에 남고, 요청한 뒤에는 이 계약의 ' + D.STEPS[code].no + '을 처리할 수 없습니다.' };
+      const exec = C.ownerLabel(C.assigneeOf('S03'));
+      return { title: '이해관계가 있어 영업 임원에게 넘길까요?', label: '이해관계 내용 (필수)', btn: '영업 임원에게 넘기기', required: true, tone: 'secondary',
+        desc: '넘기면 이 계약의 ' + D.STEPS.S03.no + '만 영업 임원(' + exec + ')이 맡습니다. 다른 계약은 그대로 영업 리더가 결재합니다. ' +
+          '결재 기록에 남고, 컴플라이언스 담당자에게 이메일로 알립니다. 넘긴 뒤에는 영업 리더가 이 계약의 ' + D.STEPS.S03.no + '을 처리할 수 없습니다.' };
+    }
     // ③ 영업 리더와 ③ 영업 임원 승인: 기획자 결정 2026-11-02 C-14 "이해관계 없음" 확인(필수). 결재 기록에 "확인: ..."과 noInterest
-    //   이해관계가 있으면 알릴 곳은 관리자(이 창을 보는 사람이 리더나 임원이라 "리더에게"는 자기 자신. 대리 지정은 관리자가 함, REQ-REV-08)
+    //   기획자 결정 2026-11-09 5회차 14번: 예전의 "관리자에게 알려 주세요"를 바꿈. 리더가 맡은 ③은 "이해관계 있음" 단추로 이 계약만 영업 임원에게 넘김.
+    //   기획자 결정 2026-11-10 18번: 영업 임원이 맡은 ③과 ③ 영업 임원 승인도 "이해관계 있음" 단추(보류와 컴플라이언스의 결재자 지정).
+    //     예전 [가정] "컴플라이언스 담당자에게 알려 주세요"는 단추를 누를 수 없을 때(이미 남긴 사람 대신 최고관리자가 시연할 때)만 남음
     if (code === 'S03' || code === 'S03C') return { title: '승인할까요?', label: '의견 (선택)', btn: '승인', required: false, tone: 'primary',
-      desc: '승인하면 다음 단계로 넘어갑니다. 이 거래처와 개인적 이해관계(가족, 친척, 지분, 따로 받는 이익 등)가 있으면 승인하지 말고 관리자에게 알려 주세요.',
+      desc: '승인하면 다음 단계로 넘어갑니다. 이 거래처와 개인적 이해관계(가족, 친척, 지분, 따로 받는 이익 등)가 있으면 승인하지 말고 ' +
+        (!interestOk(code) ? '컴플라이언스 담당자에게 알려 주세요.' : interestPass(code) ? '이 창을 닫은 뒤 이해관계 있음을 눌러 주세요. 이 계약만 영업 임원에게 넘어갑니다.'
+          : '이 창을 닫은 뒤 이해관계 있음을 눌러 주세요. 컴플라이언스 담당자가 다른 임원을 결재자로 정합니다.'),
       legend: '결재자 확인 (필수)', checks: [D.INTEREST_CHECK], record: { noInterest: true } };
     if (C.isReviewStep(code)) return { title: '승인할까요?', label: '의견 (선택)', btn: '승인', required: false, tone: 'primary',
       desc: '승인하면 다음 단계로 넘어갑니다.' };
@@ -1116,6 +1159,9 @@
     APPROVE: '승인했습니다.', REJECT: '반려했습니다. 기안자에게 돌아갑니다.', CANCEL: '승인을 취소했습니다.',
     REGISTER: C.josa(DOC, '을', '를') + ' 등록했습니다.', RETURN: C.josa(DOC, '을', '를') + ' 다시 올려 달라고 요청했습니다.', // B-5 견적서면 최종 견적서
     SUPPLEMENT: '보완을 요청했습니다. 기안자에게 돌아갑니다.', RESUBMIT: '보완을 마쳤습니다.',
+    // 기획자 결정 2026-11-09 5회차 14번: 뒤에 "다음 차례: ③ 영업 검토 (영업 임원 이름)"이 붙음
+    //   리더가 맡은 ③만 이 문장. 임원이 맡은 ③(보류와 결재자 지정)은 confirmAction에서 따로 씀(기획자 결정 2026-11-10 18번)
+    CONFLICT: '이해관계 있음으로 이 계약만 영업 임원에게 넘겼습니다. 컴플라이언스 담당자에게 이메일로 알렸습니다.',
     S06: '날인 완료로 처리했습니다.', S08: '완료했습니다.', S09: '완료했습니다.', S10: '완료했습니다.',
   };
   function confirmAction() {
@@ -1189,7 +1235,10 @@
       t.file ? { fileName: fileName } : null, restart ? { restart: true } : null, picked ? { [t.reasonsKey]: picked } : null,
       t.date ? { [t.date.key]: dateVal } : null, ab ? { antiBribe: ab, antiBribeNote: ab === 'NONE' ? abNote : '' } : null,
       t.record || null);
-    C.recordAction(c, s, pending.action, comment, me, extra);
+    // 이해관계 있음은 C.declareInterest로: 리더가 맡은 ③은 영업 임원에게 넘기고(14번), 임원이 맡은 ③은 보류도 걸음(기획자 결정 2026-11-10 18번)
+    const ix = pending.action === 'CONFLICT' ? C.declareInterest(c, s, comment, me) : null;
+    if (pending.action === 'CONFLICT' && !ix) { closeModal(); C.toast('이해관계 있음을 남기지 못했습니다. 화면을 새로 고친 뒤 다시 해 주세요.', true); return; }
+    if (pending.action !== 'CONFLICT') C.recordAction(c, s, pending.action, comment, me, extra);
     // 다음 차례 안내
     const now = C.pendingSteps(c).map(function (x) { return C.stepLabel(x.step, c) + ' (' + C.ownerLabel(x.userId) + ')'; }).join(', ');
     let next = '';
@@ -1200,7 +1249,18 @@
         : c.status === 'APPROVED' && C.isReviewStep(s.step) ? ' 계약 검토가 모두 끝나 체결 대기가 되었습니다. 다음 차례: ' + now
         : now ? ' 다음 차례: ' + now : '';
     }
-    const done = pending.action === 'APPROVE' && !C.isReviewStep(s.step) ? DONE_MSG[s.step] : DONE_MSG[pending.action];
+    // 이해관계 있음: 컴플라이언스 담당자가 한 명도 없으면(사용 중지 등) 메일을 보내지 않았다고 알림 (기획자 결정 2026-11-09 5회차 14번)
+    //   기획자 결정 2026-11-10 18번: 임원이 맡은 ③(HOLD)은 보류를 걸고 결재자 지정을 기다린다는 안내. 다음 차례 안내는 붙이지 않음(보류로 멈춤)
+    const noCo = !C.complianceMailList().length;
+    if (pending.action === 'CONFLICT' && ix && ix.mode === 'HOLD') {
+      C.flash(C.stepLabel(s.step, c) + ': 이해관계 있음을 남기고 이 계약 묶음에 보류를 걸었습니다(' + (ix.hold ? ix.hold.id : '보류 기록 실패') + '). ' +
+        (noCo ? '사용 중인 컴플라이언스 담당자가 없어 이메일은 보내지 않았습니다. 관리자에게 알려 주세요.' : '컴플라이언스 담당자가 다른 임원을 결재자로 정하면 보류가 풀립니다. 컴플라이언스 담당자에게 이메일로 알렸습니다.') +
+        (ix.mail.length ? ' 보류로 막히는 ' + ix.mail.length + '명에게도 이메일로 알렸습니다.' : ''));
+      location.reload();
+      return;
+    }
+    const done = pending.action === 'CONFLICT' && noCo ? '이해관계 있음으로 이 계약만 영업 임원에게 넘겼습니다. 사용 중인 컴플라이언스 담당자가 없어 이메일은 보내지 않았습니다.'
+      : pending.action === 'APPROVE' && !C.isReviewStep(s.step) ? DONE_MSG[s.step] : DONE_MSG[pending.action];
     C.flash(C.stepLabel(s.step, c) + ': ' + done + next);
     location.reload();
   }

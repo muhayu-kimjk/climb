@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------
  * 기획자 결정 2026-11-02 C-16(G-29)과 덧붙임: 개선 과제 기록(원인, 조치, 책임자, 기한, 효과 확인, 끝낸 증거)을 관리자 영역에 둠.
  *   거래처나 계약 묶음에 보류를 걸고 풂. 걸고 푸는 사람과 기록하는 사람은 컴플라이언스 담당자. 기록은 쌓기만 함
- * 볼 수 있는 사람: 컴플라이언스 담당자(C.checkOwners('SCR-64')), 최고관리자(시연용), 감사 열람(보기만)
+ * 볼 수 있는 사람: 컴플라이언스 담당자(C.checkOwners('SCR-64')), 최고관리자(시연용), 감사 열람(보기만). 문은 C.checkViewers('SCR-64')(기획자 결정 2026-11-10 16번)
  * 남길 수 있는지: C.canComplianceAct(me). 읽기만 하는 역할(감사 열람)은 false라 단추가 없음
  * 하는 일
  *   1. 보류: 지금 걸린 보류를 위에, 푼 보류는 흐리게 아래에. 대상, 사유, 건 사람과 때, 막고 있는 남은 결재 수, 상태(푼 사람과 때, 사유)
@@ -17,16 +17,26 @@
  *      기한과 책임자는 까닭을 적고 바꿈. 모든 바꿈은 그 과제의 기록(history)과 변경 이력에 한 줄씩 쌓임
  *      거르기: 전체, 끝나지 않음, 기한 지남, 끝남. 한 쪽 20건
  *   3. 변경 이력: 관리자 변경 이력의 COMPLIANCE 영역(보류, 개선 과제, 거래처 확인)
+ *   0. 점검에서 넘어온 일(기획자 결정 2026-11-09 5회차 13번): 매월 점검의 문제 결과가 저절로 넘어온 일(control-checks.js X.issuesAll)
+ *      기록 전인 것을 위에(먼저 넘어온 것부터), 개선 과제로 기록한 것은 흐리게 아래에. 한 쪽 20건
+ *      "개선 과제로 기록"을 누르면 기록 창에 무엇(점검의 제목), 찾은 곳, 찾은 날(넘어온 날)을 미리 채우고 점검 의견과 화면 링크를 보임
+ *      기록하면 개선 과제에 issueId(넘어온 일 번호)와 link(점검 화면)가 남고 넘어온 일은 닫힘(개요 점검할 일에서도 빠짐)
+ *      개요의 줄을 누르면 ?issue=번호#sec-issues로 와서 그 줄을 표시함
+ *      기획자 결정 2026-11-10 16번: 컴플라이언스도 매월 점검 네 화면을 보기만 하므로 넘어온 일의 점검 화면 링크가 열림(C.canSeeCheck)
+ *   4. 결재자 지정(기획자 결정 2026-11-10 18번): 임원이 맡은 ③에 이해관계가 있어 걸린 보류(C.interestHoldOf)에 "결재자 지정".
+ *      이해관계 없는 다른 영업 임원을 고르고 사유(필수). 저장하면 그 계약의 ③ 결재자가 되고 보류가 풀림(C.assignApprover)
  * 기록은 관리자 설정처럼 C.adminSave로 남김(영역 COMPLIANCE, 읽기만 하는 역할이면 저장하지 않음). 반영은 common.js applyAdmin
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
   const C = window.CLIMB;
+  const X = window.CLIMB_CTL; // 점검에서 넘어온 일(remediation.html이 control-checks.js를 부름, 기획자 결정 2026-11-09 5회차 13번)
   const me = C.init();
   const esc = C.esc;
   const $ = function (s) { return document.querySelector(s); };
   const SCR = 'SCR-64';
-  if (!C.gate(me, C.checkOwners(SCR).concat(['AUDIT']), '개선 과제와 보류는 컴플라이언스 담당자가 씁니다',
+  // 문: 맡은 사람과 보기만 하는 사람을 common.js 한 곳(checkViewers)에서 정함(기획자 결정 2026-11-10 16번. 이 화면은 예전과 같은 사람)
+  if (!C.gate(me, C.checkViewers(SCR), '개선 과제와 보류는 컴플라이언스 담당자가 씁니다',
     '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 화면 맨 위 검은 띠에서 컴플라이언스 담당자, 감사 열람, 최고관리자 가운데 하나로 바꾸면 볼 수 있습니다.')) return;
 
   const canDo = C.canComplianceAct(me);
@@ -35,7 +45,10 @@
   const TONE = { OPEN: 'attention', DOING: 'progress', VERIFY: 'line', DONE: 'success' };
   const PAGE_SIZE = 20; // 한 쪽 20건 (REQ-ADM-04와 같은 기준)
   const WORKING = ['IN_REVIEW', 'APPROVED', 'OPS_REVIEW']; // 남은 결재가 있는 상태(common.js와 같음)
-  let holdPage = 1, rmPage = 1, view = 'ALL';
+  let holdPage = 1, rmPage = 1, view = 'ALL', issuePage = 1;
+  // 개요 점검할 일에서 누른 넘어온 일(?issue=IS-0001). 그 줄을 표시함(2026-11-09 5회차 13번)
+  const TARGET_ISSUE = new URLSearchParams(location.search).get('issue') || '';
+  let issueJumped = false;
 
   // 읽기만 하는 사람(감사 열람)에게는 단추를 두지 않고 안내 문장을 맞춤
   if (!canDo) {
@@ -43,6 +56,7 @@
     $('#btn-rm').hidden = true;
     $('#holds-desc').textContent += ' 보기만 합니다. 보류를 걸고 푸는 일은 컴플라이언스 담당자가 합니다.';
     $('#rm-desc').textContent += ' 보기만 합니다. 기록은 컴플라이언스 담당자가 남깁니다.';
+    $('#issues-desc').textContent += ' 보기만 합니다. 개선 과제로 기록하는 일은 컴플라이언스 담당자가 합니다.'; // 2026-11-09 5회차 13번
   }
 
   function val(f, n) { return (f.elements[n].value || '').trim(); }
@@ -87,6 +101,57 @@
     });
   }
 
+  /* ---------- 0. 점검에서 넘어온 일 (기획자 결정 2026-11-09 5회차 13번) ---------- */
+  // 찾은 곳마다 점검 화면을 볼 수 있는 사람에게만 링크, 볼 수 없는 사람에게는 화면 이름만
+  //   기획자 결정 2026-11-10 16번: 컴플라이언스도 매월 점검 네 화면을 보기만 하므로 링크로 원래 기록을 바로 봄.
+  //   누가 볼 수 있는지는 화면의 문과 같은 C.canSeeCheck(common.js CHECK_VIEWERS)를 따라 저절로 맞춰짐. 매월 기록 점검(LOG, SCR-57)은 정보보호와 감사 열람만
+  const ISSUE_SCR = { DISCOUNT: 'SCR-61', OPP: 'SCR-62', SEAL: 'SCR-63', CONFIG: 'SCR-65' };
+  function canOpenCheck(src) {
+    if (src === 'LOG') return me.role === 'SUPER' || C.isAuditor(me) || C.hasRole(me, ['PRIVACY']);
+    return !!ISSUE_SCR[src] && C.canSeeCheck(me, ISSUE_SCR[src]);
+  }
+  function checkLinkHtml(href, src) {
+    const name = RM.SOURCE[src] || src;
+    // 링크가 없는 사람에게 누가 보는지(2026-11-10 16번 뒤에는 컴플라이언스에게는 매월 기록 점검만 이렇게 보임)
+    return href && canOpenCheck(src) ? '<a href="' + esc(href) + '">' + esc(name) + ' 화면에서 보기</a>' : esc(name) + ' 화면(맡은 사람과 감사 열람이 봄)';
+  }
+  function findIssue(id) { return X.issuesAll().filter(function (i) { return i.id === id; })[0] || null; }
+  function renderIssues() {
+    const all = X.issuesAll(); // 최근 것부터
+    const open = all.filter(function (i) { return !X.issueTask(i.id); }).reverse(); // 기록 전: 먼저 넘어온 것부터
+    const list = open.concat(all.filter(function (i) { return X.issueTask(i.id); }));
+    $('#issues-count').innerHTML = C.meta([['기록 전', '<strong>' + open.length + '건</strong>'], ['개선 과제로 기록함', (list.length - open.length) + '건']]);
+    // 처음 그릴 때 개요에서 고른 줄이 있는 쪽을 엶
+    if (TARGET_ISSUE && !issueJumped) {
+      const k = list.map(function (i) { return i.id; }).indexOf(TARGET_ISSUE);
+      if (k > -1) issuePage = Math.floor(k / PAGE_SIZE) + 1;
+      issueJumped = true;
+    }
+    const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+    if (issuePage > pages) issuePage = pages;
+    const from = (issuePage - 1) * PAGE_SIZE, rows = list.slice(from, from + PAGE_SIZE);
+    $('#issues').innerHTML = '<div class="tbl-scroll" tabindex="0" role="region" aria-label="넘어온 일 목록 표">' +
+      '<table class="tbl tbl--compact"><caption class="sr-only">점검에서 넘어온 일: 넘어온 때, 내용, 넘긴 사람, 상태, 관리</caption>' +
+      '<thead><tr><th scope="col">넘어온 때</th><th scope="col">내용</th><th scope="col">넘긴 사람</th><th scope="col">상태</th>' +
+      '<th scope="col" class="col-action">관리</th></tr></thead><tbody>' +
+      (rows.length ? rows.map(function (i) {
+        const task = X.issueTask(i.id), done = !!task;
+        const row = '<span class="sr-only"> ' + esc(i.id) + '</span>'; // 줄마다 같은 단추 글이라 화면낭독기가 어느 줄인지 알게(다른 표와 같게)
+        // 개요에서 누른 줄(?issue=)은 aria-current로 표시하고 "개요에서 고른 일" 작은 줄을 붙임
+        const target = i.id === TARGET_ISSUE;
+        return '<tr' + (done ? ' class="is-muted"' : '') + (target ? ' aria-current="true"' : '') + '>' +
+          '<td class="num-left nowrap">' + C.fmtDateTime(i.at).split(' ').map(function (s) { return '<span class="keep">' + s + '</span>'; }).join(' ') + '</td>' +
+          '<td class="col-wide"><span class="cell-strong">' + esc(i.id + ' ' + i.title) + '</span>' +
+            (i.note ? '<span class="cell-meta">의견: ' + esc(i.note) + '</span>' : '') +
+            '<span class="cell-meta">' + esc(RM.SOURCE[i.source] || i.source) + ', ' + checkLinkHtml(i.href, i.source) + '</span>' +
+            (target ? '<span class="cell-meta">개요에서 고른 일</span>' : '') + '</td>' +
+          '<td class="center nowrap">' + esc(C.ownerLabel(i.by)) + '</td>' +
+          '<td class="nowrap">' + (done ? C.badge('success', '기록함') + '<span class="cell-meta">개선 과제 ' + esc(task.id) + '</span>' : C.badge('attention', '기록 전')) + '</td>' +
+          '<td class="col-action">' + (canDo && !done ? '<button type="button" class="link-act" data-issue="' + esc(i.id) + '">개선 과제로 기록' + row + '</button>' : '-') + '</td></tr>';
+      }).join('') : '<tr><td class="empty-row" colspan="5">점검에서 넘어온 일이 없습니다.</td></tr>') + '</tbody></table></div>';
+    $('#issues-pages').innerHTML = C.pagerHtml(issuePage, pages, list.length, from, rows.length, PAGE_SIZE, '건');
+  }
+
   /* ---------- 1. 보류 (기획자 결정 2026-11-02 C-16) ---------- */
   // 막고 있는 남은 결재: 결재가 남은 계약 중 이 보류에 걸린 것(볼 수 없는 열람 제한 계약도 건수로만 셈)
   function holdImpact(h) {
@@ -107,17 +172,22 @@
       '<th scope="col">상태</th><th scope="col" class="col-action">관리</th></tr></thead><tbody>' +
       (rows.length ? rows.map(function (h) {
         const n = holdImpact(h), off = !!h.releasedAt;
+        // 기획자 결정 2026-11-10 18번: 임원의 ③ 이해관계로 걸린 보류는 어느 계약의 어느 단계인지 한 줄 더, 관리 칸에 "결재자 지정"
+        const ix = C.interestHoldOf(h), row = '<span class="sr-only"> ' + esc(C.holdTarget(h, me)) + ' 보류</span>';
+        const acts = [];
+        if (canDo && ix) acts.push('<button type="button" class="link-act" data-assign="' + esc(h.id) + '">결재자 지정' + row + '</button>');
+        // 줄 이름은 aria-label 대신 보이는 글 뒤의 화면낭독기용 글로: 보이는 "풀기"가 읽는 이름의 앞에 오게(다른 표 안 단추와 같게, 2026-11-06 점검)
+        if (canDo && !off) acts.push('<button type="button" class="link-act link-act--danger" data-release="' + esc(h.id) + '">풀기' + row + '</button>');
         return '<tr' + (off ? ' class="is-muted"' : '') + '>' +
           '<td class="col-wide"><span class="cell-strong">' + esc(C.holdTarget(h, me)) + '</span>' +
-            '<span class="cell-meta">' + esc(h.id + (h.remediationId ? ', 개선 과제 ' + h.remediationId : '')) + '</span></td>' +
+            '<span class="cell-meta">' + esc(h.id + (h.remediationId ? ', 개선 과제 ' + h.remediationId : '')) + '</span>' +
+            (h.conflict ? '<span class="cell-meta">' + esc(h.conflict.contractId + ' ' + C.stepLabel(h.conflict.step) + ', 이해관계: ' + C.ownerLabel(h.conflict.userId)) + '</span>' : '') + '</td>' +
           '<td class="col-wide">' + esc(h.reason) + (off ? '<span class="cell-meta">푼 사유: ' + esc(h.releaseReason) + '</span>' : '') + '</td>' +
           '<td class="center nowrap">' + esc(C.ownerLabel(h.by)) + '<span class="cell-meta">' + C.fmtDateTime(h.at) + '</span></td>' +
           '<td class="num">' + (n == null ? '-' : n + '건') + '</td>' +
           '<td class="nowrap">' + (off ? C.badge('neutral', '풂') + '<span class="cell-meta">' + esc(C.ownerLabel(h.releasedBy)) + ', ' + C.fmtDateTime(h.releasedAt) + '</span>'
             : C.holdBadge(h)) + '</td>' +
-          // 줄 이름은 aria-label 대신 보이는 글 뒤의 화면낭독기용 글로: 보이는 "풀기"가 읽는 이름의 앞에 오게(다른 표 안 단추와 같게, 2026-11-06 점검)
-          '<td class="col-action">' + (canDo && !off ? '<button type="button" class="link-act link-act--danger" data-release="' + esc(h.id) + '">풀기<span class="sr-only"> ' +
-            esc(C.holdTarget(h, me)) + ' 보류</span></button>' : '-') + '</td></tr>';
+          '<td class="col-action">' + (acts.length ? '<span class="ob-acts">' + acts.join('') + '</span>' : '-') + '</td></tr>';
       }).join('') : '<tr><td class="empty-row" colspan="6">걸린 보류가 없습니다.</td></tr>') + '</tbody></table></div>';
     $('#holds-pages').innerHTML = C.pagerHtml(holdPage, pages, list.length, from, rows.length, PAGE_SIZE, '건');
   }
@@ -177,7 +247,9 @@
       desc: '풀면 새 기안과 남은 결재의 승인을 다시 할 수 있습니다. 건 기록과 푼 기록은 모두 남습니다.',
       body: '<p class="modal-info">' + C.meta([['대상', esc(C.holdTarget(h, me))], ['건 때', C.fmtDateTime(h.at) + ', ' + esc(C.ownerLabel(h.by))]]) +
           '<br>' + esc(h.reason) +
-          '<br>이메일 받을 사람: ' + (mail.length ? esc(mailText(mail)) : '없음(지금 막힌 사람이 없음)') + '</p>' +
+          '<br>이메일 받을 사람: ' + (mail.length ? esc(mailText(mail)) : '없음(지금 막힌 사람이 없음)') +
+          // 기획자 결정 2026-11-10 18번: 결재자 지정을 기다리는 보류를 그냥 풀면 ③이 이해관계 있는 임원에게 남아 처리되지 않음(반려되었을 때 등에만)
+          (C.interestHoldOf(h) ? '<br>③ 결재자를 정하지 않고 풀면 이 계약의 ③은 이해관계 있는 사람에게 남아 처리되지 않습니다. 보통은 결재자 지정을 씁니다.' : '') + '</p>' +
         C.fieldHtml({ name: 'reason', label: '푸는 사유', type: 'textarea', required: true, placeholder: '예: 보도 내용을 확인한 결과 다른 회사의 일로 밝혀짐(확인 자료 첨부)' }),
       btn: '보류 풀기',
       tone: 'danger',
@@ -187,6 +259,41 @@
         if (e.refused) return;
         render();
         C.toast(C.holdTarget(h, me) + '의 보류를 풀었습니다.' + (mail.length ? ' 막혔던 ' + mail.length + '명에게 이메일로 알렸습니다.' : ''));
+      },
+    });
+  }
+  /* 결재자 지정 (기획자 결정 2026-11-10 18번)
+   *   임원이 맡은 ③에 이해관계가 있어 걸린 보류(C.interestHoldOf)에서 컴플라이언스 담당자가 이해관계 없는 다른 임원을 이 계약의 ③ 결재자로 정함
+   *   고를 수 있는 사람은 C.assignCandidates(이해관계를 남긴 사람, 기안자 쪽 사람을 뺀 사용 중인 영업 임원). 사유 필수
+   *   저장하면 C.assignApprover가 결재 기록(결재자 지정)을 남기고 보류를 풂(변경 이력에 한 줄). 정한 임원과 막혔던 사람에게 이메일 */
+  function openAssign(id) {
+    const h = findHold(id), ix = C.interestHoldOf(h);
+    if (!ix) return;
+    const seen = C.canView(ix.c, me); // 열람 제한 계약이면 고객사와 이해관계 내용을 보이지 않음
+    const cf = seen ? C.interestOut(ix.c, ix.userId) : null;
+    const who = C.assignCandidates(ix.c, ix.step);
+    C.formModal({
+      title: '이 계약의 ③ 결재자를 정할까요?',
+      desc: '정하면 이 계약의 ' + C.josa(C.stepLabel(ix.step, ix.c), '을', '를') + ' 고른 임원이 맡고 보류가 풀립니다. 다른 계약은 그대로입니다. 결재 기록과 변경 이력에 남습니다.',
+      body: '<p class="modal-info">' + C.meta([['계약', esc(ix.c.id + ' ' + (seen ? ix.c.counterparty : '열람 제한 계약'))], ['단계', esc(C.stepLabel(ix.step, ix.c))],
+          ['이해관계를 남긴 사람', esc(C.ownerLabel(ix.userId))]]) +
+          (cf && cf.comment ? '<br>이해관계 내용: ' + esc(cf.comment) : '') +
+          '<br>이메일: 고른 임원(결재 차례)과 보류로 막혔던 사람에게 보냅니다.</p>' +
+        C.fieldHtml({ name: 'who', label: '결재자', type: 'select', required: true,
+          options: [['', who.length ? '고르세요' : '고를 수 있는 임원 없음']].concat(who.map(function (u) { return [u, C.ownerLabel(u)]; })),
+          help: '사용 중인 영업 임원 가운데 이 계약에 이해관계 있음을 남긴 사람과 기안자 쪽 사람을 뺀 사람입니다.' }) +
+        C.fieldHtml({ name: 'reason', label: '정하는 사유', type: 'textarea', required: true, placeholder: '예: 이해관계가 없음을 확인함. 같은 직급이라 할인 판단을 맡을 수 있음' }),
+      btn: '결재자 지정',
+      check: function (f) {
+        return { who: !who.length ? '고를 수 있는 임원이 없습니다. 관리자에게 영업 임원 역할을 가진 다른 계정을 요청해 주세요.' : val(f, 'who') ? '' : '결재자를 고르세요.',
+          reason: val(f, 'reason') ? '' : '정하는 사유를 적으세요.' };
+      },
+      done: function (f) {
+        const pick = val(f, 'who');
+        const r = C.assignApprover(h, pick, val(f, 'reason'), me);
+        if (!r) { C.toast('결재자를 정하지 못했습니다. 화면을 새로 고친 뒤 다시 해 주세요.', true); render(); return; }
+        render();
+        C.toast(ix.c.id + '의 ③ 결재자를 ' + C.josa(C.ownerLabel(pick), '으로', '로') + ' 정하고 보류를 풀었습니다.' + (r.mail.length ? ' ' + r.mail.length + '명에게 이메일로 알렸습니다.' : ''));
       },
     });
   }
@@ -235,11 +342,13 @@
         acts.push('<button type="button" class="link-act" data-view-rm="' + esc(r.id) + '">기록 보기' + row + '</button>');
         return '<tr' + (done ? ' class="is-muted"' : '') + '>' +
           '<td class="col-wide"><span class="cell-strong">' + esc(r.id + ' ' + r.title) + '</span>' +
-            '<span class="cell-meta">' + esc(RM.SOURCE[r.source] || r.source) + ', 찾은 날 ' + C.fmtDate(r.found) + (r.holdId ? ', 보류 ' + esc(r.holdId) : '') + '</span></td>' +
+            '<span class="cell-meta">' + esc(RM.SOURCE[r.source] || r.source) + ', 찾은 날 ' + C.fmtDate(r.found) + (r.holdId ? ', 보류 ' + esc(r.holdId) : '') +
+              (r.issueId ? ', 넘어온 일 ' + esc(r.issueId) : '') + '</span></td>' + // 2026-11-09 5회차 13번
           '<td class="col-wide">' + esc(r.cause) + '<span class="cell-meta">조치: ' + esc(r.action) + '</span></td>' +
           '<td class="center nowrap">' + esc(C.ownerLabel(r.owner)) + '</td>' +
           '<td class="num-left nowrap">' + C.fmtDate(r.due) + (done ? '' : late(r) ? '<span class="cell-meta">' + C.badge('danger', '기한 지남') + '</span>'
-            : d != null ? '<span class="cell-meta">D-' + d + '</span>' : '') + '</td>' +
+            // 2026-11-09 5회차 점검: 기한이 오늘이면 "D-0" 대신 "오늘"(의무, 해지 통지 기한과 같은 말)
+            : d != null ? '<span class="cell-meta">' + (d ? 'D-' + d : '오늘') + '</span>' : '') + '</td>' +
           '<td class="nowrap">' + C.badge(TONE[r.state], ST[r.state]) + '<span class="cell-meta">' + C.fmtDate(last.at) + '</span></td>' +
           '<td class="col-action"><span class="ob-acts">' + acts.join('') + '</span></td></tr>';
       }).join('') : '<tr><td class="empty-row" colspan="6">' + (all.length ? '조건에 맞는 개선 과제가 없습니다.' : '아직 기록한 개선 과제가 없습니다.') + '</td></tr>') +
@@ -247,15 +356,21 @@
     $('#rm-pages').innerHTML = C.pagerHtml(rmPage, pages, list.length, from, rows.length, PAGE_SIZE, '건');
   }
   // 개선 과제 기록: 상태는 열림으로 시작
-  function openAdd() {
+  //   iss(선택): 점검에서 넘어온 일(기획자 결정 2026-11-09 5회차 13번). 무엇, 찾은 곳, 찾은 날을 미리 채우고 점검 의견과 화면 링크를 위에 보임
+  //     기록하면 issueId와 link를 함께 남겨 넘어온 일이 닫힘. 미리 채운 칸은 고칠 수 있음(제목을 다듬는 등)
+  function openAdd(iss) {
     const holds = D.HOLDS.filter(function (h) { return !h.releasedAt; });
+    if (iss && X.issueTask(iss.id)) return; // 이미 기록한 넘어온 일(다른 탭에서 기록함)
+    const found = iss ? String(iss.at).slice(0, 10) : D.TODAY;
     C.formModal({
       title: '개선 과제를 기록할까요?',
-      desc: '기록하면 열림 상태로 시작합니다. 기록한 내용은 지우지 않고, 바꿀 때마다 한 줄씩 남습니다.',
-      body: C.fieldHtml({ name: 'title', label: '무엇이 실패했나', required: true, placeholder: '예: 간접 거래처를 기안 전에 확인하지 않음' }) +
+      desc: '기록하면 열림 상태로 시작합니다. 기록한 내용은 지우지 않고, 바꿀 때마다 한 줄씩 남습니다.' + (iss ? ' 기록하면 넘어온 일(' + iss.id + ')이 닫힙니다.' : ''),
+      body: (iss ? '<p class="modal-info">' + C.meta([['넘어온 일', esc(iss.id)], ['넘긴 사람', esc(C.ownerLabel(iss.by)) + ', ' + C.fmtDateTime(iss.at)]]) +
+          '<br>' + esc(iss.title) + (iss.note ? '<br>의견: ' + esc(iss.note) : '') + '<br>' + checkLinkHtml(iss.href, iss.source) + '</p>' : '') +
+        C.fieldHtml({ name: 'title', label: '무엇이 실패했나', required: true, value: iss ? iss.title : '', placeholder: '예: 간접 거래처를 기안 전에 확인하지 않음' }) +
         '<div class="field-row">' +
-          C.fieldHtml({ name: 'source', label: '찾은 곳', type: 'select', required: true, options: [['', '고르세요']].concat(Object.keys(RM.SOURCE).map(function (k) { return [k, RM.SOURCE[k]]; })) }) +
-          C.fieldHtml({ name: 'found', label: '찾은 날', type: 'date', required: true, value: D.TODAY, attrs: ' max="' + D.TODAY + '"' }) +
+          C.fieldHtml({ name: 'source', label: '찾은 곳', type: 'select', required: true, value: iss ? iss.source : '', options: [['', '고르세요']].concat(Object.keys(RM.SOURCE).map(function (k) { return [k, RM.SOURCE[k]]; })) }) +
+          C.fieldHtml({ name: 'found', label: '찾은 날', type: 'date', required: true, value: found, attrs: ' max="' + D.TODAY + '"' }) +
         '</div>' +
         C.fieldHtml({ name: 'cause', label: '원인', type: 'textarea', required: true, placeholder: '예: 거래처 확인이 없어도 경고만 해 영업이 확인을 요청하지 않음' }) +
         C.fieldHtml({ name: 'action', label: '조치', type: 'textarea', required: true, placeholder: '예: 간접 거래처는 첫 기안 전에 확인을 요청하도록 영업에 알림' }) +
@@ -280,12 +395,14 @@
         };
       },
       done: function (f) {
+        // 넘어온 일에서 기록하면 issueId(넘어온 일 번호)와 link(점검 화면)를 함께 남김(2026-11-09 5회차 13번)
         const r = { id: nextId(D.REMEDIATIONS, 'RM'), title: val(f, 'title'), source: val(f, 'source'), found: val(f, 'found'), cause: val(f, 'cause'),
-          action: val(f, 'action'), owner: val(f, 'owner'), due: val(f, 'due'), holdId: val(f, 'hold') || null };
-        const e = C.adminSave('COMPLIANCE', r.id + ' ' + r.title, '개선 과제 기록: 책임자 ' + C.ownerLabel(r.owner) + ', 기한 ' + r.due, r.cause, { k: 'REMEDIATION_ADD', r: r });
+          action: val(f, 'action'), owner: val(f, 'owner'), due: val(f, 'due'), holdId: val(f, 'hold') || null,
+          issueId: iss ? iss.id : null, link: iss ? iss.href || '' : '' };
+        const e = C.adminSave('COMPLIANCE', r.id + ' ' + r.title, '개선 과제 기록: 책임자 ' + C.ownerLabel(r.owner) + ', 기한 ' + r.due + (iss ? ', 넘어온 일 ' + iss.id : ''), r.cause, { k: 'REMEDIATION_ADD', r: r });
         if (e.refused) return;
         render();
-        C.toast(r.id + ' 개선 과제를 기록했습니다. 열림 상태입니다.');
+        C.toast(r.id + ' 개선 과제를 기록했습니다. 열림 상태입니다.' + (iss ? ' 넘어온 일(' + iss.id + ')을 닫았습니다.' : ''));
       },
     });
   }
@@ -370,6 +487,8 @@
           dd('원인', esc(r.cause)) + dd('조치', esc(r.action)) + dd('책임자', esc(C.ownerLabel(r.owner))) +
           dd('기한', C.fmtDate(r.due) + (late(r) ? ' ' + C.badge('danger', '기한 지남') : '')) + dd('상태', C.badge(TONE[r.state], ST[r.state])) +
           dd('효과 확인', esc(r.effect || '-')) + dd('끝낸 증거', esc(r.evidence || '-')) + dd('관련 보류', esc(r.holdId || '없음')) +
+          // 점검에서 넘어온 일로 기록한 과제는 그 번호와 점검 화면(2026-11-09 5회차 13번)
+          (r.issueId ? dd('넘어온 일', esc(r.issueId) + ', ' + checkLinkHtml(r.link, r.source)) : '') +
         '</dl>' +
         '<div class="tbl-scroll" tabindex="0" role="region" aria-label="' + esc(r.id) + ' 상태를 바꾼 기록">' +
           '<table class="tbl tbl--compact tbl--history"><caption class="sr-only">' + esc(r.id) + ' 상태를 바꾼 기록: 일시, 상태, 내용, 남긴 사람</caption>' +
@@ -389,6 +508,7 @@
 
   /* ---------- 그리기와 이벤트 ---------- */
   function render() {
+    renderIssues(); // 점검에서 넘어온 일(2026-11-09 5회차 13번)
     renderHolds();
     renderRms();
     $('#history').innerHTML = C.adminHistoryHtml(C.adminLog(['COMPLIANCE']), '컴플라이언스 변경 이력');
@@ -406,13 +526,16 @@
     if (!b) return;
     if (b.id === 'btn-hold' && canDo) openHold();
     else if (b.id === 'btn-rm' && canDo) openAdd();
+    else if (b.getAttribute('data-issue') && canDo) { const iss = findIssue(b.getAttribute('data-issue')); if (iss) openAdd(iss); } // 넘어온 일을 개선 과제로(2026-11-09 5회차 13번)
     else if (b.getAttribute('data-release') && canDo) openRelease(b.getAttribute('data-release'));
+    else if (b.getAttribute('data-assign') && canDo) openAssign(b.getAttribute('data-assign')); // ③ 결재자 지정(기획자 결정 2026-11-10 18번)
     else if (b.getAttribute('data-step') && canDo) openStep(b.getAttribute('data-id'), b.getAttribute('data-step'));
     else if (b.getAttribute('data-view-rm')) openView(b.getAttribute('data-view-rm'));
     else if (b.getAttribute('data-page') && !b.disabled) {
       // 쪽 번호: 보류 목록과 개선 과제 목록이 따로 넘김. 누른 단추가 없어지므로 초점도 그 묶음 제목으로(2026-11-06 점검 3회차)
       const n = Number(b.getAttribute('data-page'));
       if (b.closest('#holds-pages')) { holdPage = n; renderHolds(); C.focusSection('#sec-holds'); }
+      else if (b.closest('#issues-pages')) { issuePage = n; renderIssues(); C.focusSection('#sec-issues'); } // 넘어온 일 쪽 번호(2026-11-09 5회차 13번)
       else { rmPage = n; renderRms(); C.focusSection('#sec-rm'); }
     }
   });

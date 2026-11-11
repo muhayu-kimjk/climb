@@ -83,6 +83,21 @@
 .conflict-note + .field { margin-top: 1.6rem; }
 .modal-form .field:has(+ [data-conflict][hidden]) { margin-bottom: 0; }
 
+/* 분기 권한 검토 창의 인사 명단 파일 올리기(2026-11-09 5회차 15번)는 뺌(기획자 결정 2026-11-10 21번: 유닛 리더 확인으로 갈음)
+ * 유닛 계정 확인 창의 계정마다 "퇴사, 휴직, 이동" 표시(기획자 결정 2026-11-10 21번, unit-accounts.js)
+ *   한 줄: 이름 | 표시(고르기) | 짧은 메모. 휴대폰은 이름이 윗줄, 고르기와 메모가 아랫줄. 고르기와 메모 칸 높이는 form.css 그대로(휴대폰 44px) */
+.ua-marks { margin: 0 0 1.6rem; padding: 0; border: 0; }
+.ua-marks legend { margin-bottom: 0.4rem; }
+.ua-mark-row { display: grid; grid-template-columns: minmax(0, 7rem) minmax(0, 9rem) minmax(0, 1fr); align-items: center; gap: 0.8rem; padding: 0.6rem 0; border-top: 1px solid var(--border-gray-light); }
+.ua-mark-row:first-of-type { border-top: 0; }
+.ua-mark-name { font-size: var(--fs-body-small); color: var(--text-bolder); font-weight: 500; }
+@media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
+  .ua-mark-row { grid-template-columns: minmax(0, 9rem) minmax(0, 1fr); }
+  .ua-mark-name { grid-column: 1 / -1; }
+}
+/* 표의 표시 줄(조치할 계정): 표시는 굵게(색만으로 나누지 않게), 메모는 작은 회색 줄 */
+.ua-mark-tag { font-weight: 700; color: var(--text-bolder); }
+
 /* 코드표 고르기 (코드 관리): 누른 것만 진한 초록. 누르는 영역 --touch-min */
 .seg { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1.6rem; }
 .seg button { min-height: var(--touch-min); padding: 0 1.6rem; border: 1px solid var(--border-gray); border-radius: var(--radius-max); background: var(--surface-white); font-size: var(--fs-body-small); color: var(--text-basic); }

@@ -55,6 +55,12 @@
   const sold = function (fid) { const f = featureOf(fid), p = f && productOf(f.product); return !!f && f.use && !!p && p.use && !!PRICE[fid]; };
   //   지금 파는 기능: 가격 기준이 있고 기능과 제품이 모두 사용 중(제품 확인은 계약 등록 livePrices와 같게, REQ-QUO-04, 06. v0.63 통제 목록 CTL-05 점검)
   const overCap = C.quoteLineOverCap; // 할인율 한도를 넘는 줄(견적 목록, 통계와 같은 규칙, v0.62에 common.js로 옮김)
+  // 2026-11-09 5회차 점검: 한도를 영업 임원 승인 기준(C.cooOverPp, 지금 값 %p)보다 더 넘는 줄. 이 가격으로 계약하면 ③ 영업 임원 승인도 받음(E-3)
+  //   계약 등록의 셈(common.js capOver, cooRoute)과 같게 %p를 소수 둘째 자리로 반올림해 기준보다 큰지 봄. 기준 값은 하드코딩하지 않음
+  const cooOver = function (l) {
+    return overCap(l) && Math.round((1 - (Number(l.unitPrice) || 0) / l.listPrice - l.cap) * 10000) / 100 > C.cooOverPp();
+  };
+  const cooText = function () { return '한 줄이라도 한도를 ' + C.cooOverPp() + '%p보다 더 넘으면 영업 임원도 승인합니다'; };
 
   /* ---------- 출력할 수 있는 견적인지(받는 곳, 제품 줄, 날짜). 고치기 화면의 검사와 보기 화면의 출력 단추가 함께 씀 ---------- */
   function problems(q) {
@@ -115,7 +121,8 @@
     if (!q.lines.length) q.lines.push(blankLine());
     $('#page-title').textContent = src ? '견적 고치기' : '새 견적';
     $('#page-intro').innerHTML = '<p>제품과 가격 기준에 있는 표준 단가로 견적서를 만듭니다. 견적서를 출력하면 그 판은 고칠 수 없고 출력 기록이 남습니다.</p>' +
-      '<p class="sub">' + (src ? esc(src.no) + ' ' + src.ver + '판, 출력 전이라 고칠 수 있습니다. ' : '') + '견적은 계약과 이어지지 않고, 견적 단계 할인 승인은 없습니다. 할인율 한도를 넘는 할인은 계약할 때 영업 리더가 승인합니다.</p>';
+      '<p class="sub">' + (src ? esc(src.no) + ' ' + src.ver + '판, 출력 전이라 고칠 수 있습니다. ' : '') + '견적은 계약과 이어지지 않고, 견적 단계 할인 승인은 없습니다. 할인율 한도를 넘는 할인은 계약할 때 영업 리더가 승인합니다. ' +
+      esc(cooText()) + '.</p>'; // 2026-11-09 5회차 점검: 영업 임원 승인(E-3)도 알림
     $('#q-name').value = q.name; $('#q-unit').value = q.unit; $('#q-opp').value = q.opp;
     $('#q-date').value = q.date; $('#q-valid').value = q.validUntil; $('#q-note').value = q.note || '';
     let customerKey = q.customer || '';
@@ -180,13 +187,16 @@
     function metaText(l) {
       if (!l.feature) return '';
       const disc = l.listPrice ? 1 - (Number(l.unitPrice) || 0) / l.listPrice : 0;
-      return '단위 ' + esc(l.unit) + ', 표준 단가 ' + C.fmtWon(l.listPrice) + (disc > 0 ? ', 할인 ' + pct(disc) + (overCap(l) ? ' (한도 ' + pct(l.cap) + ' 넘음)' : '') : '') +
+      // 2026-11-09 5회차 점검: 영업 임원 승인 기준보다 더 넘는 줄에는 "영업 임원 승인 대상"(계약 등록의 결재선 미리보기와 같은 말)
+      return '단위 ' + esc(l.unit) + ', 표준 단가 ' + C.fmtWon(l.listPrice) + (disc > 0 ? ', 할인 ' + pct(disc) +
+        (overCap(l) ? ' (한도 ' + pct(l.cap) + ' 넘음' + (cooOver(l) ? ', 영업 임원 승인 대상' : '') + ')' : '') : '') +
         (sold(l.feature) ? '' : ' (지금 팔지 않는 기능)');
     }
     function capWarn() {
       const overs = q.lines.filter(overCap);
-      $('#q-cap-warn').hidden = !overs.length;
-      $('#q-cap-warn').textContent = overs.length ? '할인율 한도를 넘는 줄이 ' + overs.length + '개 있습니다. 견적서는 출력할 수 있지만, 이 가격으로 계약하면 계약 등록 때 영업 리더의 할인 승인(③ 영업 검토)이 필요합니다.' : '';
+      // 짧은 한 줄만 바꿔 넣고 보이고 감추지 않음(자리는 늘 한 줄, form.css .field-warn--reserve). 영업 리더와 영업 임원 승인의 까닭은
+      //   줄마다 "한도 넘음, 영업 임원 승인 대상"(metaText)과 맨 위 안내에 있음(기획자 결정 2026-11-09 5회차 11번)
+      $('#q-cap-warn').textContent = overs.length ? '할인율 한도를 넘는 줄이 ' + overs.length + '개입니다.' : '';
     }
     function lineRow(l, i) {
       const svc = l.service;
@@ -406,7 +416,8 @@
     if (canIssue(q)) intro.push('고객에게 낼 견적서는 "견적서 출력"으로 냅니다(회사 인장이 찍히고, PDF로 저장해 보낼 수 있음). 브라우저의 인쇄 메뉴로 찍으면 워터마크가 든 사내 인쇄가 되고 인장은 찍히지 않습니다.');
     const overs = q.lines.filter(overCap);
     $('#page-intro').innerHTML = '<p>' + esc(intro.join(' ')) + '</p><p class="sub">작성 ' + esc(C.ownerLabel(q.owner)) + ', 저장 ' + esc(C.fmtDateTime(q.savedAt)) +
-      (overs.length ? '. 할인율 한도를 넘는 줄이 ' + overs.length + '개 있어 이 가격으로 계약하면 영업 리더의 할인 승인이 필요합니다' : '') + '.</p>';
+      (overs.length ? '. 할인율 한도를 넘는 줄이 ' + overs.length + '개 있어 이 가격으로 계약하면 영업 리더의 할인 승인이 필요합니다' : '') +
+      (overs.some(cooOver) ? '. ' + esc(cooText()) : '') + '.</p>'; // 2026-11-09 5회차 점검: 영업 임원 승인(E-3)도 알림
     renderActions(q);
   }
   // 출력할 수 있는지: 작성한 영업(시연은 최고관리자), 맨 마지막 판, 작성 중이거나 출력함(기간 지남, 새 판으로 바뀜은 안 됨), 검사 통과

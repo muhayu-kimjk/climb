@@ -8,14 +8,20 @@
  *      기획자 결정 2026-11-02 C-3: 통제 증빙과 결재 기록 묶음을 꺼낸 일도 "내려받기"로 넣음
  *      점검 화면이 따로 쌓는 기록(할인 예외 점검, 기간 마감 확인, 영업기회 대사, 인장 기록 대조)도 "점검 기록"으로 넣음(2026-11-02)
  *   2. 최고관리자 계정(superIds, 기획자 결정 2026-11-02 C-6): 매월 점검의 "최고관리자 작업"을 따로 모을 때 씀
- *   3. 설정 변경 묶음(settingChanges, 기획자 결정 2026-11-02 C-8): 가격 기준, 제품과 기능, 표준계약서, 결재선 규칙, 회사 설정을 바꾼 것 한 건씩
+ *   3. 설정 변경 묶음(settingChanges, 기획자 결정 2026-11-02 C-8): 가격 기준, 제품과 기능, 표준계약서, 결재선 규칙, 회사 설정, 거래처를 바꾼 것 한 건씩
+ *      거래처는 2026-11-09 5회차 점검에서 더함(B-11, 05 G-25 ②, CTL-83). 완료 계약이 있는 거래처의 번호 변경만 재무 리더가 확인
+ *      완료 계약이 있는 거래처를 합친 것도 재무 리더가 확인(기획자 결정 2026-11-10 22번)
  *      전후 값, 사유, 품의 링크. 결재선 규칙은 근거(사유, 위임전결 근거)와 새로 맡는 사람이 기안자 유닛 밖인지
  *      가격 기준은 같은 때, 같은 사람, 같은 품의로 넣은 줄을 한 건으로 봄 [가정: 한 품의로 여러 기능을 함께 넣기 때문]
  *   4. 설정 변경 확인(checkOf, canConfirm, saveCheck, C-8): 가격과 제품은 재무 리더가 "품의와 맞음, 다름", 표준계약서는 올린 사람이 아닌 법무
- *      최고관리자는 시연으로 확인하되 자기가 바꾼 줄은 못함(C-6). 읽기만 하는 역할(감사 열람)은 못함
+ *      완료 계약이 있는 거래처의 번호 변경은 재무 리더가 "맞음, 다름"(2026-11-09 5회차 점검, G-25 ②). 완료 계약이 있는 거래처의 합치기도 같음(기획자 결정 2026-11-10 22번)
+ *      최고관리자는 시연으로 확인하되 자기가 바꾼 줄은 못함(C-6). 읽기만 하는 역할(감사 열람)과 컴플라이언스(보기만, 기획자 결정 2026-11-10 16번)는 못함
  *      확인은 관리자 변경 이력의 점검 기록(영역 AUDIT, op.k CONFIG_CHECK)에 쌓기만 함. 한 건에 확인 하나
  *   5. 꺼낸 기록과 파일(C-3): exportsAll(꺼낸 기록), recordExport, sha256Hex(파일 지문), csvLine(CSV 한 줄), download(내려받기)
  *      CSV는 엑셀에서 열리게 맨 앞에 BOM을 붙여 UTF-8로. 실제 시스템은 서버가 파일을 만들고 지문과 꺼낸 기록을 남김
+ *   6. 점검 문제를 컴플라이언스에 넘기기(raiseIssue, pendingIssues, issueTask): 매월 점검에서 문제 결과를 남기면 컴플라이언스 담당자의
+ *      점검할 일에 올라가고 이메일이 감. 개선 과제로 기록하면 닫힘(기획자 결정 2026-11-09 5회차 13번)
+ *      이 파일을 부르는 화면: 개요, 접속 기록 점검, 설정 변경 확인, 통계, 인장 기록 대조, 개선 과제와 보류(할인 예외 점검과 영업기회 대사는 HTML이 부르지 않으면 그 JS가 불러 씀)
  * ===================================================================== */
 window.CLIMB_CTL = (function () {
   const D = window.CLIMB_DATA;
@@ -95,7 +101,8 @@ window.CLIMB_CTL = (function () {
    * 한 건: { id, area, at, by, target, change(전후 값), reason, docUrl, docNo, items(가격 기준의 기능마다 전후), basis, unit, person }
    *   id: 확인을 남길 때 쓰는 번호. 가격 기준 'PRICE:일시|사람|품의 번호', 표준계약서 'TPL:표준계약서:판', 그 밖은 'LOG:일시|사람|대상'
    *   가격 기준은 가격 줄(D.PRICE_ROWS, 가격 기준 관리에서 바꾼 것도 들어 있음), 표준계약서는 판(D.TEMPLATES), 그 밖은 관리자 변경 이력 */
-  const AREA_SET = { PRICE: '가격 기준', PRODUCT: '제품과 기능', TEMPLATE: '표준계약서', RULE: '결재선 규칙', COMPANY: '회사 설정' };
+  // 거래처(CUSTOMER)도 넣음(2026-11-09 5회차 점검, 기획자 결정 2026-11-02 B-11, 05 G-25 ②, 06 CTL-83): 정해 두고 시안에 넣지 않아 거래처 추가, 고치기, 합치기를 매월 묶음에서 아무도 보지 않았음
+  const AREA_SET = { PRICE: '가격 기준', PRODUCT: '제품과 기능', TEMPLATE: '표준계약서', RULE: '결재선 규칙', COMPANY: '회사 설정', CUSTOMER: '거래처' };
   function pct(n) { return (Math.round((n || 0) * 1000) / 10) + '%'; }
   function priceText(r) { return C.fmtWon(r.listPrice) + '(' + r.unit + '), 한도 ' + pct(r.discountCap); }
   // 같은 기능에서 이 줄보다 먼저 넣은 줄 가운데 적용 시작일이 가장 늦은 것(바꾸기 전 값)
@@ -174,15 +181,46 @@ window.CLIMB_CTL = (function () {
     const rel = uniq((keys.length ? keys : ['']).map(function (k) { return relation(k, person); }));
     return { basis: basis, unit: rel.join(', '), person: person };
   }
+  /* 거래처 한 건이 재무 리더 확인 대상인지(2026-11-09 5회차 점검, 05 G-25 ②: "완료 계약이 있는 거래처의 번호 변경은 재무가 확인")
+   *   대상 1: 고치기(op.k CUSTOMER_EDIT)에서 사업자등록번호를 바꾼 줄 가운데, 그 거래처에 완료 계약이 있는 것만
+   *   대상 2: 합치기(op.k CUSTOMER_MERGE)에서 합치는 거래처 가운데 완료 계약이 있는 곳이 있는 것(기획자 결정 2026-11-10 22번)
+   *     재무 리더가 "맞음", "다름"으로 확인(결과 이름은 아래 RESULT.CUSTOMER 그대로). 줄에 merge: true를 붙여 화면이 "거래처를 합침" 글을 씀
+   *     합친 뒤에는 나머지 거래처의 계약이 남길 거래처 이름으로 옮겨지므로(common.js 합치기 되살리기) 남길 거래처의 지금 이름으로 셈.
+   *     그래서 합친 모든 거래처의 완료 계약을 함께 셈(기획자 결정 2026-11-10 22번)
+   *   완료 계약: 계약 완료, 만료, 해지 상태의 계약. 체결을 마쳐 재무 기록이 생긴 계약이고 지금 상태로 셈(기획자 확인 2026-11-10 23번)
+   *   번호를 바꿨는지는 바뀐 내용 글(거래처 관리 openEdit가 만드는 "사업자등록번호: 앞 → 뒤")로 봄. 예시 기록(op 없음)은 대상 아님
+   *   추가(기안할 때 저절로 등록된 줄 포함)는 묶음에 보이기만 함. 기안 때 생긴 거래처는 ②와 ⑩에서 이미 봄(CTL-81)
+   *   완료 계약이 없는 거래처끼리의 합치기는 묶음(SCR-57 설정 변경)에만 보임(기획자 결정 2026-11-10 22번) */
+  const DONE_STATUS = ['ACTIVE', 'EXPIRED', 'TERMINATED']; // 계약 완료, 만료, 해지(기획자 확인 2026-11-10 23번, [가정]을 뗌)
+  // 그 이름의 거래처에 있는 완료 계약 수(고치기와 합치기가 함께 씀, 기획자 결정 2026-11-10 22번)
+  function doneCountOf(name) {
+    return name ? D.CONTRACTS.filter(function (c) { return c.id && c.counterparty === name && DONE_STATUS.indexOf(c.status) > -1; }).length : 0;
+  }
+  function customerCheckInfo(e) {
+    const op = e.op || null;
+    // 합치기도 재무 리더 확인 대상(기획자 결정 2026-11-10 22번): 남길 거래처(합친 계약이 모두 옮겨진 곳)의 완료 계약이 한 건이라도 있으면
+    if (op && op.k === 'CUSTOMER_MERGE') {
+      const keep = D.CUSTOMERS.filter(function (x) { return x.id === op.keep; })[0];
+      const m = keep ? doneCountOf(keep.name) : 0;
+      return { check: m > 0, doneCount: m, merge: true };
+    }
+    if (!op || op.k !== 'CUSTOMER_EDIT' || String(e.change || '').indexOf('사업자등록번호: ') < 0) return { check: false, doneCount: 0 };
+    const cu = D.CUSTOMERS.filter(function (x) { return x.id === op.id; })[0];
+    const n = cu ? doneCountOf(cu.name) : 0;
+    return { check: n > 0, doneCount: n };
+  }
   function logEvents(area) {
     return D.ADMIN_LOG.filter(function (e) { return e.area === area; }).map(function (e) {
-      return make('LOG:' + e.at + '|' + e.by + '|' + e.target, area, e.at, e.by, e.target, e.change, e.reason, area === 'RULE' ? ruleInfo(e) : null);
+      // 거래처 줄에는 check(재무 리더 확인 대상인지)와 doneCount(완료 계약 수)를 붙임(2026-11-09 5회차 점검)
+      return make('LOG:' + e.at + '|' + e.by + '|' + e.target, area, e.at, e.by, e.target, e.change, e.reason,
+        area === 'RULE' ? ruleInfo(e) : area === 'CUSTOMER' ? customerCheckInfo(e) : null);
     });
   }
   // opts: { month: 'YYYY-MM'(그달만), areas: ['PRICE', ...](그 영역만) }. 최근 것부터
   function settingChanges(opts) {
     opts = opts || {};
-    const list = priceEvents().concat(logEvents('PRODUCT'), templateEvents(), logEvents('RULE'), logEvents('COMPANY'));
+    // 거래처(CUSTOMER) 영역을 더함(2026-11-09 5회차 점검, CTL-83): 관리자 변경 이력의 거래처 추가, 고치기, 합치기 모두
+    const list = priceEvents().concat(logEvents('PRODUCT'), templateEvents(), logEvents('RULE'), logEvents('COMPANY'), logEvents('CUSTOMER'));
     return list.filter(function (x) {
       return (!opts.month || String(x.at).slice(0, 7) === opts.month) && (!opts.areas || opts.areas.indexOf(x.area) > -1);
     }).sort(function (a, b) { return String(b.at).localeCompare(String(a.at)); });
@@ -193,13 +231,18 @@ window.CLIMB_CTL = (function () {
   }
 
   /* ---------- 4. 설정 변경 확인 (기획자 결정 2026-11-02 C-8, C-6) ---------- */
-  const CHECKER = { PRICE: 'FIN_LEAD', PRODUCT: 'FIN_LEAD', TEMPLATE: 'LEGAL' };
+  // 거래처는 재무 리더(2026-11-09 5회차 점검, 05 G-25 ②). 다만 줄마다 check가 참인 것(완료 계약이 있는 거래처의 번호 변경과 합치기)만
+  //   합치기는 기획자 결정 2026-11-10 22번으로 더함(customerCheckInfo)
+  const CHECKER = { PRICE: 'FIN_LEAD', PRODUCT: 'FIN_LEAD', TEMPLATE: 'LEGAL', CUSTOMER: 'FIN_LEAD' };
   const RESULT = {
     PRICE: { MATCH: '품의와 맞음', DIFF: '품의와 다름' },
     PRODUCT: { MATCH: '품의와 맞음', DIFF: '품의와 다름' },
     TEMPLATE: { MATCH: '근거와 맞음', DIFF: '근거와 다름' },
+    CUSTOMER: { MATCH: '맞음', DIFF: '다름' }, // 거래처 번호 변경: 결과는 맞음, 다름(다름이면 의견 필수). 품의가 없어 "품의와"를 붙이지 않음(2026-11-09 5회차 점검)
+    //   거래처 합치기도 같은 "맞음", "다름"(기획자 결정 2026-11-10 22번)
   };
-  function needsCheck(x) { return !!CHECKER[x.area]; }
+  // 거래처 줄은 check가 참일 때만 확인 대상(2026-11-09 5회차 점검, 합치기는 기획자 결정 2026-11-10 22번). 그 밖의 거래처 줄은 정보보호가 매월 묶음에서 봄
+  function needsCheck(x) { return !!CHECKER[x.area] && (x.area !== 'CUSTOMER' || x.check === true); }
   function checkerLabel(area) { return area === 'TEMPLATE' ? '법무' : '재무 리더'; }
   function resultLabel(area, r) { return (RESULT[area] || RESULT.PRICE)[r] || r; }
   // 남긴 확인(최근 것부터). 예시 기록과 시연 기록 모두 관리자 변경 이력에 있음
@@ -214,6 +257,8 @@ window.CLIMB_CTL = (function () {
   // 이 사람이 이 줄을 확인할 수 있는지: { ok, why(못 하는 까닭, 화면에 보임), mine(이 사람이 맡은 영역인지) }
   function canConfirm(user, x) {
     if (!needsCheck(x) || C.isReadOnly(user) || checkOf(x.id)) return { ok: false, why: '', mine: false };
+    // 컴플라이언스는 매월 점검 화면을 보기만 함(기획자 결정 2026-11-10 16번). 맡은 영역이 없어 아래에서도 막히지만 겹으로 막음
+    if (user.role !== 'SUPER' && C.hasRole(user, ['COMPLIANCE'])) return { ok: false, why: '', mine: false };
     const mine = user.role === 'SUPER' || C.hasRole(user, [CHECKER[x.area]]);
     if (!mine) return { ok: false, why: '', mine: false };
     // C-8: 표준계약서는 올린 법무가 아닌 사람이 봄. C-6: 최고관리자도 자기가 바꾼 줄은 확인하지 못함
@@ -272,11 +317,52 @@ window.CLIMB_CTL = (function () {
   }
   function watermark(user, at) { return whoText(user) + ' ' + String(at).slice(0, 16) + ' 내려받음. 사내 감사 증빙 전용이며 다른 곳에 줄 때도 이 줄을 지우지 않음'; }
 
+  /* ---------- 6. 점검에서 나온 문제를 컴플라이언스에 넘기기 (기획자 결정 2026-11-09 5회차 13번) ----------
+   * 매월 점검에서 문제 결과를 남기면 저절로 컴플라이언스 담당자에게 넘어감(전에는 기록만 남고 개선 과제로 이어지지 않았음)
+   *   문제 결과: 할인 예외 점검의 "문제 있음" 줄(SCR-61), 설정 변경 확인의 "다름"(SCR-65), 인장 기록 대조의 "맞지 않는 것이 있음"(SCR-63),
+   *     영업기회 대사에서 예외 줄이 있는 대사 확인(SCR-62), 매월 기록 점검의 "조치함"(SCR-57),
+   *     최고관리자 작업 점검의 "조치함"(SCR-57, 기획자 결정 2026-11-10 17번)
+   *   넘어온 일은 개요 "점검할 일"(컴플라이언스)에 한 줄씩 올라가고, 컴플라이언스 담당자에게 이메일이 감(받는 사람은 complianceMailTo)
+   *   컴플라이언스가 개선 과제와 보류 화면(SCR-64)에서 눌러 개선 과제로 기록하면(찾은 곳과 점검 화면 링크를 미리 채움) 그 일은 닫힘
+   * 기록: 관리자 변경 이력의 점검 기록(영역 AUDIT, op.k ISSUE_RAISE, op.i 넘어온 일). 쌓기만 함
+   *   넘어온 일 { id: 'IS-0001', source: 개선 과제의 찾은 곳 코드(D.REMEDIATION.SOURCE: DISCOUNT, CONFIG, SEAL, OPP, LOG), title: 무엇이 문제인지,
+   *     note: 점검한 사람이 적은 의견이나 메모, href: 그 점검 화면(그달이나 그 줄), ref: 그달이나 줄 열쇠 }
+   *   닫힘: 개선 과제 기록(D.REMEDIATIONS)의 issueId가 이 번호인 것이 있으면. 고객사 이름은 넣지 않고 계약번호만(열람 제한 계약 보호, REQ-AUTH-09) */
+  function issuesAll() {
+    return D.ADMIN_LOG.filter(function (e) { return e.op && e.op.k === 'ISSUE_RAISE' && e.op.i; })
+      .map(function (e) { return Object.assign({ by: e.by, at: e.at }, e.op.i); })
+      .sort(function (a, b) { return String(b.at).localeCompare(String(a.at)); });
+  }
+  // 이 넘어온 일로 기록한 개선 과제(없으면 null)
+  function issueTask(id) { return (D.REMEDIATIONS || []).filter(function (r) { return r.issueId === id; })[0] || null; }
+  // 아직 개선 과제로 기록하지 않은 넘어온 일(오래된 것부터: 먼저 넘어온 일을 먼저 처리)
+  function pendingIssues() { return issuesAll().filter(function (i) { return !issueTask(i.id); }).reverse(); }
+  // 이메일 받을 컴플라이언스 담당자: 사용 중인 계정 가운데 컴플라이언스 역할이 있는 사람
+  function complianceMailTo() {
+    return D.ACCOUNTS.filter(function (a) { return a.status === 'ACTIVE' && (a.roles || []).indexOf('COMPLIANCE') > -1; }).map(function (a) { return a.id; });
+  }
+  // 넘기기: 점검 화면이 문제 결과를 저장한 바로 뒤에 부름. rec { source, title, note, href, ref }. 읽기만 하는 역할이면 남기지 않고 null
+  function raiseIssue(rec) {
+    const n = issuesAll().reduce(function (m, x) { return Math.max(m, Number(String(x.id || '').replace(/\D/g, '')) || 0); }, 0) + 1;
+    const i = Object.assign({ id: 'IS-' + String(n).padStart(4, '0') }, rec);
+    const to = complianceMailTo();
+    const src = (D.REMEDIATION && D.REMEDIATION.SOURCE[i.source]) || i.source;
+    const e = C.adminSave('AUDIT', '컴플라이언스에 넘김(' + i.id + '): ' + src + ' ' + i.title,
+      '개선 과제로 옮길 일로 넘김, 컴플라이언스 담당자 이메일 ' + to.length + '명', i.note || i.title, { k: 'ISSUE_RAISE', i: i });
+    return e.refused ? null : Object.assign({ by: e.by, at: e.at, mailTo: to }, i);
+  }
+  // 점검 화면의 안내와 알림 글(같은 말을 모든 점검 화면에서 씀)
+  const ISSUE_HELP = '문제 결과를 남기면 컴플라이언스 담당자의 점검할 일에 저절로 올라가고 이메일로 알립니다.';
+  function issueToast(i) { return i ? ' 컴플라이언스 담당자에게 넘기고 이메일로 알렸습니다(' + i.id + ').' : ''; }
+
   return {
     ACTS: ACTS, AREA: AREA, AREA_SET: AREA_SET, RESULT: RESULT, NL: NL,
     accessLogs: accessLogs, superIds: superIds,
     settingChanges: settingChanges, docLink: docLink, needsCheck: needsCheck, checkerLabel: checkerLabel, resultLabel: resultLabel,
     checkEntries: checkEntries, checkOf: checkOf, canConfirm: canConfirm, saveCheck: saveCheck,
     exportsAll: exportsAll, recordExport: recordExport, sha256Hex: sha256Hex, csvLine: csvLine, download: download, whoText: whoText, watermark: watermark,
+    // 점검 문제를 컴플라이언스에 넘기기(기획자 결정 2026-11-09 5회차 13번)
+    issuesAll: issuesAll, issueTask: issueTask, pendingIssues: pendingIssues, complianceMailTo: complianceMailTo, raiseIssue: raiseIssue,
+    ISSUE_HELP: ISSUE_HELP, issueToast: issueToast,
   };
 })();

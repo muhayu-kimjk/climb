@@ -167,8 +167,11 @@ p.check-effect { margin-top: 1.2rem; }
   .info-grid { grid-template-columns: 1fr; }
   .info-grid > div { grid-template-columns: 10rem minmax(0, 1fr); }
   .action-bar { margin-left: -1.6rem; margin-right: -1.6rem; padding: 1.2rem 1.6rem; border-radius: 0; }
-  .act-btns { width: 100%; }
+  /* ③ "이해관계 있음"이 있으면 단추가 넷이라 한 줄에 다 들어가지 않음: 그 단추만 맨 아래 한 줄을 다 씀
+   * (반려, 보완 요청, 승인은 위 한 줄 그대로. 글자가 잘리거나 옆으로 밀리지 않게) (기획자 결정 2026-11-09 5회차 14번) */
+  .act-btns { width: 100%; flex-wrap: wrap; }
   .act-btns .btn { flex: 1 1 0; }
+  .act-btns .btn-interest { flex: 1 1 100%; order: 1; }
   .act-pick { width: 100%; flex-wrap: wrap; }
   .act-pick .select { width: 100%; min-width: 0; }
   /* 휴대폰에서는 첨부 파일을 미리보기만 (REQ-SEC-08) */

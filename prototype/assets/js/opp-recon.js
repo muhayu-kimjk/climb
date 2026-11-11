@@ -3,8 +3,10 @@
  * ---------------------------------------------------------------------
  * 기획자 결정 2026-11-02 E-1 ②(G-02, CTL-03): 영업지원이 매월 판다 수주 목록 파일을 올려 계약과 맞춰 봄
  *   계약이 없는 수주, 수주 목록에 없는 계약, 줄마다 의견, 그 달 확인. 운영 시작 뒤 수주만, 고객 담당자 이름과 연락처는 뺌. 기록은 쌓기만 함
- * 볼 수 있는 사람: 영업지원 담당자와 리더(C.checkOwners('SCR-62')), 최고관리자(시연용), 감사 열람(보기만)
- * 남길 수 있는지: C.canDoCheck(me, 'SCR-62'). 읽기만 하는 역할(감사 열람)은 false라 올리기, 의견, 확인 단추가 없음
+ * 볼 수 있는 사람: 영업지원 담당자와 리더(C.checkOwners('SCR-62')), 최고관리자(시연용), 감사 열람(보기만), 컴플라이언스(보기만)
+ *   기획자 결정 2026-11-10 16번: 컴플라이언스도 감사 열람처럼 보기만 함. 넘어온 일(예외 줄이 있는 대사 확인)의 원래 기록을 바로 봄
+ * 남길 수 있는지: C.canDoCheck(me, 'SCR-62')이면서 컴플라이언스가 아님. 읽기만 하는 역할(감사 열람)과 컴플라이언스는 false라 올리기, 의견, 확인 단추가 없음
+ *   보기만 하는 사람에게는 월별 대사 안내 끝에 "보기만 합니다" 한 줄을 덧붙임(기획자 결정 2026-11-10 16번, 할인 예외 점검과 같은 모양)
  * 하는 일
  *   1. 월별 대사: 운영을 시작한 달(D.SERVICE_START_MONTH)부터 이달까지 한 줄씩. 기한은 다음 달 말일 [가정, 접속 기록 점검과 같게]
  *   2. 고른 달의 대사
@@ -18,6 +20,7 @@
  *      의견: 예외 줄마다. 바꾸려면 한 번 더 남김(마지막 의견이 보임). 확인: 예외 줄에 모두 의견이 있어야 함
  *        확인 때 본 숫자와 열쇠(파일 번호, 예외 줄)를 남겨, 뒤에 새 파일이나 새 계약으로 바뀌면 "확인한 뒤 바뀜"
  *   3. 대사 기록: 파일 올림, 의견, 확인을 새것부터 20줄씩
+ *   기획자 결정 2026-11-09 5회차 13번: 예외 줄이 있는 대사를 확인하면 컴플라이언스에 넘김(X.raiseIssue). 그달 확인 한 번에 한 건, 확인 기록에 issueId
  * 프로토타입: 기록은 예시(D.OPP_RECON)와 이 브라우저의 시연 기록(C.loadDemo('oppRecon')). 실제 시스템은 서버가 같은 규칙으로 읽고 저장하며
  *   엑셀 파일(xlsx)도 받음. 볼 수 없는 열람 제한 계약은 계약번호만 보이고 고객사와 금액을 가림
  * ===================================================================== */
@@ -28,10 +31,14 @@
   const esc = C.esc;
   const $ = function (s, root) { return (root || document).querySelector(s); };
   const SCR = 'SCR-62';
-  if (!C.gate(me, C.checkOwners(SCR).concat(['AUDIT']), '영업기회 대사는 영업지원이 씁니다',
-    '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 화면 맨 위 검은 띠에서 영업지원, 감사 열람, 최고관리자 가운데 하나로 바꾸면 볼 수 있습니다.')) return;
+  // 문: 맡은 사람, 감사 열람, 컴플라이언스(보기만, 기획자 결정 2026-11-10 16번)
+  if (!C.gate(me, C.checkOwners(SCR).concat(['AUDIT', 'COMPLIANCE']), '영업기회 대사는 영업지원이 씁니다',
+    '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 화면 맨 위 검은 띠에서 영업지원, 감사 열람, 컴플라이언스, 최고관리자 가운데 하나로 바꾸면 볼 수 있습니다.')) return;
 
-  const canDo = C.canDoCheck(me, SCR);
+  // 감사 열람과 컴플라이언스는 보기만(기획자 결정 2026-11-10 16번)
+  const canDo = C.canDoCheck(me, SCR) && !(me.role !== 'SUPER' && C.hasRole(me, ['COMPLIANCE']));
+  // 보기만 하는 사람: 안내 한 줄을 덧붙임. 화면을 처음 그리기 전에 한 번이라 흔들리지 않음(기획자 결정 2026-11-10 16번)
+  if (!canDo && $('#months-desc')) $('#months-desc').textContent += ' 보기만 합니다. 파일 올리기와 의견, 대사 확인은 영업지원이 남깁니다.';
   const START = D.SERVICE_START_MONTH, THIS_MONTH = D.TODAY.slice(0, 7), PAGE_SIZE = 20;
   const FILE_MAX = 2 * 1048576; // CSV 2MB 이하 [가정]
   function pad(n) { return String(n).padStart(2, '0'); }
@@ -51,6 +58,19 @@
     }
     return out.reverse();
   }
+
+  /* 컴플라이언스에 넘기기(기획자 결정 2026-11-09 5회차 13번): 예외 줄(계약이 없는 수주, 수주 목록에 없는 계약)이 있는 대사를 확인하면
+   *   control-checks.js X.raiseIssue로 컴플라이언스 담당자의 점검할 일에 올리고 이메일을 보냄. 줄마다가 아니라 그달 확인 한 번에 한 건
+   *   opp-recon.html이 아직 control-checks.js를 부르지 않아, 필요할 때 한 번 불러 씀(HTML에 script 줄을 더하면 바로 window.CLIMB_CTL을 씀) */
+  function withCtl(then) {
+    if (window.CLIMB_CTL) { then(window.CLIMB_CTL); return; }
+    const s = document.createElement('script');
+    s.src = 'assets/js/control-checks.js';
+    s.onload = function () { then(window.CLIMB_CTL || null); };
+    s.onerror = function () { then(null); };
+    document.head.appendChild(s);
+  }
+  if (canDo) withCtl(function () {}); // 남길 수 있는 사람에게는 미리 불러 둠
 
   /* ---------- 기록 (쌓기만 함) ---------- */
   function records() { return (D.OPP_RECON || []).concat(C.loadDemo('oppRecon')).slice().sort(function (a, b) { return a.at.localeCompare(b.at); }); }
@@ -333,20 +353,34 @@
     if (!canDo) return;
     const ym = sel, r = compare(ym);
     if (!r || r.missing) return;
+    const exc = r.noContract.length + r.notInList.length; // 예외 줄 수(2026-11-09 5회차 13번: 있으면 컴플라이언스에 넘김)
     C.formModal({
       title: monthLabel(ym) + ' 영업기회 대사를 확인할까요?',
       desc: '저장하면 확인한 사람과 일시, 그때 본 숫자가 남고 고칠 수 없습니다.',
-      body: '<p class="modal-info">' + esc(seenText(r)) + '</p>' +
+      body: '<p class="modal-info">' + esc(seenText(r)) +
+          // 예외 줄이 있으면 확인과 함께 컴플라이언스에 넘어가고 이메일이 간다는 안내(기획자 결정 2026-11-09 5회차 13번)
+          (exc ? '<br>예외 줄 ' + exc + '건이 있어 확인하면 컴플라이언스 담당자의 점검할 일에 올라가고 이메일로 알립니다.' : '') + '</p>' +
         // 넣지 않아도 되는 칸은 optional로 "(선택)"을 모든 창에서 같은 모양으로(2026-11-06 점검 3회차)
         C.fieldHtml({ name: 'memo', label: '메모', type: 'textarea', optional: true, help: '예: 예외 두 줄 모두 영업대표에게 확인함' }),
       btn: '대사 확인',
       // 창을 연 사이에 다른 탭에서 새 파일을 올렸으면 저장하지 않음
       check: function () { const now = compare(ym); return now && !now.missing && now.keys === r.keys ? {} : { memo: '그사이 대사 내용이 바뀌었습니다. 창을 닫고 다시 보세요.' }; },
       done: function (f) {
-        save({ type: 'CONFIRM', month: ym, at: stamp(), by: me.id, dept: me.dept || '', uploadId: r.up.id, memo: val(f, 'memo'),
-          seen: { orders: r.orders, matched: r.matched, noContract: r.noContract.length, notInList: r.notInList.length, keys: r.keys } });
-        refresh();
-        C.toast(monthLabel(ym) + ' 영업기회 대사를 확인했습니다.');
+        const memo = val(f, 'memo');
+        // 확인 기록에 넘어온 일 번호(issueId)를 함께 남김(예외 줄이 없으면 null)
+        const finish = function (X, i) {
+          save({ type: 'CONFIRM', month: ym, at: stamp(), by: me.id, dept: me.dept || '', uploadId: r.up.id, memo: memo,
+            seen: { orders: r.orders, matched: r.matched, noContract: r.noContract.length, notInList: r.notInList.length, keys: r.keys }, issueId: i ? i.id : null });
+          refresh();
+          C.toast(monthLabel(ym) + ' 영업기회 대사를 확인했습니다.' + (exc ? (X ? X.issueToast(i) : ' 컴플라이언스에 넘기지 못했습니다. 화면을 새로 고친 뒤 컴플라이언스 담당자에게 알려 주세요.') : ''), !!exc && !i);
+        };
+        if (!exc) { finish(null, null); return; }
+        // 넘기는 글: 숫자와 줄 번호만(영업기회번호, 계약번호). 고객사 이름은 넣지 않음(열람 제한 계약 보호, REQ-AUTH-09)
+        const rows = r.noContract.map(function (o) { return '수주 ' + o.opp; }).concat(r.notInList.map(function (c) { return '계약 ' + c.id; }));
+        withCtl(function (X) {
+          finish(X, X ? X.raiseIssue({ source: 'OPP', title: monthLabel(ym) + ' 영업기회 대사: 계약이 없는 수주 ' + r.noContract.length + '건, 수주 목록에 없는 계약 ' + r.notInList.length + '건',
+            note: '예외 줄: ' + rows.join(', ') + (memo ? '. 메모: ' + memo : ''), href: 'opp-recon.html?month=' + ym, ref: ym }) : null);
+        });
       },
     });
   }
@@ -361,7 +395,8 @@
       return (r.key.indexOf('ORDER:') === 0 ? '수주 ' + r.key.slice(6) : '계약 ' + r.key.slice(9) + (c && !C.canView(c, me) ? '(열람 제한)' : '')) + ': ' + r.text;
     }
     const s = r.seen || {};
-    return '계약이 없는 수주 ' + (s.noContract || 0) + '건, 수주 목록에 없는 계약 ' + (s.notInList || 0) + '건을 보고 확인' + (r.memo ? '. 메모: ' + r.memo : '');
+    return '계약이 없는 수주 ' + (s.noContract || 0) + '건, 수주 목록에 없는 계약 ' + (s.notInList || 0) + '건을 보고 확인' + (r.memo ? '. 메모: ' + r.memo : '') +
+      (r.issueId ? '. 컴플라이언스에 넘김(' + r.issueId + ')' : ''); // 2026-11-09 5회차 13번
   }
   function renderLog() {
     const all = records().slice().reverse();

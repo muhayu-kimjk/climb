@@ -25,10 +25,12 @@
   - 고객용 견적서("견적서 출력")에는 회사 인장 그림이 늘 찍히고, 출력 기록에 "인장 찍음"이 남습니다.
   - 총무가 매월 그 기록을 인장 대장과 맞춰 보고 확인을 남깁니다. 견적서 출력은 막지 않습니다.
   - 남긴 기록은 쌓기만 하고 고치거나 지우지 않습니다(누가, 언제).
-  - 볼 수 있는 사람: 총무, 최고관리자(시연용), 감사 열람(보기만). 메뉴는 위 메뉴 줄의 "점검"(기획자 결정 2026-11-03, common.js MENU, CHECK_OWNERS).
-    확인을 남길 수 있는지는 C.canDoCheck(me, 'SCR-63'). 읽기만 하는 역할에는 단추가 없습니다.
+  - 볼 수 있는 사람: 총무, 최고관리자(시연용), 감사 열람(보기만), 컴플라이언스(보기만, 기획자 결정 2026-11-10 16번). 메뉴는 위 메뉴 줄의 "점검"(기획자 결정 2026-11-03, common.js MENU, CHECK_OWNERS).
+    확인을 남길 수 있는지는 C.canDoCheck(me, 'SCR-63'). 읽기만 하는 역할과 컴플라이언스에는 단추가 없고, 월별 대조 안내(months-desc) 끝에 "보기만 합니다"가 붙습니다.
   - 묶음: 월별 대조(달마다 한 줄, 인장 찍은 출력과 인장 없이 낸 출력의 수, 대조) → 고른 달의 인장 찍은 출력(견적번호, 판, 출력한 사람, 일시, 합계)과 대조 남기기 → 대조 기록
   - 출력 기록은 견적의 출력 기록(sealed, sealVer)에서 모음. 최고관리자는 자기가 낸 출력이 든 달의 대조를 남기지 않음(C-6)
+  - 기획자 결정 2026-11-09 5회차 3번: 계약서 ⑥ 날인 완료도 같은 화면, 같은 매월 기한에 인장 대장과 맞춤. 고른 달 아래 "견적서 인장"과 "계약서 날인" 두 묶음, 월별 대조에 "계약서 날인" 칸
+  - 기획자 결정 2026-11-09 5회차 13번: "맞지 않는 것이 있음"을 남기면 컴플라이언스의 점검할 일에 올라가고 이메일이 감(control-checks.js를 부름)
   - 동작은 assets/js/seal-recon.js
 ====================================================================== -->
 <body data-page="SCR-63">
@@ -44,9 +46,11 @@
         <h1 class="page-title">인장 기록 대조</h1>
       </div>
       <div class="page-intro">
-        <p>총무가 매월 견적서 출력 때 찍은 회사 인장 기록을 인장 대장과 맞춰 봅니다.</p>
+        <!-- 기획자 결정 2026-11-09 5회차 3번: 계약서 ⑥ 날인도 함께 맞춤을 안내에 적음 -->
+        <p>총무가 매월 견적서 출력 때 찍은 회사 인장과 계약서에 찍은 인장(⑥ 날인) 기록을 인장 대장과 맞춰 봅니다.</p>
         <!-- 2026-11-06 점검: 이 화면은 출력 기록마다가 아니라 달마다 대조 결과 하나를 남기므로 안내를 그에 맞춤(화면 이름은 기획자 결정이라 그대로) -->
-        <p class="sub">달마다 인장을 찍은 출력 기록을 인장 대장과 맞춰 보고 대조 결과를 남깁니다. 견적서 출력은 막지 않고, 남긴 기록은 고치거나 지울 수 없습니다.</p>
+        <!-- 2026-11-09 5회차 13번: 맞지 않음을 남기면 컴플라이언스 담당자에게 넘어가고 이메일이 감을 안내 -->
+        <p class="sub">달마다 견적서 인장과 계약서 날인을 인장 대장과 맞춰 보고 대조 결과 하나를 남깁니다. 맞지 않는 것이 있으면 컴플라이언스 담당자에게 넘어가고 이메일로 알립니다. 견적서 출력은 막지 않고, 남긴 기록은 고치거나 지울 수 없습니다.</p>
       </div>
 
       <div id="notice"></div>
@@ -55,24 +59,26 @@
         <!-- 월별 대조: 운영을 시작한 달부터 이달까지 한 줄씩(seal-recon.js renderMonths) -->
         <section class="panel" id="app" aria-labelledby="app-title">
           <div class="panel-head"><h2 class="panel-title" id="app-title">월별 대조</h2></div>
-          <p class="panel-desc">지난달 인장을 찍은 견적서 출력을 다음 달 말일까지 인장 대장과 맞춰 봅니다.</p>
+          <!-- 기획자 결정 2026-11-09 5회차 3번: 계약서 날인 칸을 더하고 "인장 찍은 출력"을 "견적서 인장"으로(두 묶음을 나눠 부름) -->
+          <!-- 보기만 하는 사람(감사 열람, 컴플라이언스)에게는 seal-recon.js가 이 안내 끝에 "보기만 합니다"를 붙임(기획자 결정 2026-11-10 16번) -->
+          <p class="panel-desc" id="months-desc">지난달 인장을 찍은 견적서 출력과 ⑥ 날인을 마친 계약서를 다음 달 말일까지 인장 대장과 맞춰 봅니다.</p>
           <div class="tbl-scroll" tabindex="0" role="region" aria-label="월별 대조 표">
             <table class="tbl tbl--compact">
-              <caption class="sr-only">월별 대조: 대상 월, 기한, 인장 찍은 출력, 인장 없이 낸 출력, 대조, 보기</caption>
-              <thead><tr><th scope="col">대상 월</th><th scope="col">기한</th><th scope="col" class="num">인장 찍은 출력</th><th scope="col" class="num">인장 없이 낸 출력</th><th scope="col" class="col-phone-wide">대조</th><th scope="col" class="col-action">보기</th></tr></thead>
+              <caption class="sr-only">월별 대조: 대상 월, 기한, 견적서 인장, 인장 없이 낸 출력, 계약서 날인, 대조, 보기</caption>
+              <thead><tr><th scope="col">대상 월</th><th scope="col">기한</th><th scope="col" class="num">견적서 인장</th><th scope="col" class="num">인장 없이 낸 출력</th><th scope="col" class="num">계약서 날인</th><th scope="col" class="col-phone-wide">대조</th><th scope="col" class="col-action">보기</th></tr></thead>
               <tbody id="month-rows"></tbody>
             </table>
           </div>
         </section>
 
-        <!-- 고른 달의 인장 찍은 출력과 대조 남기기(seal-recon.js renderDetail) -->
+        <!-- 고른 달의 견적서 인장, 계약서 날인과 대조 남기기(seal-recon.js renderDetail). 2026-11-09 5회차 3번: 계약서 날인 묶음을 더함 -->
         <section class="panel" aria-labelledby="sec-detail">
           <div class="panel-head panel-head--act">
-            <h2 class="panel-title" id="sec-detail">인장 찍은 출력</h2>
+            <h2 class="panel-title" id="sec-detail">인장 기록</h2>
             <div class="recon-month-pick"><label class="field-label field-label--sm" for="f-month">대상 월</label><select class="select" id="f-month"></select></div>
           </div>
-          <p class="step-guide">"견적서 출력"으로 낸 고객용 견적서에는 회사 인장 그림이 늘 찍힙니다(회사 설정의 그림). 출력마다 인장 대장(구글 폼)에 같은 줄이 있는지 맞춰 보고
-            대조를 남깁니다. 출력은 막지 않고, 인장 그림이 없어 인장 없이 나간 출력은 대장과 맞출 것이 없어 따로 셉니다.</p>
+          <p class="step-guide">"견적서 출력"으로 낸 고객용 견적서에는 회사 인장 그림이 늘 찍힙니다(회사 설정의 그림). 계약서는 ⑥ 인장 날인 검토에서 총무가 날인을 마칩니다.
+            출력과 날인마다 인장 대장(구글 폼)에 같은 줄이 있는지 맞춰 보고 대조를 남깁니다. 출력은 막지 않고, 인장 그림이 없어 인장 없이 나간 출력은 대장과 맞출 것이 없어 따로 셉니다.</p>
           <div id="detail"></div>
         </section>
 
@@ -82,8 +88,9 @@
           <p class="panel-desc">총무가 남긴 대조입니다. 고치거나 지울 수 없고, 같은 달에 다시 남기면 한 줄 더 쌓입니다.</p>
           <div class="tbl-scroll" tabindex="0" role="region" aria-label="대조 기록 표">
             <table class="tbl tbl--compact recon-log">
-              <caption class="sr-only">대조 기록: 일시, 대상 월, 결과, 인장 찍은 출력, 메모, 남긴 사람</caption>
-              <thead><tr><th scope="col">일시</th><th scope="col">대상 월</th><th scope="col">결과</th><th scope="col" class="num">인장 찍은 출력</th><th scope="col" class="col-phone-wide">메모</th><th scope="col">남긴 사람</th></tr></thead>
+              <!-- 2026-11-09 5회차 3번: 본 건수에 견적서와 계약서를 함께 -->
+              <caption class="sr-only">대조 기록: 일시, 대상 월, 결과, 본 건수, 메모, 남긴 사람</caption>
+              <thead><tr><th scope="col">일시</th><th scope="col">대상 월</th><th scope="col">결과</th><th scope="col" class="num">본 건수</th><th scope="col" class="col-phone-wide">메모</th><th scope="col">남긴 사람</th></tr></thead>
               <tbody id="log-rows"></tbody>
             </table>
           </div>
@@ -98,6 +105,7 @@
 
   <script src="assets/js/mock-data.js"></script>
   <script src="assets/js/common.js"></script>
+  <script src="assets/js/control-checks.js"></script><!-- 맞지 않음을 컴플라이언스에 넘기기(기획자 결정 2026-11-09 5회차 13번) -->
   <script src="assets/js/seal-recon.js"></script>
 </body>
 </html>

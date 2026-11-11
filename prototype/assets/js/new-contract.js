@@ -413,12 +413,7 @@
   }
   function syncOrgAll() {
     $$('#product-list > li').forEach(syncOrg);
-    const indirect = val('method') === 'INDIRECT';
-    $('#method-help').hidden = !indirect;
-    // 간접일 때만 계약 방식 단추에 안내를 이어 화면낭독기가 읽게 함
-    $$('[name="method"]', form).forEach(function (r) {
-      if (indirect) r.setAttribute('aria-describedby', 'method-help'); else r.removeAttribute('aria-describedby');
-    });
+    // 간접 안내(#method-help)는 늘 보이는 도움말이라 여기서 보이고 감추지 않음. 생기며 아래를 밀었음(기획자 결정 2026-11-09 5회차 11번)
   }
   // 줄의 사용 업체 값. "정해지지 않음"은 간접일 때만 셈: 까닭 코드, 까닭을 아직 안 골랐으면 true
   function orgOf(li) {

@@ -106,7 +106,9 @@
               </table>
             </div>
             <button type="button" class="btn btn--secondary btn--md btn--add" id="q-add">제품 추가</button>
-            <p class="field-warn" id="q-cap-warn" role="status" hidden></p>
+            <!-- 할인율 한도 알림: 늘 한 줄 자리를 두고(비면 빈 줄, form.css .field-warn--reserve) 짧은 한 줄만. 까닭은 줄마다 "한도 넘음"에 있음
+                 (기획자 결정 2026-11-09 5회차 11번: 알림이 생기며 아래가 밀렸음) -->
+            <p class="field-warn field-warn--reserve" id="q-cap-warn" role="status"></p>
             <p class="field-error" id="q-lines-err" hidden></p>
           </div>
           <dl class="q-sum" id="q-sum"></dl>

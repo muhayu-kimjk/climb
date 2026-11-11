@@ -30,7 +30,16 @@
   - 기획자 결정 2026-11-02 C-8: "설정 변경" 묶음에서 그달 가격 기준, 제품과 기능, 표준계약서, 결재선 규칙, 회사 설정의 변경과
     재무 리더, 법무의 확인(설정 변경 확인 SCR-65)이 있는지 봅니다.
   - 기획자 결정 2026-11-02 C-2, C-5, C-7: "분기 권한 검토 자료"에 감사 열람 계정, 지정 열람자, 역할 충돌 계정,
-    유닛 리더에게 계정 목록 보내기(보내기만, 답은 받지 않음)를 둡니다.
+    유닛 리더에게 계정 목록 보내기를 둡니다.
+  - 기획자 결정 2026-11-09 5회차 5번: 그 메일에는 확인 요청과 계정 수만 담고, 리더는 유닛 계정 확인 화면(unit-accounts.html)에서
+    자기 유닛 목록만 보고 "확인함"을 남깁니다(예전: 목록을 메일로 보내기만, 답은 받지 않음). 표에 유닛마다 확인 여부가 보입니다.
+  - 기획자 결정 2026-11-09 5회차 2번: 정보보호와 관리자 역할을 함께 가진 사람은 그 분기에 자기가 권한을 바꿨으면 그 분기 검토를 남기지 못합니다.
+  - 기획자 결정 2026-11-09 5회차 15번(인사 명단 파일을 올려 대조)은 기획자 결정 2026-11-10 21번으로 바꿨습니다: 파일 올리기는 빼고,
+    유닛 리더가 유닛 계정 확인 화면에서 계정마다 "퇴사", "휴직", "이동"을 표시하면 "조치할 계정"으로 올라옵니다.
+    처리되지 않은 조치할 계정이 있으면 분기 검토에 "이상 없음"을 남기지 못합니다.
+  - 기획자 결정 2026-11-10 17번: 최고관리자 작업 점검의 "조치함"도 매월 기록 점검처럼 컴플라이언스에 넘깁니다.
+  - 기획자 결정 2026-11-10 19번: 대리 지정 기간에는 대신할 사람이 유닛 계정 확인을 남길 수 있고 "누구 대신"이 보입니다.
+  - 기획자 결정 2026-11-10 20번: "보낸 메일" 묶음(보낸 사실만, 본문 없음). 정보보호와 감사 열람만 봅니다(시연에서는 최고관리자도).
   - 접속 기록은 고치거나 지울 수 없고 영구 보관합니다. 이 화면을 연 것도 접속 기록에 남습니다.
   - 동작은 assets/js/admin-logs.js. 접속 기록 만들기와 설정 변경 묶음은 assets/js/control-checks.js(점검 화면이 함께 씀)
 ====================================================================== -->
@@ -119,7 +128,8 @@
 
         <section class="panel" aria-labelledby="sec-quarter">
           <div class="panel-head"><h2 class="panel-title" id="sec-quarter">분기 권한 검토</h2></div>
-          <p class="panel-desc">분기가 끝나면 다음 달 말일까지 모든 계정의 권한이 하는 일에 맞는지, 권한을 바꾼 기록에 사유가 있는지 검토합니다. 최고관리자는 자기 계정과 자기가 준 권한이 들어 있어 결과를 남기지 못합니다.</p>
+          <!-- 기획자 결정 2026-11-09 5회차 2번(본인 권한 변경이 든 분기는 다른 정보보호 담당자가), 2026-11-10 21번(인사 명단 파일 대신 유닛 리더가 표시한 조치할 계정) -->
+          <p class="panel-desc">분기가 끝나면 다음 달 말일까지 모든 계정의 권한이 하는 일에 맞는지, 권한을 바꾼 기록에 사유가 있는지 검토합니다. 유닛 리더가 퇴사, 휴직, 이동으로 표시한 조치할 계정이 처리되지 않았으면 "이상 없음"을 남기지 못합니다. 최고관리자는 자기 계정과 자기가 준 권한이 들어 있어 결과를 남기지 못하고, 그 분기에 권한을 바꾼 사람도 다른 정보보호 담당자가 남깁니다.</p>
           <div class="tbl-scroll" tabindex="0" role="region" aria-label="분기 권한 검토 표">
             <table class="tbl tbl--compact">
               <caption class="sr-only">분기 권한 검토: 분기, 기한, 검토한 사람, 결과, 확인한 내용과 조치, 관리</caption>
@@ -135,7 +145,8 @@
             <h2 class="panel-title" id="sec-qdata">분기 권한 검토 자료</h2>
             <button type="button" class="btn btn--secondary btn--md" id="btn-send">유닛 리더에게 계정 목록 보내기</button>
           </div>
-          <p class="panel-desc">고른 분기의 권한 검토 때 보는 자료입니다. 감사 열람과 지정 열람자는 끝나는 날이 짧거나 없는 권한이라 분기마다 다시 보고, 역할 충돌 계정은 저장할 때 받은 까닭을 봅니다. 유닛 리더에게는 그 유닛의 계정 목록을 보내기만 하고 답은 받지 않습니다.</p>
+          <!-- 기획자 결정 2026-11-09 5회차 5번: 메일에는 확인 요청과 계정 수만, 리더는 유닛 계정 확인 화면에서 목록을 보고 "확인함"을 남김(예전: 목록을 메일로 보내기만, 답은 받지 않음) -->
+          <p class="panel-desc">고른 분기의 권한 검토 때 보는 자료입니다. 감사 열람과 지정 열람자는 끝나는 날이 짧거나 없는 권한이라 분기마다 다시 보고, 역할 충돌 계정은 저장할 때 받은 까닭을 봅니다. 유닛 리더에게는 메일로 확인 요청과 계정 수만 보내고, 리더는 시스템에서 자기 유닛 목록만 보고 "확인함"을 남깁니다.</p>
           <form class="filter-bar filter-bar--two" id="q-filter" aria-label="검토할 분기 고르기">
             <div class="field">
               <label class="field-label field-label--sm" for="q-pick">분기</label>
@@ -179,6 +190,16 @@
               <tbody id="send-rows"></tbody>
             </table>
           </div>
+
+          <!-- 기획자 결정 2026-11-10 21번: 유닛 리더(대리 지정 기간에는 대신할 사람)가 유닛 계정 확인에서 퇴사, 휴직, 이동으로 표시한 계정 -->
+          <h3 class="box-subtitle">조치할 계정</h3>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="조치할 계정 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">조치할 계정: 사람, 유닛, 표시, 표시한 사람, 지금 상태</caption>
+              <thead><tr><th scope="col" class="col-phone-wide">사람</th><th scope="col">유닛</th><th scope="col">표시</th><th scope="col">표시한 사람</th><th scope="col">지금 상태</th></tr></thead>
+              <tbody id="mark-rows"></tbody>
+            </table>
+          </div>
         </section>
 
         <section class="panel" aria-labelledby="sec-log">
@@ -212,6 +233,32 @@
             </table>
           </div>
           <nav class="pagination" id="pagination" aria-label="접속 기록 쪽 이동"></nav>
+        </section>
+
+        <!-- 기획자 결정 2026-11-10 20번(5회차 9번): 보낸 메일 기록. 보낸 사실만, 본문 없음. 정보보호와 감사 열람만(시연에서는 최고관리자도). 보기만
+             그 밖의 역할이 이 화면에 들어오면 admin-logs.js가 화면을 열 때 이 묶음을 지움 -->
+        <section class="panel" aria-labelledby="sec-mail">
+          <div class="panel-head"><h2 class="panel-title" id="sec-mail">보낸 메일</h2></div>
+          <p class="panel-desc">시스템이 보낸 이메일 알림의 기록입니다. 알림 종류, 받은 사람, 계약번호, 보낸 일시, 성공과 실패의 까닭만 남기고 메일 본문은 남기지 않습니다. 열람 제한 계약은 계약번호만 보입니다.</p>
+          <form class="filter-bar filter-bar--two" id="mail-filter" aria-label="보낸 메일 거르기">
+            <div class="field">
+              <label class="field-label field-label--sm" for="mail-month">보낸 달</label>
+              <select class="select" id="mail-month"></select>
+            </div>
+            <div class="field">
+              <label class="field-label field-label--sm" for="mail-type">알림 종류</label>
+              <select class="select" id="mail-type"></select>
+            </div>
+          </form>
+          <div class="list-head"><p class="list-count" id="mail-count" aria-live="polite"></p></div>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="보낸 메일 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">보낸 메일: 보낸 일시, 알림 종류, 받은 사람, 계약번호, 결과</caption>
+              <thead><tr><th scope="col">보낸 일시</th><th scope="col">알림 종류</th><th scope="col" class="col-phone-wide">받은 사람</th><th scope="col">계약번호</th><th scope="col">결과</th></tr></thead>
+              <tbody id="mail-rows"></tbody>
+            </table>
+          </div>
+          <nav class="pagination" id="mail-pagination" aria-label="보낸 메일 쪽 이동"></nav>
         </section>
 
         <!-- 기획자 결정 2026-11-02 C-2: 관리자 변경 이력 전체. 감사 열람은 관리자 화면을 열지 않으므로 여기서 봄(정보보호, 최고관리자도). 보기만 -->

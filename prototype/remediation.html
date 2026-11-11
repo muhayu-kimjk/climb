@@ -28,6 +28,13 @@
     효과가 없으면 효과 확인에서 조치 중으로 되돌립니다. 상태를 바꾼 기록은 쌓기만 합니다(누가, 언제).
   - 걸고 푸는 일과 기록은 컴플라이언스 담당자(시연용 최고관리자)가 합니다(C.canComplianceAct). 감사 열람은 보기만, 단추가 없습니다.
   - 변경 이력: 관리자 변경 이력의 COMPLIANCE 영역(보류, 개선 과제, 거래처 확인). 메뉴는 위 메뉴 줄의 "점검"(기획자 결정 2026-11-03, common.js MENU, CHECK_OWNERS)
+  - 점검에서 넘어온 일(기획자 결정 2026-11-09 5회차 13번): 할인 예외 점검, 설정 변경 확인, 인장 기록 대조, 영업기회 대사, 매월 기록 점검에서
+    문제 결과를 남기면 저절로 맨 위 묶음에 올라오고 컴플라이언스 담당자에게 이메일이 감. "개선 과제로 기록"을 누르면 찾은 곳과 점검 화면 링크가
+    채워진 기록 창이 열리고, 기록하면 그 일은 닫힘. 자료는 control-checks.js(X.issuesAll, X.issueTask)
+  - 기획자 결정 2026-11-10 16번: 컴플라이언스도 매월 점검 네 화면을 보기만 하므로 넘어온 일의 점검 화면 링크가 열림(C.canSeeCheck)
+  - 기획자 결정 2026-11-10 18번: 영업 임원(또는 앞서 정한 결재자)이 맡은 ③에 이해관계 있음을 누르면 그 계약 묶음에 보류가 걸림
+    (사유 "③ 이해관계: 결재자 지정 필요"). 컴플라이언스 담당자가 보류 줄의 "결재자 지정"으로 이해관계 없는 다른 임원을 고르고 사유를 적으면
+    그 계약의 ③ 결재자가 되고 보류가 풀림. 결재 기록(결재자 지정)과 변경 이력에 남음(common.js declareInterest, assignApprover)
   - 동작은 assets/js/remediation.js
 ====================================================================== -->
 <body data-page="SCR-64">
@@ -50,13 +57,23 @@
       <div id="notice"></div>
 
       <div id="content" class="admin-stack">
+        <!-- 0. 점검에서 넘어온 일 (기획자 결정 2026-11-09 5회차 13번). 개요 "점검할 일"의 넘어온 일 줄을 누르면 여기로 -->
+        <section class="panel" aria-labelledby="sec-issues">
+          <div class="panel-head"><h2 class="panel-title" id="sec-issues">점검에서 넘어온 일</h2></div>
+          <p class="panel-desc" id="issues-desc">할인 예외 점검, 설정 변경 확인, 인장 기록 대조, 영업기회 대사, 매월 기록 점검에서 문제 결과를 남기면 여기에 저절로 올라오고 컴플라이언스 담당자에게 이메일이 갑니다. 개선 과제로 기록하면 닫힙니다.</p>
+          <div class="list-head"><p class="list-count" id="issues-count" aria-live="polite"></p></div>
+          <div id="issues"></div>
+          <nav class="pagination" id="issues-pages" aria-label="넘어온 일 목록 쪽 이동"></nav>
+        </section>
+
         <!-- 1. 보류 (C-16) -->
         <section class="panel" aria-labelledby="sec-holds">
           <div class="panel-head panel-head--act">
             <h2 class="panel-title" id="sec-holds">보류</h2>
             <button type="button" class="btn btn--primary btn--md" id="btn-hold">보류 걸기</button>
           </div>
-          <p class="panel-desc" id="holds-desc">보류가 걸린 거래처나 계약 묶음은 새 기안(신규, 변경, 연장, 해지, 운영 변경)을 할 수 없고, 남은 결재를 승인하지 못합니다. 반려, 보완 요청, 만료 처리는 할 수 있습니다.</p>
+          <p class="panel-desc" id="holds-desc">보류가 걸린 거래처나 계약 묶음은 새 기안(신규, 변경, 연장, 해지, 운영 변경)을 할 수 없고, 남은 결재를 승인하지 못합니다. 반려, 보완 요청, 만료 처리는 할 수 있습니다. 영업 임원이 맡은 ③에 이해관계가 있으면 그 계약 묶음에 보류가 저절로 걸리고, 결재자 지정으로 이해관계 없는 다른 임원을 정하면 풀립니다.</p>
+          <!-- 위 문장 끝(기획자 결정 2026-11-10 18번): 임원의 ③ 이해관계로 걸린 보류는 관리 칸에 "결재자 지정"(remediation.js openAssign) -->
           <div class="list-head"><p class="list-count" id="holds-count" aria-live="polite"></p></div>
           <div id="holds"></div>
           <nav class="pagination" id="holds-pages" aria-label="보류 목록 쪽 이동"></nav>
@@ -96,6 +113,7 @@
 
   <script src="assets/js/mock-data.js"></script>
   <script src="assets/js/common.js"></script>
+  <script src="assets/js/control-checks.js"></script><!-- 점검에서 넘어온 일(기획자 결정 2026-11-09 5회차 13번) -->
   <script src="assets/js/remediation.js"></script>
 </body>
 </html>

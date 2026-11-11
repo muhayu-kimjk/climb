@@ -2,7 +2,7 @@
  * SCR-51 사용자 권한 관리 전용 스타일 (admin-users.css)
  * 관련 요구사항: REQ-ADM-01~06, REQ-UI-10~12, REQ-ENV-08
  *   - 거르기 줄, 건수 요약, 가로 스크롤, 쪽 번호는 목록 공통(list.css)
- *   - 이 파일: 사용자 표의 너비, 이메일 칸 고정(휴대폰은 @ 앞만, 2026-11-02 D-17), 사용 중지 계정 표시
+ *   - 이 파일: 사용자 표의 너비, 이메일 칸 고정(휴대폰도 전체 주소, 결정 ⑯ 2026-11-09가 D-17을 바꿈. 2026-11-09 5회차 점검), 사용 중지 계정 표시
  *   - 인쇄: 가로 스크롤 없이 A4 세로 폭에 모든 칸이 들어가도록 글자를 줄이고 줄바꿈 허용
  * ===================================================================== */
 
@@ -23,19 +23,15 @@
 /* 이메일 칸 고정: 옆으로 밀어도 누구의 줄인지 보이게 왼쪽에 붙임 */
 .tbl--users .col-email { position: sticky; left: 0; z-index: 1; background: var(--surface-white); box-shadow: inset -1px 0 0 var(--border-gray-light); }
 .tbl--users th.col-email { z-index: 2; background: var(--surface-secondary-subtler); }
-/* 휴대폰: 이메일 칸에 @ 앞만 보임 (기획자 결정 2026-11-02 D-17)
- *   고정한 이메일 칸이 표 폭의 약 4분의 3을 차지해 나머지 칸이 좁은 틈으로만 지나갔음(01 C-42).
- *   계정은 모두 @muhayu.com이고 겹치지 않아 @ 앞만으로 사람이 가려짐. @ 뒤는 화면에서만 감추고 화면낭독기는 전체 주소를 읽음(.sr-only와 같은 방법)
- *   PC와 인쇄는 전체 주소 그대로 */
+/* 휴대폰도 이메일 전체 주소를 보임 (기획자 결정 ⑯ 2026-11-09, 2026-11-02 D-17 "휴대폰은 @ 앞만"을 바꿈)
+ *   2026-11-09 5회차 점검: @ 뒤를 감추던 규칙과 쌓였을 때 되살리던 줄을 지움. 쌓기 스크립트가 돌지 않아도 결정대로 전체 주소가 보임
+ *   (D-17의 까닭이던 "고정 칸이 표를 좁힘"은 2026-11-06 점검에서 넘치는 표를 줄마다 쌓게 되며 없어졌음, common.js stackTable) */
 @media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
-  .tbl--users .email-domain {
-    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
-    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
-  }
-  /* 2026-11-06 점검: 휴대폰에서 넘치는 표는 줄마다 쌓게 되어(common.js stackTable) 이메일 칸이 좁아지지 않음. D-17의 까닭(고정 칸이 표를 좁힘)이 없어져 전체 주소를 보이고 칸 고정도 풂 */
+  /* 쌓였을 때는 칸 고정을 풂(2026-11-06 점검) */
   .tbl--users[data-stack] .col-email { position: static; box-shadow: none; background: none; }
-  .tbl--users[data-stack] .email-domain { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; white-space: normal; }
 }
+/* 조직 옮기기 창: "본인은 다른 관리자가 옮깁니다" 한 줄은 두 칸 격자의 한 칸이 아니라 줄 전체로(2026-11-09 5회차 점검, CTL-99) */
+#move-people .move-self { grid-column: 1 / -1; margin-top: 0.4rem; }
 
 @media print {
   .tbl--users { min-width: 0; font-size: 7pt; }
