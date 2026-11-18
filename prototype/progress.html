@@ -24,6 +24,7 @@
   - 열람 제한 계약은 볼 수 없는 사람에게 "열람 제한 계약"으로만 보입니다. (REQ-AUTH-09)
   - 현재 진행 칸의 짧은 이름은 맡는 사람("③ 영업 리더", D-3), 표 위 회색 안내 한 줄로 번호와 단계의 관계(D-2) (기획자 결정 2026-11-02)
   - 주소 뒤 ?status=REVIEW(검토 중과 반려), ?status=OPS_REVIEW 처럼 붙이면 그 상태로 거른 채 열립니다(개요의 단계 표시기에서 연결).
+  - 설계 검토 2026-11-11 10번: 유닛 거르기(지금 영업대표의 유닛). 기본은 전체, ?unit=유닛 이름으로 미리 거름(개요에서 영업 리더가 "내 유닛"으로 볼 때)
 ====================================================================== -->
 <body data-page="SCR-20">
   <a class="skip-link" href="#main">본문 바로가기</a>
@@ -44,10 +45,15 @@
 
       <section id="list" aria-labelledby="list-title">
         <h2 class="sr-only" id="list-title">진행 중인 계약 목록</h2>
-        <form class="filter-bar" id="filter" role="search" aria-label="진행 현황 거르기">
+        <!-- 설계 검토 2026-11-11 10번: 유닛 거르기(지금 영업대표의 유닛, 기본은 전체). 검색어 옆 윗줄(list.css .filter-bar--unit). 개요에서 영업 리더가 누르면 ?unit=으로 미리 거름 -->
+        <form class="filter-bar filter-bar--unit" id="filter" role="search" aria-label="진행 현황 거르기">
           <div class="field">
             <label class="field-label field-label--sm" for="f-q">검색</label>
             <input class="input" id="f-q" type="search" placeholder="고객사 또는 계약번호" autocomplete="off">
+          </div>
+          <div class="field filter-unit">
+            <label class="field-label field-label--sm" for="f-unit">유닛</label>
+            <select class="select" id="f-unit"></select>
           </div>
           <div class="field">
             <label class="field-label field-label--sm" for="f-status">상태</label>
@@ -61,6 +67,8 @@
             <label class="field-label field-label--sm" for="f-owner">영업대표</label>
             <select class="select" id="f-owner"></select>
           </div>
+          <!-- 기획자 결정 2026-11-16(결정할것 새 결정 W3-8 (가)): 체크리스트 4번 회계 영향 조건이 "예"인 진행 중 계약만. 재무가 체결 전(검토 중부터 ⑥ 전까지) 재무 의견을 남길 계약을 찾음(?acc=1) -->
+          <label class="choice filter-wide"><input type="checkbox" id="f-acc">체크리스트 4번 회계 영향 조건이 있는 계약만</label>
           <button type="reset" class="btn btn--tertiary btn--md filter-reset">초기화</button>
         </form>
 

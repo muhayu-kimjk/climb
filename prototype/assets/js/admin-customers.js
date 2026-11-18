@@ -19,6 +19,10 @@
  *      기록은 쌓기만 함(다시 확인하면 한 줄 더). "거래처 확인 기록" 표와 거래처마다의 "확인 기록" 창에 보이고, 관리자 변경 이력(영역 COMPLIANCE)에도 남음
  *   8. 보류(C-16): 보류가 걸린 거래처는 상태 칸에 "보류 중". 걸고 푸는 것은 개선 과제와 보류(SCR-64)
  *   컴플라이언스 담당자는 이 화면에서 확인만 남기고 거래처를 추가하거나 고치거나 합치지 않음(관리자 일). 관리자는 확인을 보기만 함
+ * (설계 검토 2026-11-11 3번, 4-1 3-1) 고객사 티어: 거래처마다 하나(D.CUSTOMER_TIERS, 없으면 "없음"). 관리자가 추가와 고치기 창에서 고르고 사유와 함께
+ *   관리자 변경 이력(영역 CUSTOMER)에 "고객사 티어: 티어 2 → 티어 1"로 남음. 목록의 상호 아래에 보임
+ *   가격 기준 줄에 그 티어의 단가가 있으면 이 거래처의 견적과 계약의 표준 단가가 됨(C.stdLine). 이미 기안한 계약과 저장한 견적 줄은 그때 값 그대로
+ *   [가정: 기획자가 보내 줄 고객사 티어로 바꿈] 지금 티어 셋(티어 1~3)은 예시
  * 프로토타입: 계약은 상호로 연결되어 있어 상호를 바꾸거나 합치면 계약의 상호를 바꿔 보여 줌.
  *   실제 시스템은 계약이 거래처 번호(customer_id)로 연결되므로 거래처만 바꾸면 됨. 바꾼 내용은 이 브라우저에만 저장(시연 기록)
  * ===================================================================== */
@@ -47,7 +51,9 @@
   function val(f, n) { return (f.elements[n].value || '').trim(); }
   function find(id) { return D.CUSTOMERS.filter(function (cu) { return cu.id === id; })[0]; }
   function stateOf(cu) { return cu.mergedInto ? 'MERGED' : cu.use ? 'USE' : 'OFF'; }
-  function contractsOf(cu) { return D.CONTRACTS.filter(function (c) { return c.id && c.counterparty === cu.name; }).length; }
+  // 기획자 결정 2026-11-16(결정할것 새 결정 W5-1): 계약 수는 지금 사람이 볼 수 있는 계약만 셈(볼 수 없는 열람 제한 계약이 있다는 것이 수로 드러나지 않게).
+  //   열람 제한은 계약과 그 결재 기록, 첨부, 메일에 걸리고 거래처 이름은 가리지 않음(거래처 확인과 보류에 이름이 필요)
+  function contractsOf(cu) { return D.CONTRACTS.filter(function (c) { return c.id && c.counterparty === cu.name && C.canView(c, me); }).length; }
   function tag(cu) { return cu.name + '(' + cu.id + ')'; }
   function ro(word) { return C.josa(word, '으로', '로'); } // ㄹ 받침은 "로"
   // 같은 상호가 다른 거래처에 있는지 (계약은 상호로 이어지므로 같은 이름이면 두 거래처의 계약이 섞임, v0.58 QA)
@@ -138,7 +144,8 @@
       return '<tr' + (st !== 'USE' ? ' class="is-muted"' : '') + '>' +
         '<td class="col-action">' + (st === 'USE' && canEdit ? '<label class="choice choice--only"><input type="checkbox" data-pick="' + esc(cu.id) + '"' +
           (picked.indexOf(cu.id) > -1 ? ' checked' : '') + ' aria-label="' + esc(cu.name) + ' 합치기에 고르기"></label>' : '') + '</td>' +
-        '<td class="col-wide"><span class="cell-strong">' + esc(cu.name) + '</span><span class="cell-meta">' + esc(cu.id) + (into ? ', ' + esc(ro(into.name)) + ' 합쳐짐' : '') + '</span></td>' +
+        // (설계 검토 2026-11-11 4-1 3-1) 상호 아래 보조 줄에 고객사 티어(없으면 "티어 없음"). 합쳐진 곳은 티어를 보이지 않음(남긴 거래처의 티어를 씀)
+        '<td class="col-wide"><span class="cell-strong">' + esc(cu.name) + '</span><span class="cell-meta">' + esc(cu.id) + (into ? ', ' + esc(ro(into.name)) + ' 합쳐짐' : ', ' + esc(cu.tier ? C.tierLabel(cu.tier) : '티어 없음')) + '</span></td>' +
         '<td class="num-left">' + esc(cu.bizNo) + '</td>' +
         '<td class="num">' + contractsOf(cu) + '건</td>' +
         '<td class="center nowrap">' + esc(C.ownerLabel(cu.registeredBy)) + '<span class="cell-meta">' + C.fmtDate(cu.registeredAt) + '</span></td>' +
@@ -151,7 +158,8 @@
     $('#btn-merge').disabled = picked.length < 2;
     $('#btn-merge').textContent = '고른 거래처 합치기' + (picked.length ? ' (' + picked.length + '곳)' : '');
     renderChecks();
-    $('#history').innerHTML = C.adminHistoryHtml(C.adminLog(['CUSTOMER']), '거래처 변경 이력');
+    // 볼 수 없는 열람 제한 계약의 번호는 사유에서 뺌(2026-11-14 주말 점검, leak-01. 컴플라이언스 담당자도 이 화면을 봄)
+    $('#history').innerHTML = C.adminHistoryHtml(C.maskAdminRows(C.adminLog(['CUSTOMER']), me), '거래처 변경 이력');
   }
 
   /* ---------- 7. 거래처 확인 기록 (기획자 결정 2026-11-02 C-13): 쌓기만 함, 최근 것부터 ---------- */
@@ -248,7 +256,7 @@
           help: '실제 소유자나 공직자의 이름은 적지 않고 결과만 적습니다.' }),
       btn: '확인 남기기',
       open: function (f) {
-        // 위험 등급(계산): 결과에 문제가 하나라도 있으면 높음, 없으면 간접은 보통, 국가와 지자체와 조달은 낮음 [가정]
+        // 위험 등급(계산): 결과에 문제가 하나라도 있으면 높음, 없으면 보통(간접과 국가, 지자체, 조달 모두. 기획자 결정 2026-11-16 확인 4로 낮음을 쓰지 않음)
         const risk = function () {
           const r = {};
           CK.ITEMS.forEach(function (it) { r[it.key] = f.elements[it.key].value; });
@@ -301,15 +309,20 @@
   }
 
   /* ---------- 3. 합치기 ---------- */
+  /* (기획자 답 2026-11-12 [제안] ①, 06 CTL-140) 티어가 다른 거래처 합치기: 합친 뒤에는 옮겨진 계약도 남긴 거래처의 고객사 티어 단가로 다음 기안을 함(C.customerTier)
+   *   그래서 남길 거래처와 티어가 다른 곳(한쪽이 티어 없음 포함)이 있으면 완료 계약과 상관없이 재무 리더가 설정 변경 확인(SCR-65)에서 "품의와 맞음, 다름"으로 봄(control-checks.js mergeTierInfo)
+   *   창: 고르는 줄마다 티어를 보이고(고른 뒤 생기는 줄은 두지 않음, 화면 흔들림 없음), 안내 한 줄은 늘 둠
+   *   기록: 바뀐 내용 끝에 ", 고객사 티어: (앞) → (남긴 곳)"(티어가 다를 때만), op.tiers에 합친 때의 티어(거래처 번호 → 코드, 없으면 '') */
   function openMerge() {
     const list = picked.map(find);
+    const tierText = function (cu) { return cu.tier ? C.tierLabel(cu.tier) : '티어 없음'; };
     C.formModal({
       title: '거래처 ' + list.length + '곳을 합칠까요?',
       desc: '합치면 남길 거래처 하나만 남고, 나머지 거래처의 계약은 남길 거래처로 옮겨집니다. 나머지 거래처는 지우지 않고 "합쳐짐"으로 남습니다.',
       body: '<fieldset class="field" data-field="keep"><legend class="field-label">남길 거래처<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>' +
           '<div class="choice-col">' + list.map(function (cu) {
-            return '<label class="choice"><input type="radio" name="keep" value="' + esc(cu.id) + '">' + esc(cu.name + ' (' + cu.bizNo + ', 계약 ' + contractsOf(cu) + '건)') + '</label>';
-          }).join('') + '</div><p class="field-help">사업자등록증과 같은 상호와 번호를 가진 거래처를 남깁니다.</p><p class="field-error" hidden></p></fieldset>' +
+            return '<label class="choice"><input type="radio" name="keep" value="' + esc(cu.id) + '">' + esc(cu.name + ' (' + cu.bizNo + ', 계약 ' + contractsOf(cu) + '건, ' + tierText(cu) + ')') + '</label>';
+          }).join('') + '</div><p class="field-help">사업자등록증과 같은 상호와 번호를 가진 거래처를 남깁니다. 합친 뒤에는 옮겨진 계약도 남긴 거래처의 고객사 티어 단가로 기안하고, 티어가 다르면 재무 리더가 확인합니다.</p><p class="field-error" hidden></p></fieldset>' +
         C.fieldHtml({ name: 'reason', label: '합치는 사유', type: 'textarea', required: true, placeholder: '예: 같은 곳을 줄인 이름으로 한 번 더 등록함. 사업자등록증으로 확인' }),
       btn: '합치기',
       check: function (f) {
@@ -318,12 +331,18 @@
       done: function (f) {
         const keep = find(f.querySelector('[name="keep"]:checked').value);
         const others = list.filter(function (cu) { return cu !== keep; });
+        const diff = others.filter(function (cu) { return (cu.tier || '') !== (keep.tier || ''); });
+        const tiers = {};
+        list.forEach(function (cu) { tiers[cu.id] = cu.tier || ''; });
+        // 여러 곳이면 "가나 티어 1, 다라 없음 → 티어 2", 한 곳이면 "티어 1 → 티어 2"(admin-customers.js 고치기의 "고객사 티어: 앞 → 뒤"와 같은 꼴)
+        const tierPart = diff.length ? ', 고객사 티어: ' + diff.map(function (cu) { return (others.length > 1 ? cu.name + ' ' : '') + C.tierLabel(cu.tier || ''); }).join(', ') +
+          ' → ' + C.tierLabel(keep.tier || '') : '';
         C.adminSave('CUSTOMER', list.map(function (cu) { return cu.name; }).join(', '),
-          '합치기: ' + others.map(tag).join(', ') + ' → ' + tag(keep), val(f, 'reason'),
-          { k: 'CUSTOMER_MERGE', keep: keep.id, ids: others.map(function (cu) { return cu.id; }) });
+          '합치기: ' + others.map(tag).join(', ') + ' → ' + tag(keep) + tierPart, val(f, 'reason'),
+          { k: 'CUSTOMER_MERGE', keep: keep.id, ids: others.map(function (cu) { return cu.id; }), tiers: tiers });
         picked = [];
         render();
-        C.toast(ro(keep.name) + ' 합쳤습니다.');
+        C.toast(ro(keep.name) + ' 합쳤습니다.' + (diff.length ? ' 고객사 티어가 달라 재무 리더가 설정 변경 확인에서 봅니다.' : ''));
       },
     });
   }
@@ -341,6 +360,13 @@
     f.elements.bizNo.addEventListener('input', function (e) { e.target.value = C.fmtBizNo(e.target.value); });
   }
   function uniqueNote(no) { return !C.isBizNo(no) && C.isUniqueNo(no) ? ' 고유번호의 검증 숫자가 맞지 않으니 번호를 다시 확인하세요.' : ''; }
+  // (설계 검토 2026-11-11 4-1 3-1) 고객사 티어 고르는 칸(추가와 고치기 창). 비우면 "없음"(기본 단가)
+  function tierField(value) {
+    return C.fieldHtml({ name: 'tier', label: '고객사 티어', type: 'select', optional: true, value: value,
+      // 사용 안 함인 티어는 새로 고르지 못함(지금 그 티어인 거래처는 그대로 보임, 2026-11-16 결정 3 코드 관리)
+      options: [['', '없음(기본 단가)']].concat((D.CUSTOMER_TIERS || []).filter(function (t) { return t.use !== false || t.code === value; }).map(function (t) { return [t.code, t.label + (t.use === false ? '(사용 안 함)' : '')]; })),
+      help: '가격 기준에 이 티어의 단가가 있으면 그 값이 이 거래처의 표준 단가가 됩니다. 이미 기안한 계약과 저장한 견적은 그대로입니다.' });
+  }
   function openEdit(id) {
     const cu = find(id);
     C.formModal({
@@ -349,11 +375,12 @@
       body: C.fieldHtml({ name: 'cuName', label: '상호', required: true, value: cu.name, help: '사업자등록증의 상호', attrs: ' maxlength="60"' }) /* 기획자 결정 2026-11-09: 사업자등록번호, 상호, 수량은 모든 화면 같은 규칙 */ +
         C.fieldHtml({ name: 'bizNo', label: '사업자등록번호', required: true, value: cu.bizNo, help: "숫자 10자리를 넣으면 '-'가 저절로 붙습니다.", attrs: ' inputmode="numeric" maxlength="12"' }) +
         C.fieldHtml({ name: 'use', label: '상태', type: 'select', value: String(cu.use), options: [['true', '사용 중'], ['false', '사용 안 함']] }) +
-        C.fieldHtml({ name: 'reason', label: '고치는 사유', type: 'textarea', required: true, placeholder: '예: 사업자등록증의 상호로 바로잡음' }),
+        tierField(cu.tier || '') + // 설계 검토 2026-11-11 4-1 3-1
+        C.fieldHtml({ name: 'reason', label: '고치는 사유', type: 'textarea', required: true, placeholder: '예: 사업자등록증의 상호로 바로잡음, 고객사 티어 재분류' }),
       btn: '저장',
       open: formatOnInput,
       check: function (f) {
-        const same = val(f, 'cuName') === cu.name && val(f, 'bizNo') === cu.bizNo && val(f, 'use') === String(cu.use);
+        const same = val(f, 'cuName') === cu.name && val(f, 'bizNo') === cu.bizNo && val(f, 'use') === String(cu.use) && val(f, 'tier') === (cu.tier || '');
         return {
           cuName: !val(f, 'cuName') ? '상호를 넣으세요.' : same ? '바뀐 내용이 없습니다.'
             : nameTaken(val(f, 'cuName'), cu.id) ? '같은 상호의 거래처가 이미 있습니다(' + nameTaken(val(f, 'cuName'), cu.id).id + '). 같은 곳이면 합치기를 쓰세요.' : '',
@@ -362,12 +389,15 @@
         };
       },
       done: function (f) {
-        const set = { name: val(f, 'cuName'), bizNo: val(f, 'bizNo'), use: val(f, 'use') === 'true' };
+        const set = { name: val(f, 'cuName'), bizNo: val(f, 'bizNo'), use: val(f, 'use') === 'true', tier: val(f, 'tier') };
         const parts = [];
         if (set.name !== cu.name) parts.push('상호: ' + cu.name + ' → ' + set.name);
         if (set.bizNo !== cu.bizNo) parts.push('사업자등록번호: ' + cu.bizNo + ' → ' + set.bizNo);
         if (set.use !== cu.use) parts.push('상태: ' + (cu.use ? '사용 중 → 사용 안 함' : '사용 안 함 → 사용 중'));
-        C.adminSave('CUSTOMER', tag(cu), parts.join(', '), val(f, 'reason'), { k: 'CUSTOMER_EDIT', id: cu.id, set: set });
+        // (설계 검토 2026-11-11 4-1 3-1) 고객사 티어를 바꾸면 이력에 앞뒤 값. common.js applyAdmin CUSTOMER_EDIT가 cu.tier를 바꿈
+        if (set.tier !== (cu.tier || '')) parts.push('고객사 티어: ' + C.tierLabel(cu.tier || '') + ' → ' + C.tierLabel(set.tier));
+        // (2026-11-16 밤 코드 다시 보기 dec-01) 바꾸기 전 티어 코드(tierFrom)를 함께 남김: 결정 3으로 티어 이름이 바뀌어도 지난 줄의 앞뒤 티어를 코드로 읽음
+        C.adminSave('CUSTOMER', tag(cu), parts.join(', '), val(f, 'reason'), { k: 'CUSTOMER_EDIT', id: cu.id, set: set, tierFrom: cu.tier || '' });
         render();
         C.toast(set.name + ' 거래처를 고쳤습니다.' + uniqueNote(set.bizNo));
       },
@@ -379,6 +409,7 @@
       desc: '추가하면 계약 등록의 거래처 목록에서 고를 수 있습니다.',
       body: C.fieldHtml({ name: 'cuName', label: '상호', required: true, placeholder: '예: 삼성전자 주식회사', help: '사업자등록증의 상호', attrs: ' maxlength="60"' }) +
         C.fieldHtml({ name: 'bizNo', label: '사업자등록번호', required: true, placeholder: '예: 124-81-00998', help: "숫자 10자리를 넣으면 '-'가 저절로 붙습니다.", attrs: ' inputmode="numeric" maxlength="12"' }) +
+        tierField('') + // 설계 검토 2026-11-11 4-1 3-1
         C.fieldHtml({ name: 'reason', label: '추가하는 사유', type: 'textarea', required: true, placeholder: '예: 조달 계약 예정 기관을 미리 등록' }),
       btn: '추가',
       open: formatOnInput,
@@ -389,8 +420,9 @@
         // 거래처 번호는 가장 큰 번호 + 1(계약 기안에서도 거래처가 등록되므로 개수 + 1이면 겹칠 수 있음), 등록 경로는 ADMIN
         //   (데이터 정의서 6장 registered_via, 계약 등록의 registerCustomer와 같은 셈) (2026-11-06 점검 4회차)
         const maxNo = D.CUSTOMERS.reduce(function (m, x) { return Math.max(m, Number(String(x.id).replace(/\D/g, '')) || 0); }, 0);
-        const cu = { id: 'C-' + String(maxNo + 1).padStart(4, '0'), name: val(f, 'cuName'), bizNo: val(f, 'bizNo'), registeredVia: 'ADMIN', registeredContractNo: null };
-        C.adminSave('CUSTOMER', tag(cu), '거래처 추가: ' + cu.bizNo, val(f, 'reason'), { k: 'CUSTOMER_ADD', cu: cu });
+        // (설계 검토 2026-11-11 4-1 3-1) 고객사 티어(고르면 이력에도 적음)
+        const cu = { id: 'C-' + String(maxNo + 1).padStart(4, '0'), name: val(f, 'cuName'), bizNo: val(f, 'bizNo'), registeredVia: 'ADMIN', registeredContractNo: null, tier: val(f, 'tier') };
+        C.adminSave('CUSTOMER', tag(cu), '거래처 추가: ' + cu.bizNo + (cu.tier ? ', 고객사 티어 ' + C.tierLabel(cu.tier) : ''), val(f, 'reason'), { k: 'CUSTOMER_ADD', cu: cu });
         render();
         C.toast(cu.name + ' 거래처를 추가했습니다.' + uniqueNote(cu.bizNo));
       },

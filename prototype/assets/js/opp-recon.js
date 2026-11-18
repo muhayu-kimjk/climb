@@ -16,6 +16,9 @@
  *        "예시 파일로 해 보기"는 D.OPP_SAMPLE(담당자와 연락처 칸이 든 9월 목록)을 같은 길로 읽음
  *      맞춰 보기: 영업기회번호로. 계약은 기안한 계약 중 계약 등록에서 기안하는 신규, 변경, 바꿔서 연장(각자 번호. 반려된 계약도 계약으로 셈)
  *        계약이 없는 수주: 그 달 파일의 수주 중 그 번호를 쓴 계약이 없는 것
+ *          (2026-11-14 주말 점검 W7) 그 번호를 쓴 계약이 진행 중단(STOPPED)뿐이면 짝으로 세지 않고 "계약이 없는 수주(진행 중단만 있음)"로 띄워 의견을 받음.
+ *          판다에는 수주인데 시스템에서는 진행 중단으로 끝난 거래는 기록이 틀렸거나 시스템 밖에서 맺은 거래라는 신호라서(내부회계 원칙 13, 16, 완전성).
+ *          반려된 계약은 아직 살아 있는 거래라 지금대로 짝으로 셈. 수주 목록에 없는 계약 쪽은 그대로(진행 중단도 기안한 계약이라 넣음)
  *        수주 목록에 없는 계약: 그 달에 처음 기안한 계약 중 올린 어느 달 파일에도 그 번호가 없는 것(그 달 파일을 올린 뒤에만 봄)
  *      의견: 예외 줄마다. 바꾸려면 한 번 더 남김(마지막 의견이 보임). 확인: 예외 줄에 모두 의견이 있어야 함
  *        확인 때 본 숫자와 열쇠(파일 번호, 예외 줄)를 남겨, 뒤에 새 파일이나 새 계약으로 바뀌면 "확인한 뒤 바뀜"
@@ -95,7 +98,14 @@
     const listed = {};
     months().forEach(function (x) { const u = uploadOf(x.ym); (u ? u.rows : []).forEach(function (r) { listed[r.opp] = true; }); });
     const contracts = D.CONTRACTS.filter(withOpp);
-    const noContract = up.rows.filter(function (r) { return !contracts.some(function (c) { return C.oppOf(c) === r.opp; }); });
+    // (2026-11-14 주말 점검 W7) 짝은 진행 중단이 아닌 계약만. 맞는 계약이 진행 중단뿐이면 그 계약번호를 stopped에 담아 계약이 없는 수주로 띄움
+    //   쌓은 기록(파일의 rows)은 고치지 않고 보이는 줄만 새로 만듦. 의견 열쇠(ORDER:번호)와 확인 열쇠(O:번호)는 다른 계약이 없는 수주와 같음
+    const noContract = [];
+    up.rows.forEach(function (r) {
+      const same = contracts.filter(function (c) { return C.oppOf(c) === r.opp; });
+      if (same.some(function (c) { return c.status !== 'STOPPED'; })) return;
+      noContract.push(same.length ? Object.assign({}, r, { stopped: same.map(function (c) { return c.id; }) }) : r);
+    });
     const notInList = contracts.filter(function (c) { return firstAt(c).slice(0, 7) === ym && !listed[C.oppOf(c)]; })
       .sort(function (a, b) { return firstAt(a).localeCompare(firstAt(b)); });
     const keys = ['U:' + up.id].concat(noContract.map(function (r) { return 'O:' + r.opp; }), notInList.map(function (c) { return 'C:' + c.id; })).join('|');
@@ -104,7 +114,10 @@
     return { up: up, orders: up.rows.length, matched: up.rows.length - noContract.length, noContract: noContract, notInList: notInList, keys: keys, missing: missing };
   }
   function seenText(r) {
-    return '수주 ' + r.orders + '줄, 계약과 맞음 ' + r.matched + '줄, 계약이 없는 수주 ' + r.noContract.length + '건, 수주 목록에 없는 계약 ' + r.notInList.length + '건 (' + r.up.fileName + ')';
+    // (2026-11-14 주말 점검 W7) 계약이 없는 수주 가운데 진행 중단만 있는 건수도 함께 보임
+    const st = r.noContract.filter(function (o) { return o.stopped; }).length;
+    return '수주 ' + r.orders + '줄, 계약과 맞음 ' + r.matched + '줄, 계약이 없는 수주 ' + r.noContract.length + '건' + (st ? '(진행 중단만 있음 ' + st + '건)' : '') +
+      ', 수주 목록에 없는 계약 ' + r.notInList.length + '건 (' + r.up.fileName + ')';
   }
 
   /* ---------- 1. 월별 대사 ---------- */
@@ -168,7 +181,9 @@
       '<thead><tr><th scope="col">수주일</th><th scope="col">영업기회번호</th><th scope="col" class="col-phone-wide">고객사</th><th scope="col" class="num">수주 금액</th><th scope="col">의견</th><th scope="col" class="col-action">관리</th></tr></thead><tbody>' +
       (list.length ? list.map(function (r) {
         const key = 'ORDER:' + r.opp, n = noteOf(ym, key);
-        return '<tr' + (n ? '' : ' class="is-alert"') + '><td class="num-left nowrap">' + C.fmtDate(r.wonAt) + '</td><td class="nowrap">' + C.pandaLink(r.opp) + '</td>' +
+        // (2026-11-14 주말 점검 W7) 맞는 계약이 진행 중단뿐인 수주: 번호 아래에 "진행 중단만 있음"과 그 계약번호(열람 제한 계약도 번호는 보임, 수주 목록에 없는 계약 표와 같음)
+        return '<tr' + (n ? '' : ' class="is-alert"') + '><td class="num-left nowrap">' + C.fmtDate(r.wonAt) + '</td><td class="nowrap">' + C.pandaLink(r.opp) +
+          (r.stopped ? '<span class="cell-meta">' + C.badge('neutral', '진행 중단만 있음') + '</span><span class="cell-meta">' + esc(r.stopped.join(', ')) + '</span>' : '') + '</td>' +
           '<td><span class="cell-strong">' + esc(r.customer || '-') + '</span>' + (r.bizNo ? '<span class="cell-meta">' + esc(r.bizNo) + '</span>' : '') +
             (r.sales ? '<span class="cell-meta">담당 영업 ' + esc(r.sales) + '</span>' : '') + '</td>' +
           '<td class="num">' + C.fmtWon(r.amount) + '</td><td>' + noteCell(n) + '</td><td class="col-action">' + noteBtn(key, n, ended, '영업기회 ' + r.opp) + '</td></tr>';
@@ -326,7 +341,8 @@
     const r = compare(sel);
     if (key.indexOf('ORDER:') === 0) {
       const o = r && r.noContract.filter(function (x) { return 'ORDER:' + x.opp === key; })[0];
-      return o ? '수주 ' + o.opp + ' ' + (o.customer || '') + ', 수주일 ' + C.fmtDate(o.wonAt) + ', ' + C.fmtWon(o.amount) : key;
+      return o ? '수주 ' + o.opp + ' ' + (o.customer || '') + ', 수주일 ' + C.fmtDate(o.wonAt) + ', ' + C.fmtWon(o.amount) +
+        (o.stopped ? ', 진행 중단만 있음(' + o.stopped.join(', ') + ')' : '') : key; // 2026-11-14 주말 점검 W7
     }
     const c = D.CONTRACTS.filter(function (x) { return 'CONTRACT:' + x.id === key; })[0];
     return c ? '계약 ' + c.id + ' ' + (C.canView(c, me) ? c.counterparty : '열람 제한 계약') + ', 영업기회번호 ' + (C.oppOf(c) || '없음') : key;
@@ -376,7 +392,8 @@
         };
         if (!exc) { finish(null, null); return; }
         // 넘기는 글: 숫자와 줄 번호만(영업기회번호, 계약번호). 고객사 이름은 넣지 않음(열람 제한 계약 보호, REQ-AUTH-09)
-        const rows = r.noContract.map(function (o) { return '수주 ' + o.opp; }).concat(r.notInList.map(function (c) { return '계약 ' + c.id; }));
+        //   (2026-11-14 주말 점검 W7) 진행 중단만 있는 수주는 그 표시와 계약번호를 붙임
+        const rows = r.noContract.map(function (o) { return '수주 ' + o.opp + (o.stopped ? '(진행 중단만 있음: ' + o.stopped.join(', ') + ')' : ''); }).concat(r.notInList.map(function (c) { return '계약 ' + c.id; }));
         withCtl(function (X) {
           finish(X, X ? X.raiseIssue({ source: 'OPP', title: monthLabel(ym) + ' 영업기회 대사: 계약이 없는 수주 ' + r.noContract.length + '건, 수주 목록에 없는 계약 ' + r.notInList.length + '건',
             note: '예외 줄: ' + rows.join(', ') + (memo ? '. 메모: ' + memo : ''), href: 'opp-recon.html?month=' + ym, ref: ym }) : null);

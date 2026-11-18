@@ -60,6 +60,10 @@ def main():
             cdp.call('Page.navigate', url=ds.BASE + url)
             time.sleep(0.6)
             cdp.js("new Promise(r => { const t = () => document.readyState === 'complete' ? document.fonts.ready.then(() => setTimeout(r, 300)) : setTimeout(t, 100); t(); })")
+            # (2026-11-17) 미리보기 서버가 꺼져 Chrome의 "연결할 수 없음" 화면이 뜨면 화면 점검이 모두 문제 0으로 지나감 → 오류로 적고 다음으로
+            if cdp.js("location.protocol === 'chrome-error:' || !!document.querySelector('#main-frame-error, .neterror')"):
+                print('##', url, "| errors= ['PAGE NETERROR 미리보기 서버에 닿지 못함'] |")
+                continue
             for w2 in ck.get('resize', []):  # 연 뒤에 창 폭을 차례로 바꿈(창을 줄이는 것처럼)
                 cdp.call('Emulation.setDeviceMetricsOverride', width=w2, height=ck.get('h', 1300), deviceScaleFactor=ck.get('dpr', 1), mobile=False)
                 time.sleep(0.25)

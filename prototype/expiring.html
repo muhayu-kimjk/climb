@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="assets/css/common.css">
   <link rel="stylesheet" href="assets/css/form.css">
   <link rel="stylesheet" href="assets/css/list.css">
-  <link rel="stylesheet" href="assets/css/admin.css"><!-- 만료 처리와 유예 창의 회색 안내 상자(modal-info, 2026-11-02 A-10, A-11) -->
+  <link rel="stylesheet" href="assets/css/admin.css"><!-- 만료 처리와 유예 창의 회색 안내 상자(modal-info, 2026-11-02 A-10, A-11)를 위해 읽었으나 그 규칙은 2026-11-11 저녁 정리로 common.css에 옮김. 이 화면에 걸리는 admin.css 규칙은 없어 빼도 됨(그대로 두어 화면이 바뀌지 않게 함) -->
 </head>
 <!-- =====================================================================
   SCR-43 만료 예정 계약 (docs/02_화면목록.md)
@@ -29,6 +29,7 @@
   - 할 일: 자동갱신이면 "연장 검토"(REQ-FLOW-20, REQ-ARC-07), 아니면 "연장 기안", 그리고 "해지 기안"(REQ-ARC-06).
     진행 중인 연장, 해지가 있으면 그 상태를 보여 줍니다.
   - 영업은 내가 맡은 계약, 그 외 역할은 모든 계약을 봅니다. 기안 버튼은 영업대표 본인(과 시연용 최고관리자)에게만.
+  - 설계 검토 2026-11-11 10번: 모든 계약을 보는 역할에게 유닛 거르기(지금 영업대표의 유닛). 기본은 전체, ?unit=유닛 이름으로 미리 거름(개요에서 영업 리더가 "내 유닛"으로 볼 때)
   - 만료 이메일은 D-60, D-30에 영업대표에게 갑니다(REQ-ENV-10).
   - 해지 통지 기한 이메일의 날과 강조 일수는 결재선 규칙(SCR-52)에서 바꾼 값을 씀(기획자 결정 2026-11-02 A-5). 그 유닛 리더는 가장 짧은 날에만 받음(E-12)
   - 기획자 결정 2026-11-02 A-10, A-11: 종료일이 지났는데 서비스를 닫기 전인 계약을 맨 위에 둡니다(첫 칸은 지난 날수 D+n).
@@ -54,10 +55,16 @@
 
       <section id="list" aria-labelledby="list-title">
         <h2 class="sr-only" id="list-title">만료 예정 계약 목록</h2>
-        <form class="filter-bar" id="filter" role="search" aria-label="만료 예정 계약 거르기">
+        <!-- 설계 검토 2026-11-11 10번: 유닛 거르기(지금 영업대표의 유닛, 기본은 전체). 검색어 옆 윗줄(list.css .filter-bar--unit)
+             모든 계약을 보는 역할에게만. 영업 담당자는 내가 맡은 계약만 보므로 expiring.js가 이 칸을 감춤(검색어가 예전처럼 세 칸) -->
+        <form class="filter-bar filter-bar--unit" id="filter" role="search" aria-label="만료 예정 계약 거르기">
           <div class="field">
             <label class="field-label field-label--sm" for="f-q">검색</label>
             <input class="input" id="f-q" type="search" placeholder="고객사 또는 계약번호" autocomplete="off">
+          </div>
+          <div class="field filter-unit" id="f-unit-field">
+            <label class="field-label field-label--sm" for="f-unit">유닛</label>
+            <select class="select" id="f-unit"></select>
           </div>
           <div class="field">
             <label class="field-label field-label--sm" for="f-days">남은 기간</label>

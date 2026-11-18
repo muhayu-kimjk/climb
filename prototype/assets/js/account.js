@@ -85,6 +85,8 @@
       }
       return '내 분야가 맡은 체결 후 의무의 기한 ' + days + ', 기한이 지나면 다음 날';
     }
+    // (2026-11-16 밤 코드 다시 보기 w3-02) 정보보호 리더는 대상이 정보보호 담당자 본인인 이상 행위 알림만 받음(5-3 작은 확인)
+    if (t.code === 'SECURITY' && me.role !== 'SUPER' && C.hasRole(me, ['SEC_LEAD'])) return '접속 기록에서 이상 행위가 감지됐는데 그 대상이 정보보호 담당자 본인일 때';
     if (t.code === 'NOTICE_DEADLINE') {
       const all = R.noticeMailDays.join('일 전과 ') + '일 전', last = Math.min.apply(null, R.noticeMailDays) + '일 전';
       if (me.role !== 'SUPER' && C.hasRole(me, ['HEAD'])) return '내가 맡은 자동갱신 계약은 해지 통지 기한 ' + all + ', 내 유닛 영업이 맡은 계약은 ' + last;
@@ -161,7 +163,8 @@
     } else if (t.altSample) {
       // 같은 사람이 결과에 따라 받는 두 통(만료 유예 결과의 확인과 반려). 작은 제목은 예시의 label("유예를 확인했을 때")
       //   영업대표, 유닛 리더로 정해 둔 위 제목을 쓰지 않음 (기획자 결정 2026-11-09 5회차 7번)
-      body = [t.sample, t.altSample].map(function (s) { return '<h3 class="mail-sample-title">' + esc(s.label || '') + '</h3>' + mailHtml(t, s); }).join('');
+      //   (기획자 답 2026-11-12 [제안] ②) 셋째 예시가 있으면 함께(진행 중단 결과의 "상대가 이미 서명해 요청이 풀렸을 때")
+      body = [t.sample, t.altSample].concat(t.thirdSample ? [t.thirdSample] : []).map(function (s) { return '<h3 class="mail-sample-title">' + esc(s.label || '') + '</h3>' + mailHtml(t, s); }).join('');
     }
     // 보내는 때는 결재선 규칙에서 바꾼 일수로(whenText, A-5)
     C.formModal({ title: t.name + ' 이메일 미리 보기', desc: whenText(t) + ' 보내는 메일의 예시입니다. 버튼을 누르면 그 화면으로 갑니다.', body: body, btn: false });

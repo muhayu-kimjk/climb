@@ -3,7 +3,12 @@
  * ---------------------------------------------------------------------
  * 관련 요구사항: 요구사항 정의서 3.9 REQ-QUO-01~08 (v0.61 기획자 결정)
  *   목적: 그동안 엑셀로 각자 만들던 견적서를 시스템의 제품과 가격 기준 그대로 만들고, 출력할 때마다 기록을 남김.
- *   견적은 계약과 이어지지 않고, 견적 단계 할인 승인도 없음(할인율 한도를 넘는 줄은 알려만 줌)
+ *   견적 단계 할인 승인은 없음(할인율 한도를 넘는 줄은 알려만 줌)
+ *   (설계 검토 2026-11-11 1번 "가볍게 잇기") 예전 "견적은 계약과 이어지지 않음"(v0.61)을 바꿈: 보기 화면의 "이 견적으로 계약 등록"(작성한 영업, 시연은 최고관리자,
+ *     한 번이라도 출력한 판)이 계약 등록을 견적번호와 판을 주소에 담아 엶. 계약 등록이 값을 미리 채우고 계약에 견적번호와 판이 남음. 견적 없이 계약 등록도 그대로
+ *   (설계 검토 2026-11-11 3번, 4번, 4-1 3-1 가격 틀) 견적 머리에 "이용 기간(개월)"(months, 기본 12, 1~60 [가정]). 기간제 줄의 금액과 표준 금액은 이 달 수에 비례
+ *     표준 단가는 고객사(우리 거래처) 티어 단가가 있으면 그 값. 줄 설명에 단위 종류, 표준 단가(티어와 기본 단가), 표준 금액. 견적서에는 "기간" 칸
+ *     줄마다 unitKind, months(기간제), stdAmount, tier(티어 단가를 썼으면)를 함께 남김(계약 등록의 제품 줄과 같은 틀, C.stdLine, C.stdKeep)
  * 하는 일
  *   1. 주소로 고치기와 보기를 가름: 출력하지 않은 내 견적은 고치기(SCR-15), 그 밖에는 보기(SCR-17, 메뉴는 견적 목록)
  *   2. 받는 곳: 거래처 찾기(C.searchBusinesses, KRDS 콤보 상자)로 상호를 채움. 없으면 상호를 직접 적음. 사업자등록번호 칸은 없음(2026-11-06 기획자 요청)
@@ -61,6 +66,17 @@
     return overCap(l) && Math.round((1 - (Number(l.unitPrice) || 0) / l.listPrice - l.cap) * 10000) / 100 > C.cooOverPp();
   };
   const cooText = function () { return '한 줄이라도 한도를 ' + C.cooOverPp() + '%p보다 더 넘으면 영업 임원도 승인합니다'; };
+  /* (설계 검토 2026-11-11 3번, 4번, 4-1 3-1) 가격 틀: 줄의 표준 금액은 공통 셈(C.stdLine)으로
+   *   표준 단가: 고객사(우리 거래처)의 티어 단가가 가격 기준 줄에 있으면 그 값, 없으면 기본 표준 단가. 줄에 listPrice로 남김(티어 단가면 tier도)
+   *   기간제(단위 종류 PERIOD)는 단가가 12개월 값이고 금액과 표준 금액이 이용 기간(개월)에 비례(C.quoteLineAmount). 건당, 1회는 수량대로
+   *   할인율은 같은 달 수로 견주므로 1 - 단가 / 표준 단가 그대로(C.quoteLineOverCap) */
+  const MONTHS_MAX = 60; // [가정] 이용 기간은 1~60개월(5년), 기본 12개월
+  const customerById = function (id) { return id ? D.CUSTOMERS.filter(function (x) { return x.id === id; })[0] || null : null; };
+  // 저장한 줄이나 고치는 줄의 표준 금액(줄에 남긴 표준 단가와 한도를 씀. 가격 기준 줄은 오늘 것, 기본 단가를 보일 때만 씀)
+  function stdOf(l, months) {
+    return l.feature && l.listPrice != null ? C.stdLine({ feature: l.feature, qty: l.qty, listPrice: l.listPrice, cap: l.cap, unit: l.unit, unitKind: l.unitKind, tier: l.tier },
+      { row: PRICE[l.feature] || { listPrice: l.listPrice, unit: l.unit }, months: months }) : null;
+  }
 
   /* ---------- 출력할 수 있는 견적인지(받는 곳, 제품 줄, 날짜). 고치기 화면의 검사와 보기 화면의 출력 단추가 함께 씀 ---------- */
   function problems(q) {
@@ -71,6 +87,10 @@
     if (!q.validUntil) out.push(['validUntil', '유효기간을 고르세요.']);
     else if (q.date && q.validUntil < q.date) out.push(['validUntil', '유효기간은 견적일보다 앞설 수 없습니다.']);
     else if (q.validUntil < D.TODAY) out.push(['validUntil', '유효기간이 이미 지났습니다. 오늘 이후로 고치세요.']);
+    // (설계 검토 2026-11-11 4번) 이용 기간(개월): 1~60의 숫자. 기간제 줄의 금액과 표준 금액이 이 달 수에 비례
+    //   이 칸 전에 저장한 견적(months 없음)은 12개월로 봄(C.quoteMonths)
+    const qm = q.months == null ? 12 : Number(q.months);
+    if (!(Number.isInteger(qm) && qm >= 1 && qm <= MONTHS_MAX)) out.push(['months', '이용 기간은 1에서 ' + MONTHS_MAX + ' 사이의 개월 수로 넣으세요.']);
     const lines = q.lines || [];
     if (!lines.length) out.push(['lines', '제품을 한 줄 이상 넣으세요.']);
     else if (lines.some(function (l) { return l.bad; })) out.push(['lines', '수량과 단가는 숫자로만 넣습니다(쉼표는 괜찮음).']);
@@ -111,8 +131,10 @@
     // 새 견적은 오늘 견적일, 유효기간은 견적일 + 30일(QUOTE_RULES.validDays)
     const q = src ? JSON.parse(JSON.stringify(src)) : {
       no: '', ver: 1, customer: '', name: '', bizNo: '', unit: '', opp: '', date: D.TODAY, validUntil: C.addDays(D.TODAY, D.QUOTE_RULES.validDays),
+      months: 12, // (설계 검토 2026-11-11 4번 [가정]) 이용 기간(개월) 기본 12
       owner: me.id, lines: [], note: '', issues: [],
     };
+    if (q.months == null) q.months = 12; // 이 칸 전에 저장한 견적은 12개월(C.quoteMonths와 같음)
     // 저장된 줄에는 기능만 있어, 고르는 칸을 채우려고 제품과 서비스를 기능에서 다시 찾음(v0.61 검토: 다시 열면 고르는 칸이 비었음)
     q.lines = q.lines.map(function (l) {
       const f = featureOf(l.feature), p = f && productOf(f.product);
@@ -121,10 +143,12 @@
     if (!q.lines.length) q.lines.push(blankLine());
     $('#page-title').textContent = src ? '견적 고치기' : '새 견적';
     $('#page-intro').innerHTML = '<p>제품과 가격 기준에 있는 표준 단가로 견적서를 만듭니다. 견적서를 출력하면 그 판은 고칠 수 없고 출력 기록이 남습니다.</p>' +
-      '<p class="sub">' + (src ? esc(src.no) + ' ' + src.ver + '판, 출력 전이라 고칠 수 있습니다. ' : '') + '견적은 계약과 이어지지 않고, 견적 단계 할인 승인은 없습니다. 할인율 한도를 넘는 할인은 계약할 때 영업 리더가 승인합니다. ' +
+      '<p class="sub">' + (src ? esc(src.no) + ' ' + src.ver + '판, 출력 전이라 고칠 수 있습니다. ' : '') + // 설계 검토 2026-11-11 1번: 출력한 견적으로 계약을 등록할 수 있음을 알림(예전 "견적은 계약과 이어지지 않고"를 바꿈)
+      '출력한 견적은 견적서 보기에서 "이 견적으로 계약 등록"으로 계약 등록을 시작할 수 있습니다. 견적 단계 할인 승인은 없고, 할인율 한도를 넘는 할인은 계약할 때 영업 리더가 승인합니다. ' +
       esc(cooText()) + '.</p>'; // 2026-11-09 5회차 점검: 영업 임원 승인(E-3)도 알림
     $('#q-name').value = q.name; $('#q-unit').value = q.unit; $('#q-opp').value = q.opp;
     $('#q-date').value = q.date; $('#q-valid').value = q.validUntil; $('#q-note').value = q.note || '';
+    $('#q-months').value = q.months; // (설계 검토 2026-11-11 4번) 이용 기간(개월)
     let customerKey = q.customer || '';
     validHelp();
     // 지금 팔지 않는 기능이 든 줄(새 판을 만든 경우 등)은 열 때 알려 줌
@@ -160,6 +184,7 @@
       picked = { name: h.name, bizNo: C.fmtBizNo(h.bizNo) };
       closeList();
       clearErr('name');
+      reprice(); // (설계 검토 2026-11-11 4-1 3-1) 고른 거래처의 티어 단가로 표준 단가를 다시 채움
     }
     nameIn.addEventListener('input', function () {
       // 고른 뒤 상호를 고치면 다른 곳이 됨: 고른 거래처를 풂(v0.61 검토)
@@ -167,7 +192,32 @@
       customerKey = '';
       clearErr('name'); // 상호를 고치면 바로 "고객사 상호를 넣으세요" 오류를 지움(2026-11-06 점검 3회차: 목록에서 고를 때만 지워졌음)
       renderHits();
+      reprice(); // (설계 검토 2026-11-11 4-1 3-1) 거래처가 풀리면 기본 단가로(티어가 바뀔 때만 줄을 다시 그림)
     });
+    /* (설계 검토 2026-11-11 4-1 3-1) 고객사 티어: 지금 고른 우리 거래처(저장할 때 남는 거래처와 같은 규칙, collect). 사업자 정보 DB에서 고르거나 직접 적으면 없음
+     *   거래처나 그 티어가 바뀌면 줄마다 오늘 가격 기준의 표준 단가(티어 단가)로 다시 채움. 단가를 표준 단가 그대로 둔 줄은 단가도 함께 바꾸고,
+     *   할인해 고친 단가는 그대로 둠 [가정]. 한도(cap)는 줄에 남긴 그대로(E-4). 처음 열 때는 다시 채우지 않음(저장한 값 그대로) */
+    function tierCustomer() { return customerById(customerKey || (nameIn.value.trim() === (q.name || '').trim() ? q.customer : '')); }
+    let priceKey = (function () { const cu = tierCustomer(); return cu ? cu.id + '|' + C.customerTier(cu) : ''; })();
+    function reprice() {
+      const cu = tierCustomer(), key = cu ? cu.id + '|' + C.customerTier(cu) : '';
+      if (key === priceKey) return;
+      const was = priceKey.split('|')[1] || '', now = key.split('|')[1] || '';
+      priceKey = key;
+      if (was === now) return; // 티어가 같으면 단가도 같음
+      let n = 0;
+      q.lines.forEach(function (l) {
+        if (!l.feature || !PRICE[l.feature]) return;
+        const s = C.stdLine({ feature: l.feature, qty: l.qty }, { row: PRICE[l.feature], customer: cu, months: monthsNow(), fresh: true });
+        if (s.unitPrice === l.listPrice && (s.tier || '') === (l.tier || '')) return;
+        if (l.unitPrice === l.listPrice) { l.unitPrice = s.unitPrice; if (l.raw) l.raw.unitPrice = null; }
+        l.listPrice = s.unitPrice; l.tier = s.tier || '';
+        n++;
+      });
+      if (!n) return;
+      renderLines();
+      liveEl.textContent = '고객사 티어(' + (now ? C.tierLabel(now) : '없음') + ')에 맞춰 ' + n + '줄의 표준 단가를 바꿨습니다.';
+    }
     nameIn.addEventListener('focus', renderHits);
     nameIn.addEventListener('blur', function () { setTimeout(closeList, 150); });
     nameIn.addEventListener('keydown', function (e) {
@@ -183,12 +233,17 @@
     listEl.addEventListener('mousedown', function (e) { const li = e.target.closest('[data-i]'); if (li) { e.preventDefault(); pick(Number(li.dataset.i)); } });
 
     /* --- 3. 제품 줄 --- */
-    function blankLine() { return { service: '', product: '', feature: '', qty: 1, unitPrice: null, listPrice: null, cap: null, unit: '', bad: false }; }
+    function blankLine() { return { service: '', product: '', feature: '', qty: 1, unitPrice: null, listPrice: null, cap: null, unit: '', unitKind: '', tier: '', bad: false }; }
+    // (설계 검토 2026-11-11 4번) 이용 기간(개월): 칸이 1~60의 숫자일 때만 q.months를 바꿈. 틀린 값이면 앞의 맞는 값으로 셈(저장과 출력은 검사가 막음)
+    function monthsNow() { return Number(q.months) >= 1 && Number(q.months) <= MONTHS_MAX ? Number(q.months) : 12; }
+    // (설계 검토 2026-11-11 3번, 4번, 4-1 3-1) 줄 설명: 단위 종류, 표준 단가(티어 단가면 티어와 기본 단가), 표준 금액(기간제는 이용 기간), 할인
     function metaText(l) {
       if (!l.feature) return '';
       const disc = l.listPrice ? 1 - (Number(l.unitPrice) || 0) / l.listPrice : 0;
+      const s = stdOf(l, monthsNow());
       // 2026-11-09 5회차 점검: 영업 임원 승인 기준보다 더 넘는 줄에는 "영업 임원 승인 대상"(계약 등록의 결재선 미리보기와 같은 말)
-      return '단위 ' + esc(l.unit) + ', 표준 단가 ' + C.fmtWon(l.listPrice) + (disc > 0 ? ', 할인 ' + pct(disc) +
+      return esc(C.unitKindLabel(s ? s.kind : C.unitKindOf(l.unit))) + ', 표준 단가 ' + esc(s ? C.stdPriceText(s, l.unit) : C.fmtWon(l.listPrice)) +
+        (s ? ', 표준 금액 ' + C.fmtWon(s.std) + (s.months ? '(' + s.months + '개월)' : '') : '') + (disc > 0 ? ', 할인 ' + pct(disc) +
         (overCap(l) ? ' (한도 ' + pct(l.cap) + ' 넘음' + (cooOver(l) ? ', 영업 임원 승인 대상' : '') + ')' : '') : '') +
         (sold(l.feature) ? '' : ' (지금 팔지 않는 기능)');
     }
@@ -204,7 +259,7 @@
       const products = D.PRODUCTS.filter(function (p) { return p.id === l.product || (p.use && p.service === svc && D.FEATURES.some(function (f) { return f.product === p.id && sold(f.id); })); });
       const feats = D.FEATURES.filter(function (f) { return f.product === l.product && (sold(f.id) || f.id === l.feature); });
       const opt = function (v, label, cur) { return '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(label) + '</option>'; };
-      const amount = (Number(l.unitPrice) || 0) * (Number(l.qty) || 0);
+      const amount = C.quoteLineAmount(l, monthsNow()); // (설계 검토 2026-11-11 4번) 기간제는 이용 기간에 비례
       const n = i + 1;
       // 서비스, 제품, 기능 세 칸은 PC에서도 한 줄에 하나, 칸 전체 폭 (기획자 결정 2026-11-02 D-8, 계약 등록과 같게. quote.css .q-pick)
       return '<tr data-i="' + i + '"' + (overCap(l) ? ' class="is-alert"' : '') + '>' +
@@ -230,7 +285,7 @@
       '</tr>';
     }
     function sums() {
-      const t = C.quoteTotals({ lines: q.lines.filter(function (l) { return l.feature && !l.bad; }) });
+      const t = C.quoteTotals({ months: monthsNow(), lines: q.lines.filter(function (l) { return l.feature && !l.bad; }) }); // 설계 검토 2026-11-11 4번: 이용 기간
       return '<div><dt>공급가액</dt><dd class="num">' + C.fmtWon(t.supply) + '</dd></div>' +
         '<div><dt>부가세(' + Math.round(D.QUOTE_RULES.vat * 100) + '%)</dt><dd class="num">' + C.fmtWon(t.vat) + '</dd></div>' +
         '<div class="q-sum-total"><dt>합계</dt><dd class="num">' + C.fmtWon(t.total) + '</dd></div>';
@@ -250,7 +305,10 @@
       else if (k === 'product') { q.lines[i] = Object.assign(blankLine(), { service: l.service, product: e.target.value, qty: l.qty }); }
       else if (k === 'feature') {
         const p = PRICE[e.target.value];
-        Object.assign(l, { feature: e.target.value, listPrice: p ? p.listPrice : null, unitPrice: p ? p.listPrice : null, cap: p ? p.discountCap : null, unit: p ? p.unit : '', raw: null, bad: false });
+        // (설계 검토 2026-11-11 3번, 4-1 3-1) 표준 단가는 고객사 티어 단가가 있으면 그 값(C.stdLine), 단위 종류도 함께 남김
+        const s = p ? C.stdLine({ feature: e.target.value, qty: l.qty }, { row: p, customer: tierCustomer(), months: monthsNow(), fresh: true }) : null;
+        Object.assign(l, { feature: e.target.value, listPrice: s ? s.unitPrice : null, unitPrice: s ? s.unitPrice : null, cap: p ? p.discountCap : null, unit: p ? p.unit : '',
+          unitKind: s ? s.kind : '', tier: s ? s.tier : '', raw: null, bad: false });
       } else return;
       renderLines('tr[data-i="' + i + '"] [data-k="' + k + '"]');
       clearErr('lines');
@@ -269,7 +327,7 @@
       l.bad = !(/^[\d,\s]*$/.test(String((l.raw || {}).qty == null ? l.qty : l.raw.qty)) && /^[\d,\s]*$/.test(String((l.raw || {}).unitPrice == null ? '' : l.raw.unitPrice)));
       e.target.setAttribute('aria-invalid', String(!okRaw));
       // 고치는 칸은 그대로 두고 금액, 줄 설명, 합계, 한도 알림만 바꿈(줄을 다시 그리지 않아 커서와 다음 칸 누름이 그대로)
-      tr.querySelector('.q-amount').textContent = l.feature ? C.fmtWon((Number(l.unitPrice) || 0) * (Number(l.qty) || 0)) : '-';
+      tr.querySelector('.q-amount').textContent = l.feature ? C.fmtWon(C.quoteLineAmount(l, monthsNow())) : '-'; // 설계 검토 2026-11-11 4번
       tr.querySelector('.q-meta').innerHTML = metaText(l);
       tr.classList.toggle('is-alert', overCap(l));
       $('#q-sum').innerHTML = sums();
@@ -301,6 +359,13 @@
     });
     $('#q-date').addEventListener('change', validHelp);
     $('#q-valid').addEventListener('change', validHelp);
+    // (설계 검토 2026-11-11 4번) 이용 기간(개월)을 바꾸면 기간제 줄의 금액과 표준 금액, 합계를 다시 셈. 숫자만 받고 틀리면 그 칸만 틀린 칸으로 둠
+    $('#q-months').addEventListener('input', function (e) {
+      const raw = String(e.target.value).trim(), n = /^\d+$/.test(raw) ? parseInt(raw, 10) : NaN;
+      const ok = n >= 1 && n <= MONTHS_MAX;
+      e.target.setAttribute('aria-invalid', String(!ok && raw !== ''));
+      if (ok) { q.months = n; clearErr('months'); renderLines(); }
+    });
     function validHelp() {
       const d = $('#q-date').value, v = $('#q-valid').value;
       $('#q-valid-help').textContent = '기본은 견적일부터 ' + D.QUOTE_RULES.validDays + '일입니다.' + (d && v && v >= d ? ' 지금 ' + daysBetween(d, v) + '일.' : '');
@@ -323,6 +388,8 @@
         unit: $('#q-unit').value.trim(),
         opp: $('#q-opp').value.trim().toUpperCase(),
         date: $('#q-date').value, validUntil: $('#q-valid').value,
+        // (설계 검토 2026-11-11 4번) 이용 기간(개월): 칸의 글자 그대로 숫자로(틀리면 NaN이라 출력 검사 problems와 저장 검사가 알림)
+        months: /^\s*\d+\s*$/.test($('#q-months').value) ? parseInt($('#q-months').value, 10) : NaN,
         note: $('#q-note').value.trim(),
         lines: q.lines.filter(function (l, i) { return l.feature || l.bad || (i === 0 && q.lines.length === 1); }),
       });
@@ -360,8 +427,11 @@
       if (!d.no) d.no = C.newQuoteNo(d.date);
       d.savedAt = C.nowStamp();
       d.issues = [];
+      // (설계 검토 2026-11-11 3번, 4번, 4-1 3-1) 줄마다 단위 종류, 기간제의 달 수, 표준 금액, 티어 단가를 썼으면 그 티어도 남김(계약 등록과 같은 틀, C.stdKeep)
       d.lines = d.lines.filter(function (l) { return l.feature; }).map(function (l) {
-        return { feature: l.feature, qty: l.qty, unitPrice: l.unitPrice, listPrice: l.listPrice, cap: l.cap, unit: l.unit };
+        const keep = C.stdKeep(stdOf(l, d.months));
+        return Object.assign({ feature: l.feature, qty: l.qty, unitPrice: l.unitPrice, listPrice: l.listPrice, cap: l.cap, unit: l.unit },
+          keep.unitKind ? { unitKind: keep.unitKind } : {}, keep.months ? { months: keep.months } : {}, keep.stdAmount != null ? { stdAmount: keep.stdAmount } : {}, l.tier ? { tier: l.tier } : {});
       });
       return C.saveQuote(d);
     }
@@ -371,6 +441,8 @@
       //   2026-11-06 점검: 수량이나 단가 칸에 숫자가 아닌 글자(예: 1.5)가 있으면 저장하지 않음(예전에는 마지막 맞는 숫자로 말없이 저장했음)
       const errs = [];
       if (!d.name) errs.push(['name', '저장하려면 고객사 상호를 넣으세요.']);
+      // (설계 검토 2026-11-11 4번) 이용 기간이 1~60의 숫자가 아니면 저장하지 않음(금액이 이 값으로 정해짐)
+      if (!(d.months >= 1 && d.months <= MONTHS_MAX)) errs.push(['months', '이용 기간은 1에서 ' + MONTHS_MAX + ' 사이의 개월 수로 넣으세요.']);
       let badBox = null;
       if (d.lines.some(function (l) { return l.bad; })) {
         // 줄을 다시 그리면 aria-invalid가 지워지므로 칸의 글자를 다시 봄
@@ -414,12 +486,26 @@
     // 고객용 견적서는 단추로만(REQ-QUO-05). 처음 쓰는 사람이 브라우저 인쇄로 찍지 않게 이용 안내와 같은 말로 알림
     //   기획자 결정 2026-11-02 E-7: "견적서 출력"에만 회사 인장이 찍힘을 함께 알림(화면과 사내 인쇄에는 없음)
     if (canIssue(q)) intro.push('고객에게 낼 견적서는 "견적서 출력"으로 냅니다(회사 인장이 찍히고, PDF로 저장해 보낼 수 있음). 브라우저의 인쇄 메뉴로 찍으면 워터마크가 든 사내 인쇄가 되고 인장은 찍히지 않습니다.');
+    // 설계 검토 2026-11-11 1번 [가정]: 유효기간이 지난 판도 "이 견적으로 계약 등록"은 그대로 두고, 계약은 오늘의 가격 기준으로 셈을 한 줄로 알림
+    if (canContract(q) && q.validUntil < D.TODAY) intro.push('유효기간이 지난 견적이라 이 견적으로 계약을 등록하면 할인율은 오늘의 표준 단가와 할인율 한도로 다시 셉니다.');
     const overs = q.lines.filter(overCap);
     $('#page-intro').innerHTML = '<p>' + esc(intro.join(' ')) + '</p><p class="sub">작성 ' + esc(C.ownerLabel(q.owner)) + ', 저장 ' + esc(C.fmtDateTime(q.savedAt)) +
       (overs.length ? '. 할인율 한도를 넘는 줄이 ' + overs.length + '개 있어 이 가격으로 계약하면 영업 리더의 할인 승인이 필요합니다' : '') +
-      (overs.some(cooOver) ? '. ' + esc(cooText()) : '') + '.</p>'; // 2026-11-09 5회차 점검: 영업 임원 승인(E-3)도 알림
+      (overs.some(cooOver) ? '. ' + esc(cooText()) : '') + linkedText(q) + '.</p>'; // 2026-11-09 5회차 점검: 영업 임원 승인(E-3)도 알림
     renderActions(q);
   }
+  // 설계 검토 2026-11-11 1번: 이 판을 이은 계약(기안한 것만, 결재 문서 링크). 볼 수 없는 열람 제한 계약은 번호 대신 건수 [가정]
+  function linkedText(q) {
+    const list = C.contractsOfQuote(q.no, q.ver);
+    if (!list.length) return '';
+    const seen = list.filter(function (c) { return C.canView(c, me); });
+    const hidden = list.length - seen.length;
+    return '. 이 판으로 등록한 계약: ' + seen.map(function (c) { return '<a class="doc-link" href="review.html?id=' + encodeURIComponent(c.id) + '">' + esc(c.id) + '</a>'; })
+      .concat(hidden ? ['열람 제한 계약 ' + hidden + '건'] : []).join(', ');
+  }
+  // 설계 검토 2026-11-11 1번: "이 견적으로 계약 등록"을 보일지. 작성한 영업(읽기만 하는 역할은 빼고)과 시연용 최고관리자, 한 번이라도 출력한 판.
+  //   새 판으로 바뀜, 기간 지남인 판도 보임 [가정: 고객이 앞 판으로 계약하는 일이 있음. 기간이 지났으면 위 안내 한 줄]
+  function canContract(q) { return C.quoteIssued(q) && ((q.owner === me.id && !C.isReadOnly(me)) || me.role === 'SUPER'); }
   // 출력할 수 있는지: 작성한 영업(시연은 최고관리자), 맨 마지막 판, 작성 중이거나 출력함(기간 지남, 새 판으로 바뀜은 안 됨), 검사 통과
   function canIssue(q) {
     const st = C.quoteStatus(q), latest = C.findQuote(q.no);
@@ -431,6 +517,8 @@
     const acts = [];
     if (C.canEditQuote(me, q)) acts.push('<a class="btn btn--tertiary btn--md" href="quote.html?no=' + encodeURIComponent(q.no) + '&ver=' + q.ver + '">고치기</a>');
     if (mine && latest.ver === q.ver && (q.issues || []).length) acts.push('<button type="button" class="btn btn--tertiary btn--md" id="q-newver">새 판 만들기</button>');
+    // 설계 검토 2026-11-11 1번: 계약 등록을 이 판의 견적번호와 판을 담아 엶(new-contract.js가 고객사, 영업기회번호, 신규, 제품 줄을 미리 채움. 모두 고칠 수 있음)
+    if (canContract(q)) acts.push('<a class="btn btn--secondary btn--md" href="new-contract.html?quote=' + encodeURIComponent(q.no) + '&ver=' + q.ver + '">이 견적으로 계약 등록</a>');
     // 출력은 작성한 영업만(견적서의 담당이 작성한 영업이라). 시연을 위해 최고관리자도. 다른 사람은 보기만
     if (canIssue(q)) acts.push('<button type="button" class="btn btn--primary btn--md" id="q-out">' + C.icon('print', 'sm') + '견적서 출력</button>');
     $('#page-actions').innerHTML = acts.join('');
@@ -457,10 +545,18 @@
     }
     const copy = JSON.parse(JSON.stringify(latest));
     let changed = 0;
+    // (설계 검토 2026-11-11 3번, 4번, 4-1 3-1) 오늘 표준 단가는 고객사 티어 단가가 있으면 그 값(C.stdLine). 단위 종류, 표준 금액, 티어도 다시 채움
+    const cu = customerById(copy.customer), m = C.quoteMonths(copy);
     copy.lines.forEach(function (l) {
       const p = PRICE[l.feature];
-      if (p && (p.listPrice !== l.listPrice || p.discountCap !== l.cap || p.unit !== l.unit)) { changed++; Object.assign(l, { listPrice: p.listPrice, cap: p.discountCap, unit: p.unit }); }
+      if (!p) return;
+      const s = C.stdLine({ feature: l.feature, qty: l.qty }, { row: p, customer: cu, months: m, fresh: true });
+      if (s.unitPrice !== l.listPrice || p.discountCap !== l.cap || p.unit !== l.unit || (s.tier || '') !== (l.tier || '')) changed++;
+      Object.assign(l, { listPrice: s.unitPrice, cap: p.discountCap, unit: p.unit, unitKind: s.kind, stdAmount: s.std }, s.months ? { months: s.months } : {});
+      if (s.tier) l.tier = s.tier; else delete l.tier;
+      if (!s.months) delete l.months;
     });
+    if (copy.months == null) copy.months = m; // 이 칸 전에 저장한 견적은 12개월로 채움
     Object.assign(copy, { ver: latest.ver + 1, date: D.TODAY, validUntil: C.addDays(D.TODAY, D.QUOTE_RULES.validDays), owner: me.id, issues: [], savedAt: C.nowStamp() });
     C.saveQuote(copy);
     // 표준 단가만이 아니라 한도도 오늘 값으로 바뀜(기획자 결정 2026-11-02 E-4: 남은 시연 한도 20%, 15%가 0%로)
@@ -551,19 +647,22 @@
           '<div><dt>담당</dt><dd>' + esc(C.ownerLabel(q.owner)) + (acc && acc.email ? ' <span class="nowrap">' + esc(acc.email) + '</span>' : '') + '</dd></div></dl></section>' +
       '</div>' +
       '<p class="qd-total"><span>합계 금액(부가세 포함)</span><strong>' + esc(koreanWon(t.total)) + ' <span class="nowrap">(' + C.fmtWon(t.total) + ')</span></strong></p>' +
-      '<div class="tbl-scroll qd-scroll" tabindex="0" role="region" aria-label="견적 품목 표"><table class="tbl tbl--compact qd-lines"><caption class="sr-only">견적 품목: 번호, 품목, 단위, 수량, 단가, 금액</caption>' +
-        '<thead><tr><th scope="col">번호</th><th scope="col" class="col-phone-wide">품목</th><th scope="col">단위</th><th scope="col" class="num">수량</th><th scope="col" class="num">단가</th><th scope="col" class="num">금액</th></tr></thead><tbody>' +
+      // (설계 검토 2026-11-11 4번) "기간" 칸: 기간제 줄은 이용 기간(개월), 건당과 1회는 "-". 금액은 기간제면 단가 x 수량 x 기간 / 12(C.quoteLineAmount)
+      //   고객사 티어와 표준 단가는 고객에게 내는 견적서에 싣지 않음(사내 값)
+      '<div class="tbl-scroll qd-scroll" tabindex="0" role="region" aria-label="견적 품목 표"><table class="tbl tbl--compact qd-lines"><caption class="sr-only">견적 품목: 번호, 품목, 단위, 수량, 기간, 단가, 금액</caption>' +
+        '<thead><tr><th scope="col">번호</th><th scope="col" class="col-phone-wide">품목</th><th scope="col">단위</th><th scope="col" class="num">수량</th><th scope="col" class="num">기간</th><th scope="col" class="num">단가</th><th scope="col" class="num">금액</th></tr></thead><tbody>' +
         // 2026-11-06 점검: 줄이 없는 견적은 품목 표가 텅 빈 채 0원만 보였음. 빈 줄 하나로 까닭과 할 일을 알림(목록 화면의 빈 줄과 같은 꼴)
-        (!(q.lines || []).length ? '<tr><td class="empty-row" colspan="6">아직 넣은 품목이 없습니다. 고치기에서 제품을 넣은 뒤 출력합니다.</td></tr>' : '') +
+        (!(q.lines || []).length ? '<tr><td class="empty-row" colspan="7">아직 넣은 품목이 없습니다. 고치기에서 제품을 넣은 뒤 출력합니다.</td></tr>' : '') +
         (q.lines || []).map(function (l, i) {
-          const f = featureOf(l.feature);
+          const f = featureOf(l.feature), period = (l.unitKind || C.unitKindOf(l.unit)) === 'PERIOD';
           // data-label: 휴대폰에서 줄을 세로로 쌓을 때 값 앞에 붙는 이름(quote.css, 2026-11-06 기획자 요청: 휴대폰은 옆으로 밀지 않게)
           return '<tr><td class="center qd-no">' + (i + 1) + '</td><td class="qd-item">' + esc(C.featureLabel({ product: f ? f.product : '', feature: l.feature })) + '</td><td class="center cell-phone-nowrap" data-label="단위">' + esc(l.unit) + '</td>' +
-            '<td class="num" data-label="수량">' + Number(l.qty).toLocaleString('ko-KR') + '</td><td class="num" data-label="단가">' + C.fmtWon(l.unitPrice) + '</td><td class="num" data-label="금액">' + C.fmtWon(l.unitPrice * l.qty) + '</td></tr>';
+            '<td class="num" data-label="수량">' + Number(l.qty).toLocaleString('ko-KR') + '</td><td class="num" data-label="기간">' + (period ? C.quoteMonths(q) + '개월' : '-') + '</td>' +
+            '<td class="num" data-label="단가">' + C.fmtWon(l.unitPrice) + '</td><td class="num" data-label="금액">' + C.fmtWon(C.quoteLineAmount(l, C.quoteMonths(q))) + '</td></tr>';
         }).join('') + '</tbody>' +
-        '<tfoot><tr><th scope="row" colspan="5">공급가액</th><td class="num">' + C.fmtWon(t.supply) + '</td></tr>' +
-        '<tr><th scope="row" colspan="5">부가세(' + Math.round(D.QUOTE_RULES.vat * 100) + '%)</th><td class="num">' + C.fmtWon(t.vat) + '</td></tr>' +
-        '<tr class="qd-grand"><th scope="row" colspan="5">합계</th><td class="num">' + C.fmtWon(t.total) + '</td></tr></tfoot></table></div>' +
+        '<tfoot><tr><th scope="row" colspan="6">공급가액</th><td class="num">' + C.fmtWon(t.supply) + '</td></tr>' +
+        '<tr><th scope="row" colspan="6">부가세(' + Math.round(D.QUOTE_RULES.vat * 100) + '%)</th><td class="num">' + C.fmtWon(t.vat) + '</td></tr>' +
+        '<tr class="qd-grand"><th scope="row" colspan="6">합계</th><td class="num">' + C.fmtWon(t.total) + '</td></tr></tfoot></table></div>' +
       (q.note ? '<section class="qd-note"><h3 class="qd-h3">조건과 비고</h3><p>' + esc(q.note).replace(/\n/g, '<br>') + '</p></section>' : '') +
       '<p class="qd-foot">이 시스템에서 발급한 견적서입니다. 견적번호 ' + esc(q.no) + ' ' + q.ver + '판의 발급 기록이 남아 있습니다.</p>' +
     '</article>';

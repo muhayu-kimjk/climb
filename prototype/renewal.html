@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="assets/css/form.css">
   <link rel="stylesheet" href="assets/css/new-contract.css">
   <link rel="stylesheet" href="assets/css/review.css">
+  <link rel="stylesheet" href="assets/css/recon.css"><!-- 오늘 표준 금액 한 줄의 여백 (설계 검토 2026-11-11 3장) -->
 </head>
 <!-- =====================================================================
   SCR-44 연장 검토 (docs/02_화면목록.md)
@@ -28,6 +29,9 @@
     조건을 바꿔 연장 → 계약 등록 화면에서 연장 계약을 기안(체크리스트에 따라 결재)
     해지 → 해지 기안 화면(SCR-13)
   - 들어오는 곳: 계약 상세, 만료 예정의 "연장 검토". 주소: renewal.html?origin=원계약 번호
+  - 설계 검토 2026-11-11 3장: "연장할 계약" 아래 회색 상자 한 줄에 지금 계약 금액, 오늘 표준 금액(지금 계약과 같은 달 수), 차이. 막지 않음
+  - (2026-11-14 주말 점검 W7) 금액이 바뀌는 변경(추가, 줄임)이 진행 중이면 연장 검토를 막음. 지금 금액이 0원 이하이면 그대로 연장을 고를 수 없음.
+      거래처 확인 경고(계약 등록과 같은 문장)를 1번 묶음에 보이고 기안 기록에 남김
 ====================================================================== -->
 <body data-page="SCR-44">
   <a class="skip-link" href="#main">본문 바로가기</a>
@@ -54,6 +58,10 @@
         <section class="panel" aria-labelledby="sec-origin">
           <h2 class="section-title" id="sec-origin"><span class="num">1</span>연장할 계약</h2>
           <dl class="info-grid" id="origin"></dl>
+          <!-- 지금 계약 금액과 오늘 표준 금액, 차이 (설계 검토 2026-11-11 3장). 읽을 정보라 회색 상자 한 줄(REQ-UI-32). 견줄 수 없으면 같은 자리에 까닭 -->
+          <p class="step-guide renew-std" id="std-line"></p>
+          <!-- (2026-11-14 주말 점검 W7, abc-07) 거래처 확인 경고: 계약 등록과 같은 문장과 모양(막지 않음). 화면을 열 때 정해짐. renewal.js가 채움 -->
+          <p class="field-warn" id="customer-check" role="status" hidden></p>
         </section>
 
         <section class="panel" aria-labelledby="sec-choice">
@@ -65,6 +73,8 @@
               <label class="choice"><input type="radio" name="choice" value="CHANGE">조건을 바꿔 연장</label>
               <label class="choice"><input type="radio" name="choice" value="END">해지</label>
             </div>
+            <!-- (2026-11-14 주말 점검 W7, icfr-03) 지금 금액이 0원 이하인데 그대로 연장을 기안하면 여기에 오류(기안 단추를 누를 때만) -->
+            <p class="field-error" hidden></p>
           </fieldset>
 
           <!-- 그대로 자동갱신: 짧은 기안 -->

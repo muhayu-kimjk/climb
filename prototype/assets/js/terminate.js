@@ -40,6 +40,12 @@
     return;
   }
   const root = b.root;
+  // 설계 검토 2026-11-11 5번: 예전 계약 기록(LG-번호)도 원계약으로 받음. 다만 바로잡힌 기록은 쓰지 않고 바로잡은 새 기록에서 기안 [가정]
+  if (C.legacyReplacedBy(root)) {
+    $('#notice').innerHTML = notice('바로잡힌 예전 계약 기록입니다', '이 기록은 바로잡혀 새 기록(' + esc(C.legacyReplacedBy(root).id) + ')이 있습니다. <a href="contract.html?id=' +
+      encodeURIComponent(C.legacyReplacedBy(root).id) + '">새 기록의 계약 상세로</a>');
+    return;
+  }
   const blocking = b.open.filter(function (o) { return o.kind === 'RENEW' || o.kind === 'TERMINATE'; });
   // 기획자 결정 2026-11-02 C-16: 거래처나 묶음에 보류가 걸려 있으면 해지를 기안하지 않음(보완 후 재기안 ?id도). 다른 까닭보다 먼저(연장 검토와 같게)
   //   "보류 중" 배지와 사유를 함께. 보류는 컴플라이언스 담당자가 풂(개선 과제와 보류 SCR-64)
@@ -87,7 +93,9 @@
   function info(label, value, cls) { return '<div><dt>' + esc(label) + '</dt><dd' + (cls ? ' class="' + cls + '"' : '') + '>' + value + '</dd></div>'; } // cls amount: 금액은 오른쪽(REQ-UI-16)
   $('#origin').innerHTML = [
     info('고객사', esc(root.counterparty)),
-    info('계약번호', '<a href="' + back + '">' + esc(b.id) + '</a>' + (cur !== root ? ' (지금 유효: ' + esc(cur.id) + ')' : '')),
+    info('계약번호', '<a href="' + back + '">' + esc(b.id) + '</a>' + (cur !== root ? ' (지금 유효: ' + esc(cur.id) + ')' : '') +
+      // 설계 검토 2026-11-11 5번: 원계약이 예전 계약 기록이면 그 표시와 예전 문서 번호
+      (root.legacy ? '<span class="cell-meta">' + C.legacyBadges(root) + ' 예전 문서 ' + esc(root.legacy.docNo || '-') + '</span>' : '')),
     info('서비스', esc(C.serviceLabel(root.services))),
     info('계약 기간', C.fmtPeriod(b.start, b.end)),
     info('계약 금액', Number(cur.amount || 0).toLocaleString('ko-KR') + '원<span class="cell-meta">' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도</span>', 'amount'),
@@ -140,8 +148,23 @@
     $('#f-date').value = again.terminateDate || '';
     $('#f-reason').value = again.reason || '';
     $('#f-refund').value = again.refundNote || '';
+    // 2026-11-16 결정 5: 나눠 받는 세 칸(예전 기록은 메모만 있어 금액 칸은 비워 둠)
+    $('#f-refund-amount').value = again.refundAmount != null ? Number(again.refundAmount).toLocaleString('ko-KR') : '';
+    $('#f-penalty').value = again.penaltyAmount != null ? Number(again.penaltyAmount).toLocaleString('ko-KR') : '';
+    if (again.refundTo != null) $('#f-refund-to').value = again.refundTo;
     setFile(((again.files || [])[0] || {}).name || '');
   }
+
+  /* ---------- 환불 금액, 위약금, 환불받는 곳 (기획자 결정 2026-11-16, 결정할것 결정 5) ----------
+   *   금액 두 칸은 0 이상의 원 단위 숫자(쉼표를 붙여 보임). 환불받는 곳은 처음에 계약 고객 이름을 채워 둠
+   *   환불 금액이 0보다 크면 환불받는 곳이 필수. 계약 고객 이름과 다르면(제3자 환불) 메모에 까닭이 필수(ISO 37001 8.3, ⑩ 재무가 확인) */
+  $('#refund-to-help').textContent = '처음 값은 계약 고객(' + root.counterparty + ')입니다. 다른 곳으로 돌려주면 그 이름을 적고 메모에 까닭을 적습니다.';
+  if (!again || again.refundTo == null || again.refundTo === '') $('#f-refund-to').value = root.counterparty;
+  if (!again || again.refundAmount == null) { $('#f-refund-amount').value = '0'; $('#f-penalty').value = '0'; } // 처음 값 0(없으면 그대로 둠)
+  ['#f-refund-amount', '#f-penalty'].forEach(function (s) {
+    $(s).addEventListener('input', function (e) { const d = e.target.value.replace(/[^0-9]/g, ''); e.target.value = d ? Number(d).toLocaleString('ko-KR') : ''; });
+  });
+  function wonOf(s) { const v = $(s).value.replace(/,/g, '').trim(); return /^\d+$/.test(v) ? Number(v) : null; }
 
   /* ---------- 입력 검사 (KRDS 오류 패턴) ---------- */
   // 오류 표시와 aria-invalid는 공통 함수로 (KRDS, v0.28)
@@ -164,6 +187,16 @@
     if (dateMsg) errors.push({ msg: dateMsg, el: $('#f-date') });
     setError('reason', reason ? '' : '해지 사유를 적으세요.');
     if (!reason) errors.push({ msg: '해지 사유를 적으세요.', el: $('#f-reason') });
+    // 2026-11-16 결정 5: 환불 금액, 위약금(필수, 0 이상), 환불받는 곳(환불이 있으면 필수), 계약 고객이 아니면 메모 필수
+    const ra = wonOf('#f-refund-amount'), pa = wonOf('#f-penalty'), to = $('#f-refund-to').value.trim(), memo = $('#f-refund').value.trim();
+    const raMsg = ra == null ? '환불 금액을 숫자로 적으세요(없으면 0).' : '';
+    setError('refundAmount', raMsg); if (raMsg) errors.push({ msg: raMsg, el: $('#f-refund-amount') });
+    const paMsg = pa == null ? '위약금을 숫자로 적으세요(없으면 0).' : '';
+    setError('penalty', paMsg); if (paMsg) errors.push({ msg: paMsg, el: $('#f-penalty') });
+    const toMsg = ra && !to ? '환불 금액이 있어 환불받는 곳을 적으세요.' : '';
+    setError('refundTo', toMsg); if (toMsg) errors.push({ msg: toMsg, el: $('#f-refund-to') });
+    const memoMsg = ra && to && to !== root.counterparty && !memo ? '환불받는 곳이 계약 고객(' + root.counterparty + ')이 아니라 까닭을 메모에 적으세요.' : '';
+    setError('refund', memoMsg); if (memoMsg) errors.push({ msg: memoMsg, el: $('#f-refund') });
     const box = $('#error-summary');
     box.hidden = !errors.length;
     if (errors.length) {
@@ -189,19 +222,26 @@
     $('#confirm-body').innerHTML = '<p>기안하면 ③ 영업 검토부터 시작되고, 결재가 끝날 때까지 고칠 수 없습니다. ⑩ 재무 확인까지 끝나면 원계약이 해지 상태가 됩니다.</p>' +
       '<dl class="confirm-list"><div><dt>계약</dt><dd>' + esc(root.counterparty + ' ' + b.id) + '</dd></div>' +
       '<div><dt>해지 번호</dt><dd>' + esc(newId) + '</dd></div>' +
-      '<div><dt>해지일</dt><dd>' + C.fmtDate($('#f-date').value) + '</dd></div></dl>';
+      '<div><dt>해지일</dt><dd>' + C.fmtDate($('#f-date').value) + '</dd></div>' +
+      '<div><dt>환불과 위약금</dt><dd>' + esc(C.refundText(Object.assign({ counterparty: root.counterparty }, refundFields()))) + '</dd></div></dl>'; // 2026-11-16 결정 5
     lastFocus = document.activeElement;
     modal.hidden = false;
     C.focusModal(modal); // 제목에 포커스 (KRDS 모달, v0.28)
   });
   // 닫기, 바깥 누름, Esc 모두 창을 닫고 열기 전 자리(기안 단추)로 포커스를 돌려줌. 계약 등록, 결재 화면과 같음 (2026-11-06 점검)
   function closeModal() { modal.hidden = true; if (lastFocus) lastFocus.focus(); }
+  // 2026-11-16 결정 5: 저장하는 세 칸(환불이 0이면 받는 곳은 비움)
+  function refundFields() {
+    const ra = wonOf('#f-refund-amount') || 0;
+    return { refundAmount: ra, penaltyAmount: wonOf('#f-penalty') || 0, refundTo: ra ? $('#f-refund-to').value.trim() : '', refundNote: $('#f-refund').value.trim() };
+  }
   modal.addEventListener('click', function (e) {
     if (e.target === modal || e.target.closest('[data-act="close"]')) closeModal();
     if (!e.target.closest('[data-act="confirm"]')) return;
     // 해지 기안 기록 (데이터 정의서 contract: kind TERMINATE, terminate_date, terminate_reason)
     const fields = {
-      terminateDate: $('#f-date').value, reason: $('#f-reason').value.trim(), refundNote: $('#f-refund').value.trim(),
+      terminateDate: $('#f-date').value, reason: $('#f-reason').value.trim(),
+      refundAmount: refundFields().refundAmount, penaltyAmount: refundFields().penaltyAmount, refundTo: refundFields().refundTo, refundNote: refundFields().refundNote, // 2026-11-16 결정 5
       files: fileName ? [{ kind: 'TERMINATE_DOC', name: fileName }] : [],
     };
     const rec = again ? C.resubmitRecord(again, fields) : Object.assign({

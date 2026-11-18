@@ -23,6 +23,13 @@
  * 최고관리자(시연)는 자기 작업이 든 줄(기안했거나 ③, ⑩을 처리함)을 확인하지 못하고, 그런 줄이 있으면 점검 마침도 남기지 않음(C-6)
  * 기획자 결정 2026-11-09 5회차 13번: 줄 확인 창에 "문제 있음"을 두고, 고르면 의견 필수. 저장하면 컴플라이언스에 넘김(control-checks.js X.raiseIssue)
  *   컴플라이언스 담당자의 개요 점검할 일에 올라가고 이메일이 감. 줄 기록에 issue(문제 있음), issueId(넘어온 일 번호)를 남김
+ * 설계 검토 2026-11-11 3장: 그달 점검에 참고 줄 두 표(다. refRows). 한도를 넘은 유상 충전, 기안한 날 표준 금액과 다른 조건 그대로 연장
+ *   보기만 하고 확인을 남기지 않음(결재 흐름과 점검 마침 조건은 그대로). 요약 줄에 건수, 점검 마침 기록에 그때 본 건수
+ * (2026-11-14 주말 점검 W7) 참고 표를 넷으로: 셋째 "참고 금액보다 많이 줄인 변경"(그달 기안한 줄임 변경, control-checks.js X.shrinkRef),
+ *   넷째 "운영 변경으로 늘린 계약 기간"(그달 계약 완료된 기간 늘림, 늘린 달 수와 같은 거래처의 최근 1년 늘림 횟수). 둘 다 보기만 함
+ *   점검 마침 기록의 seen에 shrink, period 건수를 더함(앞 기록에는 없음)
+ * (2026-11-14 주말 점검, 코드 다시 보기 common-02) 참고 표 넷에서 볼 수 없는 열람 제한 계약은 고객사와 함께 금액과 계약 기간도 가림(01 REQ-AUTH-09, SCR-61 규칙). 비율만 남김
+ * (2026-11-14 주말 점검, 코드 다시 보기 review-01) 셋째 참고 표는 기능마다 합친 값(X.shrinkRef feats, flag)으로 봄: 결재 문서 "변경 전과 후"의 배지와 같은 기준 [가정]
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -73,19 +80,29 @@
   //   기획자 결정 2026-11-02 E-4: 기안 때 줄에 남긴 표준 단가와 한도(line.listPrice, line.cap)를 먼저, 없으면 그날 가격 줄(C.pricesAt.
   //   그날 줄이 없으면 그 기능의 첫 줄). 예전에는 오늘 가격으로 채워 E-4 뒤 한도가 0%인 줄이 생겼음
   //   top: 할인율이 가장 큰 줄 { d, cap }, all: 계약 전체(표준 금액 합계 대비). 제품 줄이 없으면 null
+  //   (설계 검토 2026-11-11 4번, 4-1 3-1) 줄의 표준 금액은 공통 셈(C.contractStd: 기간제는 계약 기간 달 수에 비례, 고객사 티어 단가, 남긴 값을 먼저)
+  //   (설계 검토 2026-11-11 남은 것 ⑧) tiers: 티어 단가로 셈한 줄의 티어 이름(겹치지 않게). 할인율 칸 아래에 "티어 1 단가로 셈"으로 보임
   function discountOf(c) {
-    const price = C.pricesAt(String(c.requestedAt || D.TODAY).slice(0, 10));
     let top = null, std = 0, amt = 0;
-    (c.products || (c.form && c.form.products) || []).forEach(function (r) {
-      const p = price[r.feature];
-      const list = r.listPrice != null ? Number(r.listPrice) : p ? p.listPrice : 0;
-      const s = list * (Number(r.qty) || 0), a = Number(r.amount) || 0;
+    const tiers = [];
+    // (2026-11-16 밤 코드 다시 보기 w7-02) ③을 거친 줄임(W7-3)은 기안 때 남긴 변경 뒤 할인율(reduceOver)로 셈(contractStd는 줄임을 셈하지 않음)
+    if (c.reduceOver && c.reduceOver.over) {
+      c.reduceOver.feats.forEach(function (f) {
+        if (!f.std) return;
+        std += f.std; amt += f.amountAfter;
+        if (!top || f.discount > top.d) top = { d: f.discount, cap: f.cap };
+      });
+      return top ? { top: top, all: (std - amt) / std, tiers: tiers } : null;
+    }
+    C.contractStd(c).forEach(function (x) {
+      const s = x.s ? x.s.std : 0, a = x.amount;
       if (!s) return;
       std += s; amt += a;
+      if (x.s.tier && tiers.indexOf(C.tierLabel(x.s.tier)) < 0) tiers.push(C.tierLabel(x.s.tier));
       const d = (s - a) / s;
-      if (!top || d > top.d) top = { d: d, cap: r.cap != null ? Number(r.cap) : p ? p.discountCap || 0 : 0 };
+      if (!top || d > top.d) top = { d: d, cap: x.s.cap };
     });
-    return top ? { top: top, all: (std - amt) / std } : null;
+    return top ? { top: top, all: (std - amt) / std, tiers: tiers } : null;
   }
   /* 이 계약이 ③ 가격 예외 승인을 마친 차수들 [{ c, round, s03, s03c, at }]
    *   신규, 변경, 바꿔서 연장만(운영 변경과 해지, 그대로 연장의 ③은 가격 예외가 아님). 이런 계약은 체크리스트 2, 3번이 아니요일 때만 ③을 거침
@@ -146,6 +163,88 @@
     });
     return out.sort(function (x, y) { return x.arr.localeCompare(y.arr) || String(x.c.id).localeCompare(String(y.c.id)); });
   }
+  /* 다. 참고 줄 (설계 검토 2026-11-11 3장): 한도를 넘은 유상 충전, 그날 표준 금액과 다른 조건 그대로 연장
+   *   결재 흐름은 그대로(유상 충전은 ③이 없고, 그대로 연장의 ③은 가격 예외가 아님). 확인을 남기지 않는 참고 줄이고 건수만 셈
+   *   그래서 점검 마침의 "모든 줄 확인"과 "마친 뒤 바뀜"(sigOf)에 들지 않음. 점검 마침에는 그때 본 참고 건수를 함께 남김(seen.paid, seen.renew) [가정]
+   *   그달 것: 기안한 달(임시 저장은 빼고, 진행 중과 반려도 넣고 상태를 보임) [가정: ③ 승인이 없어 가격이 정해진 기안한 달로 넣음]
+   *   기안 때 남긴 값을 먼저 씀(통계 lineStd, 결재 문서 paidRows와 같은 규칙. 뒤에 가격 기준이 바뀌어도 그때 값으로 견줌)
+   *     유상 충전: 남긴 표준 단가와 단위(changeListPrice, changePriceUnit), 없으면 기안한 날 가격 줄. 단위 종류가 건당일 때만 견줌(결재 문서와 같음, 설계 검토 2026-11-11 남은 것 ⑧)
+   *       한도: 남긴 적용 시작일(changePriceFrom)의 그 기능 가격 줄의 한도, 없으면 기안한 날 가격 줄 [가정: 유상 충전 기록에는 한도를 남기지 않음]
+   *       넘었는지: 할인율 - 한도를 C.capOver와 같게 %p 소수 둘째 자리로 반올림해 0보다 큼
+   *     그대로 연장: 기안할 때 남긴 그날 표준 금액(stdAmount, renewal.js), 없으면(예시 기록) 기안한 날 가격 기준으로 C.renewStd. 계약 금액과 다르면 넣음 */
+  //   (설계 검토 2026-11-11 남은 것 ⑧) 건당인지는 단위 글자(/^건/) 대신 단위 종류(C.unitKindOf가 PER_UNIT)로. 결재 문서(review.js paidRows)와 같은 규칙
+  //     [가정] 남긴 적용 시작일의 가격 줄, 없으면 기안한 날 가격 줄의 종류. 그 줄의 단위가 남긴 단위와 다르거나 줄이 없으면 남긴 단위 글자로 정함
+  //     티어 단가를 썼으면(changePriceTier) tier에 그 티어와 기본 단가를 담아 표준 금액 칸에 보임
+  function paidOf(c) {
+    // 가격 줄과 단위 종류는 C.paidPriceRef 하나로(결재 문서와 같은 셈, 2026-11-11 정리)
+    const pref = C.paidPriceRef(c), p = pref.base, row = pref.row, ref = pref.ref;
+    const list = c.changeListPrice != null ? Number(c.changeListPrice) : p ? p.listPrice : null;
+    if (list == null || pref.kind !== 'PER_UNIT') return null;
+    const cap = row ? row.discountCap || 0 : p ? p.discountCap || 0 : 0;
+    const qty = Number(c.changeQty) || 0, std = list * qty;
+    if (!std) return null;
+    const d = (std - (Number(c.changeAmount) || 0)) / std;
+    return { std: std, list: list, qty: qty, d: d, cap: cap, over: Math.round((d - cap) * 10000) / 100 > 0,
+      tier: c.changePriceTier ? { code: c.changePriceTier, base: ref ? Number(ref.listPrice) : null } : null };
+  }
+  /* (2026-11-14 주말 점검 W7) 참고 표 둘을 더함(설계 검토 3장 원칙 "③을 거치지 않는 가격 차이는 참고 표로 봄"을 넓힘). 보기만 하고 확인은 남기지 않음
+   *   셋째 shrink: 그달 기안한 줄임 변경 가운데 줄인 금액이 참고 금액(X.shrinkRef: 계약 단가 x 줄이는 수량 x 남은 달 수 / 그 기간 달 수)보다 큰 것
+   *     줄임은 ③도 할인 계산도 거치지 않아(CTL-141) 남은 달 몫보다 많이 돌려주면 ③ 없는 사후 할인과 같음(내부회계 원칙 8, 16, ISO 37001 8.3)
+   *     그달 것은 다른 참고 표처럼 기안한 달(임시 저장 빼고, 진행 중과 반려도 넣고 상태를 보임). 참고 금액을 셀 수 없는 줄임은 skip.shrink로 셈
+   *     ③을 거칠지는 묶음 확인 6의 답을 따름(이 표는 막지 않음)
+   *   넷째 period: 그달 계약 완료된 운영 변경(계약 기간 변경) 가운데 종료일을 늦춘 것. 늘린 달 수와 같은 거래처의 최근 1년 늘림 횟수
+   *     운영 변경의 기간 늘림은 금액도 ③도 없이 ⑨, ⑩으로 끝나고, 2개월 한도의 기준(계약서의 종료일)이 연장마다 새로 잡혀 해마다 늘릴 수 있음(R-13, CTL-70)
+   *     [가정] 그달 것: 계약 완료(⑩까지 마침, completedAt)한 달. 늘린 달 수: 전 종료일 다음 날부터 새 종료일까지(C.periodMonths, 남는 날은 한 달)
+   *     [가정] 최근 1년 늘림: 같은 거래처(사업자등록번호, 없으면 원계약의 거래처나 상호)의 계약 완료된 기간 늘림 가운데 이 건의 계약 완료일부터 앞 12개월 안(이 건 포함) */
+  //   거래처 열쇠: 계약의 거래처, 없으면 원계약의 거래처, 그것도 없으면 상호
+  function custKey(c) {
+    const root = c.parentId ? D.CONTRACTS.filter(function (x) { return x.id === c.parentId; })[0] : null;
+    const cu = C.customerOfContract(c) || (root ? C.customerOfContract(root) : null);
+    return cu ? 'C:' + cu.id : 'N:' + c.counterparty;
+  }
+  function isExtend(c) { return c.kind === 'CHANGE' && c.changeType === 'PERIOD' && !!c.completedAt && !!c.oldEndDate && !!c.endDate && c.endDate > c.oldEndDate; }
+  function refRows(ym) {
+    const paid = [], renew = [], shrink = [], period = [], free = [], terms = [], skip = { paid: 0, renew: 0, shrink: 0 }; // free, terms: W7-5(2026-11-16)
+    const X = window.CLIMB_CTL; // 줄임의 참고 금액(shrinkRef). 화면이 control-checks.js를 부름
+    D.CONTRACTS.forEach(function (c) {
+      // 넷째 참고 표: 기간 늘림은 계약 완료한 달로 넣음(아래 기안한 달 거르기 앞)
+      if (c.id && isExtend(c) && String(c.completedAt).slice(0, 7) === ym) {
+        const day = String(c.completedAt).slice(0, 10), from = C.monthsLater(day, -12), key = custKey(c);
+        const n = D.CONTRACTS.filter(function (x) {
+          const d = x.id && isExtend(x) ? String(x.completedAt).slice(0, 10) : '';
+          return d && d > from && d <= day && custKey(x) === key;
+        }).length;
+        period.push({ c: c, months: C.periodMonths(C.addDays(c.oldEndDate, 1), c.endDate), year: n });
+      }
+      if (!c.id || c.status === 'DRAFT' || String(c.requestedAt || '').slice(0, 7) !== ym) return;
+      /* 기획자 결정 2026-11-16(결정할것 새 결정 W7-5 (가)): 다섯째, 여섯째 참고 표(그달 기안한 것, 임시 저장 빼고 진행 중과 반려도 넣음. 예전 계약 기록은 결재가 없어 뺌)
+       *   free: 4번 회계 영향 조건의 종류에 무상 기간(FREE_PERIOD)을 고른 계약. 무상 기간이 계약 기간 밖이면 표준 금액(달 수 비례)에 들지 않아 할인 0%로 보이고 ③을 건너뜀
+       *   terms: 4번이 예인 조항만 변경. 0원 변경이라 ③이 없어 무상 추가 제공 같은 조건이 숨을 수 있음(② 확인 항목 "조항만 변경이 수량과 기능을 늘리지 않음"과 함께) */
+      const ckx = c.checklist || {};
+      if (!c.legacy && ckx.accounting === 'YES' && (ckx.acctKinds || []).indexOf('FREE_PERIOD') > -1) free.push({ c: c });
+      if (C.amendKindOf(c) === 'TERMS' && ckx.accounting === 'YES') terms.push({ c: c });
+      if (C.amendKindOf(c) === 'REDUCE') {
+        const s = X && X.shrinkRef ? X.shrinkRef(c) : null;
+        if (!s || s.why) skip.shrink++;
+        // (2026-11-14 주말 점검, 코드 다시 보기 review-01) [가정, 기획자 확인 필요] 계약 전체가 넘거나 한 기능이라도 넘으면(X.shrinkRef flag). 결재 문서의 기능마다 배지와 같은 기준
+        else if (s.flag) shrink.push({ c: c, s: s });
+        return;
+      }
+      if (c.kind === 'CHANGE' && /_PAID$/.test(c.changeType || '')) {
+        const x = c.changeFeature ? paidOf(c) : null;
+        if (!x) skip.paid++;
+        else if (x.over) paid.push({ c: c, x: x });
+      } else if (c.kind === 'RENEW' && c.renewMode === 'AUTO') {
+        const s = c.stdAmount !== undefined ? { std: c.stdAmount == null ? null : Number(c.stdAmount), saved: true }
+          : C.renewStd(c.parentId, { day: String(c.requestedAt).slice(0, 10), before: c.requestedAt, start: c.startDate, end: c.endDate, skip: c.id });
+        if (s.std == null || !s.std) skip.renew++;
+        else if (s.std !== Number(c.amount || 0)) renew.push({ c: c, s: s });
+      }
+    });
+    const by = function (a, b) { return String(a.c.requestedAt).localeCompare(String(b.c.requestedAt)); };
+    const byDone = function (a, b) { return String(a.c.completedAt).localeCompare(String(b.c.completedAt)); };
+    return { paid: paid.sort(by), renew: renew.sort(by), shrink: shrink.sort(by), period: period.sort(byDone), free: free.sort(by), terms: terms.sort(by), skip: skip };
+  }
 
   /* ---------- 점검 기록 (쌓기만 함) ---------- */
   function allRecs() {
@@ -180,7 +279,8 @@
     const disc = discRows(ym), fin = finRows(ym), rows = disc.concat(fin);
     const st = { ym: ym, ended: ym < THIS_MONTH, due: dueOf(ym), disc: disc, fin: fin, rows: rows, got: got,
       limit: limits.length ? limits[limits.length - 1] : null, locked: rowRecs.length > 0,
-      done: recs.filter(function (r) { return r.type === 'DONE'; })[0] || null };
+      done: recs.filter(function (r) { return r.type === 'DONE'; })[0] || null,
+      ref: refRows(ym) }; // 참고 줄(설계 검토 2026-11-11 3장). rows에 넣지 않아 확인과 점검 마침 조건에 들지 않음
     st.confirmed = rows.filter(function (x) { return got[x.key]; }).length;
     st.late = st.ended && !st.done && D.TODAY > st.due;
     return st;
@@ -218,12 +318,18 @@
   function seenOf(x) {
     if (x.part === 'DISC') {
       const d = x.disc;
-      return (d ? '가장 큰 줄 ' + pct(d.top.d) + '(한도 ' + pct(d.top.cap) + '), 계약 전체 ' + pct(d.all) : '제품 줄 없음') + ', ' + apprTexts(x).join(', ');
+      // (설계 검토 2026-11-11 남은 것 ⑧) 티어 단가로 셈했으면 그것도 본 내용에 남김
+      return (d ? '가장 큰 줄 ' + pct(d.top.d) + '(한도 ' + pct(d.top.cap) + '), 계약 전체 ' + pct(d.all) + (d.tiers.length ? ', ' + d.tiers.join(', ') + ' 단가로 셈' : '') : '제품 줄 없음') + ', ' + apprTexts(x).join(', ');
     }
     return (x.term ? '해지' : '4번 예') + ', ⑩ 차례 ' + C.fmtDate(x.arr) + ', ' + (x.dec ? '처리 ' + C.fmtDate(x.dec) : '아직 처리 전') + ', ' + x.days + '일';
   }
   function doneSeenText(v) {
-    return '③ 가격 예외 ' + v.disc + '건(한계값 넘음 ' + v.over + '건), ⑩ 늦음 ' + v.fin + '건' + (v.limit != null ? ', 한계값 ' + v.limit + '%' : '');
+    return '③ 가격 예외 ' + v.disc + '건(한계값 넘음 ' + v.over + '건), ⑩ 늦음 ' + v.fin + '건' + (v.limit != null ? ', 한계값 ' + v.limit + '%' : '') +
+      // 설계 검토 2026-11-11 3장: 마칠 때 본 참고 건수(이 칸을 두기 전에 마친 기록에는 없음)
+      (v.paid != null ? ', 참고 유상 충전 ' + v.paid + '건, 참고 그대로 연장 ' + v.renew + '건' : '') +
+      // 2026-11-14 주말 점검 W7: 마칠 때 본 셋째, 넷째 참고 건수(이 칸을 두기 전에 마친 기록에는 없음)
+      (v.shrink != null ? ', 참고 줄임 ' + v.shrink + '건, 참고 기간 늘림 ' + v.period + '건' : '') +
+      (v.free != null ? ', 참고 무상 기간 ' + v.free + '건, 참고 조항만 변경 ' + v.terms + '건' : ''); // 2026-11-16 밤 w7-06(이 칸을 두기 전에 마친 기록에는 없음)
   }
   function rowTitle(x) { return x.c.id + ' ' + (C.canView(x.c, me) ? x.c.counterparty : '열람 제한 계약') + ', ' + PART[x.part]; }
 
@@ -235,12 +341,14 @@
   function contractCell(c, withNote, extra) {
     const method = esc(D.METHODS[C.methodOf(c)] || '-');
     if (!C.canView(c, me)) {
-      return '<td><span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span><span class="cell-meta">' + esc(c.id) + ', ' + method + '</span>' + (extra || '') + '</td>';
+      return '<td><span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span><span class="cell-meta">' + esc(c.id) + ', ' + method + '</span>' + late(c) + (extra || '') + '</td>';
     }
     const note = withNote && c.checklist && c.checklist.capNote ? '<span class="cell-meta">할인 사유: ' + esc(c.checklist.capNote) + '</span>' : '';
     return '<td><a class="cell-title" href="review.html?id=' + encodeURIComponent(c.id) + '">' + esc(c.counterparty) + '</a>' +
-      '<span class="cell-meta">' + esc(c.id) + (c.restricted ? ' ' + C.icon('lock', 'sm') : '') + ', ' + method + '</span>' + note + (extra || '') + '</td>';
+      '<span class="cell-meta">' + esc(c.id) + (c.restricted ? ' ' + C.icon('lock', 'sm') : '') + ', ' + method + '</span>' + note + late(c) + (extra || '') + '</td>';
   }
+  // W7-7(2026-11-16): 사후 등록(시스템이 멈춘 동안 임시 결재로 진행한 계약)이면 배지 한 줄. 사후에 남긴 ③ 승인이 보통 승인과 섞이지 않게(가린 줄에도 보임, 이름이 없음)
+  function late(c) { return c.lateEntry ? '<span class="cell-meta">' + C.lateBadge(c) + '</span>' : ''; }
   function apprCell(x) {
     return '<td>' + [['S03', x.s03], ['S03C', x.s03c]].filter(function (p) { return p[1]; }).map(function (p) {
       return '<span class="dr-line"><span class="dr-step">' + esc(C.stepTag(p[0], x.c)) + '</span> ' + esc(C.ownerLabel(p[1].actorId, p[1].actorDept)) + '</span>' +
@@ -280,6 +388,7 @@
     return '<tr>' + contractCell(x.c, true, rej ? '<span class="cell-meta">' + C.badge(D.STATUS.REJECTED.tone, D.STATUS.REJECTED.label) + ' 승인 뒤 반려된 차수</span>' : '') +
       '<td class="center cell-phone-nowrap">' + esc(C.ownerLabel(x.c.requesterId)) + '</td>' +
       (d ? '<td class="num">' + pct(d.top.d) + '<span class="cell-meta">한도 ' + pct(d.top.cap) + '</span>' +
+          (d.tiers.length ? '<span class="cell-meta">' + esc(d.tiers.join(', ')) + ' 단가로 셈</span>' : '') + // 설계 검토 2026-11-11 남은 것 ⑧
           (st.limit && isOver(x, st) ? '<span class="cell-meta">' + C.badge('attention', '한계값 넘음') + '</span>' : '') + '</td>' +
           '<td class="num">' + pct(d.all) + '</td>'
         : '<td class="num">-<span class="cell-meta">제품 줄 없음</span></td><td class="num">-</td>') +
@@ -294,6 +403,89 @@
       '<td class="num-left">' + (x.dec ? C.fmtDate(x.dec) : '아직') + '</td>' +
       '<td class="num">' + x.days + '일<span class="cell-meta">' + (x.dec ? C.badge('attention', '늦음') : C.badge('danger', '끝나지 않음')) + '</span></td>' +
       checkCell(x, st) + actCell(x, st) + '</tr>';
+  }
+  // 참고 줄의 칸 (설계 검토 2026-11-11 3장): 확인과 관리 칸이 없음. 볼 수 없는 열람 제한 계약은 ③ 표처럼 고객사와 링크를 가림
+  //   계약 칸: 고객사(결재 문서로), 번호와 종류, 덧붙일 줄(기능 또는 새 계약 기간)
+  //   (2026-11-14 주말 점검, 코드 다시 보기 common-02) 볼 수 없는 열람 제한 계약은 금액과 계약 기간도 가림(01 REQ-AUTH-09 "금액은 가려지며", SCR-61
+  //     "계약번호, 계약 방식, 영업(유닛), 할인율, ③ 승인과 대리 결재만"). 참고 표 넷은 금액 칸(표준 금액, 충전 금액, 계약 금액, 차이, 줄인 금액, 참고 금액)과
+  //     셈 줄(건당 단가 x 건수, 계약 단가 x 수량 x 남은 달 수, 티어와 기본 단가), 기간(넷째 표의 전 종료일 → 새 종료일)을 "-"로 두거나 빼고,
+  //     비율(할인율과 한도, 표준보다 낮음 n%, 참고 금액의 n% 더), 늘린 달 수와 횟수, 상태만 남김. 예전에는 고객사만 가리고 금액은 그대로 보였음
+  function refMasked(c) { return !C.canView(c, me); }
+  function refContractCell(c, extra) {
+    const kind = '<span class="cell-meta">' + esc(c.id) + ', ' + esc(c.kind === 'CHANGE' ? D.CHANGE_TYPES[c.changeType] || '운영 변경' : C.kindLabel(c)) + '</span>' + late(c); // late: W7-7
+    if (!C.canView(c, me)) return '<td><span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>' + kind + '</td>';
+    return '<td><a class="cell-title" href="review.html?id=' + encodeURIComponent(c.id) + '">' + esc(c.counterparty) + '</a>' + kind +
+      (extra ? '<span class="cell-meta">' + extra + '</span>' : '') + '</td>';
+  }
+  // 상태 칸: 지금 상태와 기안한 날(그달에 넣은 까닭)
+  function refStateCell(c) {
+    return '<td class="center">' + (D.STATUS[c.status] ? C.statusBadge(c) : esc(c.status)) + '<span class="cell-meta">' + C.fmtDate(String(c.requestedAt).slice(0, 10)) + ' 기안</span></td>';
+  }
+  function paidRowHtml(r) {
+    const c = r.c, x = r.x, f = D.FEATURES.filter(function (y) { return y.id === c.changeFeature; })[0] || {};
+    const hide = refMasked(c); // 2026-11-14 주말 점검, 코드 다시 보기 common-02: 금액 칸과 셈 줄을 가리고 할인율과 한도만
+    return '<tr>' + refContractCell(c, esc(C.featureLabel({ product: f.product, feature: c.changeFeature }))) +
+      '<td class="center cell-phone-nowrap">' + esc(C.ownerLabel(c.requesterId)) + '</td>' +
+      (hide ? '<td class="num">-</td><td class="num">-</td>'
+        : '<td class="num">' + C.fmtWon(x.std) + '<span class="cell-meta">건당 ' + C.fmtWon(x.list) + ' x ' + x.qty.toLocaleString('ko-KR') + '건</span>' +
+          // (설계 검토 2026-11-11 남은 것 ⑧) 티어 단가를 썼으면 그 티어와 기본 단가(C.stdPriceText와 같은 말)
+          (x.tier ? '<span class="cell-meta">' + esc(C.tierLabel(x.tier.code) + ' 단가' + (x.tier.base != null ? '. 기본 ' + C.fmtWon(x.tier.base) : '')) + '</span>' : '') + '</td>' +
+          '<td class="num">' + C.fmtWon(c.changeAmount) + '</td>') +
+      '<td class="num">' + pct(x.d) + '<span class="cell-meta">한도 ' + pct(x.cap) + '</span></td>' + refStateCell(c) + '</tr>';
+  }
+  function renewRowHtml(r) {
+    const c = r.c, s = r.s, gap = s.std - Number(c.amount || 0);
+    const hide = refMasked(c); // 2026-11-14 주말 점검, 코드 다시 보기 common-02: 계약 금액, 표준 금액(달 수), 차이 금액을 가리고 "표준보다 낮음(높음) n%"만
+    const rate = '<span class="cell-meta">표준보다 ' + (gap > 0 ? '낮음' : '높음') + ' (' + pct(Math.abs(gap) / s.std) + ')</span>';
+    return '<tr>' + refContractCell(c, '새 계약 기간 ' + C.fmtPeriod(c.startDate, c.endDate)) +
+      '<td class="center cell-phone-nowrap">' + esc(C.ownerLabel(c.requesterId)) + '</td>' +
+      (hide ? '<td class="num">-</td><td class="num">-</td><td class="num">-' + rate + '</td>'
+        : '<td class="num">' + C.fmtWon(c.amount) + '</td>' +
+          '<td class="num">' + C.fmtWon(s.std) + '<span class="cell-meta">' + (s.saved ? '기안 때 남긴 값' : '기안한 날 가격 기준') + (s.months ? ', ' + s.months + '개월' : '') + '</span></td>' +
+          '<td class="num">' + C.fmtWon(Math.abs(gap)) + rate + '</td>') +
+      refStateCell(c) + '</tr>';
+  }
+  // (2026-11-14 주말 점검 W7) 셋째 참고 표 줄: 줄인 금액, 참고 금액(줄마다의 셈), 차이. 계약 칸 아래에 줄인 기능과 수량
+  //   (2026-11-14 주말 점검, 코드 다시 보기 review-01) 기능마다 합친 값(s.feats)과 셈 글(X.shrinkCalc)로: 결재 문서 "변경 전과 후"와 같은 셈과 글
+  //     차이는 참고보다 더 줄인 기능마다의 몫의 합(s.overGap), 비율은 그 기능들의 참고 금액 대비(s.overRef). 한 기능 줄임이면 예전 차이(줄인 금액 - 참고 금액)와 같음
+  //   (2026-11-14 주말 점검, 코드 다시 보기 common-02) 볼 수 없는 열람 제한 계약은 줄인 금액, 참고 금액과 셈 줄, 차이 금액을 가리고 배지와 "참고 금액의 n% 더"만
+  function shrinkRowHtml(r) {
+    const c = r.c, s = r.s, X = window.CLIMB_CTL, hide = refMasked(c);
+    const what = s.feats.map(function (f) { return C.termsFeature(f.feature) + ' ' + f.qty.toLocaleString('ko-KR') + C.termsUnit(f.feature) + ' 줄임'; }).join(', ');
+    const how = s.feats.map(function (f) { return X.shrinkCalc(f); });
+    const tag = '<span class="cell-meta">' + C.badge('attention', '참고보다 많이 줄임') + '</span>' +
+      '<span class="cell-meta">참고 금액의 ' + pct(s.overRef ? s.overGap / s.overRef : 0) + ' 더</span>';
+    return '<tr>' + refContractCell(c, esc(what) + ', ' + esc(C.fmtDate(C.startOf(c) || String(c.requestedAt).slice(0, 10))) + '부터') +
+      '<td class="center cell-phone-nowrap">' + esc(C.ownerLabel(c.requesterId)) + '</td>' +
+      (hide ? '<td class="num">-</td><td class="num">-</td><td class="num">-' + tag + '</td>'
+        : '<td class="num">' + C.fmtWon(s.reduced) + '</td>' +
+          '<td class="num">' + C.fmtWon(s.ref) + how.map(function (x) { return '<span class="cell-meta">' + esc(x) + '</span>'; }).join('') + '</td>' +
+          '<td class="num">' + C.fmtWon(s.overGap) + tag + '</td>') +
+      refStateCell(c) + '</tr>';
+  }
+  // (2026-11-14 주말 점검 W7) 넷째 참고 표 줄: 늘린 달 수(전 종료일 → 새 종료일), 같은 거래처의 최근 1년 늘림 횟수, 계약 완료일
+  //   (2026-11-14 주말 점검, 코드 다시 보기 common-02) 볼 수 없는 열람 제한 계약은 전 종료일과 새 종료일(계약 기간)을 빼고 늘린 달 수만
+  function periodRowHtml(r) {
+    const c = r.c;
+    return '<tr>' + refContractCell(c, esc(c.parentId ? '원계약 ' + c.parentId : '')) +
+      '<td class="center cell-phone-nowrap">' + esc(C.ownerLabel(c.requesterId)) + '</td>' +
+      '<td class="num">' + (r.months || 0) + '개월' + (refMasked(c) ? '' : '<span class="cell-meta">' + C.fmtDate(c.oldEndDate) + ' → ' + C.fmtDate(c.endDate) + '</span>') + '</td>' +
+      '<td class="num">' + r.year + '번<span class="cell-meta">이 건 포함</span></td>' +
+      '<td class="center">' + C.fmtDate(String(c.completedAt).slice(0, 10)) + '<span class="cell-meta">' + C.fmtDate(String(c.requestedAt).slice(0, 10)) + ' 기안</span></td></tr>';
+  }
+
+  // W7-5(2026-11-16) 다섯째, 여섯째 참고 표 줄. 볼 수 없는 열람 제한 계약은 고객사와 금액, 계약 기간, 비고를 가림
+  function freeRowHtml(r) {
+    const c = r.c, hide = refMasked(c), ck = c.checklist || {};
+    return '<tr>' + refContractCell(c, '') + '<td class="center cell-phone-nowrap">' + esc(C.ownerLabel(c.requesterId)) + '</td>' +
+      '<td class="num-left">' + (hide ? '-' : esc(C.fmtPeriod(C.startOf(c), C.endOf(c)) || '-')) + '</td>' +
+      '<td class="num">' + (hide ? '-' : C.fmtWon(c.amount)) + '</td><td>' + (hide ? '-' : esc(ck.accountingNote || '-')) + '</td>' + refStateCell(c) + '</tr>';
+  }
+  function termsRowHtml(r) {
+    const c = r.c, hide = refMasked(c), ck = c.checklist || {};
+    const kinds = (ck.acctKinds || []).map(function (k) { const x = (D.ACCT_KINDS || []).filter(function (y) { return y.code === k; })[0]; return x ? x.label : k; }).join(', ');
+    return '<tr>' + refContractCell(c, c.parentId ? esc('원계약 ' + c.parentId) : '') + '<td class="center cell-phone-nowrap">' + esc(C.ownerLabel(c.requesterId)) + '</td>' +
+      '<td>' + esc(kinds || '-') + '</td><td>' + (hide ? '-' : esc(ck.accountingNote || '-')) + '</td>' + refStateCell(c) + '</tr>';
   }
 
   /* ---------- 1. 매월 점검 ---------- */
@@ -356,7 +548,12 @@
     const st = stateOf(sel);
     $('#app-title').textContent = monthLabel(sel) + ' 점검';
     $('#month-sum').innerHTML = C.meta([statusBadge(st), ['기한', C.fmtDate(st.due)], ['③ 가격 예외', st.disc.length + '건'], ['⑩ 늦음', st.fin.length + '건'],
-      ['확인', st.confirmed + '/' + st.rows.length + '건']]);
+      ['확인', st.confirmed + '/' + st.rows.length + '건'],
+      // 설계 검토 2026-11-11 3장: 참고 줄 건수(확인 없음)
+      ['참고 유상 충전', st.ref.paid.length + '건'], ['참고 그대로 연장', st.ref.renew.length + '건'],
+      // 2026-11-14 주말 점검 W7: 셋째, 넷째 참고 표 건수
+      ['참고 줄임', st.ref.shrink.length + '건'], ['참고 기간 늘림', st.ref.period.length + '건'],
+      ['참고 무상 기간', st.ref.free.length + '건'], ['참고 조항만 변경', st.ref.terms.length + '건']]); // W7-5(2026-11-16)
     renderLimit(st);
     const masked = st.disc.filter(function (x) { return !C.canView(x.c, me); }).length;
     $('#disc-desc').textContent = DISC_DESC + (st.ended ? '' : ' 이달은 지금까지 마친 계약만 보이고, 달이 끝난 뒤에 확인을 남깁니다.') +
@@ -369,7 +566,51 @@
       (st.fin.some(function (x) { return !C.canView(x.c, me); }) ? ' 볼 수 없는 열람 제한 계약은 고객사를 가립니다.' : '');
     $('#fin-rows').innerHTML = st.fin.length ? st.fin.map(function (x) { return finRowHtml(x, st); }).join('')
       : '<tr><td class="empty-row" colspan="' + (cols - 1) + '">' + (st.ended ? '그달' : '이달 지금까지') + ' ⑩ 재무 확인이 늦거나 끝나지 않은 계약이 없습니다.</td></tr>';
+    renderRef(st);
     renderDone(st);
+  }
+  // 참고 줄 두 표 (설계 검토 2026-11-11 3장): 보기만 하고 확인을 남기지 않음. 견주지 못한 건수와 가린 열람 제한 건수를 설명 끝에 덧붙임
+  function renderRef(st) {
+    const ref = st.ref, when = st.ended ? '그달' : '이달 지금까지';
+    // (2026-11-14 주말 점검, 코드 다시 보기 common-02) 고객사만이 아니라 금액도 가림(01 REQ-AUTH-09). 넷째 표는 금액이 없어 계약 기간(전, 새 종료일)을 가림
+    const hid = function (list, what) {
+      const n = list.filter(function (r) { return refMasked(r.c); }).length;
+      return n ? ' 볼 수 없는 열람 제한 계약 ' + n + '건은 ' + (what || '고객사와 금액을 가리고 비율만 보입니다.') : '';
+    };
+    // (설계 검토 2026-11-11 남은 것 ⑧) 건 단위는 가격 기준의 단위 종류(건당)로 정하고, 고객사 티어 단가를 썼으면 그 값
+    $('#paid-desc').textContent = '그달 기안한 유상 충전 가운데 기안 때 남긴 건당 표준 단가(고객사 티어 단가를 썼으면 그 값)로 본 할인율이 그 기능의 할인율 한도를 넘은 것입니다. ' +
+      '유상 충전은 ③ 영업 검토를 거치지 않아 참고로 보이고, 확인은 남기지 않습니다.' + (st.ended ? '' : ' 이달은 지금까지 기안한 것만 보입니다.') +
+      (ref.skip.paid ? ' 건 단위 표준 단가가 없어 견주지 못한 유상 충전 ' + ref.skip.paid + '건은 넣지 않았습니다.' : '') + hid(ref.paid);
+    $('#paid-rows').innerHTML = ref.paid.length ? ref.paid.map(paidRowHtml).join('')
+      : '<tr><td class="empty-row" colspan="6">' + when + ' 한도를 넘은 유상 충전이 없습니다.</td></tr>';
+    $('#renew-desc').textContent = '그달 기안한 조건 그대로 연장 가운데 계약 금액이 기안한 날 가격 기준의 표준 금액(같은 달 수)과 다른 것입니다. ' +
+      '그대로 연장의 ③은 가격 예외 승인이 아니라 참고로 보이고, 확인은 남기지 않습니다.' + (st.ended ? '' : ' 이달은 지금까지 기안한 것만 보입니다.') +
+      (ref.skip.renew ? ' 제품 줄이나 가격 기준이 없어 견주지 못한 연장 ' + ref.skip.renew + '건은 넣지 않았습니다.' : '') + hid(ref.renew);
+    $('#renew-rows').innerHTML = ref.renew.length ? ref.renew.map(renewRowHtml).join('')
+      : '<tr><td class="empty-row" colspan="6">' + when + ' 표준 금액과 다른 그대로 연장이 없습니다.</td></tr>';
+    // (2026-11-14 주말 점검 W7) 셋째 참고 표: 참고 금액보다 많이 줄인 변경
+    // (2026-11-14 주말 점검, 코드 다시 보기 review-01) [가정] 기능마다 봄: 한 기능이라도 참고 금액보다 많이 줄였으면 올리고, 차이는 그 기능들이 더 줄인 몫
+    $('#shrink-desc').textContent = '그달 기안한 줄임 변경 가운데 줄인 금액이 참고 금액(그 기능의 계약 단가 x 줄이는 수량 x 남은 달 수 / 그 기간의 달 수)보다 큰 기능이 있는 것입니다. ' +
+      '차이는 참고 금액보다 더 줄인 기능마다의 몫을 더한 값입니다. ' +
+      '줄임 변경은 ③ 영업 검토와 할인 계산을 거치지 않아 참고로 보이고, 확인은 남기지 않습니다.' + (st.ended ? '' : ' 이달은 지금까지 기안한 것만 보입니다.') +
+      (ref.skip.shrink ? ' 변경 전 조건이나 제품 줄이 없어 참고 금액을 셈하지 못한 줄임 ' + ref.skip.shrink + '건은 넣지 않았습니다.' : '') + hid(ref.shrink);
+    $('#shrink-rows').innerHTML = ref.shrink.length ? ref.shrink.map(shrinkRowHtml).join('')
+      : '<tr><td class="empty-row" colspan="6">' + when + ' 참고 금액보다 많이 줄인 변경이 없습니다.</td></tr>';
+    // (2026-11-14 주말 점검 W7) 넷째 참고 표: 운영 변경으로 늘린 계약 기간
+    $('#period-desc').textContent = '그달 계약 완료된 운영 변경 가운데 계약 종료일을 늦춘 것입니다. 기간 변경은 금액과 ③ 영업 검토 없이 끝나 참고로 보이고, 확인은 남기지 않습니다. ' +
+      '같은 거래처가 최근 1년 안에 몇 번 늘렸는지도 함께 봅니다.' + (st.ended ? '' : ' 이달은 지금까지 계약 완료된 것만 보입니다.') +
+      hid(ref.period, '고객사와 계약 기간을 가리고 늘린 달 수만 보입니다.'); // 2026-11-14 주말 점검, 코드 다시 보기 common-02
+    $('#period-rows').innerHTML = ref.period.length ? ref.period.map(periodRowHtml).join('')
+      : '<tr><td class="empty-row" colspan="5">' + when + ' 운영 변경으로 늘린 계약 기간이 없습니다.</td></tr>';
+    // W7-5(2026-11-16) 다섯째, 여섯째 참고 표
+    $('#free-desc').textContent = '그달 기안한 계약 가운데 체크리스트 4번 회계 영향 조건에 무상 기간을 고른 것입니다. 무상 기간이 계약 기간 밖이면 표준 금액에 들지 않아 할인 0%로 보이고 ③ 영업 검토를 거치지 않으므로, ' +
+      '비고로 무상 기간이 계약 기간 안인지 밖인지 봅니다. 확인은 남기지 않습니다.' + (st.ended ? '' : ' 이달은 지금까지 기안한 것만 보입니다.') + hid(ref.free, '고객사와 금액, 계약 기간, 비고를 가립니다.');
+    $('#free-rows').innerHTML = ref.free.length ? ref.free.map(freeRowHtml).join('')
+      : '<tr><td class="empty-row" colspan="6">' + when + ' 무상 기간을 둔 계약이 없습니다.</td></tr>';
+    $('#terms-desc').textContent = '그달 기안한 조항만 변경 가운데 체크리스트 4번이 예인 것입니다. 조항만 변경은 0원이라 ③ 영업 검토를 거치지 않으므로, 무상 추가 제공 같은 조건이 들었는지 비고로 봅니다. 확인은 남기지 않습니다.' +
+      (st.ended ? '' : ' 이달은 지금까지 기안한 것만 보입니다.') + hid(ref.terms, '고객사와 비고를 가립니다.');
+    $('#terms-rows').innerHTML = ref.terms.length ? ref.terms.map(termsRowHtml).join('')
+      : '<tr><td class="empty-row" colspan="5">' + when + ' 회계 영향 조건이 있는 조항만 변경이 없습니다.</td></tr>';
   }
 
   /* ---------- 3. 점검 기록 ---------- */
@@ -490,7 +731,10 @@
     const st = stateOf(sel);
     if (!canFinish(st)) return;
     const seen = { disc: st.disc.length, fin: st.fin.length, over: st.disc.filter(function (x) { return isOver(x, st); }).length,
-      limit: st.limit ? st.limit.limit : null, sig: sigOf(st) };
+      limit: st.limit ? st.limit.limit : null, sig: sigOf(st),
+      paid: st.ref.paid.length, renew: st.ref.renew.length, // 설계 검토 2026-11-11 3장: 마칠 때 본 참고 건수(sig에는 넣지 않음) [가정]
+      shrink: st.ref.shrink.length, period: st.ref.period.length, // 2026-11-14 주말 점검 W7: 셋째, 넷째 참고 표 건수도(sig에는 넣지 않음) [가정]
+      free: st.ref.free.length, terms: st.ref.terms.length }; // 2026-11-16 밤 코드 다시 보기 w7-06: 다섯째, 여섯째 참고 표 건수도
     C.formModal({
       title: monthLabel(sel) + ' 할인 예외 점검을 마칠까요?',
       desc: '저장하면 마친 사람과 일시, 메모, 지금 본 건수가 남고 고치거나 되돌릴 수 없습니다.',

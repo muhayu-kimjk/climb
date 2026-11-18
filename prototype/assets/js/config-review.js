@@ -9,8 +9,18 @@
  *   거래처 줄(2026-11-09 5회차 점검, 05 G-25 ②, CTL-83): 완료 계약이 있는 거래처의 사업자등록번호 변경만 재무 리더가 "맞음" 또는 "다름(의견 필수)"
  *     거래처 추가와 합치기, 완료 계약이 없는 거래처의 고치기는 이 화면에 없고 SCR-57 설정 변경 묶음에서만 봄(control-checks.js needsCheck)
  *     기획자 결정 2026-11-10 22번: 합치는 거래처 가운데 완료 계약이 있는 곳이 있으면 그 합치기도 재무 리더가 "맞음", "다름"으로 확인
- *       창 제목 "이 거래처 합치기가 맞나요?", 사유 칸 아래 "완료 계약 n건이 있는 거래처를 합침". 완료 계약이 없는 거래처끼리의 합치기는 그대로 SCR-57에서만
+ *       창 제목 "이 거래처 합치기가 맞나요?", 사유 칸 아래 "완료 계약 n건이 있는 거래처를 합침". 완료 계약이 없는 거래처끼리의 합치기는 그대로 SCR-57에서만(다만 고객사 티어가 다르면 완료 계약과 상관없이 재무 리더가 "품의와 맞음, 다름"으로, 기획자 답 2026-11-12 [제안] ①)
  *     완료 계약은 계약 완료, 만료, 해지 상태(기획자 확인 2026-11-10 23번)
+ *   (설계 검토 2026-11-11 답 ①, CTL-140) 고객사 티어 변경과 티어 단가 변경도 재무 리더가 "품의와 맞음" 또는 "품의와 다름(의견 필수)"
+ *     거래처의 고객사 티어 변경은 완료 계약과 상관없이 모두(control-checks.js tierInfo). 값 칸에 앞, 뒤 티어와 그날 표준 단가가 바뀌는 기능을 줄마다 보임
+ *     거래처 관리에는 품의 링크 칸이 없어 사유와 사내 품의를 견줌 [가정](제품과 기능과 같음). 창 제목 "이 고객사 티어 변경이 품의와 맞나요?"
+ *     가격 기준 줄의 값에 티어 단가(기본 단가, 한도, 티어 1, 2 단가)가 함께 보임(control-checks.js priceText)
+ *     "다름"이면 컴플라이언스로 넘김, 컴플라이언스는 보기만(지금 규칙 그대로)
+ *     (2026-11-14 주말 점검 W7) 값 칸 끝과 확인 창에 바꾼 뒤 이 거래처로 기안한 계약과 출력한 견적의 번호(control-checks.js X.tierSince)
+ *       "품의와 다름"이면 그 번호를 컴플라이언스 넘김 글(CTL-78)에 함께 넣음. 확인 전 그 사이에 바뀐 티어 단가로 기안한 것을 손으로 찾지 않게
+ *       (2026-11-14 주말 점검, 코드 다시 보기 common-01) 거래처 이름 옆에 번호가 보여 볼 수 없는 열람 제한 계약이 어느 고객사 것인지 드러났음(REQ-AUTH-09, leak-01과 같은 짝)
+ *         값 칸과 확인 창은 보는 사람(me)이 볼 수 없는 열람 제한 계약을 번호 없이 "열람 제한 계약 n건"으로만(X.tierSince(x, me))
+ *         넘김 글은 제목에 거래처 이름이 있고 컴플라이언스와 접속 기록 점검(SCR-57)의 여러 사람이 읽어 열람 제한 계약은 모두 번호 없이 건수만(X.tierSince(x, 'SHARED'))
  *   C-6: 최고관리자는 시연으로 확인할 수 있지만 자기가 바꾼 줄은 못함
  *   기획자 결정 2026-11-09 5회차 13번: "다름"을 남기면 컴플라이언스에 넘김(control-checks.js X.raiseIssue). 개요 점검할 일과 이메일
  * 볼 수 있는 사람: 재무 리더, 법무(C.checkOwners('SCR-65')), 최고관리자(시연용), 감사 열람(보기만), 컴플라이언스(보기만)
@@ -22,6 +32,7 @@
 (function () {
   const C = window.CLIMB;
   const X = window.CLIMB_CTL;
+  const D = window.CLIMB_DATA; // 2026-11-16 W7-6 모집단 내려받기의 달 목록
   const me = C.init();
   const esc = C.esc;
   const $ = function (s) { return document.querySelector(s); };
@@ -44,8 +55,32 @@
   if (legalOnly) $('#f-area').querySelectorAll('option[value="PRICE"], option[value="PRODUCT"]').forEach(function (o) { o.remove(); });
   // 영역 고르기에 거래처를 더함(2026-11-09 5회차 점검): config-review.html의 고르기에는 거래처가 없어 여기서 붙임. 화면을 열 때 한 번이라 흔들리지 않음
   else if (!$('#f-area').querySelector('option[value="CUSTOMER"]')) $('#f-area').insertAdjacentHTML('beforeend', '<option value="CUSTOMER">' + esc(X.AREA_SET.CUSTOMER) + '</option>');
-  // 이 화면의 줄: 확인 대상만(2026-11-09 5회차 점검). 거래처는 완료 계약이 있는 거래처의 번호 변경만 needsCheck가 참
-  function changes(areas) { return X.settingChanges({ areas: areas }).filter(X.needsCheck); }
+  // 이 화면의 줄: 확인 대상만(2026-11-09 5회차 점검). 거래처는 완료 계약이 있는 거래처의 번호 변경과 합치기, 고객사 티어 변경(설계 검토 2026-11-11 답 ①)만 needsCheck가 참
+  // 볼 수 없는 열람 제한 계약의 번호는 거래처 줄 사유에서 뺌(2026-11-14 주말 점검, leak-01)
+  function changes(areas) { return C.maskAdminRows(X.settingChanges({ areas: areas }), me).filter(X.needsCheck); }
+  /* 모집단 내려받기(기획자 결정 2026-11-16, W7-6 (가)): 재무 리더(시연용 최고관리자)만. 고른 달의 가격 기준(PRICE)과 거래처(CUSTOMER, 티어 목록 변경 포함) 줄 모두
+   *   (확인 대상이 아닌 거래처 줄도 넣어 목록이 빠짐없는지 봄). 볼 수 없는 열람 제한 계약은 가림(C.maskAdminRows). 칸: 일시, 영역, 대상, 바뀐 내용, 사유, 바꾼 사람, 확인 대상, 확인 결과
+   *   달 고르기: 운영을 시작한 달부터 이달까지(새것부터) */
+  const canPop = !C.isReadOnly(me) && (me.role === 'SUPER' || C.hasRole(me, ['FIN_LEAD']));
+  if (canPop) {
+    const months = [];
+    for (let ym = D.SERVICE_START_MONTH; ym <= D.TODAY.slice(0, 7); ym = C.monthsLater(ym + '-01', 1).slice(0, 7)) months.unshift(ym);
+    $('#pop-month').innerHTML = months.map(function (ym) { return '<option value="' + ym + '">' + ym.slice(0, 4) + '년 ' + Number(ym.slice(5, 7)) + '월</option>'; }).join('');
+    $('#pop-row').hidden = false;
+    $('#btn-pop').addEventListener('click', function () {
+      const ym = $('#pop-month').value;
+      const list = C.maskAdminRows(X.settingChanges({ month: ym, areas: ['PRICE', 'CUSTOMER'] }), me);
+      const rows = list.map(function (x) {
+        const ck = X.needsCheck(x) ? X.checkOf(x.id) : null;
+        return [String(x.at).slice(0, 16), (X.AREA_SET[x.area] || x.area) + (x.tier ? '(고객사 티어)' : ''), x.target, x.change, x.reason, C.ownerLabel(x.by),
+          X.needsCheck(x) ? '예' : '아니요', ck ? ck.label + ' ' + C.ownerLabel(ck.by) + ' ' + String(ck.at).slice(0, 16) : (X.needsCheck(x) ? '확인 전' : '-')];
+      });
+      X.popDownload({ kind: 'POP_CONFIG', title: '가격과거래처변경_' + ym, cond: ym + ' 관리자 변경 이력의 가격 기준, 거래처(고객사 티어 포함) 변경 모두', user: me,
+        head: ['일시', '영역', '대상', '바뀐 내용', '사유', '바꾼 사람', '확인 대상', '확인 결과'], rows: rows }).then(function (r) {
+        C.toast(ym + ' 가격과 거래처 변경 ' + rows.length + '건을 내려받았습니다. 꺼낸 기록 ' + r.id + '에 남았습니다.');
+      });
+    });
+  }
   let page = 1;
   function val(f, n) { return (f.elements[n].value || '').trim(); }
   function dt(at) { return C.fmtDateTime(at).split(' ').map(function (s) { return '<span class="keep">' + s + '</span>'; }).join(' '); }
@@ -55,10 +90,12 @@
     : me.role === 'SUPER' ? '시연으로 모든 줄을 확인할 수 있지만, 본인이 바꾼 줄은 확인하지 못합니다.'
       // 거래처 번호 변경도 재무 리더가 봄(2026-11-09 5회차 점검, G-25 ②)
       // 완료 계약이 있는 거래처의 합치기도 더함(기획자 결정 2026-11-10 22번)
-      : isFin ? '가격 기준과 제품과 기능 줄마다 품의와 맞는지 확인을 남깁니다. 같은 때 같은 품의로 넣은 가격 줄은 한 건으로 봅니다. 완료 계약이 있는 거래처의 사업자등록번호 변경과 합치기도 맞는지 확인합니다.'
+      // 고객사 티어 변경과 가격 기준의 티어 단가도 더함(설계 검토 2026-11-11 답 ①)
+      // 티어가 다른 거래처 합치기도 더함(기획자 답 2026-11-12 [제안] ①)
+      : isFin ? '가격 기준(티어 단가 포함)과 제품과 기능 줄마다 품의와 맞는지 확인을 남깁니다. 같은 때 같은 품의로 넣은 가격 줄은 한 건으로 봅니다. 거래처의 고객사 티어 변경과 티어가 다른 거래처 합치기도 품의와 맞는지, 완료 계약이 있는 거래처의 사업자등록번호 변경과 합치기는 맞는지 확인합니다.'
         : isLegal ? '표준계약서 판마다 근거와 맞는지 확인을 남깁니다. 본인이 올린 판은 올린 사람이 아닌 법무가 확인합니다.' : '') +
-    // 그 밖의 거래처 변경: 추가, 완료 계약이 없는 거래처의 고치기와 합치기(기획자 결정 2026-11-10 22번으로 합치기 일부가 이 화면에 옴)
-    ' 결재선 규칙과 회사 설정의 변경, 거래처의 그 밖의 변경(추가, 완료 계약이 없는 거래처의 고치기와 합치기)은 접속 기록 점검의 설정 변경에서 정보보호가 봅니다.';
+    // 그 밖의 거래처 변경: 티어를 정하지 않은 추가, 완료 계약이 없는 거래처의 번호 변경과 합치기, 상호와 상태 고치기(기획자 결정 2026-11-10 22번, 설계 검토 2026-11-11 답 ①. 합치기는 2026-11-12 [제안] ①부터 티어가 같은 것만)
+    ' 결재선 규칙과 회사 설정의 변경, 거래처의 그 밖의 변경(고객사 티어를 정하지 않은 추가, 완료 계약이 없는 거래처의 번호 변경, 완료 계약이 없고 고객사 티어가 같은 거래처끼리의 합치기, 상호와 상태 고치기)은 접속 기록 점검의 설정 변경에서 정보보호가 봅니다.';
   if (readOnly) $('#th-action').remove(); // 감사 열람과 컴플라이언스: 관리 칸 없음(C-2, 기획자 결정 2026-11-10 16번)
 
   function stateOf(x) { const k = X.checkOf(x.id); return k ? k.result : 'WAIT'; }
@@ -66,8 +103,20 @@
     const area = $('#f-area').value, state = $('#f-state').value;
     return changes(area && AREAS.indexOf(area) > -1 ? [area] : AREAS).filter(function (x) { return !state || stateOf(x) === state; });
   }
+  // (설계 검토 2026-11-11 답 ①) 고객사 티어 변경: 바꾼 날 가격 기준으로 표준 단가가 바뀌는 기능을 접지 않고 줄마다 보임(한 기능이어도). 없으면 까닭 한 줄
+  //   (2026-11-14 주말 점검 W7) 끝에 바꾼 뒤 이 거래처로 기안한 계약과 출력한 견적의 번호(X.tierSince, 10개까지 적고 "외 n건"). 거래처 번호를 모르는 줄(여러 곳에 처음 넣은 줄)은 없음
+  //   (2026-11-14 주말 점검, 코드 다시 보기 common-01) 볼 수 없는 열람 제한 계약은 번호 없이 건수만(me)
+  function tierItemsHtml(x) {
+    const s = X.tierSince(x, me);
+    const since = s ? '<span class="cell-meta">' + esc(X.tierSinceText(s, 10)) + '</span>' : '';
+    if (!x.items || !x.items.length) return '<span class="cell-meta">' + esc(x.tierNote || '') + '</span>' + since;
+    return x.items.map(function (it) {
+      return '<span class="cell-meta">' + esc(it.label + ': ' + (it.before ? it.before + ' → ' : '') + it.after) + '</span>';
+    }).join('') + since;
+  }
   // 가격 기준을 여러 기능에 함께 넣은 건은 기능마다 전후 값을 접어 둠
   function itemsHtml(x) {
+    if (x.area === 'CUSTOMER' && x.tier) return tierItemsHtml(x); // 설계 검토 2026-11-11 답 ①
     if (!x.items || x.items.length < 2) return '';
     return '<details class="seen-data"><summary>기능마다 보기</summary><ul class="summary-list cell-meta">' + x.items.map(function (it) {
       return '<li>' + esc(it.label) + ': ' + esc((it.before ? it.before + ' → ' : '처음 넣음: ') + it.after) + ' (' + C.fmtDate(it.from) + '부터)</li>';
@@ -76,6 +125,10 @@
   function basisHtml(x) {
     if (x.area === 'PRICE') return '<span class="cell-meta">품의 ' + (X.docLink(x) || '링크 없음') + '</span>';
     if (x.area === 'PRODUCT') return '<span class="cell-meta">품의 링크 칸 없음(사유를 봄)</span>';
+    // (설계 검토 2026-11-11 답 ①) 고객사 티어 변경: 품의 링크 칸이 없어 사유를 봄 [가정]. 같은 고치기에 번호 변경도 있으면 완료 계약 수를 함께
+    //   (기획자 답 2026-11-12 [제안] ①) 티어가 다른 거래처 합치기는 "고객사 티어가 다른 거래처를 합침"이고, 완료 계약이 있으면 그 수도 함께
+    if (x.area === 'CUSTOMER' && x.tier) return '<span class="cell-meta">' + (x.merge ? '고객사 티어가 다른 거래처를 합침' : x.tierCode ? '고객사 티어 목록 변경(코드 관리)' : '고객사 티어 변경') + ', 품의 링크 칸 없음(사유를 봄)</span>' +
+      ((x.bizNo || x.merge) && x.doneCount ? '<span class="cell-meta">완료 계약 ' + x.doneCount + '건이 있는 거래처' + (x.merge ? '를 합침' : '') + '</span>' : ''); // (L3 검토) 0건이면 "완료 계약 0건이 있는 거래처"가 되어 뺌(창에는 "완료 계약: 0건"으로 보임)
     // 왜 확인하는지(2026-11-09 5회차 점검). 합치기는 "완료 계약 n건이 있는 거래처를 합침"(기획자 결정 2026-11-10 22번)
     if (x.area === 'CUSTOMER') return '<span class="cell-meta">완료 계약 ' + (x.doneCount || 0) + '건이 있는 거래처' + (x.merge ? '를 합침' : '') + '</span>';
     return '';
@@ -100,6 +153,9 @@
     const all = changes(AREAS);
     const waitAll = all.filter(function (x) { return !X.checkOf(x.id); });
     const waitFin = waitAll.filter(function (x) { return x.area !== 'TEMPLATE'; }).length; // 재무 리더 몫(가격, 제품, 거래처)
+    // 2026-11-13 주말 점검: 개요 "점검할 일"의 설정 변경 확인 건수와 같은 셈(X.canConfirm ok). 확인을 남기는 사람에게만(보기만 하는 역할은 없음)
+    //   "확인 전"은 본인이 올린 판처럼 남이 확인할 줄까지 세어 개요 숫자와 달랐음(dashboard.js configItems)
+    const mineN = canDo && !readOnly ? all.filter(function (x) { return X.canConfirm(me, x).ok; }).length : -1;
     const list = filtered();
     const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
     if (page > pages) page = pages;
@@ -107,7 +163,8 @@
     $('#list-count').innerHTML = C.meta([[(list.length !== all.length ? '거른 결과' : '전체'), '<strong>' + list.length + '건</strong>'],
       // 법무만인 사람에게는 표준계약서 건수만(legalOnly, 2026-11-06 점검)
       // 재무 리더 몫에 거래처가 들어가 이름을 "가격, 제품, 거래처"로(2026-11-09 5회차 점검)
-      ['확인 전', (legalOnly ? '' : '가격, 제품, 거래처 ' + waitFin + '건, ') + '표준계약서 ' + (waitAll.length - waitFin) + '건']]);
+      ['확인 전', (legalOnly ? '' : '가격, 제품, 거래처 ' + waitFin + '건, ') + '표준계약서 ' + (waitAll.length - waitFin) + '건']]
+      .concat(mineN < 0 ? [] : [['내가 확인할 것', '<strong>' + mineN + '건</strong>']]));
     const cols = readOnly ? 6 : 7;
     $('#rows').innerHTML = rows.length ? rows.map(function (x) {
       const cc = X.canConfirm(me, x);
@@ -132,7 +189,7 @@
       const x = byId[e.op.id];
       return '<tr><td class="num-left">' + dt(e.at) + '</td><td class="center">' + esc(C.ownerLabel(e.by)) + '</td>' +
         '<td><span class="cell-strong">' + esc(x ? x.target : String(e.target).replace(/^설정 변경 확인: /, '')) + '</span><span class="cell-meta">' + esc(X.AREA_SET[e.op.area] || '') + '</span></td>' +
-        '<td class="nowrap">' + C.badge(e.op.result === 'MATCH' ? 'success' : 'attention', X.resultLabel(e.op.area, e.op.result)) + '</td>' +
+        '<td class="nowrap">' + C.badge(e.op.result === 'MATCH' ? 'success' : 'attention', X.resultLabel(e.op.rk || e.op.area, e.op.result)) + '</td>' + // rk: 설계 검토 2026-11-11 답 ①
         '<td>' + esc(e.op.note || '-') + '</td></tr>';
     }).join('') : '<tr><td class="empty-row" colspan="5">아직 남긴 확인이 없습니다.</td></tr>';
   }
@@ -140,19 +197,31 @@
   function openCheck(id) {
     const x = changes(AREAS).filter(function (y) { return y.id === id; })[0];
     if (!x || !X.canConfirm(me, x).ok) return;
-    const R = X.RESULT[x.area], tpl = x.area === 'TEMPLATE', cust = x.area === 'CUSTOMER'; // cust: 거래처 번호 변경(2026-11-09 5회차 점검)
-    const items = x.items && x.items.length > 1 ? '<li>기능마다: ' + x.items.map(function (it) {
-      return esc(it.label + ' ' + (it.before ? it.before + ' → ' : '처음 넣음: ') + it.after);
-    }).join(', ') + '</li>' : '';
+    // (설계 검토 2026-11-11 답 ①) tier: 고객사 티어 변경. 결과 이름은 "품의와 맞음, 다름"(X.resultKey가 TIER)
+    const rk = X.resultKey(x), R = X.RESULT[rk], tpl = x.area === 'TEMPLATE', cust = x.area === 'CUSTOMER', tier = cust && !!x.tier; // cust: 거래처 번호 변경(2026-11-09 5회차 점검)
+    const since = tier ? X.tierSince(x, me) : null; // 2026-11-14 주말 점검 W7: 창을 연 때의 바꾼 뒤 계약과 견적. 볼 수 없는 열람 제한 계약은 건수만(2026-11-14 주말 점검, 코드 다시 보기 common-01)
+    const items = tier ? '<li>표준 단가: ' + (x.items.length ? x.items.map(function (it) {
+      return esc(it.label + ' ' + (it.before ? it.before + ' → ' : '') + it.after);
+    }).join(', ') : esc(x.tierNote || '')) + ' (' + C.fmtDate(String(x.at).slice(0, 10)) + ' 가격 기준)</li>' +
+      // (2026-11-14 주말 점검 W7) 바꾼 뒤 기안한 계약과 출력한 견적(모두 적음). "품의와 다름"이면 이 번호가 컴플라이언스 넘김 글에 함께 들어감
+      (since ? '<li>' + esc(X.tierSinceText(since)) + '</li>' : '')
+      : x.items && x.items.length > 1 ? '<li>기능마다: ' + x.items.map(function (it) {
+        return esc(it.label + ' ' + (it.before ? it.before + ' → ' : '처음 넣음: ') + it.after);
+      }).join(', ') + '</li>' : '';
     C.formModal({
       // 거래처는 품의가 없어 "이 번호 변경이 맞나요?"(2026-11-09 5회차 점검). 합치기는 "이 거래처 합치기가 맞나요?"(기획자 결정 2026-11-10 22번)
-      title: tpl ? '이 판이 근거와 맞나요?' : cust ? (x.merge ? '이 거래처 합치기가 맞나요?' : '이 번호 변경이 맞나요?') : '이 변경이 품의와 맞나요?',
+      //   고객사 티어 변경은 "이 고객사 티어 변경이 품의와 맞나요?"(설계 검토 2026-11-11 답 ①)
+      //   티어가 다른 거래처 합치기는 "이 합치기의 고객사 티어 변경이 품의와 맞나요?"(기획자 답 2026-11-12 [제안] ①)
+      title: tpl ? '이 판이 근거와 맞나요?' : tier ? (x.merge ? '이 합치기의 고객사 티어 변경이 품의와 맞나요?' : x.tierCode ? '이 고객사 티어 목록 변경이 품의와 맞나요?' : '이 고객사 티어 변경이 품의와 맞나요?') : cust ? (x.merge ? '이 거래처 합치기가 맞나요?' : '이 번호 변경이 맞나요?') : '이 변경이 품의와 맞나요?',
       desc: '저장하면 확인한 사람과 일시, 결과가 남고 고칠 수 없습니다.',
       body: '<div class="modal-info"><ul class="summary-list">' +
           '<li>' + esc(X.AREA_SET[x.area] + ': ' + x.target) + '</li>' +
           '<li>바뀐 내용: ' + esc(x.change) + '</li>' + items +
           '<li>' + (tpl ? '근거: ' : '사유: ') + esc(x.reason || '-') + '</li>' +
           (x.area === 'PRICE' ? '<li>품의: ' + esc(x.docNo || '-') + (x.docUrl ? ' (' + esc(x.docUrl) + ')' : '') + '</li>' : x.area === 'PRODUCT' ? '<li>품의: 제품과 기능에는 품의 링크 칸이 없어 사유와 사내 품의를 견줍니다</li>'
+            // (설계 검토 2026-11-11 답 ①) 고객사 티어 변경: 품의 링크 칸이 없어 사유와 사내 품의를 견줌 [가정]. 번호 변경도 함께면 완료 계약 수
+            //   티어가 다른 거래처 합치기(2026-11-12 [제안] ①)는 합친 거래처의 완료 계약 수도
+            : tier ? '<li>품의: 거래처 관리에는 품의 링크 칸이 없어 사유와 사내 품의를 견줍니다</li>' + (x.bizNo || x.merge ? '<li>완료 계약: ' + (x.doneCount || 0) + '건</li>' : '')
             // 거래처: 완료 계약 수(2026-11-09 5회차 점검). 합치기는 "완료 계약 n건이 있는 거래처를 합침"(기획자 결정 2026-11-10 22번)
             : cust ? '<li>' + (x.merge ? '완료 계약 ' + (x.doneCount || 0) + '건이 있는 거래처를 합침' : '완료 계약: ' + (x.doneCount || 0) + '건') + '</li>' : '') +
           '<li>바꾼 사람: ' + esc(C.ownerLabel(x.by) + ', ' + C.fmtDateTime(x.at)) + '</li></ul></div>' +
@@ -186,10 +255,14 @@
         const result = f.querySelector('[name="result"]:checked').value;
         const e = X.saveCheck(x, result, val(f, 'note'));
         // "다름"이면 컴플라이언스에 넘김(기획자 결정 2026-11-09 5회차 13번). 개요 점검할 일과 이메일. 대상 글은 설정 변경 묶음의 이름 그대로
-        const issue = !e.refused && result === 'DIFF' ? X.raiseIssue({ source: 'CONFIG', title: '설정 변경 확인: ' + X.AREA_SET[x.area] + ' ' + x.target + ' ' + X.resultLabel(x.area, result),
-          note: val(f, 'note'), href: 'config-review.html', ref: x.id }) : null;
+        //   (설계 검토 2026-11-11 답 ①) 고객사 티어 변경은 대상 글에 "(고객사 티어)"와 "품의와 다름"
+        //   (2026-11-14 주말 점검 W7, CTL-78) 고객사 티어 변경의 "품의와 다름"은 넘김 글 끝에 바꾼 뒤 기안한 계약과 출력한 견적의 번호를 모두 붙임(저장하는 때 다시 셈)
+        //   (2026-11-14 주말 점검, 코드 다시 보기 common-01) 넘김 글은 여러 사람이 읽어 열람 제한 계약은 모두 번호 없이 건수만('SHARED')
+        const now = tier ? X.tierSince(x, 'SHARED') : null;
+        const issue = !e.refused && result === 'DIFF' ? X.raiseIssue({ source: 'CONFIG', title: '설정 변경 확인: ' + X.AREA_SET[x.area] + (tier ? '(고객사 티어)' : '') + ' ' + x.target + ' ' + X.resultLabel(rk, result),
+          note: (now ? val(f, 'note').replace(/\.\s*$/, '') + '. ' + X.tierSinceText(now) : val(f, 'note')), href: 'config-review.html', ref: x.id }) : null;
         render();
-        if (!e.refused) C.toast(x.target + ': ' + X.resultLabel(x.area, result) + '으로 남겼습니다.' + X.issueToast(issue));
+        if (!e.refused) C.toast(x.target + ': ' + X.resultLabel(rk, result) + '으로 남겼습니다.' + X.issueToast(issue));
       },
     });
   }

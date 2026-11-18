@@ -20,7 +20,8 @@
 
   // 관리자 보기는 뺌(기획자 결정 2026-11-09: 관리자는 처리하지 않고, 이 화면은 관리자 메뉴에도 없었음). 최고관리자는 시연용으로 모두 봄
   const seeAll = me.role === 'SUPER';
-  if (!seeAll && !C.hasRole(me, D.PROCESS_ROLES)) {
+  // W3-9(2026-11-16): 재무 리더와 재무 임원은 메뉴에서 감췄고, 주소로 들어와도 같은 안내(결재 단계를 처리하지 않음)
+  if (!seeAll && (!C.hasRole(me, D.PROCESS_ROLES) || ['FIN_LEAD', 'FIN_EXEC'].indexOf(me.role) > -1)) {
     $('#notice').innerHTML = C.noticeBox('', '검토 완료는 단계를 처리하는 역할만 씁니다',
       '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다.');
     $('#list').hidden = true;
@@ -42,11 +43,23 @@
   function options(first, pairs) {
     return '<option value="">' + esc(first) + '</option>' + pairs.map(function (p) { return '<option value="' + p[0] + '">' + esc(p[1]) + '</option>'; }).join('');
   }
-  // 한 일: ⑥⑧⑨⑩의 승인은 "완료"로 함께 셈. 체결본 등록(⑦, 영업)은 최고관리자, 관리자 보기에서만 나옴
+  // 한 일: ⑥⑧⑨⑩의 승인은 "완료"로 함께 셈. 체결본 등록(⑦, 영업)은 최고관리자 보기와, 대신 맡은 리더처럼 그 기록이 있는 사람에게 나옴
   //   보완 요청(②~⑤)과 보완 완료(기안자, 최고관리자와 관리자 보기)도 목록에 나오므로 거르기에 둠 (v0.63 점검에서 고침)
+  // (설계 검토 2026-11-11 남은 것 정리) 유예, 진행 중단(요청, 확인, 돌려보냄), 날인본 회수 확인, 전자계약 취소 확인(답 ④)도 목록에 나오는데 거를 수 없었음
+  //   그 기록이 이 목록에 있을 때만 거르기에 더함 [가정: 늘 두면 대부분의 사람에게 빈 선택지가 됨]. 이름은 D.APPROVAL_ACTIONS 그대로
+  const has = function (key, v) { return all.some(function (x) { return x.h[key] === v; }); };
+  const EXTRA_ACTIONS = ['GRACE', 'GRACE_OK', 'GRACE_NO', 'STOP_REQ', 'STOP_OK', 'STOP_RETURN', 'SEAL_BACK', 'ESIGN_BACK', 'ESIGN_SIGNED', 'SEAL_SIGNED']; // ESIGN_SIGNED: 기획자 답 2026-11-12 [제안] ②, SEAL_SIGNED: (2026-11-14 주말 점검 W7, ai-ops-06) 고객 날인 확인(중단 풀림)
   $('#f-action').innerHTML = options('전체', [['APPROVE', '승인, 완료'], ['REJECT', '반려'], ['SUPPLEMENT', '보완 요청'], ['CANCEL', '승인 취소'], ['RETURN', '다시 등록 요청'], ['CONFLICT', '이해관계 있음'], ['ASSIGN', '결재자 지정']] /* 결재자 지정은 기획자 결정 2026-11-10 18번,  기획자 결정 2026-11-09 5회차 14번 */
-    .concat(seeAll ? [['REGISTER', '체결본 등록'], ['RESUBMIT', '보완 완료']] : [])); // 체결본 등록과 보완 완료는 영업의 일이라 모두 보는 보기에서만
-  $('#f-step').innerHTML = options('전체 단계', D.REVIEW_GROUPS.concat(D.POST_GROUPS).reduce(function (a, g) { return a.concat(g); }, []).map(function (code) { return [code, C.stepLabel(code)]; }));
+    // 체결본 등록과 보완 완료는 영업의 일이라 모두 보는 보기에서는 늘 둠. 그 밖에는 그 기록이 목록에 있을 때만(2026-11-11 저녁 정리 검토:
+    //   영업대표가 사용 중지되어 대신 맡은 영업 리더(C-44)도 이 기록을 남길 수 있는데 거를 수 없었음)
+    .concat([['REGISTER', '체결본 등록'], ['RESUBMIT', '보완 완료']].filter(function (p) { return seeAll || has('action', p[0]); }))
+    .concat(EXTRA_ACTIONS.filter(function (a) { return has('action', a); }).map(function (a) { return [a, D.APPROVAL_ACTIONS[a].label]; })));
+  // (설계 검토 2026-11-11 남은 것 ④) ⑥은 종이 날인과 전자계약을 함께 담은 이름 "⑥ 날인 또는 인증서 서명"(C.stepAnyLabel, 검토 대기와 같음)
+  //   ②~⑩ 결재 단계(③ 영업 임원 승인, ⑥ 날인 또는 인증서 서명 포함)는 늘 두고, 결재 단계 밖의 차례(① 기안의 요청, ③ 만료 유예 확인, ③ 진행 중단 확인, ⑥ 날인본 회수 확인, ⑥ 전자계약 취소 확인, ⑨ 만료 처리)는
+  //   그 기록이 목록에 있을 때만 번호 순서 자리에 더함 [가정, 위 한 일과 같은 까닭]
+  const BASE_STEPS = D.REVIEW_GROUPS.concat(D.POST_GROUPS).reduce(function (a, g) { return a.concat(g); }, []);
+  const STEP_ORDER = ['S01', 'S02', 'S03', 'S03C', 'SGR', 'SST', 'S04', 'S05', 'S06', 'SSB', 'SSE', 'S07', 'S08', 'S09', 'SXP', 'S10'];
+  $('#f-step').innerHTML = options('전체 단계', STEP_ORDER.filter(function (code) { return BASE_STEPS.indexOf(code) >= 0 || has('step', code); }).map(function (code) { return [code, C.stepAnyLabel(code)]; }));
   $('#f-status').innerHTML = options('전체 상태', Object.keys(D.STATUS).filter(function (k) { return k !== 'DRAFT'; }).map(function (k) { return [k, D.STATUS[k].label]; }));
 
   // 기획자 결정 2026-11-02 D-9: 휴대폰에서는 지금 상태 칸을 감추고(col-status) 상태 배지를 고객사 아래 작은 줄에 둠. 개요 진행 상세(v0.55)와 같은 방식

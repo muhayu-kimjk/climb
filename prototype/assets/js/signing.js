@@ -3,12 +3,15 @@
  * ---------------------------------------------------------------------
  * 관련 요구사항: REQ-FLOW-04~05, REQ-SIGN-07, REQ-ENV-10
  * 하는 일
- *   1. 계약 검토가 끝나 체결 중인 계약(⑥ 인장 날인, ⑦ 체결본 등록, ⑧ 체결본 확인)을 모음
+ *   1. 계약 검토가 끝나 체결 중인 계약(⑥ 인장 날인, ⑦ 체결본 등록, ⑧ 체결본 확인. 전자계약은 ⑥ 인증서 서명, ⑦ 출력본 등록, ⑧ 출력본 확인)을 모음
+ *      (설계 검토 2026-11-11 남은 것 ④) 지금 단계 칸은 그 계약의 이름(C.stepIng), 단계 거르기는 두 체결 방식을 함께 담은 이름(C.stepAnyLabel)
  *      영업은 내가 지금 영업대표인 계약만(기획자 결정 2026-11-03 C-44, 넘겨받은 계약 포함), 최고관리자와 관리자는 모든 계약을 영업대표 칸과 함께
  *   2. 검색, 지금 단계, 오래 기다린 건으로 거르기. 오래된 승인부터
  *   3. 한 쪽에 20건씩 쪽 나누기
  *   4. 일수 칸 (기획자 결정 2026-11-02 D-12): ⑥, ⑦ 줄은 승인 후 일수(14일 이상 강조), ⑧ 줄은 그 단계에 온 날부터 센 대기(5일 이상 강조)
  *   5. 휴대폰에서는 일수를 고객사 아래 작은 줄에도 씀 (기획자 결정 2026-11-02 D-9, PC는 그대로)
+ *   6. 진행 중단(설계 검토 2026-11-11 7번): 진행 중단(STOPPED)된 계약은 체결 대기가 아니라 빠짐(아래 상태 거르기 그대로).
+ *      요청 중인 계약은 그대로 있고 고객사 아래 "중단 요청 중" 배지, 지금 단계 칸은 "③ 진행 중단 확인"이나 "⑥ 날인본 회수 확인"(⑥⑦⑧은 멈춤)
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -30,7 +33,8 @@
   const repOwn = function (c) { return C.isSalesRep(c, me); };
   if (!seeAll && me.role !== 'SALES' && !D.CONTRACTS.some(function (c) { return c.status === 'APPROVED' && repOwn(c); })) {
     $('#notice').innerHTML = C.noticeBox('', '체결 대기는 영업이 씁니다',
-      '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. ⑥ 인장 날인과 ⑧ 체결본 확인 차례는 계약 현황 > 검토 대기에서 봅니다.');
+      // (설계 검토 2026-11-11 남은 것 ④) ⑥은 종이 날인이면 총무의 인장 날인, 전자계약이면 영업지원의 인증서 서명
+      '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. ⑥ 인장 날인(전자계약은 인증서 서명)과 ⑧ 체결본 확인 차례는 계약 현황 > 검토 대기에서 봅니다.');
     $('#list').hidden = true;
     return;
   }
@@ -51,7 +55,8 @@
   function options(first, pairs) {
     return '<option value="">' + esc(first) + '</option>' + pairs.map(function (p) { return '<option value="' + p[0] + '">' + esc(p[1]) + '</option>'; }).join('');
   }
-  $('#f-step').innerHTML = options('전체', SIGN_STEPS.map(function (code) { return [code, D.STEPS[code].no + ' ' + D.STEPS[code].ing.replace(/ (중|대기)$/, '')]; }));
+  // (설계 검토 2026-11-11 남은 것 ④) 거르기는 계약을 고르기 전이라 ⑥은 "⑥ 날인 또는 인증서 서명"(C.stepAnyLabel). 줄마다의 이름은 그 계약으로(C.stepIng)
+  $('#f-step').innerHTML = options('전체', SIGN_STEPS.map(function (code) { return [code, C.stepAnyLabel(code, D.STEPS[code].no + ' ' + D.STEPS[code].ing.replace(/ (중|대기)$/, ''))]; }));
 
   // 일수 칸 머리글: 두 가지 세는 법이 함께 있음을 알림 ("승인 후" 아래 작은 글자로 "⑧은 대기", D-12)
   $('#thead').innerHTML = '<tr><th scope="col" class="col-customer">고객사</th><th scope="col" class="col-service">서비스</th><th scope="col">지금 단계</th>' +
@@ -91,7 +96,8 @@
       const cust = visible
         ? '<a class="cell-title" href="review.html?id=' + encodeURIComponent(x.c.id) + '">' + esc(x.c.counterparty) + '</a>' +
           '<span class="cell-sub">' + service + '</span>' + daysSub + '<span class="cell-meta">' + esc(x.c.id) + (x.c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span>' +
-          (C.holdOf(x.c) ? '<span class="cell-meta">' + C.holdBadge(C.holdOf(x.c)) + '</span>' : '') // 보류 중이면 배지(기획자 결정 2026-11-09: 결재하는 사람이 목록에서 바로 알게. 전체 진행 현황 progress.js와 같은 모양, REQ-CMP-04 ③)
+          (C.holdOf(x.c) ? '<span class="cell-meta">' + C.holdBadge(C.holdOf(x.c)) + '</span>' : '') + // 보류 중이면 배지(기획자 결정 2026-11-09: 결재하는 사람이 목록에서 바로 알게. 전체 진행 현황 progress.js와 같은 모양, REQ-CMP-04 ③)
+          (C.stopPending(x.c) ? '<span class="cell-meta">' + C.stopBadge(x.c) + '</span>' : '') // (설계 검토 2026-11-11 7번) 진행 중단 요청 중(보류 배지와 같은 자리)
         : '<span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>' + daysSub;
       // 지금 단계와 담당자. ⑦이 내 차례면 배지로 알림. 단계 이름 끝의 "대기", "중"은 떼어 전체 진행 현황과 같게(REQ-DASH-06)
       //   기획자 결정 2026-11-02 B-5: 견적서로 계약서를 대신한 계약은 "⑦ 견적서 등록", "⑧ 견적서 확인"(C.stepIng)

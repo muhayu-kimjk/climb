@@ -5,6 +5,7 @@
  * 하는 일
  *   1. 지금 유효한 계약이 90일 안에 끝나거나, 해지 통지 기한이 90일 안에 오는 묶음을 모음 (common.js expiringBundles)
  *      다음에 오는 날(지나지 않은 통지 기한, 아니면 만료일)이 가까운 순서. 영업은 내가 맡은 계약만, 그 외 역할은 모든 계약
+ *      그 외 역할은 유닛으로 거름(설계 검토 2026-11-11 10번: 지금 영업대표의 유닛, 기본은 전체, ?unit=으로 미리 거름)
  *   2. 자동갱신이면 해지 통지 기한(만료일 - 통지 일수)과 남은 날을 보여 주고, 30일 안이거나 지났으면 강조 (REQ-FLOW-32, v0.53)
  *      남은 기간 거르기는 만료일과 통지 기한 중 하나라도 그 안이면 보여 줌. "통지 기한 30일 이내"로 기한만 좁혀 봄(일수는 결재선 규칙 값, A-5)
  *      안내 문장의 해지 통지 기한 이메일 날도 결재선 규칙 값으로 채움(A-5). 그 유닛 리더는 가장 짧은 날에만(E-12)
@@ -55,6 +56,16 @@
   function noticeIn(b, days) { const n = noticeDate(b); return !!n && C.daysUntil(n) >= 0 && C.daysUntil(n) <= days; }
   function ended(b) { const x = C.expiryOf(b); return !!x && x.ended; }
   if (location.search.indexOf('view=notice') > -1) $('#f-days').value = 'notice'; // 개요의 "해지 통지 기한" 링크
+  // 설계 검토 2026-11-11 10번: 유닛 거르기. 거르는 유닛은 지금 영업대표의 조직(C.repUnitOf [가정], 데이터 정의서의 "계약의 유닛" sales_team과 다름). 기본은 전체 유닛
+  //   모든 계약을 보는 역할에게만(영업 임원도 아무 유닛이나 고름). 영업 담당자는 내가 맡은 계약만 보므로 칸을 감춤(list.css가 검색어를 세 칸으로)
+  //   개요의 영업 리더 "내 유닛"에서 오면 ?unit=으로 미리 거름(목록에 있는 값만). 값은 처음 모은 목록 기준(처리해도 고르는 값은 그대로)
+  if (isSales) $('#f-unit-field').hidden = true;
+  else {
+    const units = C.unitChoices(collect());
+    $('#f-unit').innerHTML = '<option value="">전체 유닛</option>' + units.map(function (u) { return '<option value="' + esc(u) + '">' + esc(u) + '</option>'; }).join('');
+    const presetUnit = new URLSearchParams(location.search).get('unit');
+    if (units.indexOf(presetUnit) > -1) $('#f-unit').value = presetUnit;
+  }
   // 연장이나 해지 기안을 할 수 있는 사람: 영업대표 본인 (최고관리자는 시연용으로)
   //   기획자 결정 2026-11-03(C-44): 지금 영업대표(C.isSalesRep: 넘겨받은 새 영업대표, 맡을 수 없으면 대신 맡는 영업 리더). 처음 기안한 사람이 아님
   function canDraft(b) { return C.isSalesRep(b, me) || me.role === 'SUPER'; }
@@ -72,10 +83,12 @@
   function render() {
     const all = collect();
     const q = $('#f-q').value.trim().toLowerCase();
-    const view = $('#f-days').value, auto = $('#f-auto').value;
+    const view = $('#f-days').value, auto = $('#f-auto').value, unit = $('#f-unit').value;
     const days = view === 'notice' || view === 'closing' ? 0 : Number(view);
     const list = all.filter(function (b) {
       const visible = C.canView(b.root, me);
+      // 유닛(설계 검토 2026-11-11 10번): 담당자 칸처럼 열람 제한 묶음에도 적용(담당자 이름은 가리지 않으므로 유닛으로 드러나는 것이 없음)
+      if (unit && C.repUnitOf(b) !== unit) return false;
       if (q && (!visible || (b.root.counterparty.toLowerCase().indexOf(q) < 0 && b.id.toLowerCase().indexOf(q) < 0))) return false;
       // 종료일이 지난 계약은 "서비스 닫기 전" 보기와 날수 보기에 늘 넣음(날짜가 지나 미룰 수 없는 일). 통지 기한 보기에는 넣지 않음
       if (view === 'closing') { if (!ended(b)) return false; }
@@ -109,7 +122,11 @@
       const holdHtml = hold ? C.holdBadge(hold) + '<span class="cell-meta">' + esc(hold.reason) + '</span>' : '';
       const doing = (holdHtml + exText + (open ? (exText || holdHtml ? '<span class="cell-meta">' + esc(open) + '</span>' : esc(open)) : '')) || '-';
       const blocking = b.open.some(function (o) { return o.kind === 'RENEW' || o.kind === 'TERMINATE'; });
-      const periodBusy = b.open.some(function (o) { return o.kind === 'CHANGE' && o.changeType === 'PERIOD'; }); // 기간 변경 중에는 연장 버튼 없음 (v0.58)
+      const periodBusy = b.open.some(function (o) { return o.kind === 'CHANGE' && o.changeType === 'PERIOD'; }) || // 기간 변경 중에는 연장 버튼 없음 (v0.58)
+        // (2026-11-14 주말 점검 W7, icfr-05) 금액이 바뀌는 변경(추가, 줄임)이 진행 중이어도 연장 단추 없음(계약 상세, 연장 검토와 같은 규칙. 조항만은 기간을 줄이지 않으면 막지 않음)
+        b.open.some(function (o) { return o.kind === 'AMEND' && C.amendKindOf(o) !== 'TERMS'; }) ||
+        // (2026-11-14 주말 점검, 코드 다시 보기 amend-01, amend-02) 기간을 줄이는 변경(조항만 포함, C.amendShortens)도 연장 단추 없음(늦은 연장 포함, 계약 상세, 연장 검토와 같은 규칙, CTL-66)
+        b.open.some(function (o) { return C.amendShortens(o, b.end); });
       // 반려된 연장, 해지: 같은 종류의 새 기안 대신 그 기안을 보완 후 재기안 (v0.58)
       const rejRenew = b.rejected.filter(function (o) { return o.kind === 'RENEW'; })[0];
       const rejEnd = b.rejected.filter(function (o) { return o.kind === 'TERMINATE'; })[0];
@@ -121,7 +138,7 @@
             : '<a class="btn btn--secondary" href="new-contract.html?kind=RENEW&origin=' + encodeURIComponent(b.id) + '">연장 기안</a>') +
           (rejEnd ? '<a class="btn btn--tertiary" href="' + C.resubmitHref(rejEnd) + '">해지 보완 후 재기안</a>'
             : '<a class="btn btn--tertiary btn-reject" href="terminate.html?origin=' + encodeURIComponent(b.id) + '">해지 기안</a>');
-      } else if (visible && canDraft(b) && !blocking && over && (x.state === 'OPEN' || x.state === 'GRACE')) {
+      } else if (visible && canDraft(b) && !blocking && !periodBusy && over && (x.state === 'OPEN' || x.state === 'GRACE')) { // periodBusy: (2026-11-14 주말 점검 W7, icfr-05) 늦은 연장도 같은 규칙
         // 기획자 결정 2026-11-02 A-11: 서비스를 닫기 전(만료 처리 차례, 유예 중)이면 늦은 연장 기안. 계약 상세, 계약 등록, 연장 검토와 같은 규칙. 해지는 없음
         draft = rejRenew ? '<a class="btn btn--secondary" href="' + C.resubmitHref(rejRenew) + '">연장 보완 후 재기안</a>'
           : '<a class="btn btn--secondary" href="' + (b.autoRenew === 'YES' ? 'renewal.html?origin=' : 'new-contract.html?kind=RENEW&origin=') + encodeURIComponent(b.id) + '">' + (b.autoRenew === 'YES' ? '연장 검토' : '연장 기안') + '</a>';
@@ -136,6 +153,8 @@
       const cust = visible
         ? '<a class="cell-title" href="contract.html?id=' + encodeURIComponent(b.id) + '">' + esc(c.counterparty) + '</a>' +
           '<span class="cell-sub">' + esc(C.serviceLabel(c.services)) + '</span><span class="cell-meta">' + esc(b.current.id) + '</span>' +
+          // 설계 검토 2026-11-11 5번: 예전 계약 기록도 만료 예정과 해지 통지 기한에 넣고(C.expiringBundles), 그 표시를 붙임
+          (c.legacy ? '<span class="cell-meta">' + C.legacyBadges(c) + '</span>' : '') +
           (todo !== '-' ? '<div class="cell-sub cell-acts">' + todo + '</div>' : '')
         : '<span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>';
       return '<tr>' +

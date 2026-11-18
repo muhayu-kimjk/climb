@@ -84,6 +84,11 @@
 .recent-empty { margin-top: 0.8rem; font-size: var(--fs-body-small); color: var(--text-subtle); }
 .recent-empty .icon { vertical-align: -0.2rem; margin-right: 0.2rem; }
 .recent-same .badge { margin-left: 0.4rem; }
+/* 견적 상자 (설계 검토 2026-11-11 1번): 제품과 금액 표 아래. 소제목과 회색 설명, 표(공급가액과 한도 넘은 줄은 오른쪽). 없으면 흐린 한 줄
+ *   연결한 견적의 공급가액이 계약 금액과 다르면 막지 않는 알림 한 줄(아이콘과 진한 글자, 두 금액을 함께) */
+.quote-box .badge { margin-left: 0.4rem; }
+.quote-diff { display: flex; align-items: flex-start; gap: 0.4rem; margin-top: 0.8rem; font-size: var(--fs-body-small); color: var(--text-bolder); }
+.quote-diff .icon { flex: none; margin-top: 0.2rem; }
 .check-wait { color: var(--text-subtle); }
 
 /* ---------- 재무 의견 (기획자 결정 2026-11-02 B-6): 결재선 밖, 덧붙이기만 ----------

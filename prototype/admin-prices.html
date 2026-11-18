@@ -25,6 +25,7 @@
   - v0.49 기획자 결정: 제품 → 기능 두 단계. 가격 기준은 기능마다 하나입니다(v0.47의 플랜은 없앰). 제품과 기능은 제품과 기능 관리(SCR-58)
   - 바꿀 때는 적용 시작일, 사내 품의 문서 링크(필수), 변경 사유를 넣습니다. 승인은 이 시스템이 아니라 사내 품의 결재로 받습니다(REQ-CHK-07).
   - 기존 기준은 고치지 않고 새 적용 시작일로 새 줄을 더합니다. 이미 기안한 계약은 기안할 때의 기준을 그대로 씁니다.
+  - 설계 검토 2026-11-11 3번, 4번, 4-1 3-1: 줄마다 단위 종류(기간제, 건당, 1회)와 고객사 티어 단가(선택). 티어 단가도 새 줄로만 바꿈(admin-prices.js)
   - 기획자 결정 2026-11-02 D-19: 두 표가 길어(01 C-42) 맨 위에 서비스 거르기와 기능 이름 찾기를 두고 두 표에 함께 적용.
     서비스 단추는 제품과 기능 관리(SCR-58)와 같은 모양. 바뀐 이력 표는 다른 목록처럼 한 쪽에 20건씩 쪽을 나눔(REQ-ADM-04와 같은 기준)
   - 동작은 assets/js/admin-prices.js
@@ -71,10 +72,12 @@
             <h2 class="panel-title" id="sec-now">오늘 적용되는 기준 <span class="badge badge--line" id="today"></span></h2>
             <button type="button" class="btn btn--primary btn--md" id="btn-add">가격 추가</button>
           </div>
-          <p class="panel-desc">금액은 부가세 별도입니다. 적용 시작일이 오지 않은 기준은 그 기능 아래에 "예정"으로 보입니다.</p>
+          <!-- 설계 검토 2026-11-11 3번, 4번, 4-1 3-1: 단위 종류(기간제는 12개월 값, 달 수에 비례)와 고객사 티어 단가를 알리는 둘째 문장을 더함 -->
+          <p class="panel-desc">금액은 부가세 별도입니다. 적용 시작일이 오지 않은 기준은 그 기능 아래에 "예정"으로 보입니다.
+            기간제 단가는 12개월 값이고 계약 기간(견적은 이용 기간) 달 수에 비례해 셉니다. 고객사 티어 단가가 있으면 표준 단가 아래에 보이고, 그 티어의 거래처는 그 값을 씁니다.</p>
           <div class="tbl-scroll" tabindex="0" role="region" aria-label="오늘 적용되는 가격 기준 표">
             <table class="tbl tbl--compact">
-              <caption class="sr-only">오늘 적용되는 가격 기준: 제품과 기능(서비스, 단위), 표준 단가, 할인율 한도, 적용 시작일, 품의 문서, 관리</caption>
+              <caption class="sr-only">오늘 적용되는 가격 기준: 제품과 기능(서비스, 단위와 단위 종류), 표준 단가(고객사 티어 단가), 할인율 한도, 적용 시작일, 품의 문서, 관리</caption>
               <thead><tr><th scope="col">제품과 기능</th><th scope="col" class="num">표준 단가</th><th scope="col" class="num">할인율 한도</th><th scope="col">적용 시작일</th><th scope="col">품의 문서</th><th scope="col" class="col-action" id="th-action">관리</th></tr></thead>
               <tbody id="rows"></tbody>
             </table>

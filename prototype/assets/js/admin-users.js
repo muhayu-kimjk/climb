@@ -27,6 +27,8 @@
  *      "그 유닛의 영업 리더가 계약마다 새 영업대표를 정하고, 정하기 전에는 영업 리더가 맡는다"를 알림(막지 않음). 저장한 뒤 알림에도 같은 수
  *      ⑦ 체결본 등록 차례는 사용 중지하면 영업 리더에게 넘어가므로 "차례인 결재" 확인에서 뺌(예전에는 대리 지정을 먼저 하라고 막았으나 영업은 대리 지정 대상이 아님)
  *      표의 상태 칸: 사용 중지된 영업대표의 계약이 남아 있으면 작은 줄 "영업대표인 계약 n건, 담당 지정 필요"
+ *  10. (2026-11-14 주말 점검, 코드 다시 보기 admin-01 ①) ⑥ 전자계약 취소 확인 차례는 사용 중지 뒤 넘겨받을 영업지원(리더, 없으면 다른 담당자)이 있을 때만
+ *      "차례인 결재" 확인에서 뺌. 없으면 막고 "먼저 이 사람이 전자계약 취소 확인을 끝내세요"로 알림
  * 프로토타입: 계정 데이터는 mock-data.js의 ACCOUNTS(가상 인물). 실제 시스템은 서버에서 거르고 쪽을 나눠 받아옵니다.
  * ===================================================================== */
 (function () {
@@ -80,7 +82,8 @@
     }).join('') + '</optgroup>';
   }).join('');
   fillDeptFilter();
-  $('#f-status').innerHTML = options('전체 상태', Object.keys(D.ACCOUNT_STATUS).map(function (s) { return [s, D.ACCOUNT_STATUS[s].label]; }));
+  // W3-10(2026-11-16): 상태 거르기에 "유닛 리더 표시(처리 전)"(퇴사, 휴직, 이동으로 표시됐는데 아직 사용 중지나 조직 옮기기를 하지 않은 계정)
+  $('#f-status').innerHTML = options('전체 상태', Object.keys(D.ACCOUNT_STATUS).map(function (s) { return [s, D.ACCOUNT_STATUS[s].label]; }).concat([['MARK', '유닛 리더 표시(처리 전)']]));
 
   /* ---------- 표시 도우미 ---------- */
   // "2026-10-19 14:05" 그대로, 없으면 "-" (날짜 표기 v0.35)
@@ -153,6 +156,13 @@
 
   /* ---------- 2. 거르기 ---------- */
   let page = 1;
+  /* W3-10(2026-11-16, 결정할것 새 결정 W3-10 (나)): 유닛 리더가 퇴사, 휴직, 이동으로 표시했는데 처리 전인 계정의 배지 한 줄(누가 언제 표시했는지는 풍선 글)
+   *   사용 중지하거나(퇴사, 휴직) 조직을 옮기면(이동) 저절로 사라짐(C.pendingMarks, 정보보호의 분기 검토와 같은 기준) */
+  function markMeta(a) {
+    const m = C.pendingMarks()[a.id];
+    return m ? '<span class="cell-meta" title="' + esc(m.unit + ' ' + C.ownerLabel(m.by) + ' ' + C.fmtDateTime(m.at) + (m.note ? ', ' + m.note : '')) + '">' +
+      C.badge('attention', '유닛 리더 표시: ' + m.label + '(처리 전)') + '</span>' : '';
+  }
   function filtered() {
     const q = $('#f-q').value.trim().toLowerCase();
     const role = $('#f-role').value, dept = $('#f-dept').value, status = $('#f-status').value;
@@ -160,7 +170,7 @@
       if (q && a.name.toLowerCase().indexOf(q) < 0 && a.email.toLowerCase().indexOf(q) < 0) return false;
       if (role && a.roles.indexOf(role) < 0) return false;
       if (dept && a.dept !== dept) return false;
-      if (status && a.status !== status) return false;
+      if (status === 'MARK' ? !C.pendingMarks()[a.id] : status && a.status !== status) return false;
       return true;
     });
   }
@@ -186,7 +196,7 @@
         '<td class="cell-name">' + esc(a.name) + '</td>' +
         '<td>' + esc(a.dept) + '</td>' +
         '<td>' + roleBadges(a) + '</td>' +
-        '<td>' + statusBadge(a.status) + repNeedMeta(a) + '</td>' +
+        '<td>' + statusBadge(a.status) + repNeedMeta(a) + markMeta(a) + '</td>' + // markMeta: W3-10(2026-11-16)
         // 기획자 결정 2026-11-02 D-16: 관리(수정) 칸은 상태 칸 바로 뒤. 날짜 다섯 칸은 참고용이라 뒤로
         '<td class="col-action"><button type="button" class="link-act" data-edit="' + esc(a.email) + '" aria-label="' + esc((a.dept ? a.dept + ' ' : '') + a.name) + ' 권한 수정">수정</button></td>' +
         '<td class="num-left">' + C.fmtDate(a.registeredAt) + '</td>' +
@@ -398,10 +408,23 @@
         // 지금 이 사람 차례인 결재가 남아 있으면 사용 중지 전에 대리 지정으로 넘겨야 함 (차례인 건은 원래 담당자에게 남으므로)
         const covered = D.DELEGATIONS.some(function (d) { return d.absentId === a.id && C.delegationState(d) === 'ACTIVE'; });
         //   기획자 결정 2026-11-03(C-44): ⑦ 체결본 등록은 사용 중지하면 영업 리더에게 넘어가므로(새 영업대표를 정할 때까지) 세지 않음
-        const waiting = status === 'SUSPENDED' && !covered ? C.pendingQueue(me, true).filter(function (x) { return x.s.userId === a.id && x.s.step !== 'S07'; }).length : 0;
+        //   (설계 검토 2026-11-11 답 ④) ⑥ 전자계약 취소 확인(SSE)도 서명한 사람을 사용 중지하면 영업지원 리더에게 넘어가므로(common.js esignBackerAt) 세지 않음 [가정]
+        //   (2026-11-14 주말 점검, 코드 다시 보기 admin-01 ①) 다만 넘겨받을 사람이 실제로 있을 때만 뺌: 이 사람을 사용 중지한 것으로 보고 C.esignBackerAt(c, 차례가 된 때, 이 사람)이
+        //     다른 사람(영업지원 리더, 없으면 다른 영업지원 담당자)을 돌려줄 때. 없으면 세어 막고 "먼저 이 사람이 전자계약 취소 확인을 끝내세요"로 알림
+        //     (이 사람은 결재 단계 담당자가 아니면 대리 지정 후보에 없어 "대리 지정으로 넘기세요"는 쓰지 않음). 예전에는 늘 빼서, 리더 본인이 서명했거나
+        //     다른 리더가 없으면 차례가 사용 중지된 계정에 남아 진행 중단이 끝나지 않았음
+        const mine = status === 'SUSPENDED' && !covered ? C.pendingQueue(me, true).filter(function (x) { return x.s.userId === a.id && x.s.step !== 'S07'; }) : [];
+        //   넘겨받을 사람: 이 사람이 아니고 사용 중인 계정(esignBackerAt은 찾지 못하면 서명한 사람을 그대로 돌려주므로 상태도 봄)
+        const takes = function (uid) { const t = D.ACCOUNTS.filter(function (x) { return x.id === uid; })[0]; return !!t && uid !== a.id && t.status === 'ACTIVE'; };
+        const sseStuck = mine.filter(function (x) { return x.s.step === 'SSE' && !takes(C.esignBackerAt(x.c, x.s.arrivedAt, a.id)); }).length;
+        const waiting = mine.filter(function (x) { return x.s.step !== 'SSE'; }).length;
+        // (2026-11-13 주말 점검, 06 AC-44) 진행 중이거나 예정된 대리 지정의 대신할 사람이면 사용 중지 전에 그 대리 지정을 끝내게 함
+        const asDelegate = status === 'SUSPENDED' ? D.DELEGATIONS.filter(function (d) { return d.delegateId === a.id && C.delegationState(d) !== 'ENDED'; }) : [];
         const stepMsg = steps.length ? '이 사람은 ' + steps.map(function (x) { return x.label; }).join(', ') +
           ' 담당자입니다. 먼저 결재선 규칙에서 담당자를 바꾸세요.'
-          : waiting ? '지금 이 사람 차례인 결재가 ' + waiting + '건 있습니다. 먼저 결재선 규칙에서 대리 지정으로 다른 사람에게 넘기세요.' : '';
+          : waiting ? '지금 이 사람 차례인 결재가 ' + waiting + '건 있습니다. 먼저 결재선 규칙에서 대리 지정으로 다른 사람에게 넘기세요.'
+          : sseStuck ? '지금 이 사람 차례인 ⑥ 전자계약 취소 확인이 ' + sseStuck + '건 있고 넘겨받을 영업지원이 없습니다. 먼저 이 사람이 전자계약 취소 확인을 끝내세요.' // (admin-01 ①)
+          : asDelegate.length ? '이 사람은 대리 지정(' + asDelegate.map(function (d) { return d.id; }).join(', ') + ')의 대신할 사람입니다. 먼저 결재선 규칙에서 그 대리 지정을 끝내거나 취소하세요.' : '';
         return {
           dept: val(f, 'dept') ? '' : '조직을 고르세요.',
           status: status === 'SUSPENDED' && stepMsg ? stepMsg : '',

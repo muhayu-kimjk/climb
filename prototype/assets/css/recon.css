@@ -1,5 +1,6 @@
 /* =====================================================================
  * 회사 설정(SCR-59), 영업기회 대사(SCR-62), 인장 기록 대조(SCR-63) 스타일 (recon.css)
+ * 설계 검토 2026-11-11 3장: 연장 검토(SCR-44)의 오늘 표준 금액 한 줄(.renew-std)도 여기에 둠(renewal.html이 이 파일을 부름)
  * 기획자 결정 2026-11-02 E-9, E-7, E-1 ②. 표, 묶음, 입력 창은 common.css, list.css, admin.css 것을 그대로 쓰고 여기에는 이 화면들만의 모양만
  *   - 이름표는 흐리게, 값은 진하게(REQ-UI-32). 본문이 아닌 안내는 회색 상자(.step-guide)
  *   - 크기는 rem(큰 모니터 17/15배가 rem을 키움). 휴대폰 규칙은 다른 화면과 같은 조건
@@ -47,6 +48,11 @@
 .recon-confirm { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1.2rem; min-height: 6.4rem; margin-top: 2.4rem; padding: 1.2rem 1.6rem; border-radius: var(--radius-lg); background: var(--surface-gray-subtler); }
 .recon-confirm p { flex: 1 1 24rem; font-size: var(--fs-body-small); color: var(--text-basic); }
 .recon-confirm .btn { flex-shrink: 0; }
+
+/* ---------- 연장 검토(SCR-44)의 지금 계약 금액과 오늘 표준 금액 한 줄 (설계 검토 2026-11-11 3장) ----------
+ *   모양은 common.css .step-guide(회색 상자, 보조 글자). 정보 칸(.info-grid) 아래에 띄움. 늘 있는 줄이라 화면이 흔들리지 않음
+ *   이름표는 흐리게, 금액은 진하게(.meta-key, .meta-val). 줄이 넘치면 항목마다 다음 줄로(.meta-list-in이 감쌈) */
+.renew-std { margin: 1.2rem 0 0; }
 
 @media screen and (max-width: 600px), screen and (hover: none) and (pointer: coarse) and (max-height: 600px) {
   .company-info > div { grid-template-columns: minmax(0, 1fr); gap: 0.2rem; }

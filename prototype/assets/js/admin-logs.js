@@ -108,6 +108,9 @@
       return '<tr' + (done ? '' : ' class="is-alert"') + '><td class="num-left">' + C.fmtDateTime(a.at) + '</td>' +
         '<td class="center cell-phone-nowrap"><span class="cell-strong">' + esc(C.ownerLabel(a.userId)) + '</span></td>' +
         '<td><span class="cell-strong">' + esc(D.SEC_ALERT_KINDS[a.kind]) + '</span><span class="cell-meta">' + esc(a.detail) + '</span>' +
+          // 5-3(2026-11-16): 대상이 정보보호 담당자 본인이면 알림 메일은 정보보호 리더에게(그 사실을 한 줄로)
+          (C.secAlertMailTo(a).indexOf(a.userId) < 0 && D.ACCOUNTS.some(function (x) { return x.id === a.userId && C.activeRoles(x).indexOf('PRIVACY') > -1; })
+            ? '<span class="cell-meta">대상이 정보보호 담당자라 알림 메일은 ' + esc(C.secAlertMailTo(a).map(function (x) { return C.ownerLabel(x); }).join(', ')) + '에게 보냄</span>' : '') +
           (done ? '<span class="cell-meta">결과: ' + esc(a.action) + ' (' + esc(C.ownerLabel(a.doneBy)) + ', ' + C.fmtDateTime(a.doneAt) + ')</span>' : '') + '</td>' +
         '<td class="nowrap">' + (done ? C.badge('success', '확인함') : C.badge('danger', '확인 전')) + '</td>' +
         '<td class="col-action">' + (done ? '-' : alertAction(a)) + '</td></tr>';
@@ -333,6 +336,11 @@
     if (x.area === 'PRICE') return '<span class="cell-meta">품의 ' + (X.docLink(x) || '링크 없음') + '</span>';
     if (x.area === 'PRODUCT') return '<span class="cell-meta">품의 링크 칸 없음(사유를 봄)</span>';
     if (x.area === 'RULE') return '<span class="cell-meta">위임전결 근거: ' + esc(x.basis) + '</span>';
+    // (설계 검토 2026-11-11 정리, 답 ①) 거래처 줄도 설정 변경 확인(SCR-65 config-review.js basisHtml)과 같은 근거 글. 예전에는 비어 있었음
+    //   (기획자 답 2026-11-12 [제안] ①) 티어가 다른 거래처 합치기도 같은 글(config-review.js basisHtml)
+    if (x.area === 'CUSTOMER' && x.tier) return '<span class="cell-meta">' + (x.merge ? '고객사 티어가 다른 거래처를 합침' : x.tierCode ? '고객사 티어 목록 변경(코드 관리)' : '고객사 티어 변경') /* 2026-11-17 다른 눈 review-04: 설정 변경 확인과 같은 이름 */ + ', 품의 링크 칸 없음(사유를 봄)</span>' +
+      ((x.bizNo || x.merge) && x.doneCount ? '<span class="cell-meta">완료 계약 ' + x.doneCount + '건이 있는 거래처' + (x.merge ? '를 합침' : '') + '</span>' : '');
+    if (x.area === 'CUSTOMER' && X.needsCheck(x)) return '<span class="cell-meta">완료 계약 ' + (x.doneCount || 0) + '건이 있는 거래처' + (x.merge ? '를 합침' : '') + '</span>';
     return '';
   }
   function reviewedHtml(x) {
@@ -348,7 +356,7 @@
   }
   function renderConfig() {
     const ym = $('#cfg-month').value, area = $('#cfg-area').value;
-    const list = X.settingChanges({ month: ym, areas: area ? [area] : null });
+    const list = C.maskAdminRows(X.settingChanges({ month: ym, areas: area ? [area] : null }), me); // 거래처 줄 사유의 열람 제한 번호 가림(2026-11-14 주말 점검, leak-01)
     const wait = list.filter(function (x) { return X.needsCheck(x) && !X.checkOf(x.id); }).length;
     const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
     if (cfgPage > pages) cfgPage = pages;
@@ -443,7 +451,7 @@
       const k = acks[unit];
       (k.marks || []).forEach(function (m) {
         const a = C.accountOf(m.id) || D.ACCOUNTS.filter(function (x) { return x.email === m.email; })[0] || null;
-        const done = !a || a.status === 'SUSPENDED' || (m.mark === 'MOVE' && a.dept !== unit);
+        const done = C.markHandled(a, m, unit, k.at); // 2026-11-16 밤 w3-01: 표시 뒤 처리 기록도 봄(사용자 권한 관리의 배지와 같은 판단)
         const st = a ? ((D.ACCOUNT_STATUS[a.status] || {}).label || a.status) + (a.dept && a.dept !== unit ? ', 지금 ' + a.dept : '') : '계정 없음';
         out.push({ unit: unit, ack: k, m: m, a: a, open: !done, now: st });
       });
@@ -664,7 +672,12 @@
     const order = D.CODES.filter(function (c) { return c.group === 'DEPT'; }).map(function (c) { return c.label; });
     const units = live.map(function (a) { return a.dept; }).filter(function (u, i, arr) { return arr.indexOf(u) === i; })
       .sort(function (a, b) { return (order.indexOf(a) < 0 ? 99 : order.indexOf(a)) - (order.indexOf(b) < 0 ? 99 : order.indexOf(b)); });
-    return units.map(function (u) { return { unit: u, to: unitLeader(u), n: live.filter(function (a) { return a.dept === u; }).length }; });
+    // 기획자 결정 2026-11-16(결정할것 묶음 확인 5): 리더가 대리 지정 기간이면 대신할 사람에게도 보냄(also). 대신할 사람도 확인을 남길 수 있음(2026-11-10 19번)
+    return units.map(function (u) {
+      const to = unitLeader(u);
+      const also = to ? D.DELEGATIONS.filter(function (d) { return d.absentId === to && !!C.activeDelegation(to, d.delegateId); }).map(function (d) { return d.delegateId; }) : [];
+      return { unit: u, to: to, also: also.filter(function (x, i, a) { return a.indexOf(x) === i; }), n: live.filter(function (a) { return a.dept === u; }).length };
+    });
   }
   function openSend() {
     const q = pickedQuarter();
@@ -678,14 +691,14 @@
       title: q.label + ' 계정 목록 확인을 유닛 리더에게 요청할까요?',
       desc: '보내면 유닛마다 리더에게 "유닛 계정 목록을 확인해 주세요"와 계정 수만 이메일로 보내고, 보낸 사람과 일시, 받은 리더가 남습니다. 리더는 메일의 버튼으로 자기 유닛 목록만 보고 "확인함"을 남깁니다.' + (prev ? ' 이 분기에 이미 ' + prev + '번 보냈고, 한 줄 더 남습니다.' : ''),
       body: '<div class="modal-info"><ul class="summary-list">' +
-        ok.map(function (r) { return '<li>' + esc(r.unit + ': ' + C.ownerLabel(r.to) + '(계정 ' + r.n + '개)') + '</li>'; }).join('') +
+        ok.map(function (r) { return '<li>' + esc(r.unit + ': ' + C.ownerLabel(r.to) + (r.also.length ? ', 대리 지정 중이라 ' + r.also.map(function (x) { return C.ownerLabel(x); }).join(', ') + '에게도' : '') + '(계정 ' + r.n + '개)') + '</li>'; }).join('') +
         none.map(function (r) { return '<li>' + esc(r.unit + ': 받을 리더 없음(계정 ' + r.n + '개). 따로 전달합니다') + '</li>'; }).join('') +
         '<li>메일에는 직원 이름, 이메일, 역할을 넣지 않습니다. 리더는 시스템에서 이름, 이메일, 지금 역할, 상태, 마지막 로그인을 보고, 이상한 계정이 있으면 적어 남깁니다.</li></ul></div>',
       btn: '보내기',
       done: function () {
         C.adminSave('AUDIT', q.label + ' 유닛별 계정 목록', '유닛 리더 ' + leaders + '명에게 확인 요청 메일 보냄(유닛 ' + ok.length + '곳, 계정 ' + total + '개)',
           '분기 권한 검토 때 유닛마다 리더에게 계정 목록 확인을 요청함(메일에는 계정 수만, 목록은 시스템에서 봄)',
-          { k: 'UNIT_LIST_SENT', r: { quarter: q.key, units: ok.map(function (r) { return { unit: r.unit, to: r.to, n: r.n }; }) } });
+          { k: 'UNIT_LIST_SENT', r: { quarter: q.key, units: ok.map(function (r) { return { unit: r.unit, to: r.to, also: r.also, n: r.n }; }) } }); // also: 묶음 확인 5(2026-11-16)
         refresh();
         C.toast('유닛 리더 ' + leaders + '명에게 계정 목록 확인을 요청했습니다.');
       },
@@ -765,12 +778,14 @@
    * 감사 열람은 관리자 화면(사용자 권한 관리 등)을 열지 않으므로 모든 관리자 변경 이력을 여기서 봄. 정보보호와 최고관리자도 봄. 보기만(단추 없음)
    * 모든 영역의 기록(C.adminLog) + 끝나는 날이 지나 저절로 풀린 역할(C.roleEndLog, 사용자 권한 관리의 권한 변경 이력과 같음). 최근 것부터
    * 대상 앞에 영역 이름(접속 기록 조회와 같은 이름, 점검 기록은 "점검 기록"). 영역과 글로 거름, 한 쪽 20건(REQ-ADM-04) */
+  //   (설계 검토 2026-11-11 남은 것 ⑤) 예전 계약 기록(LEGACY, SCR-95)은 X.AREA에 더해 이 거르기와 대상 앞 이름에 저절로 들어옴
   const ADM_AREA = Object.assign({}, X.AREA, { AUDIT: '점검 기록' });
   $('#adm-area').innerHTML = '<option value="">전체</option>' + Object.keys(ADM_AREA).map(function (k) { return '<option value="' + k + '">' + esc(ADM_AREA[k]) + '</option>'; }).join('');
   let admPage = 1;
   // 대상의 고객사 이름은 볼 수 있을 때만(hideName, 2026-11-06 점검)
   function admAll() {
-    return C.adminLog().concat(C.roleEndLog()).map(function (e) { return Object.assign({}, e, { target: hideName(e.target) }); })
+    //   (2026-11-14 주말 점검, leak-01, leak-02) 거래처 줄 사유의 번호와 예전 계약 기록 올림의 금액, 기간, 메모도 가림(C.maskAdminRows)
+    return C.maskAdminRows(C.adminLog().concat(C.roleEndLog()), me)
       .sort(function (a, b) { return b.at.localeCompare(a.at); });
   }
   function renderAdminLog() {

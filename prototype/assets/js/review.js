@@ -15,6 +15,7 @@
  *      E-2 기본 정보 아래 "같은 거래처 최근 계약" 상자. 계약이 있으면 ② 승인 창에서 "나눠 맺은 계약이 아님"을 꼭 표시
  *      B-6 체크리스트 묶음 아래 결재선 밖 "재무 의견"(재무가 ⑥ 날인 전까지 덧붙임). ⑩ 창에서도 봄
  *      B-8 ⑦에서 서명본 체결일, ⑨에서 실제 개통일(필수). ⑧이 체결일을 확인. 날짜 순서가 이상하면 회색 안내
+ *        (설계 검토 2026-11-11 답 ⑤) 줄임 변경과 조항만 변경의 ⑨ 날짜 이름은 "적용일"(C.openDateLabel, 칸은 같은 openDate). ⑦ 날짜 이름은 C.signDayLabel
  *      B-5 견적서로 계약서를 대신한 계약은 ⑦ ⑧ 창의 문서 이름이 최종 견적서, ⑧ 확인 항목은 견적서 항목(C.signedChecks)
  *      B-3 운영 변경도 ⑨ 다음 ⑩ 재무 확인(결재란 설명, 변경 내용의 ⑩ 줄, ⑨ ⑩ 창). 유상 충전은 기능, 표준 단가, 표준 금액, 할인율(막지 않음)
  *      A-10, A-11 계약이 끝난 뒤의 차례(⑨ 만료 처리, ③ 만료 유예 확인)는 결재란 셋째 작은 표와 맨 위 안내. 처리는 계약 상세에서
@@ -34,6 +35,15 @@
  *      누르면 그 계약 묶음에 보류가 걸리고(사유 "③ 이해관계: 결재자 지정 필요") 컴플라이언스 담당자에게 이메일. 컴플라이언스 담당자가
  *      개선 과제와 보류에서 다른 임원을 이 계약의 ③ 결재자로 정하면 보류가 풀림(C.declareInterest, C.interestMode 'HOLD').
  *      8번의 "영업 임원이 맡은 ③은 컴플라이언스 담당자에게 알려 주세요"를 이 단추로 바꿈
+ *   설계 검토 2026-11-11 1번 "가볍게 잇기": 제품과 금액 아래 "견적" 상자(연결한 견적과 영업기회번호가 같은 견적, 공급가액이 계약 금액과 다르면 한 줄).
+ *      견적서로 대신한 계약의 ⑧ 창에 연결한 견적과 유효기간 한 줄, 확인 항목 "견적번호와 판"에 그 번호(C.signedChecks)
+ *   설계 검토 2026-11-11 6번: 변경 계약은 계약종류에 변경 종류("변경(줄임)", C.kindLabel)와 "변경 전과 후" 표(C.amendDiff: 기능마다 수량과 금액, 계약 금액).
+ *      추가는 제품과 금액 표 아래에, 줄임과 조항만은 2번 묶음의 본문(표준 금액과 할인율 없음). 체크리스트 2, 3번 NA는 "해당 없음"
+ *   설계 검토 2026-11-11 9번, 4-1 9-1 전자계약(C.isEsign): 기본 정보에 "체결 방식"과 인증서로 서명한 사람과 일시. ⑥은 "인증서 서명" 창(확인 항목 D.ESIGN_CHECKS,
+ *      서명한 날과 시각 필수, 서명한 사람은 처리하는 사람. 결재 기록 certSigner, certSignedAt), ⑦은 전자계약서 출력본과 전자계약 체결일,
+ *      ⑧ 출력본 확인은 ⑥을 하지 않은 다른 영업지원(common.js stepUser, canAct). ⑧ 창에 ⑥에 남긴 서명한 사람과 일시와 맡는 까닭
+ *      (2026-11-14 주말 점검, 코드 다시 보기 review-02) ⑥을 한 사람과 기안자 말고 영업지원이 없으면 ⑩ 담당 재무가 ⑧을 맡음(isms-02). ⑥ 인증서 서명 창과
+ *        ⑦ 출력본 등록 창의 안내도 고정 글 대신 C.esignCheckerWhy로 실제 ⑧ 담당을 적음
  * 결재 상태 계산(누가 차례인지, 반려와 승인 완료)은 common.js(buildReview)가 결재 기록으로 합니다.
  * 프로토타입: 계약 상세 값 중 예시 데이터에 없는 것(사업자등록번호, 제품 줄 등)은 이 파일에서 만들어 보여 줍니다.
  * ===================================================================== */
@@ -84,11 +94,18 @@
   const isTerm = c.kind === 'TERMINATE';
   // 기획자 결정 2026-11-02 B-5: 견적서로 계약서를 대신한 계약은 ⑦에 올리고 ⑧이 확인하는 문서가 "최종 견적서"(고객 날인)
   const quote = C.isQuoteInstead(c);
-  const DOC = quote ? '최종 견적서' : '체결본';
+  // (설계 검토 2026-11-11 9번) 전자계약이면 ⑦에 올리고 ⑧이 확인하는 문서가 "전자계약서 출력본", ⑦의 날짜는 "전자계약 체결일"
+  const esign = C.isEsign(c);
+  const ESIGN_WHERE = C.signMethodOf(c) === 'ESIGN_G2B' ? '나라장터' : '고객사 전자계약 시스템'; // 서명하는 곳(안내 문장에 씀)
+  const SIX_DONE = esign ? '⑥ 인증서 서명' : '⑥ 인장 날인'; // 설계 검토 2026-11-11 9번: 재무 의견을 남길 수 있는 끝(재무 의견 묶음의 안내 문장)
+  const DOC =quote ? '최종 견적서' : esign ? '전자계약서 출력본' : '체결본';
   // 기획자 결정 2026-11-02 B-8: 날인과 체결본을 거치는 계약(신규, 변경, 바꿔서 연장)만 ⑦ 서명본 체결일과 ⑨ 실제 개통일을 받음
   //   해지의 ⑨는 개통이 아니라 운영 종료라 받지 않음(실제 종료일은 아직 정하지 않음). 그대로 연장과 운영 변경도 받지 않음
   const signs = !short && !change;
-  const SIGN_DAY = quote ? '고객 날인일' : '서명본 체결일';
+  const SIGN_DAY = C.signDayLabel(c); // 설계 검토 9번: 전자계약은 전자계약 체결일, B-5 견적서는 고객 날인일(계약 상세, 계약 요약서와 같은 함수, 남은 것 ④)
+  // (설계 검토 2026-11-11 답 ⑤) ⑨ 날짜 이름: 줄임 변경과 조항만 변경은 "적용일", 신규, 연장, 추가 변경은 "실제 개통일"(데이터 칸 openDate는 같음)
+  const OPEN_DAY = C.openDateLabel(c);
+  const amendOff = c.kind === 'AMEND' && C.priceCheckOff(c) ? C.amendKindOf(c) : ''; // 'REDUCE' 줄임, 'TERMS' 조항만(⑨ 안내 문장에 씀)
   // 기획자 결정 2026-11-02 C-15: 반부패 조항 판단을 꼭 골라야 하는 계약(간접, 조달). 직접은 골라도 되고 안 골라도 됨
   const abRequired = legalNote && D.ANTI_BRIBE.required.indexOf(C.methodOf(c)) > -1;
   const rootId = C.rootOf(c);
@@ -138,13 +155,16 @@
   //   할인율이 체크리스트 2번, 3번 답과 어긋났음(예: 2509CL003 "60% 할인"인데 2번, 3번 예). 통계가 이런 계약을 "셀 수 없음"으로 빼는 것과 같게
   //   표준 금액과 할인율은 "-"로 두고 서비스와 계약 금액만 보임(renderAmount)
   function productRows() {
-    const list = c.products || f.products || [];
-    return list.map(function (r) {
+    // (설계 검토 2026-11-11 3번, 4번, 4-1 3-1) 표준 금액은 공통 셈(C.contractStd: 기간제는 계약 기간 달 수에 비례, 고객사 티어 단가, 기안 때 남긴 값을 먼저)
+    //   체크리스트 2, 3번과 ③ 결재선(C.capOver)이 쓰는 값과 같음. 설명 줄(price)에 표준 단가(티어 단가면 티어와 기본 단가)와 달 수
+    return C.contractStd(c).map(function (x) {
+      const r = x.line, s = x.s;
       // E-4: 기안 때 줄에 남긴 표준 단가와 한도를 먼저(그 뒤 가격 기준이 바뀌어도 ③이 본 할인율 그대로)
-      const p = Object.assign({}, PRICE[r.feature], r.listPrice != null ? { listPrice: Number(r.listPrice) } : {}, r.cap != null ? { discountCap: Number(r.cap) } : {});
-      const std = p.listPrice * r.qty;
+      const p = Object.assign({ feature: r.feature }, PRICE[r.feature], s ? { listPrice: s.unitPrice, discountCap: s.cap } : {});
+      const std = s ? s.std : 0;
       // 할인율은 부호 그대로: 표준보다 높게 받으면 음수 (v0.58 QA: 예전에는 "표준 단가"로 보였음)
-      return { product: p, qty: r.qty, amount: r.amount, std: std, discount: (std - r.amount) / std, org: orgText(r) };
+      return { product: p, qty: r.qty, amount: r.amount, std: std, discount: std ? (std - r.amount) / std : 0, org: orgText(r),
+        price: s ? '표준 단가 ' + C.stdPriceText(s, p.unit) + (s.months ? ', ' + s.months + '개월' : '') : (p.unit || '') };
     });
   }
   // 줄의 사용 업체 (v0.62, 표준 대응표 G-19): 적은 기관, 또는 "정해지지 않음(까닭)". 간접인데 둘 다 없으면 그렇게 적음
@@ -274,7 +294,8 @@
   const hold = C.holdOf(c);
   const holdStops = function (action, code) { return !!C.holdBlocksAction(c, code, action); };
   // 계약 묶음 보기: 원계약과 변경, 연장, 해지를 한 장에서 (SCR-42, REQ-ARC-02)
-  $('#doc-meta').innerHTML = C.meta([esc(c.id), esc(C.serviceLabel(c.services)), esc(kindText), round + '차 기안', C.statusBadge(c), C.holdBadge(hold),
+  //   (설계 검토 2026-11-11 7번) 진행 중단 요청 중이면 상태 배지 옆에 "중단 요청 중"(C.stopBadge, 없으면 빈 글)
+  $('#doc-meta').innerHTML = C.meta([esc(c.id), esc(C.serviceLabel(c.services)), esc(kindText), round + '차 기안', C.statusBadge(c), C.holdBadge(hold), C.stopBadge(c), C.lateBadge(c) /* W7-7 */,
     '<a class="doc-link" href="contract.html?id=' + encodeURIComponent(rootId) + '">계약 묶음 보기</a>']);
 
   const actionable = (c.approvals || []).filter(function (s) { return C.canAct(c, s, me); });
@@ -284,7 +305,8 @@
   // 보완 요청을 받은 기안자가 보완 완료를 누를 수 있는지 (최고관리자는 시연용으로 대신)
   //   기획자 결정 2026-11-03(C-44): 기안자 대신 지금 영업대표(바뀐 새 영업대표, 사용 중지면 대신 맡는 영업 리더, C.isSalesRep). 읽기만 하는 역할은 false
   const repMine = C.isSalesRep(c, me);
-  const canResubmit = c.status === 'SUPPLEMENT' && !!c.supplement && (repMine || me.role === 'SUPER') && !C.isReadOnly(me);
+  //   (설계 검토 2026-11-11 7번) 진행 중단 요청 중에는 보완 완료를 하지 않음(리더가 돌려보내면 다시 됨) [가정]
+  const canResubmit = c.status === 'SUPPLEMENT' && !!c.supplement && (repMine || me.role === 'SUPER') && !C.isReadOnly(me) && !C.stopPending(c);
   // 대리 지정으로 대신 처리하는 단계면 "최민준님 대신 (대리 지정 10.19 ~ 10.23)" 안내
   function behalfText(s) {
     const dl = s.userId !== me.id ? C.activeDelegation(s.userId, me.id) : null;
@@ -297,17 +319,30 @@
       ? '변경 내용(종류, 기간이나 수량, 사유, CRM 영업활동)을 확인한 뒤 화면 아래에서 승인, 보완 요청, 반려 중에 골라 주세요. 승인 의견은 적지 않아도 되고, 보완 요청과 반려는 사유를 꼭 적습니다.'
       : '계약 내용과 체크리스트, 첨부 파일을 확인한 뒤 화면 아래에서 승인, 보완 요청, 반려 중에 골라 주세요. 승인 의견은 적지 않아도 되고, 보완 요청과 반려는 사유를 꼭 적습니다. 보완을 요청하면 기안자가 고친 뒤 이 단계부터 이어서 결재합니다.',
     // 기획자 결정 2026-11-02 B-5(남은 것 고침): 견적서로 계약서를 대신한 계약은 ⑥이 날인하는 문서가 견적서(⑥ 자체는 그대로, [가정] C-18 ④)
-    S06: (quote ? '견적서' : '계약서 실물') + '의 고객사명, 체결 제품, 계약 금액, 계약 기간이 이 문서와 같은지 확인한 뒤 날인하고, 화면 아래에서 날인 완료로 처리해 주세요. 인장 사용 기록은 기존 구글 폼에 남깁니다.',
+    //   설계 검토 2026-11-11 3장 [가정]: 결재한 판과 같은 문서인지도 확인(D.SEAL_CHECKS에 더한 항목)
+    //   설계 검토 2026-11-11 9번: 전자계약은 영업지원이 회사 인증서로 서명(인장 대장에 적지 않음)
+    S06: esign ? ESIGN_WHERE + '의 전자계약서에서 고객사명, 체결 제품, 계약 금액, 계약 기간이 이 문서와 같은지, 결재한 판과 같은 글인지 확인한 뒤 회사 인증서로 서명하고, 화면 아래에서 인증서 서명 완료로 처리해 주세요. 서명한 날과 시각을 적고, 서명한 사람은 처리하는 사람으로 남습니다. 인장 대장에는 적지 않습니다.'
+      : (quote ? '견적서' : '계약서 실물') + '의 고객사명, 체결 제품, 계약 금액, 계약 기간이 이 문서와 같은지, 결재한 판과 같은 문서인지 확인한 뒤 날인하고, 화면 아래에서 날인 완료로 처리해 주세요. 인장 사용 기록은 기존 구글 폼에 남깁니다.',
     // 기획자 결정 2026-11-02 B-8: ⑦에서 서명본 체결일을 함께 적고 ⑧이 확인. B-5: 견적서로 대신한 계약은 고객 날인 최종 견적서와 고객 날인일
     S07: quote ? '고객 날인 최종 견적서(고객이 날인하거나 서명한 것, PDF나 스캔 이미지, 50MB 이하)를 화면 아래에서 올려 주세요. 견적서에 고객이 날인한 날도 적습니다. 올린 견적서는 고치거나 지울 수 없습니다.'
+      // 설계 검토 2026-11-11 9번: 전자계약은 양쪽 서명이 끝난 전자계약서의 출력본과 전자계약 체결일
+      : esign ? '고객이 ' + ESIGN_WHERE + '에서 서명을 마치면 전자계약서 출력본(PDF나 이미지, 50MB 이하)을 화면 아래에서 올려 주세요. 전자계약 체결일(양쪽 서명이 끝난 날)도 적습니다. 올린 출력본은 고치거나 지울 수 없습니다.'
       : '상대방 서명을 받은 뒤 화면 아래에서 체결본(PDF나 스캔 이미지, 50MB 이하)을 올려 주세요. 서명본에 적힌 체결일도 적습니다. 올린 체결본은 고치거나 지울 수 없습니다.',
     S08: quote ? '첨부 파일의 최종 견적서가 결재한 견적과 같은지, ⑦에서 적은 고객 날인일이 견적서와 같은지 확인해 주세요. 같으면 확인 완료, 스캔 문제나 날인 빠짐이면 다시 등록 요청, 내용이 다르면 반려합니다.'
-      : '첨부 파일의 체결본이 승인된 내용과 같은지, ⑦에서 적은 서명본 체결일이 체결본과 같은지 확인해 주세요. 같으면 확인 완료, 오탈자나 스캔 문제, 서명이나 날인 빠짐이면 다시 등록 요청, 계약 내용이 다르면 반려합니다.',
+      // 설계 검토 2026-11-11 9번, 4-1 9-1: 전자계약의 ⑧은 ⑥ 인증서 서명을 하지 않은 영업지원이 출력본을 확인
+      : esign ? '첨부 파일의 전자계약서 출력본이 승인된 내용과 같은지, 조항이 결재한 판과 같은지' + (legalNote ? '(바꾼 조항은 조항 대비표와 견줌)' : '') +
+        ', ⑥에 남긴 서명한 사람과 일시, ⑦에서 적은 전자계약 체결일이 출력본과 같은지 확인해 주세요. ⑥ 인증서 서명을 한 사람은 이 확인을 하지 않습니다. 같으면 확인 완료, 파일 문제나 서명 빠짐이면 다시 등록 요청, 계약 내용이 다르면 반려합니다.'
+      // 설계 검토 2026-11-11 3장 [가정]: 조항이 결재한 판과 같은지(D.SIGNED_CHECKS에 더한 항목). 표준계약서를 바꾼 계약은 조항 대비표와 견줌
+      : '첨부 파일의 체결본이 승인된 내용과 같은지, 조항이 결재한 판과 같은지' + (legalNote ? '(바꾼 조항은 조항 대비표와 견줌)' : '') +
+        ', ⑦에서 적은 서명본 체결일이 체결본과 같은지 확인해 주세요. 같으면 확인 완료, 오탈자나 스캔 문제, 서명이나 날인 빠짐이면 다시 등록 요청, 계약 내용이 다르면 반려합니다.',
     S09: change ? (hrChange ? '수불부에 HR 추가 충전 ' + c.changeQty + '건을 반영한 뒤 화면 아래에서 운영 변경 완료로 처리해 주세요.'
         : c.changeType === 'PERIOD' ? '라이선스나 도메인 기간을 새 종료일(' + C.fmtDate(c.endDate) + ')로 바꾼 뒤 화면 아래에서 운영 변경 완료로 처리해 주세요.'
         : 'CK 추가 충전 ' + c.changeQty + '건을 반영한 뒤 화면 아래에서 운영 변경 완료로 처리해 주세요.')
       : isTerm ? '해지일에 맞춰 라이선스나 도메인을 닫고 계약 종료일을 설정한 뒤 화면 아래에서 운영 종료 완료로 처리해 주세요.'
       : c.renewMode === 'AUTO' ? '라이선스나 도메인 기간을 새 계약 기간에 맞춰 연장한 뒤 화면 아래에서 기간 연장 완료로 처리해 주세요.'
+      // (설계 검토 2026-11-11 답 ⑤) 줄임과 조항만 변경은 서비스를 새로 여는 것이 아니라 바뀐 것을 반영하고 "적용일"을 적음(⑨ 확인 항목은 C.opsChecksFor) [가정: 두 문장]
+      : amendOff === 'REDUCE' ? '줄인 수량과 금액을 서비스에 반영한 뒤(라이선스 수량이나 도메인 이용 범위 줄이기, 계약 금액 설정) 화면 아래에서 운영 적용 완료로 처리해 주세요. 적용일도 적습니다.'
+      : amendOff === 'TERMS' ? '바뀐 조항 가운데 운영에 걸리는 것을 서비스에 반영한 뒤 화면 아래에서 운영 적용 완료로 처리해 주세요. 적용일도 적습니다.'
       : '서비스에 계약을 적용한 뒤(라이선스나 도메인 열기, 계약 정보 설정) 화면 아래에서 운영 적용 완료로 처리해 주세요. 실제 개통일도 적습니다.', // B-8
     // 기획자 결정 2026-11-02 B-3(추천과 다름): 운영 변경도 ⑩ 재무 확인. 끝나면 운영 변경이 계약 완료가 됨(기간 변경은 그때 묶음의 계약 기간이 바뀜)
     S10: change ? '변경 내용(' + (c.changeType === 'PERIOD' ? '바뀐 계약 기간' : /_PAID$/.test(c.changeType) ? '유상 충전 수량과 금액' : '무상 충전 수량') +
@@ -357,14 +392,16 @@
         '<strong>' + esc(C.ownerLabel(c.rejection.by)) + ' (' + C.fmtDateTime(c.rejection.at) + ')</strong><br>' + esc(c.rejection.reason) +
         '<br>기안자가 보완해 같은 번호의 ' + (round + 1) + '차로 다시 기안합니다.',
         // 보류 중(C-16)에는 다시 기안하지 못해 단추를 두지 않음(까닭은 맨 위 보류 안내)
-        mineRej && !hold ? '<a class="btn btn--primary btn--md" href="' + C.resubmitHref(c) + '">보완 후 재기안</a>' : '');
+        //   (설계 검토 2026-11-11 7번) 진행 중단 요청 중에도 두지 않음(C.canResubmit, 까닭은 맨 위 진행 중단 안내)
+        mineRej && !hold && C.canResubmit(c) ? '<a class="btn btn--primary btn--md" href="' + C.resubmitHref(c) + '">보완 후 재기안</a>' : '');
     } else if (actionable.length && me.role === 'SUPER') {
       html = notice('', '시연: 담당자 대신 처리해 볼 수 있습니다',
         '최고관리자는 모든 결재 문서를 볼 수 있고, 프로토타입에서는 담당자 대신 각 단계를 처리해 볼 수 있습니다. 실제 시스템에서는 담당자 본인과 관리자가 대리로 지정한 사람만 처리합니다(결재선 규칙의 대리 지정).' + ret);
-    } else if (c.status === 'APPROVED' || c.status === 'OPS_REVIEW') {
+    } else if ((c.status === 'APPROVED' || c.status === 'OPS_REVIEW') && !C.stopPending(c)) {
+      // (설계 검토 2026-11-11 답 ④) [가정] 진행 중단 요청 중에는 "체결 중입니다"와 "지금 차례"를 그리지 않음(남은 결재가 멈췄고, 지금 차례는 맨 위 진행 중단 안내에)
       // 해지, 그대로 연장, 운영 변경은 체결본 없이 운영 검토로 감 (v0.63 점검에서 고침: "체결본을 등록했습니다"가 나왔음)
       const noSign = short || change || !c.signedAt;
-      //   ③을 거치지 않는 운영 변경(기준 이내의 기간 변경과 무상 충전, 유상 충전)은 계약 검토 없이 바로 ⑨로 감 (v0.63 검토)
+      //   ③을 거치지 않는 운영 변경(기간 변경(설계 검토 2026-11-11 8번), 기준 이내의 무상 충전, 유상 충전)은 계약 검토 없이 바로 ⑨로 감 (v0.63 검토)
       //   안내 문장은 유상 충전에도 맞게 "영업 검토를 거치지 않는 변경"으로 씀(한도 안이라는 까닭은 유상 충전에 맞지 않음, v0.63 화면 글 점검)
       const noReview = change && !C.routedReview(c).length;
       html = notice('success', c.status === 'APPROVED' ? '계약 검토가 끝나 체결 중입니다' : noReview ? '운영 변경 중입니다' : noSign ? '계약 검토가 끝나 운영 검토 중입니다' : '체결이 끝나 운영 검토 중입니다',
@@ -380,8 +417,12 @@
       html = notice('success', '계약 완료',
         (c.completedAt ? C.fmtDateTime(c.completedAt) + '에 재무 확인까지 끝나 보관함에 들어갔습니다. ' : '') + '계약 기간: ' + C.fmtPeriod(detail.startDate, detail.endDate));
     }
-    $('#notice').innerHTML = holdNoticeHtml() + html + expiryNoticeHtml();
+    // (설계 검토 2026-11-11 7번) 진행 중단: 요청 중이면 누구 차례인지와 그 사람의 단추(확인, 돌려보내기, 날인본 회수 확인), 끝났으면 요청과 확인 기록(C.stopNotice)
+    //   (답 ④) 인증서 서명 뒤 진행 중단한 전자계약은 ⑥에 서명한 영업지원의 "전자계약 취소 확인" 단추도 같은 상자에(C.stopClick이 받음)
+    $('#notice').innerHTML = holdNoticeHtml() + C.stopNotice(c, me) + html + billGapNoticeHtml() + expiryNoticeHtml();
   }
+  // (설계 검토 2026-11-11 7번) 진행 중단 단추(맨 위 안내와 처리 막대의 data-stop): 처리하면 화면을 다시 불러와 상태와 단추를 새로 그림(계약 상세와 같은 방식)
+  document.addEventListener('click', function (e) { C.stopClick(e, me, function (msg) { C.flash(msg); location.reload(); }); });
   /* 보류 안내 (기획자 결정 2026-11-02 C-16): 이 계약의 거래처나 묶음에 보류가 걸려 있으면 맨 위에 까닭과 할 수 있는 일
    *   결재가 남은 계약: 승인(날인 완료, 체결본 등록, 확인 완료, 운영 적용, 재무 확인 포함)은 못 하고 반려, 보완 요청, 다시 등록 요청, 승인 취소는 됨
    *   끝난 계약과 반려된 계약: 새 기안(변경, 연장, 해지, 운영 변경, 보완 후 재기안)을 못 함 */
@@ -389,9 +430,29 @@
     if (!hold) return '';
     const going = ['IN_REVIEW', 'APPROVED', 'OPS_REVIEW', 'SUPPLEMENT'].indexOf(c.status) > -1;
     return notice('', going ? '보류 중이라 남은 결재를 승인할 수 없습니다' : '보류가 걸린 계약입니다', esc(C.holdText(hold, me)) + '<br>' +
-      (going ? '보류가 풀릴 때까지 승인, 날인 완료, 체결본 등록, 확인 완료, 운영 적용, 재무 확인을 할 수 없습니다. 반려, 보완 요청, 다시 등록 요청, 승인 취소는 할 수 있습니다.'
+      // (설계 검토 2026-11-11 남은 것 ④) 단추 이름은 계약에 맞게: 전자계약은 인증서 서명 완료, 출력본 등록(buttonLabel과 같은 말)
+      (going ? '보류가 풀릴 때까지 승인, ' + (esign ? '인증서 서명 완료, 출력본 등록' : '날인 완료, 체결본 등록') + ', 확인 완료, 운영 적용, 재무 확인을 할 수 없습니다. 반려, 보완 요청, 다시 등록 요청, 승인 취소는 할 수 있습니다.'
         : '보류가 풀릴 때까지 이 계약에 이어지는 새 기안(변경, 연장, 해지, 운영 변경, 보완 후 재기안)을 할 수 없습니다.') +
       ' 보류는 컴플라이언스 담당자가 풉니다.');
+  }
+  /* 분할 정산인데 청구 일정 의무가 없음 (설계 검토 2026-11-11 남은 것 ⑥, 3장의 재무질문 6번 추천 (다) [가정: 재무 답 전]. 알리기만 하고 막지 않음)
+   *   판단은 계약 상세, 개요와 같은 C.billingGap(이 계약의 묶음). 이 계약이 ⑧ ⑨ ⑩ 차례일 때만(체결본을 올린 뒤 계약 완료 전) [가정]
+   *     ⑩ 재무 확인을 하는 재무가 매출 인식을 보며 바로 더할 수 있게. ⑧ ⑨ 차례에도 같은 안내를 보여 영업대표와 재무가 미리 알게 함
+   *     해지 기안은 넣지 않음(계약을 끝내는 기안이라). 계약 완료된 뒤에는 계약 상세와 재무 개요의 "챙길 의무"가 알림
+   *   단추 "청구 일정 추가": 청구 일정을 더할 수 있는 사람만(C.canAddObligation BILLING: 재무, 지금 영업대표, 법무, 관리자, 시연용 최고관리자).
+   *     계약 상세로 가서 의무 추가 창을 바로 엶(contract.html?id=묶음&bill=add, contract.js 4-1.). 더할 수 없는 사람은 안내만
+   *   흔들림: 이 안내는 문서를 보이기 전에 다른 안내와 함께 한 번에 그림(renderNotice). 처리하면 화면을 다시 불러오므로 늦게 끼어들지 않음 */
+  function billGapNoticeHtml() {
+    const cur = C.currentStep(c);
+    if (isTerm || !cur || ['S08', 'S09', 'S10'].indexOf(cur.step) < 0) return '';
+    const b = C.bundleOf(rootId);
+    if (!C.billingGap(b)) return '';
+    const can = C.canAddObligation(me, b.root, 'BILLING');
+    // (2026-11-14 주말 점검 W7, icfr-06) 기록(원계약, 연장, 추가 변경)마다 봄: 청구 일정이 빠진 기록과 그 기간을 문장에 넣음(C.billingGapText)
+    return notice('', '분할 정산인데 청구 일정 의무가 없음',
+      '정산 방식이 분할인데 ' + esc(C.billingGapText(b)) + '에 기한이 있는 청구 일정 의무가 없습니다. 분할 청구마다 기한과 금액을 청구 일정 의무로 더하면 재무가 기한 전에 이메일을 받습니다. ' +
+      '의무는 계약 상세에서 더하고, 더하지 않아도 결재는 그대로 진행됩니다.' + (can ? '' : ' 재무, 영업대표, 법무가 더할 수 있습니다.'),
+      can ? '<a class="btn btn--secondary btn--md" href="contract.html?id=' + encodeURIComponent(b.id) + '&amp;bill=add">청구 일정 추가</a>' : '');
   }
   /* 계약이 끝난 뒤의 차례 안내 (기획자 결정 2026-11-02 A-10, A-11)
    *   ⑨ 만료 처리와 ③ 만료 유예 확인은 이 문서가 아니라 계약 상세에서 처리함(C.turnHref). 이 문서에는 지금 상태와 그 화면 링크만
@@ -440,7 +501,8 @@
     }] : []).concat(steps.map(function (s) {
       const st = D.APPROVAL_STATE[s.state];
       // ⑥~⑩이 끝나면 "승인" 대신 날인, 등록, 확인, 적용으로 표시
-      const label = s.state === 'DONE' && D.STEPS[s.step].done ? D.STEPS[s.step].done : st.label;
+      //   설계 검토 2026-11-11 9번: 전자계약의 ⑥은 "서명"(C.stepDone)
+      const label = s.state === 'DONE' && C.stepDone(s.step, c) ? C.stepDone(s.step, c) : st.label;
       let t;
       if (s.state === 'DONE' || s.state === 'REJECTED') t = C.fmtDateTime(s.decidedAt) + (s.onBehalfOf ? '<br>' + esc(C.josa(C.ownerLabel(s.decidedBy), '이', '가')) + ' 대신' : '');
       else if (s.state === 'PENDING') t = C.waitDays(c, s) + '일째';
@@ -502,11 +564,21 @@
       : short
       ? C.josa(isTerm ? '해지 기안' : '연장 검토', '은', '는') + ' ' + s03 + ', ④ 법무가 승인한 뒤 ⑨ 고객지원 ' + (isTerm ? '운영 종료' : '기간 연장') + ', ⑩ 재무 확인을 거칩니다. 체크리스트, 날인, 체결본은 없습니다.'
       : '거치는 단계: ' + routed + '. 순서는 ' + order + '이고, 생략한 단계는 건너뜁니다. 무엇을 생략할지는 체크리스트 답과 개인정보 처리위탁 계약 여부로 정해졌습니다. ' +
-        '승인 뒤에는 ⑥ 인장 날인부터 ⑩ 재무 확인까지 하나씩 차례로 거칩니다.';
+        // 설계 검토 2026-11-11 9번: 전자계약은 ⑥이 영업지원의 인증서 서명이고 ⑧은 ⑥을 하지 않은 다른 영업지원
+        (esign ? '승인 뒤에는 ⑥ 인증서 서명(영업지원, ' + C.signMethodLabel(c) + ')부터 ⑩ 재무 확인까지 하나씩 차례로 거칩니다. ⑧ 출력본 확인은 ' + C.esignCheckerWhy(c) + '합니다.'
+          : '승인 뒤에는 ⑥ 인장 날인부터 ⑩ 재무 확인까지 하나씩 차례로 거칩니다.');
   }
 
   /* ---------- 4. 기본 정보, 금액, 체크리스트, 첨부, 결재 기록 ---------- */
   function info(label, value) { return '<div><dt>' + esc(label) + '</dt><dd>' + value + '</dd></div>'; }
+  // 설계 검토 2026-11-11 9번: 지금 차수의 마지막 ⑥ 인증서 서명 기록(서명한 사람 certSigner, 일시 certSignedAt). 없으면 null
+  function certRecord() {
+    return (c.history || []).filter(function (h) { return h.step === 'S06' && h.action === 'APPROVE' && h.certSigner && (h.round || 1) === round; }).pop() || null;
+  }
+  function approvalOf(code) { return (c.approvals || []).find(function (x) { return x.step === code; }) || null; }
+  // ⑥ 인증서 서명에 남길 서명한 사람: 처리하는 사람(대리 지정이면 대신 맡은 사람). 최고관리자가 시연으로 대신 누르면 그 차례의 담당자
+  //   [가정] 시연에서도 ⑧ 직무 분리(⑥을 한 사람과 다른 영업지원)가 실제처럼 보이게
+  function certSignerOf(s) { return s && me.role === 'SUPER' && s.userId !== me.id && !C.activeDelegation(s.userId, me.id) ? s.userId : me.id; }
   // 기획자 결정 2026-11-02 E-1 ①: 같은 고객의 다른 계약이 같은 영업기회번호를 쓰면 기안자가 적은 까닭(contract.oppDup { ids, reason })
   //   주로 ② 영업지원이 봄. 볼 수 없는 열람 제한 계약은 번호 대신 "열람 제한 계약"
   function oppDupHtml() {
@@ -517,6 +589,34 @@
       return o && C.canView(o, me) ? '<a class="doc-link" href="review.html?id=' + encodeURIComponent(x) + '">' + esc(x) + '</a>' : '열람 제한 계약';
     });
     return '<span class="cell-meta">같은 번호를 쓰는 같은 고객의 다른 계약: ' + ids.join(', ') + '. 까닭: ' + esc(d.reason || '-') + '</span>';
+  }
+  // (2026-11-14 주말 점검 W7, abc-06 선택) 같은 고객이 같은 영업기회번호로 앞서 기안했다가 진행 중단한 계약(C.oppStoppedOf). 보이기만 하고 막지 않음
+  //   진행 중단 계약은 같은 고객의 새 기안을 막지 않으므로(설계 검토 7번 [가정]) ②가 앞 계약의 반려와 중단 이력을 볼 수 있게. 볼 수 없는 열람 제한 계약은 "열람 제한 계약"
+  //   문서를 그릴 때 한 번 정해져 화면이 흔들리지 않음
+  function oppStoppedHtml() {
+    const list = C.oppStoppedOf(c);
+    if (!list.length) return '';
+    const ids = list.map(function (o) {
+      return C.canView(o, me) ? '<a class="doc-link" href="review.html?id=' + encodeURIComponent(o.id) + '">' + esc(o.id) + '</a>' +
+        ((o.history || []).some(function (h) { return h.action === 'REJECT'; }) ? '(반려 뒤 진행 중단)' : '(진행 중단)') : '열람 제한 계약';
+    });
+    return '<span class="cell-meta">같은 번호로 앞서 기안했다가 진행 중단한 같은 고객의 계약: ' + ids.join(', ') + '</span>';
+  }
+  // (2026-11-14 주말 점검 W7, icfr-08) 변경 계약의 자동갱신과 해지 통지 일수가 이 변경 전의 지금 값(C.currentTerms의 before, skip)과 다르면 "바뀜"과 앞 값.
+  //   변경의 두 값은 "변경 뒤 계약 전체의 값"이라 계약 완료되면 묶음의 값이 됨(C.bundleOf). 자동갱신 값을 적지 않은 예전 예시 변경은 견주지 않음
+  //   결재자(②, ⑧)가 통지 기한이나 자동갱신을 바꾼 것을 놓치지 않게. 문서를 그릴 때 한 번 정해져 흔들리지 않음
+  //   (2026-11-14 주말 점검, 코드 다시 보기 common-03 2차) 기안 때 남긴 묶음 값(c.renewBase, new-contract.js formRecord)이 있으면 "변경 전"은 그 값.
+  //     묶음 값 셈(common.js renewTermsOf의 kept)과 같은 기준이라, 결재 중에 "바뀜"이 보이는 것과 계약 완료 뒤 묶음 값이 바뀌는 것이 맞음. 없으면(예전 기록) 예전 셈
+  function renewChangedHtml() {
+    if (c.kind !== 'AMEND' || !(c.autoRenew || f.autoRenew)) return '';
+    const rb = c.renewBase;
+    const t = rb ? { ready: true, autoRenew: rb.autoRenew, noticeDays: rb.autoRenew === 'YES' ? Number(rb.noticeDays) || null : null }
+      : C.currentTerms(rootId, { before: c.requestedAt || C.nowStamp(), skip: c.id });
+    if (!t || !t.ready || !t.autoRenew) return '';
+    const nowDays = detail.autoRenew === 'YES' ? Number(detail.noticeDays) || null : null;
+    if (t.autoRenew === detail.autoRenew && (t.noticeDays || null) === nowDays) return '';
+    const before = t.autoRenew === 'YES' ? '있음(만료 ' + (t.noticeDays || '-') + '일 전)' : '없음';
+    return ' ' + C.badge('attention', '바뀜') + '<span class="cell-meta">변경 전: ' + esc(before) + '. 계약 완료되면 이 값이 계약 묶음의 자동갱신과 해지 통지 기한이 됩니다.</span>';
   }
   function renderBasic() {
     $('#basic').innerHTML = [
@@ -535,18 +635,22 @@
         (C.salesRepOf(c) !== c.requesterId ? '<span class="cell-meta">처음 기안 ' + esc(C.ownerLabel(c.requesterId)) + '</span>' : '') +
         (C.repNote(c) ? '<span class="cell-meta">' + C.badge('attention', C.repNote(c)) + '</span>' : '')),
       // 판다(CRM) 영업기회번호: 규칙에 맞으면 판다로 가는 링크 (v0.32)
-      info('영업기회번호', (detail.opportunity ? C.pandaLink(detail.opportunity) : '-') + oppDupHtml()),
+      info('영업기회번호', (detail.opportunity ? C.pandaLink(detail.opportunity) : '-') + oppDupHtml() + oppStoppedHtml()), // (2026-11-14 주말 점검 W7, abc-06)
       info('계약 방식', esc(D.METHODS[detail.method])),
       info('정산 방식', esc(D.SETTLEMENTS[detail.settlement])),
       info('계약 기간', C.fmtPeriod(detail.startDate, detail.endDate)),
     ]).concat(signs ? [
       // 기획자 결정 2026-11-02 B-5(REQ-REG-25): 체결 문서. 견적서로 계약서를 대신한 계약은 "계약서 대신" 배지로 ②~⑥ 결재자도 바로 알게
       info('체결 문서', quote ? C.badge('line', '계약서 대신') + ' 고객이 날인한 최종 견적서<span class="cell-meta">공급가액 ' + won(D.QUOTE_INSTEAD.under) + ' 미만이라 계약서를 쓰지 않음</span>' : '계약서'),
+      // 설계 검토 2026-11-11 9번: 체결 방식. 전자계약이면 배지와 ⑥에 남긴 서명한 사람과 일시(아직이면 ⑥에서 남긴다는 안내)
+      info('체결 방식', esign ? C.badge('line', '전자계약') + ' ' + esc(C.signMethodLabel(c)) + '<span class="cell-meta">' +
+        (certRecord() ? esc(C.esignNote(certRecord().certSigner, certRecord().certSignedAt)) : '⑥에서 영업지원이 회사 인증서로 서명하고 서명한 사람과 일시를 남김') + '</span>'
+        : esc(C.signMethodLabel(c))),
       // 기획자 결정 2026-11-02 B-8: ⑦에서 받은 서명본 체결일(견적서는 고객 날인일)과 올린 날, ⑨에서 받은 실제 개통일. 아직이면 어느 단계에서 받는지
       info(SIGN_DAY, C.signedDate(c) ? C.fmtDate(C.signedDate(c)) + '<span class="cell-meta">올린 날 ' + C.fmtDate(c.signedAt) + '</span>' : '<span class="cell-meta">⑦에서 받음</span>'),
-      info('실제 개통일', C.openDate(c) ? C.fmtDate(C.openDate(c)) : '<span class="cell-meta">⑨에서 받음</span>'),
+      info(OPEN_DAY, C.openDate(c) ? C.fmtDate(C.openDate(c)) : '<span class="cell-meta">⑨에서 받음</span>'), // 설계 검토 2026-11-11 답 ⑤: 줄임과 조항만은 적용일
     ] : []).concat([
-      info('자동갱신', detail.autoRenew === 'YES' ? '있음 (해지 통지: 만료 ' + (detail.noticeDays || '-') + '일 전)' : '없음'),
+      info('자동갱신', (detail.autoRenew === 'YES' ? '있음 (해지 통지: 만료 ' + (detail.noticeDays || '-') + '일 전)' : '없음') + renewChangedHtml()), // (2026-11-14 주말 점검 W7, icfr-08) 변경이면 "바뀜"
       info('개인정보 처리위탁 계약', c.personalData ? '있음' : '없음'),
       info('서비스 수준 협약(SLA)', (c.sla || f.sla) === 'YES' ? '있음' : '없음'), // v0.40
       info('열람 제한', c.restricted ? C.icon('lock', 'sm') + '있음' + (C.viewerText(c) ? '<span class="cell-meta">지정 열람자: ' + esc(C.viewerText(c)) + '</span>' : '') : '없음'), // 지정 열람자 (v0.52)
@@ -559,7 +663,8 @@
     const list = signs ? C.dateOrderIssues(c) : [];
     if (!list.length) return '';
     return '<div class="doc-aside" role="note"><p class="doc-aside-title">' + C.icon('alert', 'sm') + '날짜 순서를 확인해 주세요</p>' +
-      '<ul class="doc-aside-list">' + list.map(function (x) { return '<li>' + esc(quote ? x.text.replace(/서명본 체결일/g, SIGN_DAY) : x.text) + '</li>'; }).join('') + '</ul>' +
+      // 날짜 이름은 C.dateOrderIssues가 계약에 맞게 씀(고객 날인일, 전자계약 체결일, 적용일. 설계 검토 2026-11-11 답 ⑤, 남은 것 ④)
+      '<ul class="doc-aside-list">' + list.map(function (x) { return '<li>' + esc(x.text) + '</li>'; }).join('') + '</ul>' +
       '<p class="doc-aside-note">막지는 않습니다. ' + DOC + '의 날짜와 실제 일정을 한 번 더 확인해 주세요.</p></div>';
   }
   // 같은 거래처 최근 계약 상자 (기획자 결정 2026-11-02 E-2): 계약번호, 계약종류, 기안일, 계약 금액(오른쪽), 상태. 볼 수 없는 열람 제한 계약은 건수만
@@ -585,21 +690,28 @@
 
   /* 유상 충전의 기능과 표준 금액 (기획자 결정 2026-11-02 B-3 덧붙임, G-10 ②): 기안할 때 남긴 그날 표준 단가로 견줌(막지 않음)
    *   changeFeature(기능), changeListPrice(그날 표준 단가), changePriceUnit(단위), changePriceFrom(가격 기준 적용 시작일)
-   *   단위가 건일 때만 표준 금액(표준 단가 x 수량)과 할인율. 아니면 견주지 않음(카피킬러 건 단위 가격은 C-33 뒤)
-   *   이 칸을 두기 전에 기안한 기록은 기능이 없어 "-". 금액은 오른쪽 */
+   *   건당(단위 종류 PER_UNIT, 아래 남은 것 ⑧)일 때만 표준 금액(표준 단가 x 수량)과 할인율. 아니면 견주지 않음(카피킬러 건 단위 가격은 C-33 뒤)
+   *   이 칸을 두기 전에 기안한 기록은 기능이 없어 "-". 금액은 오른쪽
+   *   (설계 검토 2026-11-11 남은 것 ⑧) 건당인지는 단위 글자(/^건/) 대신 단위 종류(C.unitKindOf가 PER_UNIT)로. 할인 예외 점검(discount-review.js paidOf)과 같은 규칙
+   *     [가정] 남긴 적용 시작일(changePriceFrom)의 가격 줄, 없으면 기안한 날 가격 줄의 종류. 그 줄의 단위가 남긴 단위와 다르거나 줄이 없으면 남긴 단위 글자로 정함
+   *     티어 단가를 썼으면(changePriceTier, ops-change.js가 남김) 표준 단가 아래에 "티어 1 단가. 기본 …원"(C.stdPriceText와 같은 말) */
   function paidRows(dd) {
     if (!c.changeFeature) return [dd('기능', '-'), dd('표준 금액 대비', '<span class="cell-meta">기능을 고르기 전에 기안한 기록이라 견주지 않음</span>')];
     const feat = D.FEATURES.filter(function (x) { return x.id === c.changeFeature; })[0] || {};
-    const unit = c.changePriceUnit || '', perCase = /^건/.test(unit), qty = Number(c.changeQty) || 0;
+    const unit = c.changePriceUnit || '', qty = Number(c.changeQty) || 0;
+    // 가격 줄과 단위 종류는 C.paidPriceRef 하나로(할인 예외 점검과 같은 셈, 2026-11-11 정리)
+    const pref = C.paidPriceRef(c), pr = pref.ref;
+    const perCase = pref.kind === 'PER_UNIT';
     const std = perCase ? (Number(c.changeListPrice) || 0) * qty : 0;
     const disc = std ? (std - (Number(c.changeAmount) || 0)) / std : null;
+    const tierText = c.changePriceTier ? C.tierLabel(c.changePriceTier) + ' 단가' + (pr ? '. 기본 ' + won(pr.listPrice) : '') : ''; // 설계 검토 2026-11-11 남은 것 ⑧
     const rows = [dd('기능', esc(C.featureLabel({ product: feat.product, feature: c.changeFeature }))),
-      dd('표준 단가', c.changeListPrice != null ? won(c.changeListPrice) + '<span class="cell-meta">' + esc(unit) + (c.changePriceFrom ? ', ' + C.fmtDate(c.changePriceFrom) + '부터 적용' : '') + '</span>' : '-', 'amount')];
+      dd('표준 단가', c.changeListPrice != null ? won(c.changeListPrice) + '<span class="cell-meta">' + esc([unit, tierText].filter(Boolean).join(', ')) + (c.changePriceFrom ? ', ' + C.fmtDate(c.changePriceFrom) + '부터 적용' : '') + '</span>' : '-', 'amount')];
     if (!perCase) {
       return rows.concat([dd('표준 금액 대비', '건 단위 표준 단가가 없어 견주지 않음' + (/^CK_/.test(c.changeType) ? '<span class="cell-meta">카피킬러 건 단위 가격이 정해지면 보임(C-33 뒤)</span>' : ''))]);
     }
     return rows.concat([dd('표준 금액 (표준 단가 x 수량)', won(std), 'amount'),
-      dd('할인율', disc == null ? '-' : Math.abs(disc) < 1e-9 ? '0%, 표준 단가 그대로' : disc < 0 ? '표준보다 ' + pct(-disc) + ' 높음' : pct(disc) + ' 할인', 'amount')]);
+      dd('할인율', disc == null ? '-' : disc === 0 ? '0%, 표준 단가 그대로' : disc < 0 ? '표준보다 ' + pct(-disc) + ' 높음' : pct(disc) + ' 할인', 'amount')]);
   }
   function renderAmount() {
     if (change) {
@@ -636,7 +748,7 @@
         dd('원계약', '<a href="contract.html?id=' + encodeURIComponent(rootId) + '">' + esc(c.parentId) + '</a>'),
         dd('해지일', C.fmtDate(c.terminateDate)),
         dd('해지 사유', esc(c.reason || '-')),
-        dd('환불과 위약금', esc(c.refundNote || '없음')),
+        dd('환불과 위약금', esc(C.refundText(c))), // 2026-11-16 결정 5: 환불 금액, 위약금, 환불받는 곳
       ] : [
         dd('원계약', '<a href="contract.html?id=' + encodeURIComponent(rootId) + '">' + esc(c.parentId) + '</a>'),
         dd('검토 결과', '그대로 자동갱신 (금액과 조건 그대로)'),
@@ -644,6 +756,12 @@
         dd('계약 금액', won(c.amount) + ' (부가세 별도)', 'amount'),
         dd('그대로 연장하는 이유', esc(c.reason || '-')),
       ]).join('') + '</dl>';
+      return;
+    }
+    // (설계 검토 2026-11-11 6번) 줄임과 조항만 변경은 표준 단가와 견주지 않으므로 제품과 금액 표 대신 "변경 전과 후"를 이 묶음의 본문으로(아래 amendDiffHtml)
+    if (c.kind === 'AMEND' && C.priceCheckOff(c)) {
+      $('#amount-title').innerHTML = '<span class="num">2</span>변경 전과 후';
+      $('#amount').innerHTML = amendDiffHtml(false);
       return;
     }
     const rows = productRows();
@@ -666,16 +784,17 @@
     const stdTotal = rows.reduce(function (a, r) { return a + r.std; }, 0);
     // 할인율 칸은 "표준 단가", "N% 할인", "N% 높음"만 보여 줌. 할인율 한도 값과 한도 초과 여부는 이 표에 두지 않음
     // (한도를 지켰는지는 체크리스트 3번에서 봄). 금액에는 원을 붙임 (REQ-UI-17)
-    const rateText = function (d) { return Math.abs(d) < 1e-9 ? '표준 단가' : d < 0 ? pct(-d) + ' 높음' : pct(d) + ' 할인'; };
+    const rateText = function (d) { return d === 0 ? '표준 단가' : d < 0 ? pct(-d) + ' 높음' : pct(d) + ' 할인'; };
     // 총액 줄에 계약 전체 할인율(표준 금액 합계 대비, v0.63 표준 대응표 G-16: 0원 줄과 할인이 섞여도 전체 폭이 보이게)
     const totalRate = stdTotal ? rateText((stdTotal - total) / stdTotal) : '';
     $('#amount').innerHTML =
       '<div class="tbl-wrap"><table class="tbl tbl--compact">' +
-        '<caption class="sr-only">제품별 금액: 제품과 기능(단위, 사용 업체), 수량, 표준 금액, 계약 금액, 할인율. 총액 줄에 계약 전체 할인율</caption>' +
+        '<caption class="sr-only">제품별 금액: 제품과 기능(표준 단가와 단위, 기간제는 달 수, 사용 업체), 수량, 표준 금액, 계약 금액, 할인율. 총액 줄에 계약 전체 할인율</caption>' +
         '<thead><tr><th scope="col">제품과 기능</th><th scope="col" class="num">수량</th><th scope="col" class="num">표준 금액</th><th scope="col" class="num">계약 금액</th><th scope="col" class="num">할인율</th></tr></thead>' +
         '<tbody>' + rows.map(function (r) {
           // "프리즘 결함검사" 아래에 단위(예: 기관, 1년). v0.49에 플랜을 없애 플랜 이름 대신 단위
-          return '<tr><td>' + esc(C.featureLabel(r.product)) + '<span class="product-unit">' + esc(r.product.unit) + '</span>' +
+          //   (설계 검토 2026-11-11 3번, 4번, 4-1 3-1) 단위 대신 "표준 단가 12,000,000원(기관, 1년), 24개월"(티어 단가면 티어와 기본 단가도)
+          return '<tr><td>' + esc(C.featureLabel(r.product)) + '<span class="product-unit">' + esc(r.price) + '</span>' +
             (r.org ? '<span class="product-unit product-org">' + esc(r.org) + '</span>' : '') + '</td><td class="num">' + num(r.qty) + '</td><td class="num">' + won(r.std) + '</td>' +
             '<td class="num">' + won(r.amount) + '</td><td class="num">' + rateText(r.discount) + '</td></tr>';
         }).join('') + '</tbody>' +
@@ -684,17 +803,122 @@
       '</table></div>';
   }
 
+  /* 변경 전과 후 (설계 검토 2026-11-11 6번): 변경 계약(AMEND)에만. 변경 종류(추가, 줄임, 조항만)와 C.amendDiff의 셈
+   *   변경 전: 이 변경을 기안하기 전에 계약 완료된 원계약, 변경, 연장, 운영 변경으로 셈한 지금 조건(계약 상세의 "지금 유효한 조건"과 같은 규칙)
+   *   변경 뒤: 변경 전에 이 변경의 제품 줄을 더함. 변경 금액은 늘거나 준 만큼(줄임은 빼기, 조항만은 0원)
+   *   기능마다 수량과 금액(작은 줄), 맨 아래 계약 금액. 원계약에 제품 줄이 없으면(시스템 도입 전 계약) 변경 전과 뒤 수량은 "-"이고 금액만
+   *   추가는 제품과 금액 표 아래 소제목으로 덧붙이고(sub), 줄임과 조항만은 이 묶음의 본문(renderAmount). 표준 금액과 할인율은 줄임, 조항만에 두지 않음 [가정] */
+  function amendDiffHtml(sub) {
+    const d = C.amendDiff(c), k = C.amendKindOf(c);
+    const unit = function (f) { return C.termsUnit(f); };
+    const cell = function (x, f, signed) {
+      if (!x) return '-';
+      return esc(signed ? C.signedNum(x.qty, unit(f)) : num(x.qty) + unit(f)) + '<span class="cell-meta">' + esc(signed ? C.signedNum(x.amount, '원') : won(x.amount)) + '</span>';
+    };
+    const desc = '변경 종류: ' + C.amendKindLabel(k) + '. 이 변경을 기안하기 전에 계약 완료된 원계약, 변경, 연장, 운영 변경으로 셈한 조건(변경 전)에 이 변경을 더한 조건(변경 뒤)입니다. ' +
+      '변경 금액은 늘거나 준 만큼이라 줄임은 빼기(-)로 적습니다. 금액은 부가세 별도입니다.' +
+      (k === 'REDUCE' && c.reduceOver && c.reduceOver.over ? ' ' + reduceOverText(c.reduceOver) // 2026-11-16 밤 w7-02: ③을 거친 까닭(변경 뒤 할인율)
+        : k === 'REDUCE' ? ' 줄임 변경이라 표준 단가와 견주지 않습니다(체크리스트 2, 3번 해당 없음).' : k === 'TERMS' ? ' 조항만 바꾸는 변경이라 제품과 금액은 바뀌지 않습니다(0원).' : '');
+    const head = (sub ? '<h3 class="box-subtitle" id="amend-diff-title">변경 전과 후</h3>' : '') + '<p class="section-desc">' + esc(desc) + '</p>';
+    if (!d) return head + '<p class="recent-empty">원계약이 아직 계약 완료가 아니라 변경 전 조건을 셀 수 없습니다.</p>';
+    /* (2026-11-14 주말 점검 W7, icfr-04) 줄임 변경은 줄마다 참고 금액(계약 단가 x 줄이는 수량 x 남은 달 수 / 그 기간 달 수)을 "바뀌는 만큼" 칸 아래 작은 줄로 보이고,
+     *   줄인 금액이 그보다 크면 "참고보다 많이 줄임". 막지 않고 보기만 함(③을 거칠지는 묶음 확인 6의 답을 따름). 셈은 control-checks.js X.shrinkRef
+     *   (할인 예외 점검 SCR-61의 셋째 참고 표와 같은 값). 셀 수 없으면 표 아래 한 줄에 까닭. 결재 문서를 그릴 때 한 번에 함께 그려 화면이 밀리지 않음 */
+    /*   (2026-11-14 주말 점검, 코드 다시 보기 review-01) 예전에는 refOf가 그 기능의 첫 줄 하나만 돌려줘, 같은 기능 줄이 둘이면(C.amendDiff는 한 줄로 합침)
+     *     "-2개" 줄에 "x 1" 참고 금액이 보이고 배지도 할인 예외 점검과 달랐음. 이제 X.shrinkRef의 기능마다 합친 값(feats: 수량, 참고 금액, 줄인 금액을 더하고
+     *     over는 그 합)과 셈 글(X.shrinkCalc)을 써서 할인 예외 점검 셋째 참고 표와 같은 셈과 글. 배지는 기능마다(할인 예외 점검은 한 기능이라도 넘으면 올림 [가정]) */
+    const CTL = window.CLIMB_CTL;
+    const sr = k === 'REDUCE' && CTL && CTL.shrinkRef ? CTL.shrinkRef(c) : null;
+    const refOf = function (f) { return sr && sr.feats ? sr.feats.filter(function (x) { return x.feature === f; })[0] : null; };
+    const refHtml = function (x) {
+      return x ? '<span class="cell-meta">참고 금액 ' + esc(won(x.ref) + '(' + CTL.shrinkCalc(x) + ')') +
+        (x.over ? ' ' + C.badge('attention', '참고보다 많이 줄임') : '') + '</span>' : '';
+    };
+    const rows = d.rows.length ? d.rows.map(function (r) {
+      const over = r.after && r.after.qty < 0 ? ' ' + C.badge('danger', '지금 수량보다 많이 줄임') : '';
+      return '<tr><td>' + esc(C.termsFeature(r.feature)) + over + '</td><td class="num">' + cell(r.before, r.feature) + '</td>' +
+        '<td class="num">' + (r.change ? cell(r.change, r.feature, true) + refHtml(refOf(r.feature)) : '-') + '</td><td class="num">' + cell(r.after, r.feature) + '</td></tr>';
+    }).join('') : '<tr><td>' + esc(C.serviceLabel(c.services)) + '<span class="product-unit">제품 줄 없음</span></td><td class="num">-</td><td class="num">-</td><td class="num">-</td></tr>';
+    const t = d.terms;
+    const notes = (d.known ? [] : ['원계약에 제품 줄이 없어(시스템 도입 전 계약이거나 제품 줄이 없는 변경이 있음) 변경 전과 뒤 수량은 셀 수 없고 계약 금액만 셉니다'])
+      .concat(t.pending.length ? ['진행 중이라 변경 전에 넣지 않은 기안: ' + t.pending.map(function (x) { return x.id + ' ' + C.kindLabel(x); }).join(', ')] : [])
+      .concat(sr && sr.why ? ['줄임의 참고 금액은 ' + sr.why + ' 셈하지 못했습니다'] : []); // (2026-11-14 주말 점검 W7, icfr-04) why는 "~라", "~어"로 끝나는 까닭
+    return head +
+      '<div class="tbl-wrap"><table class="tbl tbl--compact"' + (sub ? ' aria-labelledby="amend-diff-title"' : '') + '>' +
+        '<caption class="sr-only">변경 전과 후: 제품과 기능, 변경 전, 바뀌는 만큼, 변경 뒤(수량과 금액)</caption>' +
+        '<thead><tr><th scope="col">제품과 기능</th><th scope="col" class="num">변경 전</th><th scope="col" class="num">바뀌는 만큼</th><th scope="col" class="num">변경 뒤</th></tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+        '<tfoot><tr><th scope="row">계약 금액 (부가세 별도)</th><td class="num total">' + won(d.beforeAmount) + '</td><td class="num total">' + esc(C.signedNum(d.change, '원')) + '</td>' +
+          '<td class="num total">' + won(d.afterAmount) + '</td></tr></tfoot>' +
+      '</table></div>' +
+      (notes.length ? '<p class="recent-empty">' + esc(notes.join('. ')) + '.</p>' : '');
+  }
+  // 추가 변경은 제품과 금액 표(할인율 포함) 아래에 "변경 전과 후"를 덧붙임. 줄임과 조항만은 renderAmount가 이미 본문으로 그림
+  function renderAmendDiff() {
+    if (c.kind !== 'AMEND' || C.priceCheckOff(c)) return;
+    $('#amount').insertAdjacentHTML('beforeend', amendDiffHtml(true));
+  }
+
+  /* 견적 상자 (설계 검토 2026-11-11 1번 "가볍게 잇기", 4-1 5-1)
+   *   제품과 금액 표 아래. 날인과 체결본을 거치는 계약(신규, 변경, 바꿔서 연장)만. 해지, 그대로 연장, 운영 변경은 두지 않음
+   *   계약에 남긴 연결한 견적(C.quoteLinkOf)과 영업기회번호가 같은 다른 견적(C.quotesOfOpp, 출력한 판만)을 한 표로:
+   *     견적(번호와 판, 견적일, 상태), 마지막 출력(출력 횟수), 공급가액(부가세 별도라 계약 금액과 같은 기준), 한도 넘은 줄 수
+   *   연결한 견적의 공급가액이 계약 금액과 다르면 두 금액을 한 줄로 알림(막지 않음)
+   *   견적서 링크는 견적을 볼 수 있는 사람(C.canSeeQuote)에게만. 번호, 출력일, 금액은 결재 문서를 보는 사람 모두 [가정: 계약 금액을 이미 봄]
+   *   견적의 영업기회번호는 선택(4-1 5-1)이라 번호가 없는 견적은 "같은 영업기회"에 나오지 않음. 계약에 남긴 번호로 이은 견적은 늘 보임 */
+  function contractAmountForQuote() {
+    const rows = productRows();
+    return rows.length ? rows.reduce(function (a, r) { return a + (Number(r.amount) || 0); }, 0) : Number(c.amount) || 0;
+  }
+  function quoteBoxHtml() {
+    if (!signs) return '';
+    const lk = C.quoteLinkOf(c), lq = lk && lk.q;
+    const others = C.quotesOfOpp(detail.opportunity, lq);
+    const head = '<h3 class="box-subtitle" id="quote-box-title">견적</h3>' +
+      '<p class="section-desc">이 계약에 연결한 견적과 영업기회번호가 같은 다른 견적(출력한 판)입니다. 공급가액은 부가세 별도라 계약 금액과 같은 기준입니다.</p>';
+    const row = function (q, linked) {
+      const st = C.quoteStatus(q), last = C.quoteLastIssue(q), over = (q.lines || []).filter(C.quoteLineOverCap).length;
+      const name = esc(q.no + ' ' + q.ver + '판');
+      return '<tr><td>' + (C.canSeeQuote(me, q) ? '<a class="cell-title" href="quote.html?no=' + encodeURIComponent(q.no) + '&ver=' + q.ver + '&view=1">' + name + '</a>' : '<span class="cell-title">' + name + '</span>') +
+        (linked ? ' ' + C.badge('line', '연결한 견적') : '') +
+        '<span class="cell-meta">견적일 ' + C.fmtDate(q.date) + ', ' + esc(st.label) + (q.opp && q.opp !== detail.opportunity ? ', 영업기회번호 ' + esc(q.opp) : '') + '</span></td>' +
+        '<td class="num-left">' + (last ? C.fmtDate(last.at) : '-') + '<span class="cell-meta">' + (q.issues || []).length + '번 출력</span></td>' +
+        '<td class="num">' + won(C.quoteTotals(q).supply) + '</td><td class="num">' + (over ? over + '줄' : '없음') + '</td></tr>';
+    };
+    const rows = (lq ? [row(lq, true)] : []).concat(others.map(function (q) { return row(q, false); }));
+    const amt = contractAmountForQuote(), sup = lq ? C.quoteTotals(lq).supply : null;
+    return head +
+      (!lk ? '<p class="recent-empty">연결한 견적이 없습니다(견적 없이 등록한 계약).' + (quote ? ' ⑧은 날인한 견적서의 견적번호와 판을 직접 확인합니다.' : '') +
+          (others.length ? '' : detail.opportunity ? ' 영업기회번호가 같은 견적(출력한 판)도 없습니다.' : ' 영업기회번호가 없어 같은 영업기회의 견적은 찾지 않았습니다.') + '</p>'
+        : !lq ? '<p class="recent-empty">연결한 견적 ' + esc(lk.no + (lk.ver ? ' ' + lk.ver + '판' : '')) + '을 찾을 수 없습니다.</p>' : '') +
+      (rows.length ? '<div class="tbl-wrap"><table class="tbl tbl--compact quote-box" aria-labelledby="quote-box-title">' +
+        '<thead><tr><th scope="col">견적</th><th scope="col">마지막 출력</th><th scope="col" class="num">공급가액</th><th scope="col" class="num">한도 넘은 줄</th></tr></thead>' +
+        '<tbody>' + rows.join('') + '</tbody></table></div>' : '') +
+      // 연결한 견적의 공급가액과 계약 금액이 다르면 한 줄(막지 않음. 협상으로 바뀐 금액은 ③과 체크리스트 2, 3번이 봄)
+      (lq && sup !== amt ? '<p class="quote-diff">' + C.icon('alert', 'sm') + '연결한 견적의 공급가액(' + won(sup) + ')과 계약 금액(' + won(amt) + ')이 다릅니다.</p>' : '') +
+      (lk && !others.length ? '<p class="recent-empty">' + (detail.opportunity ? '영업기회번호가 같은 다른 견적(출력한 판)은 없습니다.' : '영업기회번호가 없어 같은 영업기회의 견적은 찾지 않았습니다.') + '</p>' : '');
+  }
+  function renderQuoteBox() { const h = quoteBoxHtml(); if (h) $('#amount').insertAdjacentHTML('beforeend', h); }
+  // ⑧ 견적서 확인 창의 안내 한 줄(설계 검토 2026-11-11 1번): 확인 항목 "견적번호와 판"이 가리키는 연결한 견적과 그 유효기간
+  function quoteLinkLine() {
+    const lk = C.quoteLinkOf(c);
+    if (!lk) return '연결한 견적: <strong>없음</strong> (날인한 견적서의 견적번호와 판을 직접 확인)';
+    return '연결한 견적: <strong>' + esc(lk.no + (lk.ver ? ' ' + lk.ver + '판' : '')) + '</strong>' + (lk.q ? ', 유효기간 ' + C.fmtDate(lk.q.validUntil) + '까지' : ', 찾을 수 없음');
+  }
+
   function answer(v) {
     if (v === 'YES') return C.badge('success', '예');
     if (v === 'NO') return C.badge('danger', '아니요');
+    if (v === 'NA') return C.badge('neutral', '해당 없음'); // (설계 검토 2026-11-11 6번) 줄임, 조항만 변경의 2, 3번
     return C.badge('line', '-');
   }
   function renderChecklist() {
     // 체크리스트가 없는 결재(운영 변경, 해지, 연장 검토)는 체크리스트 설명 문장을 감춤 (v0.63 점검에서 고침)
     $('#checklist-desc').hidden = change || short;
     if (change) {
-      $('#checklist').innerHTML = '<p class="empty">운영 변경은 체크리스트 대신 변경 종류와 기준(기간 ' + D.CHANGE_RULES.periodMonths +
-        '개월, 무상 충전 ' + D.CHANGE_RULES.freeQty + '건)으로 영업 검토를 정합니다.</p>';
+      // 설계 검토 2026-11-11 8번: 기간 변경은 2개월까지만 받고 ③이 없으므로 기준은 무상 충전 누적 하나(예전 "기준(기간 2개월, 무상 충전 50건)")
+      $('#checklist').innerHTML = '<p class="empty">운영 변경은 체크리스트 대신 변경 종류와 기준(무상 충전 계약 연도 누적 ' + D.CHANGE_RULES.freeQty +
+        '건)으로 영업 검토를 정합니다. 계약 기간 변경은 ' + D.CHANGE_RULES.periodMonths + '개월까지만 받고 영업 검토가 없습니다.</p>';
       return;
     }
     if (short) {
@@ -774,14 +998,14 @@
       return;
     }
     $('#fin-opinion').innerHTML = '<h3 class="box-subtitle">재무 의견</h3>' +
-      '<p class="section-desc">결재선 밖에서 재무(담당자, 리더, 임원)가 체결 전에 남기는 의견입니다. 2단계 계약 검토 중이나 ⑥ 인장 날인 전까지 남기고, 남긴 의견은 고치거나 지우지 않습니다. 결재 차례와는 상관없습니다.</p>' +
+      '<p class="section-desc">결재선 밖에서 재무(담당자, 리더, 임원)가 체결 전에 남기는 의견입니다. 2단계 계약 검토 중이나 ' + SIX_DONE + ' 전까지 남기고, 남긴 의견은 고치거나 지우지 않습니다. 결재 차례와는 상관없습니다.</p>' +
       (list.length ? finOpsHtml(list) : '<p class="recent-empty">남긴 재무 의견이 없습니다.</p>') +
       (can ? '<div class="note-form fin-op-form"><div class="field" id="fin-op-field"><label class="field-label" for="fin-op-text">재무 의견 남기기</label>' +
           '<textarea class="textarea textarea--sm" id="fin-op-text" aria-describedby="fin-op-help fin-op-error"></textarea>' +
           '<p class="field-help" id="fin-op-help">남기면 고치거나 지울 수 없습니다. 이 계약의 결재자와 ⑩ 재무 확인 담당자가 봅니다.</p>' +
           '<p class="field-error" id="fin-op-error" hidden></p></div>' +
           '<div class="note-actions"><button type="button" class="btn btn--primary btn--md" id="fin-op-save">의견 남기기</button></div></div>'
-        : me.base === 'FINANCE' ? '<p class="recent-empty">지금은 남길 수 없습니다. 2단계 계약 검토 중이나 ⑥ 인장 날인 전까지 남깁니다.</p>' : '');
+        : me.base === 'FINANCE' ? '<p class="recent-empty">지금은 남길 수 없습니다. 2단계 계약 검토 중이나 ' + SIX_DONE + ' 전까지 남깁니다.</p>' : '');
   }
   $('#fin-opinion').addEventListener('click', function (e) {
     if (!e.target.closest('#fin-op-save')) return;
@@ -851,8 +1075,11 @@
         const seen = seenKind ? versionAt(seenKind, h.at) : null;
         // 기획자 결정 2026-11-02: 결재 창에서 받은 값도 기록 칸에 보임. ⑦ 서명본 체결일, ⑨ 실제 개통일(B-8), ② 그때 같은 거래처 최근 계약 건수(E-2)
         const extra = [seen ? '본 판: ' + (seenKind === 'SIGNED' ? DOC : D.FILE_KINDS[seenKind]) + ' 판 ' + seen.no + '(지문 ' + seen.hash + ')' : '',
-          h.fileName ? '파일: ' + esc(h.fileName) : '', h.signDate ? SIGN_DAY + ': ' + C.fmtDate(h.signDate) : '', h.openDate ? '실제 개통일: ' + C.fmtDate(h.openDate) : '',
+          h.fileName ? '파일: ' + esc(h.fileName) : '', h.signDate ? SIGN_DAY + ': ' + C.fmtDate(h.signDate) : '', h.openDate ? OPEN_DAY + ': ' + C.fmtDate(h.openDate) : '', // 답 ⑤: 적용일
           h.recentSame != null ? '그때 같은 거래처 최근 계약: ' + h.recentSame + '건' : '', h.basis ? '대리 근거: ' + esc(h.basis) : '',
+          // (2026-11-14 주말 점검 W7) 전자계약 취소 확인의 증빙 파일이나 올리지 못한 까닭(icfr-11, abc-09), 날인본을 돌려받지 못해 컴플라이언스에 넘긴 번호(ai-ops-06)
+          esc(C.evidenceText(h)), h.issueId ? '컴플라이언스에 넘김(' + esc(h.issueId) + ')' : '',
+          h.corrected ? '바로잡은 것 있음(메모 참고)' : '', // 결정 4(2026-11-16)
           h.action === 'RESUBMIT' ? (h.restart ? '금액이나 체크리스트 답을 바꿔 계약 검토를 처음부터 다시' : '요청한 단계부터 이어서 결재') : ''].filter(Boolean);
         const note = (h.comment ? esc(h.comment) : '') + (extra.length ? (h.comment ? '<br>' : '') + '<span class="behalf">' + extra.join('<br>') + '</span>' : '');
         return '<tr><td class="num-left">' + C.fmtDateTime(h.at).split(' ').map(function (x) { return '<span class="keep">' + x + '</span>'; }).join(' ') + '</td><td class="num">' + (h.round || 1) + '차</td>' +
@@ -872,6 +1099,8 @@
   const S09_BTN = change ? '운영 변경 완료' : isTerm ? '운영 종료 완료' : c.renewMode === 'AUTO' ? '기간 연장 완료' : D.STEPS.S09.doneAction;
   function buttonLabel(action, code) {
     if (action === 'APPROVE' && code === 'S09') return S09_BTN;
+    // 설계 검토 2026-11-11 9번: 전자계약의 ⑥은 "인증서 서명 완료", ⑦은 "출력본 등록"(결재 기록의 이름 C.actionLabel과 같게)
+    if (esign && D.ESIGN_STEPS[code] && (action === 'APPROVE' || action === 'REGISTER')) return D.ESIGN_STEPS[code].doneAction;
     if (action === 'APPROVE') return C.isReviewStep(code) ? '승인' : D.STEPS[code].doneAction;
     if (action === 'REGISTER' && quote) return '견적서 등록'; // 기획자 결정 2026-11-02 B-5 (결재 기록의 이름 C.actionLabel과 같게)
     return D.APPROVAL_ACTIONS[action].label;
@@ -899,7 +1128,10 @@
   }
   function renderActions() {
     const bar = $('#action-bar');
-    if (!actionable.length && !cancelable.length && !canResubmit) { bar.hidden = true; return; }
+    // (설계 검토 2026-11-11 7번) 반려, 보완 중, 체결 대기인 계약의 지금 영업대표(시연용 최고관리자)에게 처리 막대 맨 아래 "진행 중단 요청" 한 줄(C.canAskStop)
+    const stopAsk = C.canAskStop(c, me);
+    const stopSigned = C.stopSignedNote(c, me); // 확인 1(2026-11-16): 체결본이 있으면 단추 대신 안내 한 줄
+    if (!actionable.length && !cancelable.length && !canResubmit && !stopAsk && !stopSigned) { bar.hidden = true; return; }
     let html = '';
     if (canResubmit) {
       // 보완 완료: 기안자(시연에서는 최고관리자도)
@@ -925,6 +1157,12 @@
           '<button type="button" class="btn btn--tertiary btn--md" data-open="CANCEL" data-step="' + s.step + '">승인 취소</button>';
       }).join('') + '</div>';
     }
+    if (stopAsk) {
+      // 승인 취소 줄과 같은 작은 글 모양. 누르면 사유를 받는 창(common.js openStopAsk, 위 document 클릭이 받음)
+      html += '<div class="act-row act-row--cancel"><p class="act-target">고객이 계약하지 않기로 하는 등 더 진행할 수 없으면 사유를 적어 진행 중단을 요청합니다. 영업 리더가 확인하면 끝나고 기록은 남습니다.</p>' +
+        '<button type="button" class="btn btn--tertiary btn-reject btn--md" data-stop="ask" data-id="' + esc(c.id) + '">진행 중단 요청</button></div>';
+    }
+    if (stopSigned) html += '<div class="act-row act-row--cancel"><p class="act-target">' + esc(stopSigned) + '</p></div>';
     bar.innerHTML = html;
     bar.hidden = false;
     const sel = $('#act-step');
@@ -947,7 +1185,8 @@
       // ⑧ 반려는 어긋난 항목을 하나 이상 고름(코드로 남아 항목별로 셈, v0.61 표준 대응표 G-06)
       reasons: code === 'S08' ? D.SIGNED_MISMATCH : null, reasonsLegend: '어긋난 항목 (하나 이상)', reasonsPrefix: '어긋난 항목', reasonsKey: 'mismatch',
       desc: code === 'S08' ? '계약 내용이 승인본과 다를 때 씁니다. 서명이나 날인만 빠졌으면 반려하지 않고 다시 등록 요청을 씁니다. 반려하면 기안자에게 돌아가고, 기안자가 보완해 다음 차수로 다시 기안해 결재를 처음부터 받습니다.'
-        : code === 'S06' ? (quote ? '견적서가' : '계약서 실물이') + ' 이 문서와 다를 때 씁니다. 반려하면 기안자에게 돌아가고, 기안자가 보완해 다음 차수로 다시 기안합니다.'
+        // 설계 검토 2026-11-11 9번: 전자계약은 서명하지 않고 반려
+        : code === 'S06' ? (esign ? '전자계약서의 내용이 이 문서와 달라 서명하지 않을 때' : (quote ? '견적서가' : '계약서 실물이') + ' 이 문서와 다를 때') + ' 씁니다. 반려하면 기안자에게 돌아가고, 기안자가 보완해 다음 차수로 다시 기안합니다.'
         : '반려하면 기안자에게 돌아가고, 기안자가 보완해 다음 차수로 다시 기안합니다.' };
     // 보완 요청은 보완할 항목을 하나 이상 고름(코드로 남아 통계에서 셈, v0.63 표준 대응표 G-05)
     if (action === 'SUPPLEMENT') return { title: '보완을 요청할까요?', label: '보완할 내용 (필수)', btn: '보완 요청', required: true, tone: 'secondary',
@@ -962,12 +1201,15 @@
     //   ⑧에서 다시 등록 요청을 받아 다시 올릴 때는 앞서 적은 날을 미리 채움(다시 스캔해도 서명한 날은 같음)
     if (action === 'REGISTER') {
       const prev = (c.history || []).filter(function (h) { return h.step === 'S07' && h.action === 'REGISTER' && (h.round || 1) === round && h.signDate; }).pop();
-      return { title: C.josa(DOC, '을', '를') + ' 등록할까요?', label: '메모 (선택)', btn: quote ? '견적서 등록' : '체결본 등록', required: false, tone: 'primary', file: true,
-        fileLabel: C.signDocLabel(c) + ' 파일 (필수)', // B-5: "고객 날인 최종 견적서 파일 (필수)" 또는 "체결본 파일 (필수)"
+      // 설계 검토 2026-11-11 9번: 전자계약은 전자계약서 출력본과 전자계약 체결일. 확인하는 사람은 ⑥을 하지 않은 영업지원
+      return { title: C.josa(DOC, '을', '를') + ' 등록할까요?', label: '메모 (선택)', btn: buttonLabel('REGISTER', 'S07'), required: false, tone: 'primary', file: true,
+        fileLabel: C.signDocLabel(c) + ' 파일 (필수)', // B-5: "고객 날인 최종 견적서 파일 (필수)" 또는 "체결본 파일 (필수)", 9번: "전자계약서 출력본 파일 (필수)"
         desc: quote ? '등록하면 영업지원이 결재한 견적과 같은지 확인합니다. 등록한 견적서는 고치거나 지울 수 없습니다.'
+          // (2026-11-14 주말 점검, 코드 다시 보기 review-02) 확인하는 사람은 실제 ⑧ 담당 규칙대로(C.esignCheckerWhy: 영업지원이 없으면 ⑩ 담당 재무, isms-02)
+          : esign ? '등록하면 ⑧에서 승인된 내용과 같은지 봅니다. ⑧은 ' + C.esignCheckerWhy(c) + '합니다. 등록한 출력본은 고치거나 지울 수 없습니다.'
           : '등록하면 영업지원이 승인된 내용과 같은지 확인합니다. 등록한 체결본은 고치거나 지울 수 없습니다.',
         date: { key: 'signDate', label: SIGN_DAY + ' (필수)', max: D.TODAY, value: prev ? prev.signDate : '',
-          help: (quote ? '견적서에 고객이 날인하거나 서명한 날' : '서명본에 적힌 계약 체결일(양쪽 서명이 끝난 날)') + '. 오늘(' + C.fmtDate(D.TODAY) + ')보다 뒤일 수 없습니다.' },
+          help: (quote ? '견적서에 고객이 날인하거나 서명한 날' : esign ? ESIGN_WHERE + '에서 양쪽 서명이 끝난 날(출력본에 적힌 날)' : '서명본에 적힌 계약 체결일(양쪽 서명이 끝난 날)') + '. 오늘(' + C.fmtDate(D.TODAY) + ')보다 뒤일 수 없습니다.' },
         // 계약서 밖 약속 없음 확인(v0.61, 표준 대응표 G-06). 결재 기록에 "확인: ..."으로 남음
         legend: '기안한 영업의 확인 (필수)', checks: [D.SIDE_DEAL_CHECK.S07] };
     }
@@ -982,7 +1224,7 @@
     //   기획자 결정 2026-11-02 E-2: 같은 거래처 최근 계약이 있으면(볼 수 없는 열람 제한 계약 포함) "나눠 맺은 계약이 아님"도 꼭 표시
     if (code === 'S02') return { title: '승인할까요?', label: '의견 (선택)', btn: '승인', required: false, tone: 'primary',
       desc: '승인하면 다음 단계로 넘어갑니다.', legend: '체크리스트 검토에서 확인한 항목 (모두 확인)',
-      checks: D.REVIEW_CHECKS.concat(recentCount ? [D.SPLIT_CHECK] : []),
+      checks: D.REVIEW_CHECKS.concat(recentCount ? [D.SPLIT_CHECK] : [], C.amendKindOf(c) === 'TERMS' ? [D.TERMS_CHECK] : []), // TERMS_CHECK: W7-5(2026-11-16)
       info: recentCount ? '<strong>같은 거래처 최근 계약 ' + recentCount + '건</strong>' + (recent.hidden ? '(볼 수 없는 열람 제한 계약 ' + recent.hidden + '건 포함)' : '') +
         '이 있습니다. 기본 정보 아래 상자를 보고 금액을 나눠 맺은 계약이 아닌지 확인해 주세요.' : '',
       record: recent.on ? { recentSame: recentCount } : null };
@@ -1013,31 +1255,62 @@
     const acc = c.checklist && c.checklist.accounting === 'YES';
     // ⑨ 확인 항목: 계약, 해지, 그대로 연장마다 다름 (common.js opsChecksFor)
     const ops = C.opsChecksFor(c);
+    // ⑥ ⑧ 창의 "결재한 판" 안내 (설계 검토 2026-11-11 3장 [가정]): 새 확인 항목 "결재한 판과 같은 문서(판 번호)", "조항이 결재한 판과 같음"을
+    //   어느 판과 견줄지. 첨부의 계약서 초안에서 "결재한 판" 표시가 붙은 판(draftVersions). 견적서로 대신해 초안을 올리지 않은 계약(B-5)은
+    //   결재한 문서가 최종 견적서 하나라 판 번호 대신 그 이름. 표준계약서를 바꾼 계약의 ⑧은 같은 판의 조항 대비표와 견주라고 덧붙임
+    const okVer = signs && (code === 'S06' || code === 'S08') ? draftVersions().filter(function (v) { return v.approved; }).pop() : null;
+    const verInfo = !signs || (code !== 'S06' && code !== 'S08') ? ''
+      : quote && !(c.files || []).some(function (x) { return x.kind === 'DRAFT_DOC'; }) ? '결재한 문서: <strong>최종 견적서</strong>'
+      : okVer ? '결재한 판: <strong>계약서 초안 판 ' + okVer.no + '</strong>' : '';
+    const clauseInfo = code === 'S08' && legalNote && !quote ? '표준계약서를 바꾼 계약이라 조항은 같은 판의 조항 대비표와 견줘 주세요.' : '';
+    // 설계 검토 2026-11-11 9번, 4-1 9-1: 전자계약의 ⑥은 인증서 서명 창. 확인 항목(D.ESIGN_CHECKS)과 서명한 날, 시각(필수)을 받고 서명한 사람은 처리하는 사람(certSigner)
+    //   ⑧ 창에는 ⑥에 남긴 서명한 사람과 일시, ⑧을 맡는 까닭(⑥을 한 사람과 다른 영업지원)을 보임
+    const cr = esign ? certRecord() : null;
+    const certInfo = cr ? '⑥에 남긴 ' + esc(C.esignNote(cr.certSigner, cr.certSignedAt)) + '<br>이 확인은 ' + esc(C.esignCheckerWhy(c)) + '합니다.' : '';
+    if (code === 'S06' && esign) return { title: '인증서 서명 완료로 처리할까요?', label: '메모 (선택)', btn: buttonLabel('APPROVE', 'S06'), required: false, tone: 'primary', cert: true,
+      // (2026-11-14 주말 점검, 코드 다시 보기 review-02) ⑧ 담당 글은 실제 규칙대로(C.esignCheckerWhy). 예전 고정 글 "⑥을 한 사람과 다른 영업지원이 합니다"는
+      //   ⑥을 한 사람과 기안자 말고 영업지원이 없어 ⑩ 담당 재무가 ⑧을 맡는 경우(isms-02)에 틀렸음
+      desc: '처리하면 고객이 ' + ESIGN_WHERE + '에서 서명한 뒤 영업이 전자계약서 출력본을 올릴 차례가 됩니다. 서명한 사람과 일시가 결재 기록에 남고, ⑧ 출력본 확인은 ' + C.esignCheckerWhy(c) + '합니다. 인장 대장에는 적지 않습니다.',
+      legend: '전자계약서에서 확인한 항목 (모두 확인)', checks: D.ESIGN_CHECKS,
+      date: { key: 'certDate', label: '인증서로 서명한 날 (필수)', max: D.TODAY, value: '',
+        help: '회사 인증서로 ' + ESIGN_WHERE + '의 전자계약서에 서명한 날. 오늘(' + C.fmtDate(D.TODAY) + ')보다 뒤일 수 없습니다.' },
+      time: { label: '서명한 시각 (필수)', help: '회사 인증서로 서명한 시각(시와 분). 서명한 날이 오늘이면 지금보다 뒤일 수 없습니다.' },
+      // (2026-11-14 주말 점검 W7, isms-03) 계약 검토 승인 일시(⑥ 차례가 된 때). 넣은 서명 일시가 이보다 앞서면 저장 전에 안내 한 줄(막지 않음, 아래 certOrderSync)
+      orderAt: c.approvedAt ? String(c.approvedAt).slice(0, 16) : '',
+      info: [verInfo, '서명한 사람: <strong>' + esc(C.ownerLabel(certSignerOf(approvalOf('S06')))) + '</strong> (처리하는 사람으로 남습니다)'].filter(Boolean).join('<br>') };
     return {
       S06: { title: '날인 완료로 처리할까요?', label: '메모 (선택)', btn: '날인 완료', required: false, tone: 'primary',
         desc: (quote ? '처리하면 영업이 고객 날인을 받아 최종 견적서를 올릴 차례가 됩니다. ' : '처리하면 영업이 상대방 서명을 받아 체결본을 올릴 차례가 됩니다. ') + // B-5
           '인장 사용 기록은 기존 구글 폼에 따로 남겨 주세요.',
-        legend: (quote ? '견적서와' : '계약서 실물과') + ' 같은지 확인한 항목 (모두 확인)', checks: D.SEAL_CHECKS }, // B-5: 견적서로 대신한 계약은 견적서
-      S08: { title: (quote ? '견적서' : '체결본') + ' 확인을 완료할까요?', label: '메모 (선택)', btn: '확인 완료', required: false, tone: 'primary',
+        legend: (quote ? '견적서와' : '계약서 실물과') + ' 같은지 확인한 항목 (모두 확인)', checks: D.SEAL_CHECKS, // B-5: 견적서로 대신한 계약은 견적서
+        info: verInfo }, // 결재한 판 번호 (설계 검토 2026-11-11 3장 [가정])
+      S08: { title: (quote ? '견적서' : esign ? '출력본' : '체결본') + ' 확인을 완료할까요?', label: '메모 (선택)', btn: '확인 완료', required: false, tone: 'primary', // 9번: 전자계약은 출력본
         desc: '완료하면 운영 검토로 넘어가 고객지원이 운영에 적용할 차례가 됩니다.',
         // 체결본을 승인된 내용과 항목별로 맞춰 봄(⑥처럼, v0.61 표준 대응표 G-06. 예전에는 일반 항목 두 줄)과 계약서 밖 약정 없음
         //   기획자 결정 2026-11-02: 견적서로 대신한 계약은 견적서 항목(B-5), ⑦에서 적은 서명본 체결일이 문서와 같은지(B-8)도. 모두 C.signedChecks
         legend: DOC + '에서 확인한 항목 (모두 확인)', checks: C.signedChecks(c),
-        info: C.signedDate(c) ? '⑦에서 적은 ' + SIGN_DAY + ': <strong>' + C.fmtDate(C.signedDate(c)) + '</strong> (올린 날 ' + C.fmtDate(c.signedAt) + ')' : '' },
+        //   설계 검토 2026-11-11 3장 [가정]: 결재한 판 번호와 표준계약서를 바꾼 계약의 조항 대비표 안내를 줄을 바꿔 덧붙임
+        info: [C.signedDate(c) ? '⑦에서 적은 ' + SIGN_DAY + ': <strong>' + C.fmtDate(C.signedDate(c)) + '</strong> (올린 날 ' + C.fmtDate(c.signedAt) + ')' : '',
+          verInfo, clauseInfo, quote ? quoteLinkLine() : '', certInfo].filter(Boolean).join('<br>') }, // 설계 검토 2026-11-11 1번: 견적서면 연결한 견적과 유효기간, 9번: 전자계약이면 ⑥에 남긴 서명
       // ⑨: 기획자 결정 2026-11-02 B-8 날인과 체결본을 거치는 계약은 실제 개통일을 꼭 받음. 계약 시작일에 맞춰 열도록 설정한 경우가 있어 뒤 날짜도 받음 [가정]
       S09: { title: change ? '운영 변경을 완료할까요?' : isTerm ? '운영 종료를 완료할까요?' : c.renewMode === 'AUTO' ? '기간 연장을 완료할까요?' : '운영 적용을 완료할까요?',
-        label: '메모 (선택)', btn: S09_BTN, required: false, tone: 'primary',
+        // 기획자 결정 2026-11-16(결정할것 결정 4): ⑨, ⑩ 완료 창에 "바로잡은 것 있음"을 두고, 고르면 메모가 필수. 결재 기록에 보임(fix)
+        label: FIX_LABEL, btn: S09_BTN, required: false, tone: 'primary', fix: true,
         // 기획자 결정 2026-11-02 B-3(추천과 다름): 운영 변경도 ⑨ 다음 ⑩ 재무 확인. 묶음에 반영되는 것은 ⑩까지 끝난 뒤
         desc: change ? '완료하면 ' + C.stepTag('S10', c) + ' 확인 차례가 됩니다. 재무 확인까지 끝나면 ' +
             (c.changeType === 'PERIOD' ? '계약 묶음의 계약 기간이 새 종료일로 바뀝니다.' : '충전 내역이 계약 묶음에 남습니다.')
           : '완료하면 재무 확인 차례가 됩니다.', legend: '서비스에 한 일 (모두 확인)', checks: ops,
-        date: signs ? { key: 'openDate', label: '실제 개통일 (필수)', value: '',
-          help: '고객이 서비스를 쓸 수 있게 된 날(라이선스나 도메인을 연 날). 계약 시작일(' + C.fmtDate(detail.startDate) + ')에 맞춰 열도록 설정했으면 그날을 적습니다.' } : null },
+        //   (설계 검토 2026-11-11 답 ⑤) 줄임과 조항만 변경은 이름이 "적용일"이고 도움말도 그에 맞춤(저장하는 칸 openDate는 같음)
+        date: signs ? { key: 'openDate', label: OPEN_DAY + ' (필수)', value: '',
+          help: amendOff ? (amendOff === 'REDUCE' ? '줄인 수량과 금액' : '바뀐 조항') + '을 서비스에 반영한 날. 변경 계약의 시작일(' + C.fmtDate(detail.startDate) + ')에 맞춰 반영하도록 설정했으면 그날을 적습니다.'
+            : '고객이 서비스를 쓸 수 있게 된 날(라이선스나 도메인을 연 날). 계약 시작일(' + C.fmtDate(detail.startDate) + ')에 맞춰 열도록 설정했으면 그날을 적습니다.' } : null },
       // ⑩: 기획자 결정 2026-11-02 B-6 체크리스트 4번 조건의 종류와 체결 전에 남긴 재무 의견도 창에서 봄
-      S10: { title: '재무 확인을 완료할까요?', label: '메모 (선택)', btn: '재무 확인 완료', required: false, tone: 'primary',
+      // 기획자 결정 2026-11-16(결정할것 결정 4): 바로잡은 것 있음(fix). 결정 5: 해지는 환불과 위약금, 환불받는 곳을 확인 항목으로(termChecks)
+      S10: { title: '재무 확인을 완료할까요?', label: FIX_LABEL, btn: '재무 확인 완료', required: false, tone: 'primary', fix: true,
+        legend: isTerm ? '해지 서류와 맞춰 본 항목 (모두 확인)' : undefined, checks: isTerm ? termChecks(c) : undefined,
         // B-3: 운영 변경은 완료하면 계약 완료. 기간 변경은 그때 묶음의 계약 기간이 바뀜
         desc: change ? '완료하면 운영 변경이 끝나 계약 완료가 됩니다. ' + (c.changeType === 'PERIOD' ? '계약 묶음의 계약 기간이 새 종료일(' + C.fmtDate(c.endDate) + ')로 바뀝니다.' : '충전 내역이 계약 묶음에 남습니다.')
-          : isTerm ? '완료하면 해지가 끝나 원계약이 해지 상태가 됩니다. 환불과 위약금: ' + (c.refundNote || '없음')
+          : isTerm ? '완료하면 해지가 끝나 원계약이 해지 상태가 됩니다. 환불과 위약금: ' + C.refundText(c)
           : c.renewMode === 'AUTO' ? '완료하면 연장이 끝나 새 계약 기간(' + C.fmtPeriod(c.startDate, c.endDate) + ')이 적용됩니다.'
           : '완료하면 계약 완료로 보관함에 들어갑니다. ' + (acc
             ? '체크리스트 4번 회계 영향 조건' + (acctKindsText(c.checklist) ? '(' + acctKindsText(c.checklist) + ')' : '') + ': ' + (c.checklist.accountingNote || '비고 없음')
@@ -1052,6 +1325,30 @@
           : '<strong>재무 의견 ' + (c.finOpinions || []).length + '건</strong>' +
           ((c.finOpinions || []).length ? finOpsHtml(c.finOpinions) : '<br>체결 전에 남긴 재무 의견이 없습니다.') },
     }[code];
+  }
+  /* 기획자 결정 2026-11-16(결정할것 결정 4): ⑨ 운영 적용, ⑩ 재무 확인에서 계약 내용의 잘못을 발견해 바로잡았으면 "바로잡은 것 있음"을 고르고
+   *   무엇을 어떻게 바로잡았는지 메모에 적음(고르면 필수). 결재 기록에 "바로잡은 것 있음"으로 보이고 기록 칸 corrected: true로 남음
+   *   체결 뒤 바로잡은 내용이 결재 기록에 남아야 승인 조건과 운영, 회계 값이 다른 까닭을 설명할 수 있음(내부회계, ISO 37301 10.2) */
+  const FIX_LABEL = '메모 (바로잡은 것이 있으면 필수)';
+  /* (2026-11-16 밤 코드 다시 보기 w7-02) 줄인 수량 몫보다 더 깎아 ③을 거친 줄임(W7-3, 기안 때 남긴 reduceOver)의 변경 뒤 할인율 한 문장
+   *   "줄인 수량 몫보다 더 깎아 변경 뒤 할인율을 셈해 ③을 거칩니다: 기능 변경 뒤 n개 금액(표준 금액, 할인 x%, 한도 y%)" */
+  function reduceOverText(ro) {
+    const pct1 = function (v) { return Math.round(v * 1000) / 10 + '%'; };
+    return '줄인 수량 몫보다 더 깎아 변경 뒤 할인율을 셈해 ③을 거칩니다: ' + (ro.feats || []).filter(function (f) { return f.std; }).map(function (f) {
+      return C.featureLabel({ feature: f.feature }) + ' 변경 뒤 ' + num(f.qtyAfter) + '개 ' + won(f.amountAfter) + '(표준 ' + won(f.std) + ', 할인 ' + pct1(f.discount) + ', 한도 ' + pct1(f.cap) + ')';
+    }).join(', ') + '.';
+  }
+  /* 기획자 결정 2026-11-16(결정할것 결정 5): 해지의 ⑩ 재무 확인 항목. 환불 금액과 위약금이 서류와 같은지, 환불받는 곳이 계약 고객인지
+   *   환불이 0원이면 받는 곳 항목 대신 "환불 없음". 받는 곳이 계약 고객이 아니면(제3자 환불) 기안 메모의 까닭과 서류를 봤다는 항목 */
+  function termChecks(c) {
+    if (c.refundAmount == null) return ['환불과 위약금이 해지 서류와 같음'];
+    // (2026-11-17 다른 눈 review-03) 확인 항목 이름에는 쉼표와 빈칸(", ")을 쓰지 않음: 검토 완료의 "확인 항목 n개"가 의견을 쉼표로 셈(review-done.js commentText)
+    const amt = '환불 ' + C.fmtWon(c.refundAmount) + (c.refundAmount ? '(받는 곳 ' + (c.refundTo || '-') + (C.refundToOther(c) ? ': 계약 고객 아님' : '') + ')' : '') + '과 위약금 ' + C.fmtWon(c.penaltyAmount || 0);
+    const out = ['환불 금액과 위약금이 해지 서류와 같음(' + amt + ')'];
+    if (!c.refundAmount) out.push('환불 없음(받는 곳 확인 필요 없음)');
+    else if (C.refundToOther(c)) out.push('환불받는 곳(' + c.refundTo + ')이 계약 고객(' + c.counterparty + ')이 아닌 까닭을 기안 메모와 서류로 확인함');
+    else out.push('환불받는 곳이 계약 고객(' + c.counterparty + ')임');
+    return out;
   }
   function openModal(action, stepCode) {
     // 보류 중(C-16)에 막는 일은 창을 열지 않음(단추를 그리지 않는 것과 겹으로)
@@ -1086,6 +1383,10 @@
     if (t.restart) {
       extra += '<div class="field"><label class="choice"><input type="checkbox" id="act-restart">금액이나 체크리스트 답을 바꿨습니다 (계약 검토를 ② 체크리스트 검토부터 다시 받습니다)</label></div>';
     }
+    // 결정 4(2026-11-16): 바로잡은 것 있음. 처음부터 자리를 두고 고르면 메모가 필수가 됨(창이 흔들리지 않게)
+    if (t.fix) {
+      extra += '<div class="field"><label class="choice"><input type="checkbox" id="act-fix">계약 내용과 달라 바로잡은 것이 있습니다 (무엇을 어떻게 바로잡았는지 메모에 적습니다)</label></div>';
+    }
     if (t.file) {
       extra += '<div class="field act-file" id="act-file"><label class="field-label" for="act-file-input">' + esc(t.fileLabel || '체결본 파일 (필수)') + '</label>' +
         '<input type="file" id="act-file-input" accept=".pdf,.jpg,.jpeg,.png" aria-describedby="act-file-error">' +
@@ -1098,6 +1399,20 @@
       extra += '<div class="field act-date" id="act-date-field"><label class="field-label" for="act-date">' + esc(t.date.label) + '</label>' +
         '<input class="input" type="date" id="act-date" value="' + esc(t.date.value || '') + '"' + (t.date.max ? ' max="' + t.date.max + '"' : '') + ' aria-describedby="act-date-help act-date-error">' +
         '<p class="field-help" id="act-date-help">' + esc(t.date.help) + '</p><p class="field-error" id="act-date-error" hidden></p></div>';
+    }
+    // 시각 칸(설계 검토 2026-11-11 9번): ⑥ 인증서 서명의 서명한 시각. 날짜 칸과 같은 모양(act-date)이고 오류 줄은 날짜 칸처럼 오류가 있을 때만
+    if (t.time) {
+      extra += '<div class="field act-date" id="act-time-field"><label class="field-label" for="act-time">' + esc(t.time.label) + '</label>' +
+        '<input class="input" type="time" id="act-time" aria-describedby="act-time-help act-time-error">' +
+        '<p class="field-help" id="act-time-help">' + esc(t.time.help) + '</p><p class="field-error" id="act-time-error" hidden></p></div>';
+    }
+    // (2026-11-14 주말 점검 W7, isms-03) 서명 일시와 계약 검토 승인의 순서 안내 한 줄: 처음부터 같은 글로 자리를 두고(창이 흔들리지 않게),
+    //   넣은 일시가 승인보다 앞서면 앞의 알림 아이콘을 보이고 글을 진하게만 바꿈(크기는 그대로). 화면낭독기에는 "지금 넣은 일시가 앞섭니다"를 읽어 줌
+    //   막지 않음(B-8과 같음). 저장하면 결재 문서의 날짜 순서 안내(C.dateOrderIssues의 CERT_BEFORE_APPROVAL)에 남음
+    if (t.orderAt) {
+      extra += '<p class="field-help" id="act-cert-order" aria-live="polite"><span id="act-cert-order-icon" style="visibility: hidden">' + C.icon('alert', 'sm') + '</span>' +
+        '계약 검토 승인은 ' + esc(C.fmtDateTime(t.orderAt)) + '입니다. 서명 일시가 이보다 앞서도 저장되지만 결재 문서에 날짜 순서 안내가 남습니다.' +
+        '<span class="sr-only" id="act-cert-order-sr"></span></p>';
     }
     // 반부패 조항 판단(기획자 결정 2026-11-02 C-15): 간접, 조달은 둘 중 하나를 꼭 고름. 직접은 "이번에는 고르지 않음"이 처음 값
     //   사유 칸은 늘 자리를 두고(창이 흔들리지 않게) "없음"을 고를 때만 쓸 수 있음
@@ -1137,7 +1452,25 @@
     $(fieldSel).classList.toggle('is-invalid', !!msg);
     $(fieldSel).querySelectorAll('input').forEach(function (c) { if (msg) c.setAttribute('aria-invalid', 'true'); else c.removeAttribute('aria-invalid'); });
   }
+  // (2026-11-14 주말 점검 W7, isms-03) 넣은 서명 일시가 계약 검토 승인보다 앞서는지(분까지). 날짜나 시각이 비었으면 false
+  function certEarly() {
+    const t = pending && pending.t;
+    if (!t || !t.orderAt || !$('#act-date') || !$('#act-time')) return false;
+    const d = $('#act-date').value || '', tm = ($('#act-time').value || '').slice(0, 5);
+    return !!d && /^\d{2}:\d{2}$/.test(tm) && d + ' ' + tm < t.orderAt;
+  }
+  // 순서 안내 줄: 아이콘 보이기(자리는 늘 있음)와 글 색(토큰), 화면낭독기 글만 바꿈. 줄의 글과 크기는 그대로라 창이 흔들리지 않음
+  function certOrderSync() {
+    const line = $('#act-cert-order');
+    if (!line) return;
+    const early = certEarly();
+    $('#act-cert-order-icon').style.visibility = early ? 'visible' : 'hidden';
+    line.style.color = early ? 'var(--text-bolder)' : '';
+    $('#act-cert-order-sr').textContent = early ? '지금 넣은 서명 일시가 계약 검토 승인보다 앞섭니다.' : '';
+  }
+  modal.addEventListener('input', function (e) { if (e.target.id === 'act-date' || e.target.id === 'act-time') certOrderSync(); });
   modal.addEventListener('change', function (e) {
+    if (e.target.id === 'act-date' || e.target.id === 'act-time') { certOrderSync(); return; } // (2026-11-14 주말 점검 W7, isms-03)
     // 반부패 조항 "없음"을 고를 때만 사유 칸을 씀(기획자 결정 2026-11-02 C-15). 다른 것을 고르면 적던 사유와 오류를 지움
     if (e.target.name === 'act-ab') {
       const note = $('#act-ab-note'), none = e.target.value === 'NONE';
@@ -1162,7 +1495,8 @@
     // 기획자 결정 2026-11-09 5회차 14번: 뒤에 "다음 차례: ③ 영업 검토 (영업 임원 이름)"이 붙음
     //   리더가 맡은 ③만 이 문장. 임원이 맡은 ③(보류와 결재자 지정)은 confirmAction에서 따로 씀(기획자 결정 2026-11-10 18번)
     CONFLICT: '이해관계 있음으로 이 계약만 영업 임원에게 넘겼습니다. 컴플라이언스 담당자에게 이메일로 알렸습니다.',
-    S06: '날인 완료로 처리했습니다.', S08: '완료했습니다.', S09: '완료했습니다.', S10: '완료했습니다.',
+    S06: esign ? '인증서 서명 완료로 처리했습니다. 서명한 사람과 일시를 결재 기록에 남겼습니다.' : '날인 완료로 처리했습니다.', // 설계 검토 9번: 전자계약
+    S08: '완료했습니다.', S09: '완료했습니다.', S10: '완료했습니다.',
   };
   function confirmAction() {
     const t = pending.t;
@@ -1180,7 +1514,7 @@
       showError('#act-reasons-error', '#act-reasons', picked.length ? '' : C.josa(t.reasonsLegend.replace(' (하나 이상)', ''), '을', '를') + ' 하나 이상 고르세요.');
       if (!picked.length) ok = false;
     }
-    if (t.file && !fileName) { showError('#act-file-error', '#act-file', (quote ? '최종 견적서' : '체결본') + ' 파일을 고르세요.'); ok = false; }
+    if (t.file && !fileName) { showError('#act-file-error', '#act-file', DOC + ' 파일을 고르세요.'); ok = false; } // 설계 검토 9번: 전자계약은 출력본(DOC)
     // 날짜(기획자 결정 2026-11-02 B-8): 꼭 적음. ⑦ 서명본 체결일은 오늘보다 뒤일 수 없음. 없는 날짜는 칸이 빈 값으로 돌려줌
     let dateVal = '';
     if (t.date) {
@@ -1191,6 +1525,16 @@
         : t.date.max && dateVal > t.date.max ? '오늘(' + C.fmtDate(t.date.max) + ')보다 뒤 날짜는 고를 수 없습니다.' : '';
       C.setFieldError($('#act-date-field'), msg);
       if (msg) ok = false;
+    }
+    // 시각(설계 검토 2026-11-11 9번): ⑥ 인증서 서명의 서명한 시각. 꼭 적고, 서명한 날이 오늘이면 지금보다 뒤일 수 없음
+    let timeVal = '';
+    if (t.time) {
+      timeVal = ($('#act-time').value || '').slice(0, 5);
+      const nowHm = C.nowStamp().slice(11, 16);
+      const tmsg = !/^\d{2}:\d{2}$/.test(timeVal) ? '서명한 시각을 넣으세요. 예: 14:30'
+        : dateVal === D.TODAY && timeVal > nowHm ? '지금(' + nowHm + ')보다 뒤 시각은 넣을 수 없습니다.' : '';
+      C.setFieldError($('#act-time-field'), tmsg);
+      if (tmsg) ok = false;
     }
     // 반부패 조항(기획자 결정 2026-11-02 C-15): 간접, 조달은 꼭 고름. "없음"이면 사유를 꼭 적음
     let ab = '', abNote = '';
@@ -1204,7 +1548,14 @@
       C.setFieldError($('#act-ab-note-field'), noteMsg);
       if (noteMsg) ok = false;
     }
-    if (t.required && !memo) {
+    const fix = !!t.fix && !!$('#act-fix') && $('#act-fix').checked; // 결정 4(2026-11-16)
+    if (fix && !memo) {
+      $('#act-error').innerHTML = C.icon('alert', 'sm') + '바로잡은 것이 있으면 무엇을 어떻게 바로잡았는지 메모에 적어 주세요.';
+      $('#act-error').hidden = false;
+      $('#act-field').classList.add('is-invalid');
+      $('#act-comment').setAttribute('aria-invalid', 'true');
+      ok = false;
+    } else if (t.required && !memo) {
       // 받침에 따라 "을"과 "를" (예: 반려 사유를, 보완할 내용을)
       const word = t.label.replace(' (필수)', '');
       const code = word.charCodeAt(word.length - 1) - 0xAC00;
@@ -1227,14 +1578,16 @@
     // 반부패 조항 판단은 의견 문장에도 남김(계약 요약서 등 의견만 보이는 화면에서도 보이게, 기획자 결정 2026-11-02 C-15)
     const abOpt = ab ? D.ANTI_BRIBE.options.filter(function (x) { return x.code === ab; })[0] : null;
     const abText = abOpt ? '반부패 조항: ' + abOpt.label.replace('반부패 조항 ', '') + (ab === 'NONE' ? '(사유: ' + abNote + ')' : '') : '';
-    const comment = [t.checks ? '확인: ' + t.checks.join(', ') : '', pickedText, abText, memo].filter(Boolean).join('. ');
+    // 설계 검토 2026-11-11 9번: ⑥ 인증서 서명은 서명한 사람과 일시를 기록 칸(certSigner, certSignedAt, signMethod)과 의견 문장에 함께 남김(의견만 보이는 화면에서도 보이게)
+    const cert = t.cert ? { certSigner: certSignerOf(s), certSignedAt: dateVal + ' ' + timeVal, signMethod: C.signMethodOf(c) } : null;
+    const comment = [t.checks ? '확인: ' + t.checks.join(', ') : '', cert ? C.esignNote(cert.certSigner, cert.certSignedAt) : '', pickedText, abText, fix ? '바로잡은 것 있음' : '', memo].filter(Boolean).join('. ');
     const restart = t.restart && $('#act-restart') && $('#act-restart').checked;
     // 결재 기록에 덧붙이는 칸: 체결본 파일 이름(fileName), 처음부터 다시(restart), ⑧ 반려의 mismatch 또는 보완 요청의 supplementItems 코드
     //   기획자 결정 2026-11-02: ⑦ signDate, ⑨ openDate(B-8), ④ antiBribe와 antiBribeNote(C-15), ③ noInterest(C-14), ② recentSame(E-2, 그때 상자의 건수)
     const extra = Object.assign({},
       t.file ? { fileName: fileName } : null, restart ? { restart: true } : null, picked ? { [t.reasonsKey]: picked } : null,
-      t.date ? { [t.date.key]: dateVal } : null, ab ? { antiBribe: ab, antiBribeNote: ab === 'NONE' ? abNote : '' } : null,
-      t.record || null);
+      t.date && !cert ? { [t.date.key]: dateVal } : null, ab ? { antiBribe: ab, antiBribeNote: ab === 'NONE' ? abNote : '' } : null,
+      t.record || null, cert, fix ? { corrected: true } : null); // 9번: 인증서 서명의 날은 certSignedAt에 시각과 함께. corrected: 결정 4(2026-11-16)
     // 이해관계 있음은 C.declareInterest로: 리더가 맡은 ③은 영업 임원에게 넘기고(14번), 임원이 맡은 ③은 보류도 걸음(기획자 결정 2026-11-10 18번)
     const ix = pending.action === 'CONFLICT' ? C.declareInterest(c, s, comment, me) : null;
     if (pending.action === 'CONFLICT' && !ix) { closeModal(); C.toast('이해관계 있음을 남기지 못했습니다. 화면을 새로 고친 뒤 다시 해 주세요.', true); return; }
@@ -1261,7 +1614,9 @@
     }
     const done = pending.action === 'CONFLICT' && noCo ? '이해관계 있음으로 이 계약만 영업 임원에게 넘겼습니다. 사용 중인 컴플라이언스 담당자가 없어 이메일은 보내지 않았습니다.'
       : pending.action === 'APPROVE' && !C.isReviewStep(s.step) ? DONE_MSG[s.step] : DONE_MSG[pending.action];
-    C.flash(C.stepLabel(s.step, c) + ': ' + done + next);
+    // (2026-11-14 주말 점검 W7, isms-03) 서명 일시가 계약 검토 승인보다 앞섰으면 저장은 하고(막지 않음) 날짜 순서 안내가 남았음을 함께 알림
+    const certNote = cert && t.orderAt && cert.certSignedAt < t.orderAt ? ' 서명 일시가 계약 검토 승인보다 앞서 결재 문서에 날짜 순서 안내가 남습니다.' : '';
+    C.flash(C.stepLabel(s.step, c) + ': ' + done + next + certNote);
     location.reload();
   }
   $('#action-bar').addEventListener('click', function (e) {
@@ -1274,7 +1629,7 @@
     if (e.target.closest('[data-act="confirm"]')) confirmAction();
     if (e.target.closest('#act-demo-file')) {
       const n = (c.history || []).filter(function (h) { return h.action === 'REGISTER'; }).length;
-      setFile(c.counterparty + (quote ? '_최종견적서_고객날인' : '_체결본') + (n ? '_' + (n + 1) : '') + '.pdf'); // B-5 견적서면 견적서 이름
+      setFile(c.counterparty + (quote ? '_최종견적서_고객날인' : esign ? '_전자계약서_출력본' : '_체결본') + (n ? '_' + (n + 1) : '') + '.pdf'); // B-5 견적서면 견적서 이름, 9번 전자계약은 출력본
     }
   });
   document.addEventListener('keydown', function (e) {
@@ -1306,6 +1661,8 @@
   renderBox();
   renderBasic();
   renderAmount();
+  renderAmendDiff(); // (설계 검토 2026-11-11 6번) 추가 변경의 "변경 전과 후"(줄임, 조항만은 renderAmount가 본문으로)
+  renderQuoteBox(); // 설계 검토 2026-11-11 1번: 제품과 금액 아래 "견적" 상자
   renderChecklist();
   renderFinOpinion(); // 기획자 결정 2026-11-02 B-6
   renderFiles();

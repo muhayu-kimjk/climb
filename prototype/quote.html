@@ -23,7 +23,9 @@
   SCR-15 새 견적, 견적 고치기 / SCR-17 견적서 보기 (docs/02_화면목록.md, 요구사항 정의서 3.9 REQ-QUO)
   - (v0.61 기획자 결정) 영업이 고객에게 내는 견적서를 시스템의 제품과 가격 기준 그대로 만들고 출력합니다.
     그동안 각자 엑셀로 만들던 것을 바꾸고, 출력할 때마다 기록(누가, 언제, 어떤 판, 합계)을 남기는 것이 목적입니다.
-  - 견적은 계약과 이어지지 않습니다. 견적 단계 할인 승인도 없습니다(할인율 한도를 넘는 줄은 화면에서 알려 줌, 계약할 때 ③ 영업 검토).
+  - 견적 단계 할인 승인은 없습니다(할인율 한도를 넘는 줄은 화면에서 알려 줌, 계약할 때 ③ 영업 검토).
+  - (설계 검토 2026-11-11 1번 "가볍게 잇기") 예전 "견적은 계약과 이어지지 않음"을 바꿈: 보기(SCR-17)에서 작성한 영업이 출력한 판의
+    "이 견적으로 계약 등록"을 누르면 new-contract.html?quote=견적번호&ver=판 으로 가서 값을 미리 채우고, 계약에 견적번호와 판이 남습니다.
   - 주소: quote.html(새 견적) / quote.html?no=견적번호&ver=판. 출력 전의 내 견적은 고치고(SCR-15), 그 밖에는 보기(SCR-17, 메뉴는 견적 목록)
   - 출력은 "견적서 출력" 단추로만: 고객에게 낼 견적서만 A4 세로로 나오고(줄이 많으면 다음 장으로) 출력 기록이 남습니다(REQ-QUO-05).
     쪽 아래의 사내 문구(시스템 이름, 대외비)도 빼고 쪽 번호만 남깁니다(@page quote, quote.css).
@@ -79,7 +81,9 @@
 
         <section class="panel" aria-labelledby="sec-body">
           <h2 class="section-title" id="sec-body"><span class="num">2</span>견적 내용</h2>
-          <p class="section-desc">제품과 가격 기준에 있는 기능만 고를 수 있고, 단가는 오늘의 표준 단가로 채워집니다. 할인하면 단가를 고칩니다.</p>
+          <p class="section-desc">제품과 가격 기준에 있는 기능만 고를 수 있고, 단가는 오늘의 표준 단가로 채워집니다. 할인하면 단가를 고칩니다.
+            1년 단위 기능의 단가는 12개월 값이고, 금액은 이용 기간에 비례합니다(24개월이면 2배). 우리 거래처를 고르면 그 고객사 티어의 단가가 있으면 그 값이 표준 단가입니다.</p>
+          <!-- 설계 검토 2026-11-11 3번, 4번, 4-1 3-1: 위 둘째 문장(이용 기간 비례, 고객사 티어 단가)을 더함 -->
           <!-- 견적일과 유효기간도 시작일, 종료일 짝이라 휴대폰에서는 한 줄에 하나씩 (기획자 결정 2026-11-02 D-7, form.css. PC는 나란히 그대로) -->
           <div class="field-row">
             <div class="field" data-field="date">
@@ -93,6 +97,13 @@
               <p class="field-help" id="q-valid-help"></p>
               <p class="field-error" hidden></p>
             </div>
+            <!-- 설계 검토 2026-11-11 4번 [가정]: 이용 기간(개월). 기본 12, 1~60. 기간제 줄의 금액과 표준 금액이 이 달 수에 비례(quote.js). 같은 줄에 두어 칸이 생기며 아래를 밀지 않음 -->
+            <div class="field" data-field="months">
+              <label class="field-label" for="q-months">이용 기간<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+              <div class="input-unit"><input class="input" id="q-months" inputmode="numeric" maxlength="2" aria-describedby="q-months-help"><span class="unit">개월</span></div>
+              <p class="field-help" id="q-months-help">기본 12개월, 1~60개월</p>
+              <p class="field-error" hidden></p>
+            </div>
           </div>
           <div class="field" data-field="lines">
             <p class="field-label" id="q-lines-label">제품<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></p>
@@ -100,7 +111,7 @@
               <table class="tbl tbl--compact q-lines">
                 <!-- 칸 폭을 미리 정함(2026-11-06 기획자 요청: 제품을 고를 때마다 칸 폭이 다시 정해져 표가 흔들렸음). 폭은 quote.css .q-lines col -->
                 <colgroup><col><col class="q-col-qty"><col class="q-col-price"><col class="q-col-amount"><col class="q-col-del"></colgroup>
-                <caption class="sr-only">견적 제품: 서비스, 제품, 기능, 수량, 표준 단가, 견적 단가, 할인율, 금액</caption>
+                <caption class="sr-only">견적 제품: 서비스, 제품, 기능(아래에 단위 종류, 표준 단가, 표준 금액, 할인율), 수량, 견적 단가, 금액</caption>
                 <thead><tr><th scope="col">서비스와 제품, 기능</th><th scope="col" class="num">수량</th><th scope="col" class="num">단가</th><th scope="col" class="num">금액</th><th scope="col"><span class="sr-only">지우기</span></th></tr></thead>
                 <tbody id="q-lines"></tbody>
               </table>

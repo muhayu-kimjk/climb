@@ -4,7 +4,8 @@
  * 관련 요구사항: 데이터 정의서 9장(관리자 관리 코드표, 코드값 원칙), REQ-ADM-09(조직 목록, 실과 유닛 2단계 v0.29), REQ-REG-17(서비스)
  * v0.47: 서비스는 한 단계로 둠. 예전 중분류, 소분류(카피킬러 캠퍼스, 프리즘 등)는 제품이 되어 제품과 기능 관리(SCR-58)에서 관리
  * 하는 일
- *   1. 코드표 고르기: 조직, 서비스, 계약 방식, 정산 방식, 사후관리 기록 종류 (계약 유형은 v0.34에서 없앰)
+ *   1. 코드표 고르기: 조직, 서비스, 계약 방식, 정산 방식, 사후관리 기록 종류, 고객사 티어 (계약 유형은 v0.34에서 없앰)
+ *      고객사 티어는 기획자 결정 2026-11-16(결정할것 결정 3): 관리자만 바꾸고, 바꾼 줄은 재무 리더의 설정 변경 확인 대상(control-checks.js tierCodeEvents)
  *   2. 코드 표: 코드, 화면 이름, (조직은 단계와 상위), 쓰는 곳, 상태, 고치기
  *   3. 코드 추가: 코드(영문 대문자, 숫자, 밑줄. 그 코드표 안에서 중복 불가), 화면 이름, 조직은 단계와 상위 코드
  *   4. 고치기: 화면 이름, 사용 여부, (단계가 있는 코드표의 2단계 이하) 상위. 코드는 바꿀 수 없음. 사용 안 함은 새로 고르는 목록에서만 빠짐
@@ -47,6 +48,8 @@
     const own = function (x) { return x.kind !== 'TERMINATE' && x.kind !== 'CHANGE' && x.renewMode !== 'AUTO'; };
     if (group === 'METHOD') return '계약 ' + ctr(function (x) { return own(x) && C.methodOf(x) === c.code; }) + '건';
     if (group === 'SETTLEMENT') return '계약 ' + ctr(function (x) { return own(x) && ((x.form || {}).settlement || 'LUMP') === c.code; }) + '건';
+    // 고객사 티어(2026-11-16 결정 3): 이 티어인 거래처 수(합친 거래처 빼고)
+    if (group === 'TIER') return '거래처 ' + D.CUSTOMERS.filter(function (cu) { return cu.tier === c.code && !cu.mergedInto; }).length + '곳';
     if (group === 'AFTERCARE') return '기록 ' + D.CONTRACTS.reduce(function (n, x) { return n + (x.notes || []).filter(function (t) { return t.type === c.code; }).length; }, 0) + '건';
     return '-';
   }

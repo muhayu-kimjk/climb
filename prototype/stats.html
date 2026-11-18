@@ -31,6 +31,7 @@
     재무가 확인을 남김(쌓기만 함). "마감 점검 인쇄"는 이 묶음만 A4로
   - 통제 지표(기획자 결정 2026-11-02 C-1): 리더, 임원, 감사 열람만. 4번 조건 종류, ④ 반부패 조항 판단, 평균 할인, 대리 결재, 위험 신호
   - 통제 증빙 내보내기(기획자 결정 2026-11-02 C-3): 감사 열람(과 시연용 최고관리자)만. 기간을 골라 CSV(엑셀에서 열림) 한 파일, 꺼낸 기록. 인쇄에는 넣지 않음
+  - 계약 뒤쪽(설계 검토 2026-11-11 3장): 운영 변경 종류마다 건수와 충전 수량, 기간 변경 길이, 만료 처리 결과, 해지, 의무를 기한 안에 한 비율. 모두 봄 [가정]
   - 동작은 assets/js/stats.js. 접속 기록, 꺼낸 기록, 파일 지문은 assets/js/control-checks.js(점검 화면과 함께 씀)
 ====================================================================== -->
 <body data-page="SCR-46">
@@ -46,7 +47,8 @@
         <h1 class="page-title">통계와 보고서</h1>
       </div>
       <div class="page-intro">
-        <p>체결한 계약의 금액과 건수, 결재에 걸린 날을 봅니다. 금액과 건수는 ⑦에서 받은 서명본 체결일을 기준으로 셉니다. 맨 아래 기간 마감 점검에서는 결산 기간 말 앞뒤 계약을 보고 재무가 확인을 남깁니다.</p>
+        <!-- (설계 검토 2026-11-11 3장) 계약 뒤쪽 묶음을 알리는 한 문장을 더함 -->
+        <p>체결한 계약의 금액과 건수, 결재에 걸린 날을 봅니다. 금액과 건수는 ⑦에서 받은 서명본 체결일을 기준으로 셉니다. 계약을 맺은 뒤의 운영 변경, 만료와 해지, 의무도 봅니다. 맨 아래 기간 마감 점검에서는 결산 기간 말 앞뒤 계약을 보고 재무가 확인을 남깁니다.</p>
         <p class="sub" id="intro-sub"></p>
       </div>
 
@@ -162,6 +164,45 @@
           <div class="meter-list" id="supplement-meters"></div>
         </section>
 
+        <!-- 11. 계약 뒤쪽 (설계 검토 2026-11-11 3장): 운영 변경, 만료 처리 결과, 해지, 의무를 기한 안에 한 비율. 위 조건을 따르고 모두 봄(지금 통계와 같음, REQ-DASH-17) [가정]
+             그래프 옆 "표로 보기"가 아닌 펼쳐진 표와 막대라 보고서 인쇄에 그대로 찍힘. 아래 안내 줄은 늘 글이 있어 조건을 바꿔도 흔들리지 않음. 세는 법은 stats.js renderAfter -->
+        <section class="panel" aria-labelledby="sec-after">
+          <div class="panel-head"><h2 class="panel-title" id="sec-after">계약 뒤쪽</h2></div>
+          <p class="panel-desc">계약을 맺은 뒤의 일을 셉니다. 열람 제한 계약 가운데 볼 수 없는 건, 결재 없이 올린 예전 계약 기록 자체, 진행을 중단한 계약은 넣지 않습니다. 예전 계약 기록에 이어 기안한 연장, 운영 변경, 해지와 그 계약에 더한 의무는 셉니다.</p>
+
+          <h3 class="chart-title">운영 변경</h3>
+          <p class="panel-desc">기간 안에 기안한 운영 변경을 종류마다 셉니다. 진행 중인 것도 세고, 반려되어 다시 기안을 기다리는 것은 넣지 않습니다. 충전 수량은 신청한 수량이고, CK와 HR은 단위가 달라 더하지 않습니다.</p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="운영 변경 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">운영 변경: 변경 종류, 기안, 계약 완료, 충전 수량, 유상 금액</caption>
+              <thead><tr><th scope="col">변경 종류</th><th scope="col" class="num">기안</th><th scope="col" class="num">계약 완료</th><th scope="col" class="num">충전 수량</th><th scope="col" class="num">유상 금액</th></tr></thead>
+              <tbody id="after-change-rows"></tbody>
+            </table>
+          </div>
+          <div class="close-split control-note" id="after-period"></div>
+
+          <h3 class="chart-title control-title">만료 처리 결과</h3>
+          <p class="panel-desc">종료일(해지했으면 해지일)이 기간 안인 계약 기간이 어떻게 되었는지 셉니다. 원계약과 계약 완료된 연장을 계약 기간 하나씩으로 봅니다.</p>
+          <div class="meter-list" id="after-expiry"></div>
+          <p class="panel-desc control-note" id="after-expiry-note"></p>
+
+          <h3 class="chart-title control-title">해지</h3>
+          <p class="panel-desc">기간 안에 기안한 해지입니다. 반려되어 다시 기안을 기다리는 것과 진행을 중단한 것은 넣지 않습니다.</p>
+          <div class="close-split" id="after-term-sum"></div>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="해지 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">해지: 고객사와 계약번호, 기안일, 해지일, 지금 상태, 사유</caption>
+              <thead><tr><th scope="col">고객사</th><th scope="col" class="num-left">기안일</th><th scope="col" class="num-left">해지일</th><th scope="col" class="center">지금</th><th scope="col">사유</th></tr></thead>
+              <tbody id="after-term-rows"></tbody>
+            </table>
+          </div>
+
+          <h3 class="chart-title control-title">의무를 기한 안에 한 비율</h3>
+          <p class="panel-desc">체결 후 의무(보안 의무, SLA, 청구 일정)의 기한 가운데 기간 안이고 오늘 전인 것과 미리 한 것을 셉니다. 막대와 숫자는 그 기한 가운데 기한 날까지 이행 기록을 남긴 것입니다.</p>
+          <div class="meter-list" id="after-ob"></div>
+          <p class="panel-desc control-note" id="after-ob-note"></p>
+        </section>
+
         <!-- 9. 통제 지표 (기획자 결정 2026-11-02 C-1): 리더, 임원, 감사 열람만 봄(stats.js가 그 밖의 사람에게는 감춤). 위 조건을 따름
              4번 조건의 종류(B-6, CTL-52)와 ④ 반부패 조항 판단(C-15, CTL-34), 평균 할인, 대리 결재, 위험 신호(C-1).
              영업기회 대사, 할인 예외 점검 같은 지표는 그 화면이 생기면 더함 -->
@@ -170,7 +211,8 @@
           <p class="panel-desc">리더, 임원, 감사 열람만 보는 통제 지표입니다. 위 조건(기간, 서비스, 영업 유닛)을 따르고, 열람 제한 계약 가운데 볼 수 없는 건은 넣지 않습니다.</p>
 
           <h3 class="chart-title">평균 할인</h3>
-          <p class="panel-desc">체결한 계약마다 표준 금액(기안일에 쓰던 표준 단가 x 수량) 대비 할인율을 구해 평균을 냅니다. 기관 종류는 사업자등록번호 가운데 두 자리로 나눕니다.</p>
+          <!-- (설계 검토 2026-11-11 남은 것 ⑤) 표준 금액의 셈을 가격 틀(C.contractStd)에 맞춤: 단위 종류, 계약 기간 달 수, 고객사 티어 단가 -->
+          <p class="panel-desc">체결한 계약마다 표준 금액 대비 할인율을 구해 평균을 냅니다. 표준 금액은 기안일의 표준 단가(거래처의 고객사 티어 단가가 있으면 그 값) x 수량이고, 1년 단위 기능은 계약 기간 달 수에 비례합니다(x 달 수 / 12). 기관 종류는 사업자등록번호 가운데 두 자리로 나눕니다.</p>
           <div class="tbl-scroll" tabindex="0" role="region" aria-label="평균 할인 표">
             <table class="tbl tbl--compact">
               <caption class="sr-only">평균 할인: 나눈 기준, 이름, 체결 건수, 평균 할인, 가장 큰 할인</caption>

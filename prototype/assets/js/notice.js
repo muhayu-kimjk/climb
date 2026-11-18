@@ -23,7 +23,8 @@
   function render() {
     const n = D.NOTICES.filter(function (x) { return x.id === id && !x.hidden; })[0];
     if (!n) {
-      $('#notice').innerHTML = C.noticeBox('', '글을 찾을 수 없습니다',
+      // (2026-11-13 주말 점검 W6) 글이 없을 때도 화면 제목(h1)이 하나 있게: 화면낭독기의 제목 목록에서 이 화면을 알 수 있도록(보이는 글은 그대로)
+      $('#notice').innerHTML = '<h1 class="sr-only">공지 보기</h1>' + C.noticeBox('', '글을 찾을 수 없습니다',
         '내렸거나 없는 글입니다. <a class="doc-link" href="notices.html">공지사항 목록</a>에서 다시 골라 주세요.');
       $('#post').hidden = true;
       return;

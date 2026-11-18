@@ -36,10 +36,16 @@
   const $ = function (s) { return document.querySelector(s); };
   const SCR = 'SCR-64';
   // 문: 맡은 사람과 보기만 하는 사람을 common.js 한 곳(checkViewers)에서 정함(기획자 결정 2026-11-10 16번. 이 화면은 예전과 같은 사람)
-  if (!C.gate(me, C.checkViewers(SCR), '개선 과제와 보류는 컴플라이언스 담당자가 씁니다',
+  /* 기획자 결정 2026-11-16(결정할것 새 결정 W3-4 ①): 개선 과제의 책임자(이 화면을 맡거나 보는 사람이 아닌 사람)는 자기가 책임자인 과제만 봄(책임자 보기).
+   *   점검에서 넘어온 일, 보류, 변경 이력은 감추고 개선 과제 표에는 내 과제만. 보기만 함(기록과 상태 바꾸기는 컴플라이언스).
+   *   ?rm=번호이면 그 과제 하나만(개요의 "내가 책임자인 개선 과제" 줄). 책임자로 정해지면 꼭 받는 메일(REMEDIATION_OWNER)이 감 */
+  const RM_ONLY = new URLSearchParams(location.search).get('rm') || '';
+  const ownerView = me.role !== 'SUPER' && !C.hasRole(me, C.checkViewers(SCR)) && D.REMEDIATIONS.some(function (r) { return r.owner === me.id; });
+  if (!ownerView && !C.gate(me, C.checkViewers(SCR), '개선 과제와 보류는 컴플라이언스 담당자가 씁니다',
     '지금은 ' + esc(C.roleLabel(me.role)) + ' 역할로 보고 있습니다. 화면 맨 위 검은 띠에서 컴플라이언스 담당자, 감사 열람, 최고관리자 가운데 하나로 바꾸면 볼 수 있습니다.')) return;
+  function mineOnly(r) { return !ownerView || (r.owner === me.id && (!RM_ONLY || r.id === RM_ONLY)); }
 
-  const canDo = C.canComplianceAct(me);
+  const canDo = !ownerView && C.canComplianceAct(me);
   const RM = D.REMEDIATION, ST = RM.STATE;
   // 상태 배지 색: 열림(보라), 조치 중(파랑), 효과 확인(선), 끝남(초록)
   const TONE = { OPEN: 'attention', DOING: 'progress', VERIFY: 'line', DONE: 'success' };
@@ -50,6 +56,12 @@
   const TARGET_ISSUE = new URLSearchParams(location.search).get('issue') || '';
   let issueJumped = false;
 
+  // W3-4(2026-11-16) 책임자 보기: 다른 묶음(넘어온 일, 보류, 변경 이력)을 감추고 안내를 바꿈. 처음 그리기 전에 정해 흔들리지 않음
+  if (ownerView) {
+    ['#sec-issues', '#sec-holds', '#sec-history'].forEach(function (s) { const el = $(s); const sec = el ? el.closest('section') : null; if (sec) sec.hidden = true; });
+    $('#notice').innerHTML = C.noticeBox('', '내가 책임자인 개선 과제만 봅니다', (RM_ONLY ? esc(RM_ONLY) + ' 하나만 보입니다. ' : '') +
+      '조치하고 기한까지 끝내 주세요. 상태를 바꾸고 기록을 남기는 일은 컴플라이언스 담당자가 합니다. 조치한 증빙은 컴플라이언스 담당자에게 보내 주세요.');
+  }
   // 읽기만 하는 사람(감사 열람)에게는 단추를 두지 않고 안내 문장을 맞춤
   if (!canDo) {
     $('#btn-hold').hidden = true;
@@ -105,7 +117,8 @@
   // 찾은 곳마다 점검 화면을 볼 수 있는 사람에게만 링크, 볼 수 없는 사람에게는 화면 이름만
   //   기획자 결정 2026-11-10 16번: 컴플라이언스도 매월 점검 네 화면을 보기만 하므로 링크로 원래 기록을 바로 봄.
   //   누가 볼 수 있는지는 화면의 문과 같은 C.canSeeCheck(common.js CHECK_VIEWERS)를 따라 저절로 맞춰짐. 매월 기록 점검(LOG, SCR-57)은 정보보호와 감사 열람만
-  const ISSUE_SCR = { DISCOUNT: 'SCR-61', OPP: 'SCR-62', SEAL: 'SCR-63', CONFIG: 'SCR-65' };
+  //   (설계 검토 2026-11-11 답 ②, CTL-143) 예전 계약 기록 매월 확인(LEGACY, SCR-95)도: 컴플라이언스와 감사 열람이 그 화면을 보기만 하므로 링크로 그달 확인을 바로 봄
+  const ISSUE_SCR = { DISCOUNT: 'SCR-61', OPP: 'SCR-62', SEAL: 'SCR-63', CONFIG: 'SCR-65', LEGACY: 'SCR-95' };
   function canOpenCheck(src) {
     if (src === 'LOG') return me.role === 'SUPER' || C.isAuditor(me) || C.hasRole(me, ['PRIVACY']);
     return !!ISSUE_SCR[src] && C.canSeeCheck(me, ISSUE_SCR[src]);
@@ -313,7 +326,7 @@
     return true;
   }
   function renderRms() {
-    const all = D.REMEDIATIONS.slice().sort(function (a, b) { return (a.state === 'DONE') - (b.state === 'DONE') || b.at.localeCompare(a.at); }); // 끝나지 않은 것을 위에
+    const all = D.REMEDIATIONS.filter(mineOnly).sort(function (a, b) { return (a.state === 'DONE') - (b.state === 'DONE') || b.at.localeCompare(a.at); }); // 끝나지 않은 것을 위에. 책임자 보기는 내 과제만(mineOnly, W3-4 2026-11-16)
     const list = all.filter(fitsView);
     const count = function (s) { return all.filter(function (r) { return r.state === s; }).length + '건'; };
     $('#rm-count').innerHTML = C.meta([[(view === 'ALL' ? '전체' : '거른 결과'), '<strong>' + list.length + '건</strong>'],
@@ -508,10 +521,13 @@
 
   /* ---------- 그리기와 이벤트 ---------- */
   function render() {
-    renderIssues(); // 점검에서 넘어온 일(2026-11-09 5회차 13번)
-    renderHolds();
+    // (2026-11-16 밤 코드 다시 보기 leak-02) 책임자 보기는 감춘 묶음(넘어온 일, 보류, 변경 이력)을 아예 그리지 않음(문서에 다른 과제와 보류 사유가 들어가지 않게)
+    if (!ownerView) {
+      renderIssues(); // 점검에서 넘어온 일(2026-11-09 5회차 13번)
+      renderHolds();
+      $('#history').innerHTML = C.adminHistoryHtml(C.adminLog(['COMPLIANCE']), '컴플라이언스 변경 이력');
+    }
     renderRms();
-    $('#history').innerHTML = C.adminHistoryHtml(C.adminLog(['COMPLIANCE']), '컴플라이언스 변경 이력');
   }
   $('#rm-view').addEventListener('click', function (e) {
     const b = e.target.closest('[data-view]');

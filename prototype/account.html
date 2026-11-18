@@ -45,7 +45,8 @@
         <section class="panel" aria-labelledby="sec-info">
           <div class="panel-head"><h2 class="panel-title" id="sec-info">계정 정보</h2></div>
           <dl class="account-info" id="account-info"></dl>
-          <p class="panel-desc account-note">조직과 역할은 관리자가 사용자 권한 관리에서 바꿉니다. 바뀌어야 하면 관리자에게 알려 주세요.</p>
+          <!-- 2026-11-13 주말 점검: 감사 열람(끝나는 날 포함)과 최고관리자 권한은 최고관리자만 바꿈(REQ-AUTH-21 ③, REQ-AUTH-14, admin-users.js). 예전 글은 모두 관리자에게 알리라고 했음 -->
+          <p class="panel-desc account-note">조직과 역할은 관리자가 사용자 권한 관리에서 바꿉니다(감사 열람과 최고관리자 권한, 감사 열람의 끝나는 날은 최고관리자가 바꿉니다). 바뀌어야 하면 관리자나 최고관리자에게 알려 주세요.</p>
         </section>
 
         <section class="panel" aria-labelledby="sec-theme">

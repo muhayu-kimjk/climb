@@ -16,11 +16,17 @@
  *      평균 할인(영업, 유닛, 기관 종류, 계약 방식마다), 대리 결재 건수, 위험 신호(같은 거래처와 30일 안에 두 건 이상, 분기 말 5일 안의 가격 예외)
  *  10. 통제 증빙 내보내기(기획자 결정 2026-11-02 C-3, 감사 열람과 시연용 최고관리자): 기간을 골라 CSV(엑셀에서 열림) 한 파일, 꺼낸 기록
  *      파일 맨 위에 실행 시각, 실행한 사람, 조건, 건수, 금액 합계, 파일 지문(SHA-256), 워터마크. 꺼낸 기록은 계약 상세의 결재 기록 묶음과 함께 보임
+ *  11. 계약 뒤쪽(설계 검토 2026-11-11 3장): 운영 변경 종류마다 건수와 충전 수량, 기간 변경 길이, 만료 처리 결과(연장, 유예, 만료, 해지), 해지,
+ *      의무를 기한 안에 한 비율. 위 조건을 따르고 모두 봄(지금 통계와 같음, REQ-DASH-17) [가정]. 자세한 세는 법은 아래 "11. 계약 뒤쪽"
  * 세는 법
  *   - 체결일: ⑦에서 받은 서명본 체결일(C.signedDate, 없으면 올린 날). 올린 때도 남겨 함께 보임 (기획자 결정 2026-11-02 B-8)
  *     예전에는 체결본을 올린 때(⑦ 마지막 기록)였음. 조건 그대로 연장(날인과 체결본 없음)은 지금처럼 ⑩ 재무 확인일
  *   - ⑧에서 반려된 차수는 체결 금액과 건수에 넣지 않음. 다시 기안해 체결되면 그때 셈. ⑧ 확인을 기다리는 계약은 지금처럼 셈 (기획자 결정 2026-11-02 A-2)
  *   - 금액이 있는 계약만(신규, 변경, 연장). 해지와 운영 변경, 작성 중은 넣지 않음
+ *   - (설계 검토 2026-11-11 6번) 변경 금액은 부호 있음("늘거나 준 만큼"): 추가는 +, 줄임은 -, 조항만은 0원. 줄임과 조항만 변경도 체결 건수에 넣고
+ *     체결 금액과 진행 중인 금액에는 그 금액 그대로 더함(줄임은 빼짐). 그래서 체결 금액은 "그 기간에 늘어난 계약 금액의 순합계" [가정].
+ *     줄임과 조항만은 표준 단가와 견주지 않아(체크리스트 2, 3번 해당 없음) 평균 할인과 증빙의 ③ 가격 예외에 넣지 않음
+ *   - 진행 중단(STOPPED, 설계 검토 2026-11-11 7번)한 계약은 체결 금액과 건수, 진행 중인 금액, 기간 마감 점검에 넣지 않음. 중단 요청 중인 계약은 그 상태대로 셈
  *   - 열람 제한 계약 중 이 사람이 볼 수 없는 건은 어디에도 넣지 않음(합계로도 드러나지 않게)
  * 그래프(dataviz 기준): 막대는 한 색(--chart-bar), 값은 막대 끝에 글자로, 그래프마다 "표로 보기"
  *   "표로 보기" 표의 금액은 정확한 금액(C.fmtWon, 예: 120,000,000원, 합계 줄 포함). 그래프 눈금, 막대 글자, 마우스 설명,
@@ -37,11 +43,14 @@
   const $ = function (s) { return document.querySelector(s); };
   const AMOUNT_KINDS = ['NEW', 'AMEND', 'RENEW'];
   const PIPELINE = ['IN_REVIEW', 'SUPPLEMENT', 'APPROVED'];
-  // 단계 이름: 막대 옆에 들어가게 짧게
+  // 단계 이름: 막대 옆에 들어가게 짧게 (결재 기록과 증빙의 단계 이름은 계약에 맞게 C.stepLabel(code, c), 끝난 말은 C.stepDone(code, c))
   //   ③ 영업 임원 승인(기획자 결정 2026-11-02 E-3, 할인 폭이 큰 계약만)도 따로 셈
   //   ⑨ 만료 처리(A-10, 종료 다음 날부터 서비스를 닫을 때까지)도. ③ 만료 유예 확인은 끝나면 차례가 사라져 세지 않음
-  const STEP_NAMES = { S02: '② 체크리스트', S03: '③ 영업 검토', S03C: '③ 영업 임원 승인', S04: '④ 법무 검토', S05: '⑤ 개인정보', S06: '⑥ 인장 날인',
-    S07: '⑦ 체결본 등록', S08: '⑧ 체결본 확인', S09: '⑨ 운영 적용', S10: '⑩ 재무 확인', SXP: '⑨ 만료 처리' };
+  //   (설계 검토 2026-11-11 남은 것 ④) 전자계약의 ⑥ ⑦ ⑧은 하는 일과 맡는 사람이 달라(⑥은 총무가 아니라 영업지원) 따로 셈 [가정].
+  //     열쇠는 단계 코드 끝에 E(stepKey). 이름은 막대 옆에 들어가게 D.ESIGN_STEPS의 이름을 줄임. 처리한 것이 없으면 막대가 생기지 않음
+  const STEP_NAMES = { S02: '② 체크리스트', S03: '③ 영업 검토', S03C: '③ 영업 임원 승인', S04: '④ 법무 검토', S05: '⑤ 개인정보', S06: '⑥ 인장 날인', S06E: '⑥ 인증서 서명',
+    S07: '⑦ 체결본 등록', S07E: '⑦ 출력본 등록', S08: '⑧ 체결본 확인', S08E: '⑧ 출력본 확인', S09: '⑨ 운영 적용', S10: '⑩ 재무 확인', SXP: '⑨ 만료 처리' };
+  const stepKey = function (code, c) { return D.ESIGN_STEPS[code] && C.isEsign(c) ? code + 'E' : code; };
   const CHECKS = [
     ['standard', 'NO', '1. 표준계약서를 바꿈', '④ 법무 검토'],
     ['price', 'NO', '2. 표준단가표와 다름', '③ 영업 검토'],
@@ -68,12 +77,14 @@
   //   반려된 차수는 체결로 세지 않음(⑦을 마친 뒤 반려는 ⑧뿐). 다시 기안하면 다음 차수의 ⑦이 끝날 때 셈. ⑧ 확인을 기다리는 계약은 셈
   function signInfo(c) {
     if (c.renewMode === 'AUTO') return c.completedAt ? { date: String(c.completedAt).slice(0, 10), up: null } : null;
-    if (!c.signedAt || c.status === 'REJECTED') return null;
+    //   (설계 검토 2026-11-11 7번) 진행 중단(STOPPED)된 계약도 체결로 세지 않음(⑦을 올린 뒤 중단했어도) [가정]. 진행 중인 금액(PIPELINE)에도 없음
+    if (!c.signedAt || c.status === 'REJECTED' || c.status === 'STOPPED') return null;
     return { date: C.signedDate(c), up: String(c.signedAt) };
   }
   function signDate(c) { const s = signInfo(c); return s ? s.date : ''; }
   // 금액에 넣는 계약: 신규, 변경, 연장 가운데 금액이 있는 것 (해지와 운영 변경은 넣지 않음)
-  function counted(c) { return c.amount > 0 && AMOUNT_KINDS.indexOf(c.kind) > -1; }
+  //   (설계 검토 2026-11-11 6번) 줄임(금액 -)과 조항만(0원) 변경도 셈: 금액은 부호 그대로 더함(C.priceCheckOff가 이 두 종류)
+  function counted(c) { return AMOUNT_KINDS.indexOf(c.kind) > -1 && (c.amount > 0 || C.priceCheckOff(c)); }
   // 'YYYY-MM-DD HH:MM' 두 값 사이의 날(소수)
   function toTime(s) {
     const d = String(s).slice(0, 10).split('-').map(Number);
@@ -96,7 +107,9 @@
   function monthLong(key) { return key.slice(0, 4) + '년 ' + Number(key.slice(5)) + '월'; }
 
   // 이 사람이 볼 수 있는 계약(작성 중 빼고)과, 열람 제한이라 뺀 수
-  const all = D.CONTRACTS.filter(function (c) { return c.id && c.status !== 'DRAFT'; });
+  // 설계 검토 2026-11-11 5번 [가정]: 예전 계약 기록(시스템 전에 맺어 결재 없이 올린 원계약)은 체결 금액, 건수, 걸린 날, 통제 지표, 증빙 내보내기에 넣지 않음.
+  //   그 기록에 이어 시스템에서 기안한 후속 계약(연장, 변경, 운영 변경, 해지)은 다른 계약처럼 셈
+  const all = D.CONTRACTS.filter(function (c) { return c.id && c.status !== 'DRAFT' && !c.legacy; });
   const visible = all.filter(function (c) { return C.canView(c, me); });
   const hiddenCount = all.length - visible.length;
   const hiddenList = all.filter(function (c) { return !C.canView(c, me); }); // 기간 마감 점검에서 건수만 셈(B-9)
@@ -126,8 +139,11 @@
   options($('#f-unit'), [['', '전체']].concat(units.map(function (u) { return [u, u]; })));
 
   // 2026-11-09 5회차 점검: 조건 그대로 연장은 ⑩ 재무 확인 전까지 진행 중으로 셈(아래 pipe)
-  $('#intro-sub').textContent = '해지와 운영 변경은 금액에 넣지 않고, ⑧에서 반려된 계약도 넣지 않습니다. 진행 중인 금액은 기간과 상관없이 지금 검토부터 체결본 등록 전까지(조건 그대로 연장은 ⑩ 재무 확인 전까지)인 계약의 금액입니다.' +
-    (hiddenCount ? ' 열람 제한 계약 중 볼 수 없는 ' + hiddenCount + '건은 넣지 않았습니다.' : '');
+  //   (설계 검토 2026-11-11 7번) 진행을 중단한 계약도 넣지 않음(signInfo, PIPELINE)
+  $('#intro-sub').textContent = '해지와 운영 변경은 금액에 넣지 않고, ⑧에서 반려된 계약과 진행을 중단한 계약도 넣지 않습니다. 진행 중인 금액은 기간과 상관없이 지금 검토부터 체결본 등록 전까지(조건 그대로 연장은 ⑩ 재무 확인 전까지)인 계약의 금액입니다.' +
+    (hiddenCount ? ' 열람 제한 계약 중 볼 수 없는 ' + hiddenCount + '건은 넣지 않았습니다.' : '') +
+    ' 시스템 전에 맺어 결재 없이 올린 예전 계약 기록도 넣지 않습니다.' + // 설계 검토 2026-11-11 5번 [가정]
+    ' 변경 계약의 금액은 늘거나 준 만큼이라 줄임 변경은 금액에서 빠지고, 조항만 바꾼 변경은 0원으로 건수에만 듭니다.'; // (설계 검토 2026-11-11 6번)
 
   /* ---------- 그래프 조각 ---------- */
   // 눈금 간격: 1, 2, 5 단위로 4칸 안에 들어가게
@@ -153,7 +169,8 @@
         '<ol class="colchart-bars">' + months.map(function (k) {
           const b = by[k], tip = monthLong(k) + (k === todayKey ? '(' + Number(D.TODAY.slice(8)) + '일까지)' : '') + ': ' + b.count + '건, ' + fmtMoney(b.sum);
           const label = b.sum && (k === maxKey || k === last) ? '<span class="colchart-val">' + fmtShort(b.sum) + '</span>' : '';
-          return '<li data-tip="' + esc(tip) + '">' + label + (b.sum ? '<span class="colchart-bar" style="height:' + (b.sum / top * 100) + '%"></span>' : '') + '</li>';
+          //   (설계 검토 2026-11-11 6번) 줄임 변경만 있는 달은 합계가 0 아래일 수 있어 막대는 그리지 않고 마우스 설명에 금액(빼기)만
+          return '<li data-tip="' + esc(tip) + '">' + label + (b.sum > 0 ? '<span class="colchart-bar" style="height:' + (b.sum / top * 100) + '%"></span>' : '') + '</li>';
         }).join('') + '</ol>' +
       '</div>' +
       '<ol class="colchart-x" aria-hidden="true">' + months.map(function (k, i) {
@@ -207,7 +224,11 @@
     const lateUp = signed.filter(function (c) { const s = signInfo(c); return s.up && s.up.slice(0, 7) > s.date.slice(0, 7); }).length;
     const tiles = [
       ['체결 금액', fmtMoney(sum(signed)), '서명본 체결일 기준' + (lateUp ? ', 체결한 달 뒤에 올린 ' + lateUp + '건 포함' : '')],
-      ['체결 건수', signed.length + '건', AMOUNT_KINDS.filter(function (k) { return kinds[k]; }).map(function (k) { return D.KINDS[k] + ' ' + kinds[k] + '건'; }).join(', ') || '없음'],
+      // (설계 검토 2026-11-11 6번) 변경 가운데 줄임과 조항만이 있으면 괄호에 그 건수(금액은 부호대로 체결 금액에 든 것)
+      ['체결 건수', signed.length + '건', AMOUNT_KINDS.filter(function (k) { return kinds[k]; }).map(function (k) {
+        const off = k === 'AMEND' ? ['REDUCE', 'TERMS'].map(function (a) { const n = signed.filter(function (c) { return C.amendKindOf(c) === a; }).length; return n ? D.AMEND_KINDS[a] + ' ' + n + '건' : ''; }).filter(Boolean) : [];
+        return D.KINDS[k] + ' ' + kinds[k] + '건' + (off.length ? '(' + off.join(', ') + ')' : '');
+      }).join(', ') || '없음'],
       // 2026-11-09 5회차 점검: 조건 그대로 연장은 ⑩ 재무 확인 전까지 진행 중(위 pipe)이라 아래 줄에도 적음
       ['진행 중인 금액', fmtMoney(sum(pipe)), '기간과 상관없이 지금 검토부터 체결본 등록 전까지(조건 그대로 연장은 ⑩ 재무 확인 전까지) ' + pipe.length + '건'],
       ['기안부터 체결까지', lead.length ? '평균 ' + fmtDays(lead.reduce(function (a, b) { return a + b; }, 0) / lead.length) : '-',
@@ -240,7 +261,8 @@
     const svc = group(function (c) { return c.services.length > 1 ? '여러 서비스 함께' : D.SERVICES[c.services[0]] || c.services[0]; }); // 서비스는 CK, HR, 기타 (v0.56)
     const unt = group(function (c) { return C.teamOf(c.requesterId) || '조직 없음'; });
     const toRows = function (list) {
-      return list.map(function (g) { return { label: g.label, value: g.sum, text: fmtShort(g.sum) + ' 원', tip: g.label + ': ' + g.count + '건, ' + fmtMoney(g.sum) }; });
+      // (설계 검토 2026-11-11 6번) 줄임 변경으로 합계가 0 아래인 묶음은 막대 길이 0(글자와 설명은 빼기 금액 그대로)
+      return list.map(function (g) { return { label: g.label, value: Math.max(0, g.sum), text: fmtShort(g.sum) + ' 원', tip: g.label + ': ' + g.count + '건, ' + fmtMoney(g.sum) }; });
     };
     $('#service-chart').innerHTML = barChart(toRows(svc), { labelW: '10rem', valW: '7.2rem' });
     $('#unit-chart').innerHTML = barChart(toRows(unt), { labelW: '10rem', valW: '7.2rem' });
@@ -253,23 +275,24 @@
     const st = {};
     base.forEach(function (c) {
       (c.approvals || []).forEach(function (a) {
-        if (a.state !== 'DONE' || !a.arrivedAt || !a.decidedAt || !STEP_NAMES[a.step]) return;
+        const k = stepKey(a.step, c); // 전자계약의 ⑥ ⑦ ⑧은 따로(설계 검토 2026-11-11 남은 것 ④)
+        if (a.state !== 'DONE' || !a.arrivedAt || !a.decidedAt || !STEP_NAMES[k]) return;
         if (months.indexOf(a.decidedAt.slice(0, 7)) < 0) return;
         const d = Math.max(0, daysFrom(a.arrivedAt, a.decidedAt));
-        st[a.step] = st[a.step] || [];
-        st[a.step].push(d);
+        st[k] = st[k] || [];
+        st[k].push(d);
       });
     });
     const LIMIT = D.ALERT_RULES.approvalDelayDays, SIGN_LIMIT = D.ALERT_RULES.signDelayDays;
     const steps = Object.keys(STEP_NAMES).filter(function (k) { return st[k]; }).map(function (k) {
       const avg = st[k].reduce(function (a, b) { return a + b; }, 0) / st[k].length;
-      const limit = k === 'S07' ? SIGN_LIMIT : LIMIT;
+      const limit = k === 'S07' || k === 'S07E' ? SIGN_LIMIT : LIMIT; // 전자계약의 ⑦ 출력본 등록도 승인 뒤 기준
       return { code: k, avg: avg, n: st[k].length, max: Math.max.apply(null, st[k]), over: avg > limit };
     });
     $('#step-desc').textContent = '차례가 온 때부터 처리한 때까지의 평균입니다(기간 안에 처리한 것). 세로선은 오래 머문 것으로 보는 기준 ' + LIMIT +
-      '일입니다(⑦ 체결본 등록은 승인 뒤 ' + SIGN_LIMIT + '일).';
+      '일입니다(⑦ 체결본이나 출력본 등록은 승인 뒤 ' + SIGN_LIMIT + '일).';
     $('#step-chart').innerHTML = barChart(steps.map(function (s) {
-      return { label: STEP_NAMES[s.code], value: s.avg, text: fmtDays(s.avg), note: s.over ? '기준 넘음' : '', noRef: s.code === 'S07',
+      return { label: STEP_NAMES[s.code], value: s.avg, text: fmtDays(s.avg), note: s.over ? '기준 넘음' : '', noRef: s.code === 'S07' || s.code === 'S07E',
         tip: STEP_NAMES[s.code] + ': ' + s.n + '번 처리, 평균 ' + fmtDays(s.avg) + ', 가장 길었던 날 ' + fmtDays(s.max) };
     }), { labelW: '11rem', valW: '9rem', ref: LIMIT, refLabel: '기준 ' + LIMIT + '일' });
     $('#step-rows').innerHTML = steps.map(function (s) {
@@ -362,6 +385,9 @@
         '<span class="meter-track" role="img" aria-label="' + esc(x.label + ': 보완 요청 ' + supps + '건 중 ' + n + '건, ' + pct + '%') + '"><span class="meter-fill" style="width:' + pct + '%"></span></span></div>';
     }).join('') : '<p class="chart-empty">이 조건에서 보완을 요청한 계약이 없습니다.</p>';
 
+    // 11. 계약 뒤쪽 (설계 검토 2026-11-11 3장): 모두 봄(지금 통계와 같음) [가정]. 아래 renderAfter
+    renderAfter(base, months, service, unit);
+
     // 9. 통제 지표 (기획자 결정 2026-11-02 C-1: 리더, 임원, 감사 열람만)
     if (seeControls) renderControls(withCk, base, months, signed);
   }
@@ -372,7 +398,7 @@
    * 나. ④ 반부패 조항 판단(C-15, CTL-34): 표준계약서를 바꾼 계약 가운데 기간 안에 ④ 승인이 끝난 계약을 계약 방식마다
    *     있고 약해지지 않음(KEPT), 없음(NONE), 고르지 않음(직접은 선택, 판단을 두기 전 기록)으로 셈(C.legalApproval)
    *     "없음"은 전체 계약의 거르기(contracts.html?ab=NONE)로 이어짐
-   * 다. 평균 할인(C-1): 체결한 계약마다 표준 금액(기안일에 쓰던 가격 기준의 표준 단가 x 수량) 대비 할인율을 구해 단순 평균 [가정]
+   * 다. 평균 할인(C-1): 체결한 계약마다 표준 금액(C.contractStd: 기안일에 쓰던 표준 단가, 고객사 티어 단가가 있으면 그 값, x 수량, 기간제는 x 달 수 / 12) 대비 할인율을 구해 단순 평균 [가정]
    *     영업(기안한 영업), 영업 유닛, 기관 종류(사업자등록번호 가운데 두 자리), 계약 방식마다. 제품 줄이 없는 계약은 셀 수 없어 뺌
    *     시스템 도입 전에 기안한 계약은 도입 때 넣은 첫 가격 기준으로 셈 [가정: 그 전 가격 기준이 시스템에 없음]
    * 라. 대리 결재(C-1): 기간 안의 결재 기록 가운데 담당자가 아닌 사람이 처리한 것. 대리 지정으로 처리(근거 있음)와
@@ -387,33 +413,38 @@
   // 2026-11-09 5회차 점검: 줄의 표준 단가와 한도. E-4대로 기안 때 줄에 남긴 값(l.listPrice, l.cap)을 먼저, 없으면 기안한 날의 가격 줄
   //   (예전에는 기안한 날의 가격 줄만 봐서, 기안한 날부터 적용하는 가격을 더하면 통계만 할인 예외 점검, 결재 문서와 다른 할인율이 나왔음.
   //   discount-review.js, common.js capOver와 같은 모양. 줄에 단가가 있으면 가격 줄이 없어도 셈)
-  function lineStd(l, price) {
-    const p = price[l.feature];
-    const list = l.listPrice != null ? Number(l.listPrice) : p ? p.listPrice : null;
-    const cap = l.cap != null ? Number(l.cap) : p ? p.discountCap || 0 : 0;
-    return list == null ? null : { list: list, cap: cap };
+  //   (설계 검토 2026-11-11 4번, 4-1 3-1) 줄의 표준 금액은 공통 셈(C.contractStd: 기간제는 계약 기간 달 수에 비례, 고객사 티어 단가, 남긴 값을 먼저)
+  //     결재선(C.capOver), 결재 문서, 할인 예외 점검과 같은 값. 반환 { std: 줄의 표준 금액, cap } 또는 null(셀 수 없음)
+  function lineStd(x) {
+    const q = Number(x.line.qty) || 0;
+    return x.s && q && x.s.std ? { std: x.s.std, cap: x.s.cap } : null;
   }
   // 계약의 할인율(표준 금액 대비). 셀 수 없으면 null
   function discountOf(c) {
-    const lines = c.products || (c.form && c.form.products) || [], day = String(c.requestedAt || D.TODAY).slice(0, 10);
-    const price = C.pricesAt(day);
     let std = 0, amt = 0;
-    lines.forEach(function (l) {
-      const s = lineStd(l, price), q = Number(l.qty) || 0;
-      if (!s || !q) return;
-      std += s.list * q; amt += Number(l.amount) || 0;
+    C.contractStd(c).forEach(function (x) {
+      const s = lineStd(x);
+      if (!s) return;
+      std += s.std; amt += x.amount;
     });
     return std ? (std - amt) / std : null;
   }
   // 한 줄이라도 할인율 한도를 넘은 가장 큰 폭(%p). 셀 수 없으면 null (증빙 내보내기의 ③ 가격 예외)
   function overPpOf(c) {
-    const lines = c.products || (c.form && c.form.products) || [], day = String(c.requestedAt || D.TODAY).slice(0, 10);
-    const price = C.pricesAt(day);
     let max = null;
-    lines.forEach(function (l) {
-      const s = lineStd(l, price), q = Number(l.qty) || 0;
-      if (!s || !q || !s.list) return;
-      const pp = Math.round(((s.list * q - (Number(l.amount) || 0)) / (s.list * q) - s.cap) * 1000) / 10;
+    // (2026-11-17 다른 눈 oversight-01) ③을 거친 줄임은 기안 때 남긴 변경 뒤 할인율(reduceOver)로 넘은 폭을 셈
+    if (c.reduceOver && c.reduceOver.feats) {
+      c.reduceOver.feats.forEach(function (f) {
+        if (!f.over || f.discount == null) return;
+        const pp = Math.round((f.discount - f.cap) * 1000) / 10;
+        max = max == null ? pp : Math.max(max, pp);
+      });
+      return max;
+    }
+    C.contractStd(c).forEach(function (x) {
+      const s = lineStd(x);
+      if (!s) return;
+      const pp = Math.round(((s.std - x.amount) / s.std - s.cap) * 1000) / 10;
       max = max == null ? pp : Math.max(max, pp);
     });
     return max;
@@ -433,7 +464,9 @@
     if (m === '82') return '비영리법인';
     return ['81', '85', '86', '87', '88'].indexOf(m) > -1 ? '영리법인' : '개인사업자와 단체';
   }
-  function renderDiscount(signed) {
+  function renderDiscount(all) {
+    // (설계 검토 2026-11-11 6번) 줄임과 조항만 변경은 표준 단가와 견주지 않아 할인을 세지 않음(아래 안내 한 줄에 건수)
+    const signed = all.filter(function (c) { return !C.priceCheckOff(c); }), offN = all.length - signed.length;
     const rows = signed.map(function (c) { return { c: c, d: discountOf(c) }; }).filter(function (x) { return x.d != null; });
     const skip = signed.length - rows.length;
     const groups = [['영업', function (c) { return C.ownerLabel(c.requesterId); }], ['영업 유닛', function (c) { return C.teamOf(c.requesterId) || '조직 없음'; }],
@@ -449,7 +482,8 @@
       }).join('');
     }).join('') : '<tr><td colspan="5" class="empty-row">이 조건에서 할인을 셀 수 있는 체결 계약이 없습니다.</td></tr>';
     // 늘 한 줄이 있어 화면이 흔들리지 않음
-    $('#disc-skip').textContent = skip ? '제품 줄이 없어 할인을 셀 수 없는 체결 계약 ' + skip + '건은 넣지 않았습니다.' : '이 조건의 체결 계약은 모두 셌습니다.';
+    $('#disc-skip').textContent = (skip ? '제품 줄이 없어 할인을 셀 수 없는 체결 계약 ' + skip + '건은 넣지 않았습니다.' : offN ? '' : '이 조건의 체결 계약은 모두 셌습니다.') +
+      (offN ? (skip ? ' ' : '') + '줄임과 조항만 바꾼 변경 ' + offN + '건은 표준 단가와 견주지 않아 넣지 않았습니다.' : ''); // (설계 검토 2026-11-11 6번)
   }
   function renderProxy(base, months) {
     const list = [];
@@ -499,7 +533,7 @@
     // 분기 말 5일 안의 가격 예외
     base.forEach(function (c) {
       const ck = c.checklist || {};
-      if (ck.price !== 'NO' && ck.cap !== 'NO') return;
+      if (ck.price !== 'NO' && ck.cap !== 'NO' && !(c.reduceOver && c.reduceOver.over)) return; // ③을 거친 줄임도(2026-11-17 다른 눈 oversight-01)
       const s03 = (c.approvals || []).filter(function (a) { return a.step === 'S03' && a.state === 'DONE' && a.decidedAt; })[0];
       const day = String(s03 ? s03.decidedAt : c.requestedAt || '').slice(0, 10);
       if (!day || months.indexOf(day.slice(0, 7)) < 0) return;
@@ -519,9 +553,10 @@
           '<td class="num-left">' + C.fmtDate(r.day) + '<span class="cell-meta">' + (r.s03 ? '③ 승인일' : '기안일') + '</span></td><td class="num">' + C.fmtWon(sum(r.list)) + '</td></tr>';
     }).join('') : '<tr><td colspan="4" class="empty-row">이 조건에서 위험 신호가 없습니다.</td></tr>';
   }
-  function meterHtml(label, n, of, unit) {
+  // sub: 이름 옆 작은 글자(선택). (설계 검토 2026-11-11 3장) 계약 뒤쪽 묶음이 나눈 건수를 적으려고 더함
+  function meterHtml(label, n, of, unit, sub) {
     const pct = of ? Math.round(n / of * 100) : 0;
-    return '<div class="meter"><p class="meter-head"><span class="meter-label">' + esc(label) + '</span>' +
+    return '<div class="meter"><p class="meter-head"><span class="meter-label">' + esc(label) + (sub ? '<span class="meter-sub">' + esc(sub) + '</span>' : '') + '</span>' +
       '<span class="meter-val">' + unit + ' ' + of + '건 중 ' + n + '건(' + pct + '%)</span></p>' +
       '<span class="meter-track" role="img" aria-label="' + esc(label + ': ' + unit + ' ' + of + '건 중 ' + n + '건, ' + pct + '%') + '"><span class="meter-fill" style="width:' + pct + '%"></span></span></div>';
   }
@@ -555,6 +590,133 @@
     }).join('') || '<tr><td colspan="5" class="empty-row">이 조건에서 ④ 법무가 승인한 계약(표준계약서를 바꾼 계약)이 없습니다.</td></tr>';
   }
 
+  /* ---------- 11. 계약 뒤쪽 (설계 검토 2026-11-11 3장 "통계에 계약 뒤쪽 숫자", 가장 뒤 순위) ----------
+   * 계약을 맺은 뒤의 일을 위 조건(기간, 서비스, 영업 유닛)으로 셈. 볼 수 있는 사람은 모두(REQ-DASH-17, 지금 통계와 같음) [가정]
+   *   통제 지표(C-1, 사람이나 유닛마다 나눠 봄)와 달리 회사 전체의 건수와 비율이라 모두에게 보임. 리더와 임원만 보게 하려면 이 묶음을 #control-panel 안으로 옮기면 됨
+   * 넣지 않는 것: 열람 제한 계약 중 볼 수 없는 건, 예전 계약 기록 자체(설계 검토 5번, 위 all이 이미 뺌), 진행 중단(7번)과 반려되어 다시 기안을 기다리는 기안
+   *   예전 계약 기록에 이어 시스템에서 기안한 연장, 운영 변경, 해지와 그 묶음의 의무는 셈(5번의 "후속 계약은 셈"과 같은 생각) [가정]
+   * 가. 운영 변경: 기안일이 기간 안인 운영 변경을 종류(D.CHANGE_TYPES)마다. 진행 중인 것도 세고 "계약 완료" 칸에 끝난 것만 따로 [가정]
+   *     충전 수량은 기안한 수량(CK와 HR은 단위가 달라 합계를 내지 않음, B-4와 같음), 유상 금액은 changeAmount(부가세 별도)
+   *     무상 충전 가운데 계약 연도 누적 50건을 넘어 ③ 영업 검토를 거치는(거친) 건수를 작은 줄로(B-4, REQ-CHG-07). 서비스를 고르면 그 서비스의 충전과 기간 변경만
+   *   기간 변경 길이: 바꾸기 전 종료일(oldEndDate)과 새 종료일(endDate) 사이 날 수. 늘림과 줄임마다 건수, 평균, 가장 긴 것
+   *     달 수는 REQ-CHG-07의 세는 법(C.monthsLater, 말일이면 말일 기준)으로 1개월 안, 2개월 안, 2개월 넘음(설계 검토 8번, 8-1의 2개월 한도를 두기 전 기록)
+   * 나. 만료 처리 결과 [가정]: 종료일(해지했으면 해지일)이 기간 안이고 오늘 전인 계약 기간마다 어떻게 되었는지
+   *     계약 기간 = 원계약과 계약 완료된 연장(조건 그대로 연장 포함) 하나하나. 뒤에 계약 완료된 연장이 있는 앞 계약 기간은 "연장"
+   *     지금 유효한 계약 기간은 만료 처리와 유예(C.expiryOf, A-10, A-11): 연장이나 새 계약(계약 완료, 진행 중), 유예 중, 만료(서비스 닫음, 닫기 전)
+   *     해지한 묶음은 "해지"(해지일이 원래 종료일보다 앞이면 해지일로 봄). 유예를 확인받았던 계약 기간 수는 아래 한 줄에 따로
+   * 다. 해지: 기안일이 기간 안인 해지. 해지일과 원래 종료일보다 몇 달 먼저인지(C.periodMonths, 남는 날은 한 달로), 지금 상태, 사유
+   * 라. 의무를 기한 안에 한 비율 [가정]: 한 번과 되풀이 의무의 기한(C.obligationDues) 가운데 기간 안이고 오늘 전인 것과, 오늘 뒤라도 이미 이행 기록을 남긴 것
+   *     그 기한의 첫 이행 기록을 남긴 날이 기한 날까지면 "기한 안에 함", 뒤면 "기한 뒤에 함", 기록이 없으면 "아직 하지 않음"
+   *     끝낸 의무는 끝낸 날 뒤의 기한을 넣지 않음. 일이 생기면 하는 의무는 기한이 없어 비율에 넣지 않고 기간 안에 남긴 기록 건수만
+   *     의무는 묶음에 붙으므로 원계약으로 거름(볼 수 있는지, 서비스, 영업 유닛)
+   * 인쇄: 보고서 인쇄에 들어감(그래프 옆 "표로 보기"가 아닌 펼쳐진 표라 종이에도 찍힘) */
+  const AFTER_OUT = ['DRAFT', 'REJECTED', 'STOPPED'];
+  function inMonths(day, months) { return !!day && months.indexOf(String(day).slice(0, 7)) > -1; }
+  function renderAfter(base, months, service, unit) {
+    // 가. 운영 변경 (종류마다 한 줄. 줄 수는 서비스 조건으로만 바뀜)
+    const chg = base.filter(function (c) { return c.kind === 'CHANGE' && AFTER_OUT.indexOf(c.status) < 0 && inMonths(c.requestedAt, months); });
+    const types = Object.keys(D.CHANGE_TYPES).filter(function (t) { return !service || t === 'PERIOD' || t.split('_')[0] === service; });
+    const shown = chg.filter(function (c) { return types.indexOf(c.changeType) > -1; });
+    const sumOf = function (list, k) { return list.reduce(function (n, c) { return n + (Number(c[k]) || 0); }, 0); };
+    const doneOf = function (list) { return list.filter(function (c) { return c.status === 'ACTIVE'; }).length; };
+    $('#after-change-rows').innerHTML = types.map(function (t) {
+      const g = shown.filter(function (c) { return c.changeType === t; });
+      const s03 = /_FREE$/.test(t) ? g.filter(function (c) { return (c.approvals || []).some(function (a) { return a.step === 'S03' && a.state !== 'SKIPPED'; }); }).length : 0;
+      return '<tr><td>' + esc(D.CHANGE_TYPES[t]) + (s03 ? '<span class="cell-meta">누적 50건을 넘어 ③ 영업 검토 ' + s03 + '건</span>' : '') + '</td>' +
+        '<td class="num">' + g.length + '건</td><td class="num">' + doneOf(g) + '건</td>' +
+        '<td class="num">' + (t === 'PERIOD' ? '-' : sumOf(g, 'changeQty').toLocaleString('ko-KR') + '건') + '</td>' +
+        '<td class="num">' + (/_PAID$/.test(t) ? C.fmtWon(sumOf(g, 'changeAmount')) : '-') + '</td></tr>';
+    }).join('') + '<tr class="row-total"><th scope="row">합계</th><td class="num">' + shown.length + '건</td><td class="num">' + doneOf(shown) + '건</td>' +
+      '<td class="num">-</td><td class="num">' + C.fmtWon(sumOf(shown, 'changeAmount')) + '</td></tr>';
+    // 기간 변경 길이. 늘 한 줄이 있어 조건을 바꿔도 화면이 흔들리지 않음
+    const per = shown.filter(function (c) { return c.changeType === 'PERIOD' && c.oldEndDate && c.endDate && c.endDate !== c.oldEndDate; });
+    const len = function (c) { return Math.abs(Math.round(daysFrom(c.oldEndDate, c.endDate))); };
+    const within = function (c, n) { return c.endDate <= C.monthsLater(c.oldEndDate, n) && c.endDate >= C.monthsLater(c.oldEndDate, -n); };
+    const lenText = function (list) {
+      const d = list.map(len);
+      return list.length + '건' + (list.length ? '(평균 ' + Math.round(d.reduce(function (a, b) { return a + b; }, 0) / d.length).toLocaleString('ko-KR') + '일, 가장 긴 ' +
+        Math.max.apply(null, d).toLocaleString('ko-KR') + '일)' : '');
+    };
+    const in1 = per.filter(function (c) { return within(c, 1); }).length, in2 = per.filter(function (c) { return within(c, 2); }).length;
+    $('#after-period').innerHTML = C.meta(per.length
+      ? [['기간 변경 늘림', lenText(per.filter(function (c) { return c.endDate > c.oldEndDate; }))], ['줄임', lenText(per.filter(function (c) { return c.endDate < c.oldEndDate; }))],
+        ['1개월 안', in1 + '건'], ['1개월 넘고 2개월 안', (in2 - in1) + '건'], in2 < per.length ? ['2개월 넘음', (per.length - in2) + '건(한도를 두기 전 기록)'] : null]
+      : [['기간 변경 길이', '이 조건에서 기안한 기간 변경이 없습니다.']]);
+
+    // 나. 만료 처리 결과 (계약 기간마다)
+    const ok = {};
+    base.forEach(function (c) { ok[c.id] = true; }); // 볼 수 있고, 예전 계약 기록 자체가 아니고, 서비스와 영업 유닛 조건에 맞는 계약
+    const ended = [];
+    C.bundles().forEach(function (b) {
+      if (['ACTIVE', 'EXPIRED', 'TERMINATED'].indexOf(b.root.status) < 0) return; // 진행 중단, 반려, 결재 중인 원계약은 계약 기간이 시작되지 않음
+      const terms = [b.root].concat(b.items.filter(function (x) { return x.kind === 'RENEW' && ['ACTIVE', 'EXPIRED'].indexOf(x.status) > -1; }));
+      terms.forEach(function (t, i) {
+        let end = C.endOf(t), how;
+        if (terms[i + 1]) how = 'RENEWED';
+        else if (b.status === 'TERMINATED') { how = 'TERMINATED'; end = b.root.terminateDate && b.root.terminateDate < b.end ? b.root.terminateDate : b.end; }
+        else {
+          const ex = C.expiryOf(b);
+          if (!ex || !ex.ended) return; // 아직 끝나지 않음
+          end = b.end;
+          how = ex.state === 'DONE' ? 'CLOSED' : ex.state === 'GRACE' ? 'GRACE' : ex.state === 'OFF' ? (ex.block && ex.block.status === 'ACTIVE' ? 'RENEWED' : 'RENEWING') : 'OPEN';
+        }
+        if (!end || end >= D.TODAY || !inMonths(end, months) || !ok[t.id]) return;
+        ended.push({ how: how, grace: (t.history || []).some(function (h) { return h.step === 'SGR' && h.action === 'GRACE_OK'; }) });
+      });
+    });
+    const cnt = function (list, hows) { return list.filter(function (x) { return hows.indexOf(x.how) > -1; }).length; };
+    const n = ended.length, U = '끝난 계약 기간';
+    $('#after-expiry').innerHTML = n ? [
+      meterHtml('연장', cnt(ended, ['RENEWED', 'RENEWING']), n, U, '새 계약 포함, 계약 완료 ' + cnt(ended, ['RENEWED']) + '건, 진행 중 ' + cnt(ended, ['RENEWING']) + '건'),
+      meterHtml('유예 중', cnt(ended, ['GRACE']), n, U, '영업 리더가 확인한 기한까지 서비스를 열어 둠'),
+      meterHtml('만료', cnt(ended, ['CLOSED', 'OPEN']), n, U, '서비스 닫음 ' + cnt(ended, ['CLOSED']) + '건, 닫기 전 ' + cnt(ended, ['OPEN']) + '건'),
+      meterHtml('해지', cnt(ended, ['TERMINATED']), n, U, '종료일 전에 해지'),
+    ].join('') : '<p class="chart-empty">이 조건에서 기간 안에 끝난 계약 기간이 없습니다.</p>';
+    const gr = ended.filter(function (x) { return x.grace; });
+    $('#after-expiry-note').textContent = '유예를 확인받았던 계약 기간은 ' + gr.length + '건입니다' +
+      (gr.length ? '(지금 유예 중 ' + cnt(gr, ['GRACE']) + '건, 그 뒤 연장 ' + cnt(gr, ['RENEWED', 'RENEWING']) + '건, 만료 ' + cnt(gr, ['CLOSED', 'OPEN']) + '건)' : '') +
+      '. 종료일이 오늘(' + C.fmtDate(D.TODAY) + ') 전인 계약 기간만 셉니다.';
+
+    // 다. 해지 (기안일 순)
+    const term = base.filter(function (c) { return c.kind === 'TERMINATE' && AFTER_OUT.indexOf(c.status) < 0 && inMonths(c.requestedAt, months); })
+      .sort(function (a, b) { return String(a.requestedAt).localeCompare(String(b.requestedAt)); });
+    const termDone = term.filter(function (c) { return c.status === 'TERMINATED'; }).length;
+    $('#after-term-sum').innerHTML = C.meta([['해지 기안', term.length + '건'], ['계약 완료', termDone + '건'], ['진행 중', (term.length - termDone) + '건']]);
+    $('#after-term-rows').innerHTML = term.length ? term.map(function (c) {
+      const bb = C.bundleOf(C.rootOf(c)), end = bb ? bb.end : '';
+      const early = c.terminateDate && end && c.terminateDate < end ? C.periodMonths(C.addDays(c.terminateDate, 1), end) : null;
+      return '<tr>' + custCell(c) + '<td class="num-left">' + C.fmtDate(String(c.requestedAt).slice(0, 10)) + '</td>' +
+        '<td class="num-left">' + (c.terminateDate ? C.fmtDate(c.terminateDate) : '-') + (early ? '<span class="cell-meta">종료일 ' + C.fmtDate(end) + '보다 약 ' + early + '개월 먼저</span>' : '') + '</td>' +
+        nowCell(c) + '<td>' + esc(c.reason || '-') + '</td></tr>';
+    }).join('') : '<tr><td colspan="5" class="empty-row">이 조건에서 기안한 해지가 없습니다.</td></tr>';
+
+    // 라. 의무를 기한 안에 한 비율 (종류마다)
+    const ob = {};
+    let events = 0;
+    D.OBLIGATIONS.forEach(function (o) {
+      const root = D.CONTRACTS.filter(function (c) { return c.id === o.bundle; })[0];
+      if (!root || !C.canView(root, me) || (service && (root.services || []).indexOf(service) < 0) || (unit && C.teamOf(root.requesterId) !== unit)) return;
+      const recs = o.records || [];
+      if (o.when === 'EVENT') { events += recs.filter(function (r) { return inMonths(r.at, months); }).length; return; }
+      const stop = o.endedAt ? String(o.endedAt).slice(0, 10) : '';
+      C.obligationDues(o).forEach(function (d) {
+        if (!inMonths(d, months) || (stop && d > stop)) return;
+        const r = recs.filter(function (x) { return x.for === d; }).sort(function (a, b) { return String(a.at).localeCompare(String(b.at)); })[0];
+        if (!r && d >= D.TODAY) return; // 기한이 아직 오지 않았고 기록도 없음
+        const k = ob[o.kind] = ob[o.kind] || { all: 0, ok: 0, late: 0, none: 0 };
+        k.all++;
+        if (!r) k.none++; else if (String(r.at).slice(0, 10) <= d) k.ok++; else k.late++;
+      });
+    });
+    const kinds = Object.keys(D.OBLIGATION_KINDS).filter(function (k) { return ob[k]; });
+    const tot = kinds.reduce(function (t, k) { ['all', 'ok', 'late', 'none'].forEach(function (x) { t[x] += ob[k][x]; }); return t; }, { all: 0, ok: 0, late: 0, none: 0 });
+    const subOf = function (x) { return '기한 뒤에 함 ' + x.late + '건, 아직 하지 않음 ' + x.none + '건'; };
+    $('#after-ob').innerHTML = tot.all ? [meterHtml('모든 의무', tot.ok, tot.all, '기한이 온', subOf(tot))].concat(kinds.map(function (k) {
+      return meterHtml(D.OBLIGATION_KINDS[k].label, ob[k].ok, ob[k].all, '기한이 온', subOf(ob[k]));
+    })).join('') : '<p class="chart-empty">이 조건에서 기한이 온 체결 후 의무가 없습니다.</p>';
+    $('#after-ob-note').textContent = '일이 생기면 하는 의무(장애 대응, 사고 통지 등)는 기한이 없어 비율에 넣지 않았습니다. 기간 안에 남긴 그 기록은 ' + events + '건입니다.';
+  }
+
   /* ---------- 8. 기간 마감 점검 (기획자 결정 2026-11-02 B-9, G-09 뒤, CTL-65) ----------
    * 결산 기간 말을 골라 그날 기준으로 세 목록을 봄. 위 조건(기간, 서비스, 영업 유닛)과 상관없이 볼 수 있는 모든 계약
    *   가. 체결일(서명본 체결일)이 기간 말 앞뒤 n일 안인 계약. 기간 말까지 체결했지만 기간 말 뒤에 올린 계약은
@@ -581,7 +743,7 @@
     const endAt = end + ' 23:59:59', from = C.addDays(end, -n), to = C.addDays(end, n);
     const out = { a: [], b: [], c: [] };
     list.forEach(function (c) {
-      if (c.status === 'REJECTED') return;
+      if (c.status === 'REJECTED' || c.status === 'STOPPED') return; // (설계 검토 2026-11-11 7번) 진행 중단한 계약은 체결되지 않아 마감 점검에서 뺌 [가정, 반려와 같음]
       const s = signInfo(c);
       if (s && counted(c)) {
         const late = !!s.up && s.date <= end && s.up.slice(0, 10) > end;
@@ -617,10 +779,10 @@
 
   // 표 칸 조각: 고객사(결재 문서로 가는 링크, 계약번호, 날짜 순서가 이상하면 그 글), 금액(오른쪽), 지금 상태
   function custCell(c) {
-    // B-5: 견적서로 대신한 계약은 고객 날인일(결재 문서의 날짜 순서 안내와 같은 말)
-    const quote = C.isQuoteInstead(c);
+    // B-5: 견적서로 대신한 계약은 고객 날인일(결재 문서의 날짜 순서 안내와 같은 말). (설계 검토 2026-11-11 답 ⑤, 남은 것 ④) 날짜 이름은
+    //   C.dateOrderIssues가 계약에 맞게 씀(C.signDayLabel: 고객 날인일, 전자계약 체결일 / C.openDateLabel: 줄임과 조항만 변경은 적용일)
     const odd = C.dateOrderIssues(c).map(function (x) {
-      return '<span class="cell-meta">' + C.badge('attention', '날짜 순서') + ' ' + esc(quote ? x.text.replace(/서명본 체결일/g, '고객 날인일') : x.text) + '</span>';
+      return '<span class="cell-meta">' + C.badge('attention', '날짜 순서') + ' ' + esc(x.text) + '</span>';
     }).join('');
     return '<td><a class="cell-title" href="review.html?id=' + encodeURIComponent(c.id) + '">' + esc(c.counterparty) + '</a>' +
       '<span class="cell-meta">' + esc(c.id) + (c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span>' + odd + '</td>';
@@ -742,13 +904,13 @@
    *   계약과 차수: 기간 안에 기안했거나 결재 기록이 있는 계약. 체크리스트 1~4번 답(아니요면 사유, 4번은 종류)
    *   결재 기록: 그 계약들의 기록 가운데 기간 안의 것. 단계마다 처리한 사람, 누구 대신, 시각, 한 일(결과), 의견
    *   ③ 가격 예외(2번이나 3번 아니요), 4번 예 계약(⑩ 재무 확인 상태), ⑧ 결과(⑧ 기록과 어긋난 항목)
-   *   가격과 권한 변경: 가격 기준 줄, 사용자 권한과 결재선 규칙의 변경 이력, 끝나는 날이 지나 풀린 감사 열람
+   *   가격과 권한 변경: 가격 기준 줄(티어 단가 포함), 거래처의 고객사 티어 변경(설계 검토 2026-11-11 남은 것 ⑤), 사용자 권한과 결재선 규칙의 변경 이력, 끝나는 날이 지나 풀린 감사 열람
    *   접속 기록: 접속 기록 점검과 같은 기록(control-checks.js accessLogs)
    * 파일 맨 위 머리: 실행 시각, 실행한 사람, 조건, 건수, 금액 합계(신규, 변경, 연장), 파일 지문(빈 줄 아래 본문의 SHA-256), 워터마크
    * 내려받으면 꺼낸 기록(누가, 언제, 조건, 건수, 지문)이 남음. 실제 시스템은 서버가 엑셀 파일을 만들고 지문과 꺼낸 기록을 남김 [가정: 시안은 CSV] */
   // 기본 기간: 지난달 1일부터 말일까지 (기간 마감 점검의 기본 기간 말과 같은 달)
   const EXPORT_DEFAULT = { from: PREV_MONTH_END.slice(0, 8) + '01', to: PREV_MONTH_END };
-  function yesNo(v, note) { return v === 'YES' ? '예' : v === 'NO' ? '아니요' + (note ? '(' + note + ')' : '') : '-'; }
+  function yesNo(v, note) { return v === 'YES' ? '예' : v === 'NO' ? '아니요' + (note ? '(' + note + ')' : '') : v === 'NA' ? '해당 없음' : '-'; } // NA: 줄임, 조항만 변경의 2, 3번(설계 검토 2026-11-11 6번)
   function acctKindText(c) {
     return ((c.checklist || {}).acctKinds || []).map(function (k) { const x = (D.ACCT_KINDS || []).filter(function (y) { return y.code === k; })[0]; return x ? x.label : k; }).join(', ');
   }
@@ -759,7 +921,8 @@
     const a = (c.approvals || []).filter(function (x) { return x.step === code; })[0];
     if (!a) return ['거치지 않음', '', ''];
     if (a.state === 'SKIPPED') return [(D.APPROVAL_STATE.SKIPPED || { label: '생략' }).label, '', ''];
-    const label = a.state === 'DONE' && D.STEPS[code] && D.STEPS[code].done ? D.STEPS[code].done : (D.APPROVAL_STATE[a.state] || { label: a.state }).label;
+    //   (설계 검토 2026-11-11 남은 것 ④) 끝난 말은 계약에 맞게(C.stepDone: 전자계약의 ⑥은 "서명"). 결재 문서의 결재란과 같은 함수
+    const label = a.state === 'DONE' && C.stepDone(code, c) ? C.stepDone(code, c) : (D.APPROVAL_STATE[a.state] || { label: a.state }).label;
     return [label, a.decidedBy ? C.ownerLabel(a.decidedBy) : '', a.decidedAt ? C.fmtDateTime(a.decidedAt) : ''];
   }
   function buildEvidence(from, to) {
@@ -782,7 +945,8 @@
           h.onBehalfOf ? C.ownerLabel(h.onBehalfOf) : '', h.basis || '', C.fmtDateTime(h.at), h.comment || '']);
       });
     });
-    const exc = cs.filter(function (c) { return ck(c).price === 'NO' || ck(c).cap === 'NO'; });
+    // (2026-11-17 다른 눈 oversight-01) ③을 거친 줄임(W7-3, reduceOver)도 ③ 가격 예외로 넣음
+    const exc = cs.filter(function (c) { return ck(c).price === 'NO' || ck(c).cap === 'NO' || !!(c.reduceOver && c.reduceOver.over); });
     const excRows = exc.map(function (c) {
       const pp = overPpOf(c), s3 = stepState(c, 'S03'), s3c = stepState(c, 'S03C');
       return [c.id, c.counterparty, yesNo(ck(c).price, ck(c).priceNote), yesNo(ck(c).cap, ck(c).capNote), pp == null ? '셀 수 없음' : pp + '%p',
@@ -803,10 +967,19 @@
     });
     // 가격과 권한 변경: 가격 줄(가격 기준 관리에서 바꾼 것도 들어 있음), 사용자 권한과 결재선 규칙의 변경 이력, 저절로 풀린 감사 열람(C-2)
     const chg = [];
+    //   (설계 검토 2026-11-11 남은 것 ⑤, 답 ①) 가격 줄에 티어 단가(X.tierPriceText)를 함께 적고, 거래처의 고객사 티어 변경(X.tierInfo)도 넣음(2026-11-12 [제안] ①부터 티어가 다른 거래처 합치기도 tierInfo가 셈)
+    //     티어 변경 줄: 바뀐 내용 뒤에 그날 가격 기준으로 표준 단가가 바뀌는 기능. 품의 칸은 비움(거래처 관리에는 품의 링크 칸이 없음 [가정])
     D.PRICE_ROWS.forEach(function (r) {
       if (!inP(r.at)) return;
-      chg.push([r.at, '가격 기준', C.featureLabel(r), C.fmtWon(r.listPrice) + '(' + r.unit + '), 한도 ' + pct1(r.discountCap || 0) + ', ' + r.validFrom + '부터', r.reason || '',
+      const tp = X.tierPriceText(r);
+      chg.push([r.at, '가격 기준', C.featureLabel(r), C.fmtWon(r.listPrice) + '(' + r.unit + '), 한도 ' + pct1(r.discountCap || 0) + (tp ? ', 티어 단가 ' + tp : '') + ', ' + r.validFrom + '부터', r.reason || '',
         [r.docNo, r.docUrl].filter(Boolean).join(' '), C.ownerLabel(r.by), '']);
+    });
+    C.adminLog(['CUSTOMER']).forEach(function (e) {
+      const ti = inP(e.at) ? X.tierInfo(e) : null;
+      if (!ti) return;
+      const items = ti.items.map(function (it) { return it.label + ' ' + (it.before ? it.before + ' → ' : '') + it.after; }).join(', ') || ti.tierNote;
+      chg.push([e.at, '거래처(고객사 티어)', e.target, e.change + ' / 표준 단가: ' + items, e.reason || '', '', C.ownerLabel(e.by), '']);
     });
     C.adminLog(['USER', 'RULE']).concat(C.roleEndLog()).forEach(function (e) {
       if (!inP(e.at)) return;
@@ -871,7 +1044,8 @@
     $('#export-count').textContent = list.length + '건';
     $('#export-rows').innerHTML = list.length ? list.map(function (r) {
       return '<tr><td class="num-left">' + C.fmtDateTime(r.at) + '</td><td class="center">' + esc(C.ownerLabel(r.by, r.dept)) + '</td>' +
-        '<td><span class="cell-strong">' + (r.kind === 'BUNDLE' ? '결재 기록 묶음' : '기간 전체') + '</span><span class="cell-meta">' + esc(r.cond) + '</span><span class="cell-meta">' + esc(r.file) + '</span></td>' +
+        // 2026-11-16 W7-6: 설정 변경 확인의 모집단 내려받기(POP_CONFIG)도 같은 꺼낸 기록에 남아 이름을 따로 보임
+        '<td><span class="cell-strong">' + (r.kind === 'BUNDLE' ? '결재 기록 묶음' : r.kind === 'POP_CONFIG' ? '모집단(가격과 거래처 변경)' : '기간 전체') + '</span><span class="cell-meta">' + esc(r.cond) + '</span><span class="cell-meta">' + esc(r.file) + '</span></td>' +
         '<td>' + esc(r.count) + '</td><td class="num">' + (r.sum ? C.fmtWon(r.sum) : '-') + '</td>' +
         '<td class="hash">' + esc(r.hash || '없음') + '</td></tr>';
     }).join('') : '<tr><td colspan="6" class="empty-row">아직 꺼낸 기록이 없습니다.</td></tr>';

@@ -12,6 +12,8 @@
  *   4. 기획자 결정 2026-11-03 C-44: 영업 리더가 나를 새 영업대표로 정한 계약도 모음(C.salesRepOf). 고객사 아래 작은 줄에 "이어 맡음"
  *      할 일 단추는 지금 영업대표에게만(C.isSalesRep). 내가 기안했지만 다른 사람에게 넘어간 계약은 목록에 남고 "영업대표 바뀜: ○○", 할 일은 "-"
  *      영업대표 칸(최고관리자, 관리자 보기)은 지금 영업대표. 사용 중지라 정하기 전이면 그 아래 "담당 지정 필요 (영업 리더가 맡음)"
+ *   5. 진행 중단(설계 검토 2026-11-11 7번): 상태 거르기에 "진행 중단"(D.STATUS에서 저절로). 요청 중인 계약은 할 일 칸에 "중단 요청 중"(단추 없음),
+ *      현재 진행은 "③ 진행 중단 확인"이나 "⑥ 날인본 회수 확인", 끝난 계약은 "중단 날짜"(C.progressCells)
  *   표 위 회색 안내 한 줄(D-2)은 my-contracts.html에 있음
  * ===================================================================== */
 (function () {
@@ -63,6 +65,8 @@
       return '<div class="row-actions"><a class="btn btn--secondary" href="new-contract.html?id=' + encodeURIComponent(c.draftKey) + '">이어서 작성</a>' +
         '<button type="button" class="btn btn--tertiary btn-reject" data-del="' + esc(c.draftKey) + '">지우기<span class="sr-only"> ' + esc(cpName(c)) + ' 임시 저장</span></button></div>'; // (2026-11-06 점검: 줄마다 같은 단추 이름이라 화면낭독기가 어느 것인지 알게 보이지 않는 글을 붙임. 보이는 글이 이름의 앞. 없애는 말은 "지우기"로 맞춤)
     }
+    // (설계 검토 2026-11-11 7번) 진행 중단 요청 중이면 할 일 대신 짧은 한 줄(리더 확인을 기다림. 보완하기, 재기안, 체결본 등록이 멈춤)
+    if (C.stopPending(c)) return '<div class="row-actions"><span class="cell-meta">중단 요청 중</span></div>';
     // 보완 요청을 받은 계약: 결재 문서에서 보완 완료 (REQ-REV-11, v0.26)
     if (c.status === 'SUPPLEMENT') {
       return '<div class="row-actions"><a class="btn btn--primary" href="review.html?id=' + encodeURIComponent(c.id) + '">보완하기</a></div>';
@@ -74,7 +78,8 @@
     }
     const p = C.currentStep(c);
     if (p && p.step === 'S07') {
-      return '<div class="row-actions"><a class="btn btn--primary" href="review.html?id=' + encodeURIComponent(c.id) + '">체결본 등록</a></div>';
+      // (설계 검토 2026-11-11 남은 것 ④) 전자계약은 "출력본 등록"(결재 문서 단추와 같은 말, D.ESIGN_STEPS.S07.doneAction)
+      return '<div class="row-actions"><a class="btn btn--primary" href="review.html?id=' + encodeURIComponent(c.id) + '">' + (C.isEsign(c) ? D.ESIGN_STEPS.S07.doneAction : '체결본 등록') + '</a></div>';
     }
     return '-';
   }

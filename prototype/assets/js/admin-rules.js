@@ -9,6 +9,10 @@
  *      바꾸면 아직 차례가 오지 않은 단계부터 새 담당자에게 감. 지금 차례인 건은 원래 담당자가 처리 (기획자 결정 v0.25)
  *      ⑦ 체결본 등록은 영업대표가 하므로 이 화면에서 바꿀 수 없음(기획자 결정 2026-11-03 C-44: 영업대표는 계약 상세에서 영업 리더가 바꿈)
  *      ③ 영업 검토는 유닛별 리더(구성원 계약)와 영업 임원(리더 본인 계약)으로 나눠 정함 (v0.26 재무 문서 반영)
+ *      (설계 검토 2026-11-11 남은 것 ④, 4-1 9-1) ⑥ 줄(총무)은 종이 날인 계약만. 전자계약의 ⑥ 인증서 서명은 ⑧ 줄 담당 영업지원이 하고,
+ *        전자계약의 ⑧ 출력본 확인은 ⑥을 하지 않은 다른 영업지원(없으면 영업지원 리더). 따로 바꾸는 줄은 두지 않고 ⑧ 줄을 바꾸면 함께 바뀜.
+ *        (2026-11-14 주말 점검, 코드 다시 보기 admin-02) 영업지원 리더도 없으면 ⑩ 담당 재무(isms-02). ⑧ 줄 안내와 거치는 조건 칸에 보임
+ *        지금 차례 건수도 그렇게 셈(전자계약의 ⑥은 ⑧ 줄). 대리 지정의 맡은 단계에 "⑥(전자계약)", "⑧(전자계약)"이 보임(C.duties의 auto)
  *   2. 대리 지정: 자리를 비우는 담당자, 대신할 사람(같은 역할. 영업 리더는 영업 임원도), 기간, 근거 (기획자 결정 v0.25)
  *      기간 안에는 대신할 사람이 처리하고 결재 기록에 "누구 대신"과 근거가 남음(common.js recordAction)
  *      기획자 결정 2026-11-02 E-3(A안, 추천과 다름): ③ 영업 임원 승인(S03C) 줄. 담당은 ③ 줄의 영업 임원과 같은 사람이라 그 줄에서 바꿈
@@ -16,7 +20,7 @@
  *      기획자 결정 2026-11-03(C-18 ⑤): HR 충전의 ⑩도 ⑩ 줄의 담당자(재무 담당자). 재무 리더가 맡던 따로 한 줄('S10:HR')과 그 창의 고르기는 없앰.
  *        ⑨를 한 사람은 ⑩을 하지 않으므로 HR 충전처럼 ⑩ 담당자가 ⑨를 했으면 다른 재무 담당자에게 감(common.js otherFinance)
  *   2-1. 승인 기준과 근거 (기획자 결정 2026-11-02 E-3)
- *      영업 임원(COO)도 승인하는 기준: 할인율 한도를 n%p 넘게 넘김(PRICE_RULES.cooOverPp, [가정] 10%p는 실제 한도가 온 뒤 정함)
+ *      영업 임원(COO)도 승인하는 기준: 할인율 한도를 n%p 넘게 넘김(PRICE_RULES.cooOverPp, 기획자 결정 2026-11-16 결정 2: 5%p. 그 전에 기안한 계약은 10%p)
  *      위임전결 근거: 결재선 규칙이 따르는 회사 규정의 이름과 판(D.RULE_BASIS). 처음에는 비어 있고 운영 시작 전에 넣음
  *   3. 독촉과 알림 일수: 결재 대기 강조, 체결 지연 독촉, 해지 통지 기한 강조와 이메일, 의무 기한 강조와 이메일
  *      기획자 결정 2026-11-02 A-5(추천과 다름): 고정값이던 알림 일수 네 칸을 지금 바로 둠. 바꾸는 방식(사유 필수, 변경 이력)은 앞의 둘과 같음
@@ -40,16 +44,21 @@
   //   ③ 영업 임원 승인의 기준 %p는 지금 값으로 보여 줌(E-3)
   function rows() {
     return [
-      ['S02', '모든 계약 (해지, 그대로 연장, 운영 변경은 없음). 기안자가 담당자면 재무 담당자가 대신 검토'],
-      ['S03', '할인율 한도를 넘긴 계약, 해지, 그대로 연장, 운영 변경(기간 2개월 넘게 바뀜, 무상 충전이 계약 연도 누적 50건 초과). 구성원 계약은 유닛 리더(아래 표), 리더 본인 계약은 영업 임원. 만료 유예 확인도 같은 사람'],
+      // (2026-11-17 다른 눈 oversight-02) 2026-11-16 밤 dec-02 [가정, 결정할것 9장 N-2]: 영업지원 역할을 지닌 사람이 기안하면 ②, ⑧(종이)은 재무
+      ['S02', '모든 계약 (해지, 그대로 연장, 운영 변경은 없음). 기안자에게 영업지원 역할(담당자나 리더)이 있으면 재무 담당자가 대신 검토'],
+      // (설계 검토 2026-11-11 8번) 운영 변경의 기간 변경은 2개월까지만 받고 ③이 없음(예전 "기간 2개월 넘게 바뀜"을 뺌). 화면 글에 결정 번호가 섞여 나오던 것을 주석으로 옮김(L2 검토)
+      ['S03', '할인율 한도를 넘긴 계약, 해지, 그대로 연장, 운영 변경(무상 충전이 계약 연도 누적 50건 초과. 기간 변경은 2개월까지만 받음). 구성원 계약은 유닛 리더(아래 표), 리더 본인 계약은 영업 임원. 만료 유예 확인도 같은 사람'],
       // 기획자 결정 2026-11-02 E-3: 유닛 리더 다음에 영업 임원도 승인. 리더 본인 계약은 ③이 이미 영업 임원이라 거치지 않음(common.js reviewRoute)
-      ['S03C', '③을 거치는 구성원 계약 중 한 줄이라도 할인율 한도를 ' + C.cooOverPp() + '%p 넘게 넘긴 계약(아래 승인 기준). 유닛 리더 다음에 승인. 리더 본인 계약, 해지, 그대로 연장, 운영 변경은 없음'],
+      ['S03C', '③을 거치는 구성원 계약 중 한 줄이라도 할인율 한도를 ' + C.cooOverPp() + '%p 넘게 넘긴 계약(아래 승인 기준). 유닛 리더 다음에 승인. 리더 본인 계약, 줄임 변경, 해지, 그대로 연장, 운영 변경은 없음'], // 줄임 변경: 2026-11-16 W7-3 [가정](다른 눈 oversight-02)
       ['S04', '표준계약서를 바꾼 계약, 해지, 그대로 연장'],
       ['S05', '개인정보 처리위탁 계약이 있는 계약 (해지, 그대로 연장, 운영 변경은 없음)'], // v0.36 항목 이름에 맞춤(v0.63 이용 안내 점검)
-      ['S06', '모든 계약 (해지, 그대로 연장, 운영 변경은 없음)'],
+      // (설계 검토 2026-11-11 남은 것 ④, 4-1 9-1) 총무의 ⑥은 종이 날인 계약만. 전자계약의 ⑥은 ⑧ 담당 영업지원의 인증서 서명(common.js stepUser)
+      ['S06', '종이 날인 계약 (해지, 그대로 연장, 운영 변경은 없음). 전자계약의 ⑥은 영업지원의 인증서 서명(⑧ 담당자가 서명하고, 그 사람이 기안자면 다른 영업지원)'],
       // 기획자 결정 2026-11-03(C-44): 영업대표가 바뀌면 새 영업대표, 영업대표 계정이 사용 중지되고 아직 정하지 않았으면 영업 리더
       ['S07', '모든 계약 (해지, 그대로 연장, 운영 변경은 없음). 영업대표가 바뀌면 새 영업대표, 사용 중지되고 새 영업대표를 정하기 전에는 영업 리더'],
-      ['S08', '모든 계약 (해지, 그대로 연장, 운영 변경은 없음). 기안자가 담당자면 재무 담당자가 대신 확인'],
+      // (설계 검토 2026-11-11 남은 것 ④, 4-1 9-1) 전자계약의 ⑧ 출력본 확인은 ⑥ 인증서 서명을 하지 않은 다른 영업지원(없으면 영업지원 리더)
+      //   (2026-11-14 주말 점검, 코드 다시 보기 admin-02) ⑥을 한 사람과 기안자 말고 영업지원이 아무도 없으면 ⑩ 담당 재무(isms-02, common.js esignCheckerAt)
+      ['S08', '모든 계약 (해지, 그대로 연장, 운영 변경은 없음). 기안자에게 영업지원 역할(담당자나 리더)이 있으면 종이 날인 ⑧은 재무 담당자가 대신 확인. 전자계약은 이 담당자가 ⑥ 인증서 서명을 하고, ⑧ 출력본 확인은 ⑥을 하지 않은 다른 영업지원 담당자(없으면 영업지원 리더, 그도 없으면 ⑩ 담당 재무)가 함'],
       ['S09', '모든 계약. 운영 변경의 HR 충전은 재무 담당자(⑩ 담당자)가 반영. 종료일이 지난 계약의 만료 처리도 이 담당자'],
       // 기획자 결정 2026-11-02 B-3(추천과 다름): 운영 변경도 ⑩ 재무 확인을 거침(예전에는 "운영 변경은 없음")
       // 기획자 결정 2026-11-03(C-18 ⑤): HR 충전의 ⑩도 이 줄의 담당자. ⑨를 한 사람이면 다른 재무 담당자에게(예전 'S10:HR' 줄은 없앰)
@@ -73,7 +82,15 @@
   //   창을 열 때 정해진 도움말이라 고르는 동안 줄이 생기거나 사라지지 않음(화면이 흔들리지 않게)
   const SELF_NOTE = ' 본인은 다른 관리자가 정합니다.';
   // 그 줄의 지금 차례 (2026-11-03: HR 충전의 ⑩도 ⑩ 줄에서 셈. ⑨를 해 다른 재무 담당자에게 간 건은 아래 holders에 그 사람 이름으로)
-  function rowQueue(code) { return C.pendingQueue(me, true, [code]); }
+  //   (설계 검토 2026-11-11 남은 것 ④) 전자계약의 ⑥ 인증서 서명은 총무가 아니라 ⑧ 담당 영업지원의 차례라 ⑥ 줄이 아니라 ⑧ 줄에서 셈 [가정].
+  //     ⑥ 줄의 "지금 차례 n건은 총무가 그대로 처리"가 맞게. ⑥ 날인본 회수 확인(SSB)은 총무 것이라 ⑥ 줄 그대로.
+  //     ⑥ 전자계약 취소 확인(SSE, 답 ④)은 서명한 사람이 맡아 담당자 줄이 없음(한 단계만 찾는 건수에는 들지 않음, common.js pendingQueue)
+  const esignSix = function (x) { return x.s.step === 'S06' && C.isEsign(x.c); };
+  function rowQueue(code) {
+    if (code === 'S06') return C.pendingQueue(me, true, ['S06']).filter(function (x) { return !esignSix(x); });
+    if (code === 'S08') return C.pendingQueue(me, true, ['S08']).concat(C.pendingQueue(me, true, ['S06']).filter(esignSix)); // ['S08']만 찾으면 SSE는 더해지지 않음
+    return C.pendingQueue(me, true, [code]);
+  }
   function pendingCount(code) { return rowQueue(code).length; }
   // 지금 차례인 건 중 원래 담당자가 처리하는 건 (담당자를 바꾼 뒤): "김지우님 4건"
   function holders(code, cur) {
@@ -83,8 +100,12 @@
   }
   function stepName(code) { const s = D.STEPS[code]; return s.no + ' ' + s.name; }
   // 이 사람이 지금 맡은 결재 담당 (예: 배수아님은 ②와 ⑧, 최민준님은 ③ 비즈니스1유닛 리더)
-  function dutyNames(id) { return C.duties(id).map(function (x) { return x.label; }).join(', '); }
-  function dutyNos(id) { return C.duties(id).map(function (x) { return x.label.charAt(0) + (x.key.indexOf(':') > -1 ? '(' + x.key.split(':')[1] + ')' : ''); }).join(', '); }
+  //   (설계 검토 2026-11-11 남은 것 ④) 전자계약의 일도 보임(C.duties의 auto): ⑧ 담당 영업지원은 "⑥(전자계약)" 인증서 서명,
+  //     ⑥을 하지 않은 다른 영업지원은 "⑧(전자계약)" 출력본 확인. 예: 배수아 "②, ⑥(전자계약), ⑧", 석다인 "⑧(전자계약)"
+  //     그래서 다른 영업지원도 대리 지정의 "자리를 비우는 담당자"로 고를 수 있음(그 사람의 ⑧ 출력본 확인 차례를 대신함) [가정]
+  function myDuties(id) { return C.duties(id, { auto: true }); }
+  function dutyNames(id) { return myDuties(id).map(function (x) { return x.label; }).join(', '); }
+  function dutyNos(id) { return myDuties(id).map(function (x) { return x.label.charAt(0) + (x.key.indexOf(':') > -1 ? '(' + x.key.split(':')[1] + ')' : x.esign ? '(전자계약)' : ''); }).join(', '); }
   // 유닛별 리더 표의 유닛: 처음 설정(TEAM_LEADERS)과 관리자가 더한 유닛 (조직 개편 v0.31)
   function teams() {
     const out = Object.keys(D.TEAM_LEADERS);
@@ -138,6 +159,16 @@
   }
   // 단계 줄 아래 흐린 역할 이름 (2026-11-03: HR 충전의 ⑩을 재무 리더가 맡던 줄을 없애 단계의 역할 그대로)
   function rowRole(code) { return D.STEPS[code].role; }
+  // ⑧ 줄 담당자 아래 한 줄 (설계 검토 2026-11-11 남은 것 ④, 4-1 9-1): "전자계약은 ⑥ 인증서 서명도, ⑧ 출력본 확인은 세일즈어드민유닛 석다인"
+  //   ⑧ 출력본 확인을 맡을 사람은 C.duties의 auto 줄(S08E)과 같은 규칙
+  //   ~~없으면(다른 영업지원과 리더가 모두 없음) ⑧ 담당자가 그대로~~ (주말 점검 W7 isms-02 전 동작)
+  //   (2026-11-14 주말 점검, 코드 다시 보기 admin-02) 없으면 ⑩ 담당 재무(common.js esignCheckerAt의 마지막 대체와 같음). 예전에는 "이 담당자"로 보여
+  //     ⑥을 서명한 본인이 ⑧도 맡는 것처럼 보였음(그 사람은 그 ⑧을 처리할 수 없음)
+  function esignEightNote() {
+    const other = D.ACCOUNTS.filter(function (a) { return myDuties(a.id).some(function (x) { return x.key === 'S08E'; }); })[0];
+    return '<span class="cell-meta">전자계약은 ⑥ 인증서 서명도 하고, ⑧ 출력본 확인은 ' +
+      esc(other ? C.ownerLabel(other.id) : '⑩ 담당 재무 ' + C.ownerLabel(C.assigneeOf('S10'))) + '</span>';
+  }
   function renderAssignees() {
     $('#assignee-rows').innerHTML = rows().map(function (r) {
       // same: ③ 영업 임원 승인(E-3)은 ③ 줄의 영업 임원(STEP_ASSIGNEE.S03)이 맡아 이 줄에서는 바꾸지 않음
@@ -147,7 +178,10 @@
       // ⑦은 영업대표(기획자 결정 2026-11-03 C-44: 바뀌면 새 영업대표, 영업대표 계정이 사용 중지면 영업 리더. 바꾸는 곳은 계약 상세)
       const who = fixed ? '영업대표<span class="cell-meta">바꾸는 곳: 계약 상세(영업 리더)</span>' : (code === 'S03' ? '<span class="cell-meta">리더 본인 계약</span>' : '') + person(id) + delegNote(id) +
         (code === 'S03' ? '<span class="cell-meta">구성원 계약은 아래 유닛별 리더</span>' : '') +
-        (same ? '<span class="cell-meta">③ 줄의 영업 임원과 같은 사람</span>' : '');
+        (same ? '<span class="cell-meta">③ 줄의 영업 임원과 같은 사람</span>' : '') +
+        // (설계 검토 2026-11-11 남은 것 ④) 전자계약: ⑥은 ⑧ 담당 영업지원의 인증서 서명, ⑧ 출력본 확인은 ⑥을 하지 않은 다른 영업지원(지금 규칙으로 정해지는 사람)
+        (code === 'S06' ? '<span class="cell-meta">전자계약은 ⑧ 담당자가 인증서 서명</span>' : '') +
+        (code === 'S08' ? esignEightNote() : '');
       // 기획자 결정 2026-11-02 D-18: 칸 순서는 단계, 담당자, 지금 차례, 관리, 거치는 조건 (참고 글인 거치는 조건은 맨 뒤)
       return '<tr><td class="nowrap cell-strong">' + esc(stepName(code)) + '<span class="cell-meta">' + esc(C.roleLabel(rowRole(code))) + '</span></td>' +
         '<td>' + who + '</td>' +
@@ -164,7 +198,8 @@
       const list = C.pendingQueue(me, true, ['S03']).filter(function (x) { return C.teamOf(x.c.requesterId) === team; });
       // 리더 본인 계약은 영업 임원이 검토하므로 따로 셈 (v0.58 QA: "원래 리더"로 잘못 셌음)
       const own = list.filter(function (x) { return x.c.requesterId === id; }).length;
-      const others = list.filter(function (x) { return x.s.userId !== id && x.c.requesterId !== id; }).length;
+      // (2026-11-16 밤 코드 다시 보기 dec-05) 리더가 없는 유닛(세일즈어드민유닛 등, ③은 영업 임원)은 "원래 리더 n건"을 세지 않음
+      const others = id ? list.filter(function (x) { return x.s.userId !== id && x.c.requesterId !== id; }).length : 0;
       return '<tr><td class="nowrap cell-strong">' + esc(team) + '</td><td>' + (id ? person(id) + delegNote(id) : '<span class="cell-meta">리더 없음: 영업 임원이 검토</span>') + '</td>' +
         '<td class="num">' + list.length + '건' + (others ? '<span class="cell-meta">원래 리더 ' + others + '건</span>' : '') + (own ? '<span class="cell-meta">리더 본인 계약 ' + own + '건(영업 임원)</span>' : '') + '</td>' +
         '<td class="col-action"><button type="button" class="link-act" data-team="' + esc(team) + '" aria-label="' + esc(team) + ' 리더 바꾸기">바꾸기</button></td></tr>';
@@ -294,7 +329,7 @@
   }
   // 대신할 수 있는 사람: 같은 역할. 영업 리더(③ 영업 검토)는 영업 임원도 (REQ-AUTH-12)
   function subCandidates(absentId) {
-    const duties = C.duties(absentId);
+    const duties = myDuties(absentId); // 전자계약의 ⑧ 출력본 확인만 맡는 다른 영업지원도(설계 검토 2026-11-11 남은 것 ④)
     if (!duties.length) return [];
     const role = duties[0].role;
     let list = candidates(role, absentId);
@@ -303,8 +338,9 @@
   }
   function openDelegate() {
     // 지금 결재 담당이 있는 사람 (단계 담당자, 유닛 리더, 영업 임원)
-    const ids = D.ACCOUNTS.filter(function (a) { return C.duties(a.id).length; }).map(function (a) { return a.id; });
-    const absentOpts = ids.map(function (id) { return [id, C.ownerLabel(id) + ' (' + dutyNos(id) + ' ' + C.roleLabel(C.duties(id)[0].role) + ')']; });
+    //   (설계 검토 2026-11-11 남은 것 ④) 전자계약의 ⑧ 출력본 확인을 맡는 다른 영업지원도(myDuties, 사용 중지된 계정은 otherSalesAdmin이 고르지 않음)
+    const ids = D.ACCOUNTS.filter(function (a) { return myDuties(a.id).length; }).map(function (a) { return a.id; });
+    const absentOpts = ids.map(function (id) { return [id, C.ownerLabel(id) + ' (' + dutyNos(id) + ' ' + C.roleLabel(myDuties(id)[0].role) + ')']; });
     // 기획자 결정 2026-11-02 C-5: 대신할 사람이 자리를 비우는 담당자의 일을 맡아 겹치는 일이 생기면 알리고 까닭을 받음
     const listFor = function (f) { const a = val(f, 'absent'), s = val(f, 'sub'); return a && s ? C.roleConflicts(s, { delegateFor: a }) : []; };
     C.formModal({
@@ -381,15 +417,17 @@
   /* ---------- 2-1. 승인 기준과 근거 (기획자 결정 2026-11-02 E-3 A안, 추천과 다름) ----------
    * 영업 임원(COO)도 승인하는 기준: 한 줄이라도 할인율이 할인율 한도를 이 %p보다 더 넘으면 ③에서 유닛 리더 다음에 영업 임원도 승인(금액은 보지 않음)
    *   값은 PRICE_RULES.cooOverPp(C.cooOverPp()). 바꾸면 applyAdmin PRICE_RULE이 바꾸기 전 값을 남겨, 이미 기안한 계약은 기안한 때의 값으로 결재
-   *   [가정] 10%p는 자리 값. 기능마다 실제 할인율 한도(E-4)가 들어온 뒤 다시 정함
+   *   기획자 결정 2026-11-16(결정할것 결정 2, 추천과 다름): 10%p [가정]에서 5%p로 더 엄격하게. 그 전에 기안한 계약은 기안 때 값(10%p)
+   *   화면의 작은 글: 마지막으로 바꾼 날과 그 전 값(PRICE_RULE_CHANGES). 바꾼 적이 없으면 "처음 값"
    * 위임전결 근거: 결재선 규칙이 따르는 회사 규정의 이름과 판(D.RULE_BASIS, applyAdmin RULE_BASIS). 결재선은 바뀌지 않고 근거만 남김
    *   실제 규정 이름과 판은 운영 시작 전에 넣음 [가정]. 그전에는 "아직 적지 않음" */
   function basisText(b) { return b.name + ' ' + b.ver; }
   function renderBasis() {
     const pp = C.cooOverPp(), b = D.RULE_BASIS || null;
+    const last = (D.PRICE_RULE_CHANGES || []).filter(function (x) { return x.key === 'cooOverPp'; }).sort(function (x, y) { return y.at.localeCompare(x.at); })[0];
     $('#basis-rows').innerHTML =
       '<tr><td class="nowrap cell-strong">영업 임원(COO)도 승인</td>' +
-        '<td><span class="cell-strong">할인율 한도를 ' + pp + '%p 넘게 넘김</span><span class="cell-meta">실제 할인율 한도가 들어온 뒤 다시 정합니다</span></td>' +
+        '<td><span class="cell-strong">할인율 한도를 ' + pp + '%p 넘게 넘김</span><span class="cell-meta">' + (last ? C.fmtDate(last.at) + '부터. 그 전에 기안한 계약은 ' + last.from + '%p' : '처음 값') + '</span></td>' +
         '<td class="col-wide">③을 거치는 구성원 계약 중 한 줄이라도 할인율이 한도를 이 값보다 더 넘으면, 유닛 리더 다음에 영업 임원도 승인합니다. 금액은 보지 않습니다. 바꿔도 이미 기안한 계약은 기안한 때의 기준을 씁니다.</td>' +
         '<td class="col-action"><button type="button" class="link-act" data-basis="coo" aria-label="영업 임원도 승인하는 기준 바꾸기">바꾸기</button></td></tr>' +
       '<tr><td class="nowrap cell-strong">위임전결 근거</td>' +

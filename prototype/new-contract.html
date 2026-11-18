@@ -24,6 +24,8 @@
   - 입력 항목은 요구사항 정의서 3.4, 체크리스트와 결재선은 3.5를 따릅니다.
   - 주소 뒤에 ?id=를 붙이면 이어서 작성(임시 저장 건) 또는 보완 후 재기안(반려 건)으로 열립니다.
       예) new-contract.html?id=D-0001 (임시 저장)  /  new-contract.html?id=2610CL001 (반려)
+  - (설계 검토 2026-11-11 1번) ?quote=견적번호&ver=판 이면 그 견적에서 시작: 견적서 보기(SCR-17)의 "이 견적으로 계약 등록".
+      예) new-contract.html?quote=QT2610-001&ver=2. 견적 없이 등록(주소에 quote가 없음)은 예전 그대로
   - 자동 계산(체크리스트 2, 3번, 결재선), 필수 항목 검사, 기안 확인 창은 assets/js/new-contract.js가 처리합니다.
   - 기획자 결정 2026-11-02: A-3 원계약은 내가 영업대표인 계약만, B-5 견적서로 계약서를 대신함(5백만 원 미만), B-6 4번 조건의 종류
     E-1 ① 영업기회번호 하나에 계약 하나(다른 고객 계약에 쓴 번호는 기안을 막고, 같은 고객의 다른 계약이면 경고하고 까닭을 받음),
@@ -85,6 +87,20 @@
             <p class="field-help" id="origin-help">내가 영업대표인 계약 완료 계약 중에서 고릅니다. 원계약 번호에 차수가 붙어 함께 묶입니다.</p>
             <p class="field-error" hidden></p>
           </div>
+
+          <!-- (설계 검토 2026-11-11 6번) 변경 종류: 계약종류가 변경일 때만 보임(new-contract.js syncAmendMode). 계약 기록 amendKind(03 CODE-AMEND-KIND)
+               추가: 제품이나 수량이 늘어 금액이 늚 / 줄임: 줄이는 수량과 금액을 넣으면 빼기로 남음(체크리스트 2, 3번 해당 없음)
+               조항만: 제품 줄 없이 0원으로 기안(REQ-SCOPE-05의 0원 막음을 이때만 풂, 2, 3번 해당 없음) -->
+          <fieldset class="field" data-field="amendKind" id="amend-kind-field" hidden>
+            <legend class="field-label">변경 종류<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
+            <div class="choice-row">
+              <label class="choice"><input type="radio" name="amendKind" value="ADD">추가</label>
+              <label class="choice"><input type="radio" name="amendKind" value="REDUCE">줄임</label>
+              <label class="choice"><input type="radio" name="amendKind" value="TERMS">조항만</label>
+            </div>
+            <p class="field-help">추가는 제품이나 수량이 늘어 금액이 늘 때, 줄임은 제품이나 수량이 줄어 금액이 줄 때, 조항만은 제품과 금액은 그대로 두고 계약서 조항만 바꿀 때 고릅니다. 변경 금액은 늘거나 준 만큼입니다.</p>
+            <p class="field-error" hidden></p>
+          </fieldset>
 
           <!-- 계약명 칸은 두지 않음: 계약은 거래처(고객사)와 서비스로 구분하고 계약번호로 식별 (v0.12) -->
 
@@ -177,6 +193,24 @@
             </div>
           </div>
 
+          <!-- 연결한 견적 (설계 검토 2026-11-11 1번 "가볍게 잇기", REQ-QUO-01 바꿈, REQ-REG-25)
+               영업대표가 한 번이라도 출력한 견적의 판에서 고름(같은 고객사 견적이 먼저, 최고관리자는 시연으로 모든 견적). 고르면 계약에 견적번호와 판이 남음
+               견적서 보기의 "이 견적으로 계약 등록"으로 오면 그 판이 골라져 있고 고객사, 영업기회번호, 계약종류(신규), 제품 줄이 채워짐(모두 고칠 수 있음)
+               견적서로 계약서를 대신하면(4번 묶음) 꼭 고름. 아래 상태 줄과 단추 줄은 늘 자리를 잡아 둠(고르거나 풀어도 아래 칸이 움직이지 않게, new-contract.css) -->
+          <div class="field quote-link" data-field="quoteLink">
+            <label class="field-label" for="f-quote-link">연결한 견적 <span class="opt" id="quote-link-opt">(선택)</span><span class="req" aria-hidden="true" id="quote-link-req" hidden>*</span><span class="sr-only" id="quote-link-req-sr" hidden>(필수)</span></label>
+            <select class="select" id="f-quote-link" name="quoteLink" aria-describedby="quote-link-help quote-link-state"></select>
+            <p class="field-help" id="quote-link-help">영업대표가 출력한 견적의 판에서 고르면 계약에 견적번호와 판이 남습니다. 같은 고객사의 견적이 먼저 나옵니다. 견적서로 계약서를 대신하면 꼭 고릅니다.</p>
+            <div class="quote-link-state">
+              <p class="quote-link-text" id="quote-link-state" aria-live="polite"></p>
+              <p class="quote-link-acts" id="quote-link-acts">
+                <a class="btn-text" id="quote-link-view" href="quotes.html" target="_blank" rel="noopener">견적서 보기<span class="sr-only">(새 창)</span></a>
+                <button type="button" class="btn-text" id="quote-link-off">연결 풀기</button>
+              </p>
+            </div>
+            <p class="field-error" hidden></p>
+          </div>
+
           <!-- 계약 방식: 계약 유형(드롭다운)을 없애고 계약 방식 버튼 하나로 합침. 직접, 조달, 간접 (v0.34 기획자 결정) -->
           <fieldset class="field" data-field="method">
             <legend class="field-label">계약 방식<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
@@ -185,6 +219,16 @@
                  늘 보이는 도움말로 바꿈: 간접을 고를 때 생기며 아래가 밀렸음(기획자 결정 2026-11-09 5회차 11번).
                  화면낭독기 연결은 common.js가 칸의 .field-help를 fieldset에 잇는 것으로 함 -->
             <p class="field-help" id="method-help">간접 계약이면 제품마다 실제로 쓰는 기관(사용 업체)을 적고, 아직 모르면 "아직 정해지지 않음"과 까닭을 고릅니다. 총판이나 리셀러가 고객에게 받을 가격은 정해 주거나 묻지 않습니다(공정거래법).</p>
+            <p class="field-error" hidden></p>
+          </fieldset>
+
+          <!-- 체결 방식 (설계 검토 2026-11-11 9번, 4-1 9-1): 종이 날인(처음 값), 나라장터 전자계약, 고객사 전자계약. 단추는 new-contract.js가 D.SIGN_METHODS로 그림
+               전자계약이면 ⑥은 영업지원의 인증서 서명, ⑦은 전자계약서 출력본, ⑧은 ⑥을 하지 않은 다른 영업지원(결재선에 바로 보임)
+               도움말은 늘 보이는 한 문단이라 골라도 아래가 밀리지 않음. 계약 기록 signMethod(임시 저장 포함, 03 contract.sign_method) -->
+          <fieldset class="field" data-field="signMethod">
+            <legend class="field-label">체결 방식<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
+            <div class="choice-row" id="sign-method-choices"></div>
+            <p class="field-help" id="sign-method-help">전자계약이면 ⑥에서 영업지원이 회사 인증서로 서명하고 서명한 사람과 일시를 남기며, ⑦에 전자계약서 출력본을 올리고, ⑧은 ⑥을 하지 않은 다른 영업지원<!-- 2026-11-14 주말 점검, 코드 다시 보기 review-02 -->(없으면 영업지원 리더, 그도 없으면 ⑩ 담당 재무)이 확인합니다. 나라장터 전자계약은 계약 방식이 조달일 때, 견적서로 계약서를 대신하는 계약은 종이 날인일 때만 고릅니다.</p>
             <p class="field-error" hidden></p>
           </fieldset>
 
@@ -260,13 +304,17 @@
           <!-- 이 시스템에는 금전 거래가 있는 계약만 등록 (v0.41 기획자 결정). 비밀유지계약 등은 아래 "부속 서류"로 첨부. v0.34의 "금액이 없는 계약" 체크는 뺌 -->
           <div class="field" data-field="products" id="products-field">
             <p class="field-label" id="products-label">제품별 금액<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></p>
+            <!-- (설계 검토 2026-11-11 6번) 변경 종류가 줄임이나 조항만일 때만 보이는 안내(new-contract.js syncAmendMode). 조항만이면 제품 줄과 제품 추가를 감춤 -->
+            <p class="field-help" id="products-help" hidden></p>
             <ul class="product-list" id="product-list" aria-labelledby="products-label"></ul>
+            <!-- W7-4(2026-11-16): 사용 업체 칸이 제안하는 거래처 이름(new-contract.js가 채움). 간접 계약은 고른 거래처의 티어로 표준 단가를 셈 -->
+            <datalist id="org-names"></datalist>
             <button type="button" class="btn btn--secondary btn--md btn--add" id="btn-add-product">제품 추가</button>
             <p class="field-error" hidden></p>
           </div>
 
           <div class="amount-total" id="amount-total-row" aria-live="polite">
-            <span class="amount-total-label">계약 금액 총액 <span class="opt">(부가세 별도)</span></span>
+            <span class="amount-total-label"><span id="amount-total-name">계약 금액 총액</span> <span class="opt">(부가세 별도)</span></span><!-- (설계 검토 2026-11-11 6번) 변경이면 "변경 금액(늘거나 준 만큼)" -->
             <span class="amount-total-value" id="amount-total">0원</span>
           </div>
 
@@ -451,6 +499,16 @@
           <div class="field">
             <label class="field-label" for="f-memo">검토 요청 사항 <span class="opt">(선택)</span></label>
             <textarea class="textarea" id="f-memo" name="memo" placeholder="검토자에게 전할 내용 (특이 조항, 협상 경과 등)"></textarea>
+          </div>
+
+          <!-- 기획자 결정 2026-11-16(결정할것 새 결정 W7-7 (가), 결정 14): 시스템이 반나절 넘게 멈춘 동안 임시 결재로 진행한 계약을 복구 뒤 올릴 때 "사후 등록" 표시와
+               임시 결재 번호(필수). 통계와 매월 점검에 "사후 등록"으로 보이고, 컴플라이언스가 임시 결재 목록과 맞춰 봄. 번호 칸은 처음부터 자리를 둠(흔들리지 않게) -->
+          <div class="field" data-field="lateNo">
+            <label class="choice"><input type="checkbox" id="f-late" name="lateEntry">시스템이 멈춘 동안 임시 결재로 진행한 계약을 사후 등록합니다</label>
+            <label class="field-label" for="f-late-no">임시 결재 번호 <span class="opt">(사후 등록이면 필수)</span></label>
+            <input class="input" id="f-late-no" name="lateNo" disabled placeholder="예: 임시-2027-0003" aria-describedby="late-help">
+            <p class="field-help" id="late-help">임시 결재 문서(예전 전자결재나 종이)는 첨부의 기타 서류로 올립니다. 사후 등록은 결재 문서와 통계, 매월 점검에 "사후 등록"으로 보이고, 복구 뒤 컴플라이언스가 임시 결재 목록과 하나씩 맞춰 봅니다.</p>
+            <p class="field-error" hidden></p>
           </div>
         </section>
 

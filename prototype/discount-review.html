@@ -27,6 +27,10 @@
   - 그달 체크리스트 4번이 예인 계약과 해지 기안 가운데 ⑩ 재무 확인이 늦거나 끝나지 않은 것도 한 줄씩 확인합니다.
   - 남긴 기록(한계값, 줄 확인, 점검 마침)은 쌓기만 하고 고치거나 지우지 않습니다(누가, 언제).
   - 열람 제한 계약 가운데 볼 수 없는 것도 목록에 넣되 고객사를 가리고 점검에 필요한 칸만 보입니다.
+  - 설계 검토 2026-11-11 3장: 참고 줄 두 표(한도를 넘은 유상 충전, 기안한 날 표준 금액과 다른 조건 그대로 연장). 그달 기안한 것, 보기만 하고 확인은 남기지 않음
+  - 설계 검토 2026-11-11 남은 것 ⑧: 유상 충전은 가격 기준의 단위 종류가 건당일 때만 견줌(예전 "단위 글자가 건"). 고객사 티어 단가를 썼으면
+    ③ 표의 할인율 칸 아래 "티어 1 단가로 셈", 유상 충전 표의 표준 금액 칸 아래 "티어 1 단가. 기본 …원"이 보입니다.
+  - (2026-11-14 주말 점검 W7) 참고 표 둘을 더함: 참고 금액보다 많이 줄인 변경(그달 기안), 운영 변경으로 늘린 계약 기간(그달 계약 완료). 보기만 함
   - 볼 수 있는 사람: 재무 임원, 최고관리자(시연용), 감사 열람(보기만), 컴플라이언스(보기만, 기획자 결정 2026-11-10 16번). 메뉴는 위 메뉴 줄의 "점검"(기획자 결정 2026-11-03, common.js MENU, CHECK_OWNERS).
     확인을 남길 수 있는지는 C.canDoCheck(me, 'SCR-61'). 읽기만 하는 역할과 컴플라이언스에는 단추가 없고, 매월 점검 안내 끝에 "보기만 합니다"가 붙습니다.
   - 동작은 assets/js/discount-review.js
@@ -87,6 +91,72 @@
               <caption class="sr-only">⑩ 재무 확인이 늦거나 끝나지 않은 계약: 계약, 종류, ⑩ 차례가 온 날, 처리한 날, 기다린 날, 확인</caption>
               <thead><tr><th scope="col" class="col-phone-wide">계약</th><th scope="col">종류</th><th scope="col">⑩ 차례 온 날</th><th scope="col">처리한 날</th><th scope="col" class="num">기다린 날</th><th scope="col">확인</th><th scope="col" class="col-action" data-act-col>관리</th></tr></thead>
               <tbody id="fin-rows"></tbody>
+            </table>
+          </div>
+
+          <!-- 참고 줄 (설계 검토 2026-11-11 3장): 확인을 남기지 않고 보기만. 결재 흐름과 점검 마침 조건은 그대로. 설명은 discount-review.js renderRef가 채움 -->
+          <h3 class="box-subtitle">참고: 한도를 넘은 유상 충전</h3>
+          <p class="panel-desc" id="paid-desc"></p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="참고: 한도를 넘은 유상 충전 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">참고: 한도를 넘은 유상 충전: 계약, 영업, 표준 금액, 충전 금액, 할인율, 상태</caption>
+              <thead><tr><th scope="col" class="col-phone-wide">계약</th><th scope="col">영업</th><th scope="col" class="num">표준 금액</th><th scope="col" class="num">충전 금액</th><th scope="col" class="num">할인율</th><th scope="col">상태</th></tr></thead>
+              <tbody id="paid-rows"></tbody>
+            </table>
+          </div>
+
+          <h3 class="box-subtitle">참고: 표준 금액과 다른 그대로 연장</h3>
+          <p class="panel-desc" id="renew-desc"></p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="참고: 표준 금액과 다른 그대로 연장 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">참고: 표준 금액과 다른 그대로 연장: 계약, 영업, 계약 금액, 기안한 날 표준 금액, 차이, 상태</caption>
+              <thead><tr><th scope="col" class="col-phone-wide">계약</th><th scope="col">영업</th><th scope="col" class="num">계약 금액</th><th scope="col" class="num">기안한 날 표준 금액</th><th scope="col" class="num">차이</th><th scope="col">상태</th></tr></thead>
+              <tbody id="renew-rows"></tbody>
+            </table>
+          </div>
+
+          <!-- (2026-11-14 주말 점검 W7) 셋째 참고 표: 줄임 변경은 ③과 할인 계산을 거치지 않아, 참고 금액(계약 단가 x 줄이는 수량 x 남은 달 수 / 그 기간 달 수)보다 많이 줄인 것을 봄. 보기만 함 -->
+          <h3 class="box-subtitle">참고: 참고 금액보다 많이 줄인 변경</h3>
+          <p class="panel-desc" id="shrink-desc"></p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="참고: 참고 금액보다 많이 줄인 변경 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">참고: 참고 금액보다 많이 줄인 변경: 계약, 영업, 줄인 금액, 참고 금액, 차이, 상태</caption>
+              <thead><tr><th scope="col" class="col-phone-wide">계약</th><th scope="col">영업</th><th scope="col" class="num">줄인 금액</th><th scope="col" class="num">참고 금액</th><th scope="col" class="num">차이</th><th scope="col">상태</th></tr></thead>
+              <tbody id="shrink-rows"></tbody>
+            </table>
+          </div>
+
+          <!-- (2026-11-14 주말 점검 W7) 넷째 참고 표: 운영 변경의 기간 늘림은 금액과 ③ 없이 ⑨, ⑩으로 끝나 그달 계약 완료된 것을 봄. 보기만 함 -->
+          <h3 class="box-subtitle">참고: 운영 변경으로 늘린 계약 기간</h3>
+          <p class="panel-desc" id="period-desc"></p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="참고: 운영 변경으로 늘린 계약 기간 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">참고: 운영 변경으로 늘린 계약 기간: 계약, 영업, 늘린 기간, 같은 거래처 최근 1년 늘림, 계약 완료</caption>
+              <thead><tr><th scope="col" class="col-phone-wide">계약</th><th scope="col">영업</th><th scope="col" class="num">늘린 기간</th><th scope="col" class="num">최근 1년 늘림</th><th scope="col">계약 완료</th></tr></thead>
+              <tbody id="period-rows"></tbody>
+            </table>
+          </div>
+
+          <!-- 기획자 결정 2026-11-16(결정할것 새 결정 W7-5 (가)): 결재선은 그대로 두고 참고 표 둘을 더함. 보기만 함
+               다섯째: 4번 회계 영향 조건에 무상 기간을 고른 계약(계약 기간 밖 무상 사용은 할인으로 잡히지 않아 ③을 건너뜀)
+               여섯째: 4번이 예인 조항만 변경(0원 변경에 무상 추가 제공 같은 조건을 넣는 길) -->
+          <h3 class="box-subtitle">참고: 무상 기간을 둔 계약</h3>
+          <p class="panel-desc" id="free-desc"></p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="참고: 무상 기간을 둔 계약 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">참고: 무상 기간을 둔 계약: 계약, 영업, 계약 기간, 계약 금액, 4번 비고, 상태</caption>
+              <thead><tr><th scope="col" class="col-phone-wide">계약</th><th scope="col">영업</th><th scope="col">계약 기간</th><th scope="col" class="num">계약 금액</th><th scope="col">4번 비고</th><th scope="col">상태</th></tr></thead>
+              <tbody id="free-rows"></tbody>
+            </table>
+          </div>
+
+          <h3 class="box-subtitle">참고: 회계 영향 조건이 있는 조항만 변경</h3>
+          <p class="panel-desc" id="terms-desc"></p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="참고: 회계 영향 조건이 있는 조항만 변경 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">참고: 회계 영향 조건이 있는 조항만 변경: 계약, 영업, 조건의 종류, 4번 비고, 상태</caption>
+              <thead><tr><th scope="col" class="col-phone-wide">계약</th><th scope="col">영업</th><th scope="col">조건의 종류</th><th scope="col">4번 비고</th><th scope="col">상태</th></tr></thead>
+              <tbody id="terms-rows"></tbody>
             </table>
           </div>
 

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- 브라우저 탭 제목: climb (REQ-NAME-02, v0.54 소문자) -->
+  <title>climb</title>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="assets/img/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <!-- 로고 글자 climb만 SUITE 글꼴 (v0.53 기획자 요청, OFL 무료 글꼴) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sun-typeface/SUITE@2/fonts/static/woff2/SUITE.css">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <script src="assets/js/theme.js"></script><!-- 밝은 화면, 어두운 화면 (v0.53) -->
+  <link rel="stylesheet" href="assets/css/common.css">
+  <link rel="stylesheet" href="assets/css/form.css">
+  <link rel="stylesheet" href="assets/css/list.css">
+  <link rel="stylesheet" href="assets/css/new-contract.css">
+  <link rel="stylesheet" href="assets/css/review.css">
+  <!-- (설계 검토 2026-11-11 답 ②) 매월 확인은 다른 매월 점검(인장 기록 대조, 영업기회 대사)과 같은 모양: 표 줄 단추, 달 고르기, 확인 줄 -->
+  <link rel="stylesheet" href="assets/css/admin.css">
+  <link rel="stylesheet" href="assets/css/recon.css">
+</head>
+<!-- =====================================================================
+  SCR-95 예전 계약 기록 (설계 검토 2026-11-11 5번, 4-1 5-3. docs/02_화면목록.md에 더할 것)
+  - 시스템 전에 맺은 계약에 연장, 변경, 운영 변경 충전, 해지 같은 일이 생겼을 때만 영업지원(담당자, 리더. 최고관리자는 시연용)이 결재 없이 올립니다.
+    올리면 계약 완료이고 "예전 계약 기록" 표시가 붙습니다. 그 계약을 원계약으로 고르거나 계약 상세에서 후속 일을 기안합니다.
+  - 번호는 계약번호와 따로 LG-0001부터 [가정]. 올린 기록은 관리자 변경 이력(영역 LEGACY)에 누가, 언제가 남고, 고칠 수 없습니다(바로잡으려면 까닭을 적어 새 기록으로 [가정]).
+  - 체결본 파일은 꼭 올리고, 찾지 못하면 까닭을 적어 "체결본 없음" 표시로 남깁니다(4-1 5-3).
+  - 주소: legacy-contract.html (올리기와 올린 기록 목록) / ?id=LG-0001 (한 기록 보기, 볼 수 있는 사람 모두) / ?fix=LG-0001 (바로잡는 기록 올리기)
+  - 설계 검토 2026-11-11 답 ②(CTL-143): 목록 아래 "매월 확인" 묶음 셋(월별 확인, 고른 달의 올린 기록과 확인 남기기, 확인 기록)
+    영업지원 리더가 매월 그달 올린 기록을 체결본과 맞춰 보고 확인을 남김(맞음, 맞지 않는 것이 있음, 올린 기록 없음). 맞지 않으면 컴플라이언스에 넘어감
+    컴플라이언스와 감사 열람은 목록과 매월 확인, 기록 보기를 보기만 함(올리기, 바로잡기, 확인 단추 없음). "체결본" 거르기(?nofile=1), 달 고르기(?month=2026-10)
+  - (2026-11-14 주말 점검 W7) 예전 문서 결재일(필수)을 받고, 회사 설정의 전환 날과 같거나 뒤이면 기록, 목록, 매월 확인에 "전환 날 뒤" 표시만 붙임
+    (막지 않음 [가정], 막을지는 결정할것 W7-1. 전환 날이 비어 있으면 견주지 않음). 매월 확인에서 예전 문서 번호로 열어 결재가 끝났음도 봄.
+    처리위탁 예전 기록에 보안 의무가 없으면 기록 보기 맨 위에 안내와 의무 추가 링크(막지 않음 [가정])
+  - 프로토타입: 올린 기록은 이 브라우저에만 저장됩니다(시연 띠의 "시연 기록 지우기"로 되돌림).
+====================================================================== -->
+<body data-page="SCR-95">
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <div id="demo-bar"></div>
+
+  <div class="sheet">
+  <header id="site-header"></header>
+
+  <main id="main" class="page" tabindex="-1">
+    <div class="inner">
+      <div class="page-head page-head--sub">
+        <div>
+          <p class="doc-kind" id="doc-kind" hidden>예전 계약 기록</p>
+          <h1 class="page-title" id="page-title">예전 계약 기록</h1>
+          <p class="doc-meta" id="doc-meta" hidden></p>
+        </div>
+      </div>
+      <div class="page-intro" id="page-intro">
+        <p id="intro-main">시스템을 쓰기 전에 맺은 계약에 연장, 변경, 운영 변경 충전, 해지 같은 일이 생겼을 때만 올립니다. 결재 없이 계약 완료로 올라가고, 그 계약을 원계약으로 후속 일을 기안합니다.</p>
+        <p class="sub" id="intro-sub"><span class="req" aria-hidden="true">*</span> 표시는 꼭 입력해야 하는 항목입니다. 올린 뒤에는 고칠 수 없고, 잘못 올렸으면 까닭을 적어 새 기록으로 바로잡습니다. 체결 금액과 건수 통계에는 넣지 않습니다.</p>
+      </div>
+
+      <div id="notice"></div>
+      <div class="error-summary" id="error-summary" role="alert" tabindex="-1" hidden></div>
+
+      <!-- ============ 한 기록 보기 (?id=) ============ -->
+      <div class="doc-stack" id="view" hidden>
+        <section class="panel" aria-labelledby="v-title">
+          <h2 class="section-title" id="v-title"><span class="num">1</span>올린 내용</h2>
+          <dl class="info-grid" id="v-info"></dl>
+        </section>
+        <section class="panel" aria-labelledby="v-prod-title">
+          <h2 class="section-title" id="v-prod-title"><span class="num">2</span>서비스와 제품</h2>
+          <p class="section-desc">예전 계약서에 적힌 제품 줄입니다. 연장 검토는 이 줄로 오늘 표준 금액과 견줍니다.</p>
+          <div class="tbl-wrap"><table class="tbl tbl--compact" id="v-products"></table></div>
+        </section>
+        <section class="panel" aria-labelledby="v-log-title">
+          <h2 class="section-title" id="v-log-title"><span class="num">3</span>올린 기록</h2>
+          <p class="section-desc">결재가 없어 누가, 언제 올렸는지를 관리자 변경 이력에 남깁니다. 고치거나 지울 수 없습니다.</p>
+          <div id="v-log"></div>
+        </section>
+        <div class="form-actions" id="v-actions"></div>
+      </div>
+
+      <!-- ============ 올리기 (영업지원) ============ -->
+      <!-- form-stack: 올리기 양식, 목록, 매월 확인 묶음 사이를 다른 묶음과 같은 간격으로(설계 검토 2026-11-11 답 ②. 보기만 하는 사람은 양식이 감춰져 목록부터) -->
+      <div id="content" class="form-stack" hidden>
+        <form id="form" class="form-stack" novalidate>
+          <!-- 바로잡는 기록일 때만 (?fix=): 앞 기록과 바로잡는 까닭 -->
+          <section class="panel" aria-labelledby="sec-fix" id="fix-sec" hidden>
+            <h2 class="section-title" id="sec-fix">바로잡는 기록</h2>
+            <p class="section-desc" id="fix-desc"></p>
+            <div class="field" data-field="fixReason">
+              <label class="field-label" for="f-fix-reason">바로잡는 까닭<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+              <textarea class="textarea textarea--sm" id="f-fix-reason" maxlength="200" placeholder="예: 계약 종료일을 예전 계약서와 다르게 적음"></textarea>
+              <p class="field-error" hidden></p>
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="sec-need">
+            <h2 class="section-title" id="sec-need"><span class="num">1</span>생긴 일</h2>
+            <p class="section-desc">일이 생긴 예전 계약만 올립니다. 올린 뒤 계약 상세에서 그 일을 기안합니다.</p>
+            <fieldset class="field" data-field="need">
+              <legend class="field-label">올리는 까닭이 된 일<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
+              <div class="choice-row" id="need-choices"></div>
+              <p class="field-error" hidden></p>
+            </fieldset>
+            <div class="field" data-field="needNote">
+              <label class="field-label" for="f-need-note">설명 <span class="opt">(선택)</span></label>
+              <textarea class="textarea textarea--sm" id="f-need-note" maxlength="200" placeholder="예: 해지 통지 기한 전에 연장 검토를 기안하려고 영업대표가 요청"></textarea>
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="sec-party">
+            <h2 class="section-title" id="sec-party"><span class="num">2</span>계약 상대방</h2>
+            <!-- 거래처: 계약 등록(SCR-11)과 같은 검색. 우리 거래처와 사업자 정보 DB를 함께 찾고, 없으면 직접 입력. 새 거래처는 올릴 때 거래처 목록에 함께 등록 -->
+            <div class="field" data-field="customer">
+              <label class="field-label" for="f-customer-q">거래처<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+              <div class="combo" id="customer-combo">
+                <span class="combo-icon" aria-hidden="true" id="customer-icon"></span>
+                <input class="input combo-input" id="f-customer-q" type="text" autocomplete="off" role="combobox" aria-autocomplete="list"
+                  aria-expanded="false" aria-controls="customer-list" placeholder="예: 한빛대학교 또는 134-82">
+                <div class="combo-panel" id="customer-panel" hidden>
+                  <ul class="combo-list" id="customer-list" role="listbox" aria-label="거래처 검색 결과"></ul>
+                  <div class="combo-empty" id="customer-empty" hidden>
+                    <p id="customer-empty-text"></p>
+                    <button type="button" class="btn btn--tertiary btn--sm" id="customer-manual">직접 입력하기</button>
+                  </div>
+                </div>
+              </div>
+              <input type="hidden" id="f-customer">
+              <p class="field-help" id="customer-help"></p>
+              <p class="sr-only" id="customer-status" aria-live="polite"></p>
+              <p class="field-error" hidden></p>
+            </div>
+            <div class="field-row">
+              <div class="field" data-field="counterparty">
+                <label class="field-label" for="f-counterparty">거래처 상호<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+                <input class="input" id="f-counterparty" type="text" maxlength="60" readonly>
+                <p class="field-error" hidden></p>
+              </div>
+              <div class="field" data-field="bizNo">
+                <label class="field-label" for="f-bizno">사업자등록번호<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+                <input class="input" id="f-bizno" type="text" inputmode="numeric" maxlength="12" placeholder="예: 124-81-00998" readonly>
+                <p class="field-error" hidden></p>
+              </div>
+            </div>
+            <fieldset class="field" data-field="method">
+              <legend class="field-label">계약 방식<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
+              <div class="choice-row" id="method-choices"></div>
+              <p class="field-error" hidden></p>
+            </fieldset>
+          </section>
+
+          <section class="panel" aria-labelledby="sec-prod">
+            <h2 class="section-title" id="sec-prod"><span class="num">3</span>서비스와 제품</h2>
+            <p class="section-desc">예전 계약서에 적힌 대로 기능, 수량, 금액을 넣습니다. 지금은 팔지 않는 기능도 고를 수 있습니다. 금액은 부가세 별도입니다.</p>
+            <div class="field" data-field="products">
+              <p class="field-label" id="products-label">제품별 금액<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></p>
+              <ul class="product-list" id="product-list" aria-labelledby="products-label"></ul>
+              <button type="button" class="btn btn--secondary btn--md btn--add" id="btn-add-product">제품 추가</button>
+              <p class="field-error" hidden></p>
+            </div>
+            <div class="amount-total" aria-live="polite">
+              <span class="amount-total-label">계약 금액 <span class="opt">(부가세 별도)</span></span>
+              <span class="amount-total-value" id="amount-total">0원</span>
+            </div>
+            <fieldset class="field" data-field="settlement">
+              <legend class="field-label">정산 방식<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
+              <div class="choice-row" id="settlement-choices"></div>
+              <p class="field-error" hidden></p>
+            </fieldset>
+          </section>
+
+          <section class="panel" aria-labelledby="sec-term">
+            <h2 class="section-title" id="sec-term"><span class="num">4</span>계약 기간과 조건</h2>
+            <div class="field-row">
+              <div class="field" data-field="startDate">
+                <label class="field-label" for="f-start">계약 시작일<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+                <input class="input" id="f-start" type="date" data-describedby="date-format-help">
+                <p class="field-error" hidden></p>
+              </div>
+              <div class="field" data-field="endDate">
+                <label class="field-label" for="f-end">계약 종료일<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+                <input class="input" id="f-end" type="date" data-describedby="date-format-help" data-after="f-start" data-after-msg="계약 종료일은 계약 시작일보다 앞설 수 없습니다.">
+                <p class="field-error" hidden></p>
+              </div>
+            </div>
+            <p class="field-help" id="date-format-help">날짜는 '-' 없이 숫자 8자리(예: 20270101)로 넣거나 달력 버튼을 눌러 고릅니다. 이미 끝난 계약은 올리지 않습니다.</p>
+            <fieldset class="field" data-field="autoRenew">
+              <legend class="field-label">자동갱신<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
+              <div class="choice-row">
+                <label class="choice"><input type="radio" name="autoRenew" value="YES">있음</label>
+                <label class="choice"><input type="radio" name="autoRenew" value="NO">없음</label>
+              </div>
+              <div class="sub-fields" id="notice-days-field" data-field="noticeDays" hidden>
+                <label class="inline-input" for="f-notice-days">해지 통지 기한: 만료
+                  <span class="input-unit"><input class="input" id="f-notice-days" type="text" inputmode="numeric" maxlength="3"><span class="unit">일</span></span> 전
+                </label>
+                <p class="field-error" hidden></p>
+              </div>
+              <p class="field-error" hidden></p>
+            </fieldset>
+            <fieldset class="field" data-field="personalData">
+              <legend class="field-label">개인정보 처리위탁 계약<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
+              <div class="choice-row">
+                <label class="choice"><input type="radio" name="personalData" value="YES">있음</label>
+                <label class="choice"><input type="radio" name="personalData" value="NO">없음</label>
+              </div>
+              <p class="field-error" hidden></p>
+            </fieldset>
+            <fieldset class="field" data-field="sla">
+              <legend class="field-label">서비스 수준 협약(SLA)<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></legend>
+              <div class="choice-row">
+                <label class="choice"><input type="radio" name="sla" value="YES">있음</label>
+                <label class="choice"><input type="radio" name="sla" value="NO">없음</label>
+              </div>
+              <p class="field-error" hidden></p>
+            </fieldset>
+          </section>
+
+          <section class="panel" aria-labelledby="sec-doc">
+            <h2 class="section-title" id="sec-doc"><span class="num">5</span>예전 문서와 체결본</h2>
+            <!-- (2026-11-14 주말 점검 W7) 예전 문서 번호 옆에 예전 문서 결재일(필수). 도움말 끝의 전환 날 글은 legacy-contract.js가 처음 그릴 때 한 번 채움(고른 뒤 늘어나는 줄 없음) -->
+            <div class="field-row">
+              <div class="field" data-field="docNo">
+                <label class="field-label" for="f-doc-no">예전 문서 번호<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+                <input class="input" id="f-doc-no" type="text" maxlength="40" autocomplete="off" placeholder="예: 영업-2025-1204" aria-describedby="doc-no-help">
+                <p class="field-help" id="doc-no-help">예전 전자결재에서 이 계약을 결재한 문서의 번호입니다. 같은 번호로 두 번 올리지 않습니다.</p>
+                <p class="field-error" hidden></p>
+              </div>
+              <div class="field" data-field="docDate">
+                <label class="field-label" for="f-doc-date">예전 문서 결재일<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+                <input class="input" id="f-doc-date" type="date">
+                <p class="field-help" id="doc-date-help">예전 전자결재에서 이 문서의 결재가 끝난 날입니다.</p>
+                <p class="field-error" hidden></p>
+              </div>
+            </div>
+            <div class="field" data-field="docUrl">
+              <label class="field-label" for="f-doc-url">예전 문서 주소 <span class="opt">(선택)</span></label>
+              <input class="input" id="f-doc-url" type="url" maxlength="200" autocomplete="off" placeholder="예: https://gw.muhayu.com/approval/2025-1204">
+              <p class="field-error" hidden></p>
+            </div>
+            <div class="field act-file" data-field="file">
+              <label class="field-label" for="f-file">체결본 파일<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+              <input type="file" id="f-file" accept=".pdf,.jpg,.jpeg,.png">
+              <p class="field-help">양쪽이 서명하거나 날인한 계약서입니다. PDF, JPG, PNG, 50MB 이하. 프로토타입은 파일 이름만 남깁니다.
+                <button type="button" class="btn-text" id="demo-file">예시 파일 고르기 (시연)</button></p>
+              <p class="act-file-name" id="file-name" aria-live="polite"></p>
+              <label class="choice"><input type="checkbox" id="f-no-file">체결본을 찾지 못함</label>
+              <div class="sub-fields" id="no-file-field" data-field="noFile" hidden>
+                <label class="field-label field-label--sm" for="f-no-file-reason">찾지 못한 까닭<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+                <textarea class="textarea textarea--sm" id="f-no-file-reason" maxlength="200" placeholder="예: 종이 계약서를 보관한 문서함과 예전 전자결재 첨부를 찾았으나 없음"></textarea>
+                <p class="field-help">까닭을 적으면 체결본 없이 올리고, 이 기록에 "체결본 없음" 표시가 남습니다.</p>
+                <p class="field-error" hidden></p>
+              </div>
+              <p class="field-error" hidden></p>
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="sec-rep">
+            <h2 class="section-title" id="sec-rep"><span class="num">6</span>영업대표와 열람</h2>
+            <div class="field" data-field="rep">
+              <label class="field-label" for="f-rep">영업대표<span class="req" aria-hidden="true">*</span><span class="sr-only">(필수)</span></label>
+              <select class="select" id="f-rep"></select>
+              <p class="field-help">지금 이 계약을 맡는 영업 담당자나 영업 리더입니다. 이 사람이 후속 일을 기안하고 만료와 해지 통지 기한 알림을 받습니다.</p>
+              <p class="field-error" hidden></p>
+            </div>
+            <div class="field">
+              <label class="choice"><input type="checkbox" id="f-restricted" aria-describedby="restricted-help">열람 제한</label>
+              <p class="field-help" id="restricted-help">체크하면 영업대표, 올린 사람, 관리자와 지정 열람자만 이 계약을 봅니다. 예전 계약관리대장에서 비공개였던 계약에 체크합니다.</p>
+            </div>
+          </section>
+
+          <div class="form-actions">
+            <a class="btn btn--tertiary btn--md" id="btn-cancel" href="legacy-contract.html">취소</a>
+            <button type="submit" class="btn btn--primary btn--md" id="btn-submit">올리기</button>
+          </div>
+        </form>
+
+        <section class="panel" aria-labelledby="list-title" id="list-sec">
+          <!-- (설계 검토 2026-11-11 답 ②) "체결본" 거르기: 컴플라이언스가 체결본 없이 올린 기록을 함께 봄. 고르면 아래 표 줄만 바뀜 -->
+          <div class="panel-head panel-head--act">
+            <h2 class="section-title" id="list-title">지금까지 올린 기록</h2>
+            <div class="recon-month-pick"><label class="field-label field-label--sm" for="f-nofile">체결본</label>
+              <select class="select" id="f-nofile"><option value="">전체</option><option value="HAS">체결본 있음</option><option value="NO">체결본 없음</option></select></div>
+          </div>
+          <p class="section-desc">번호를 누르면 올린 내용을, 고객사를 누르면 계약 상세를 봅니다.</p>
+          <div class="tbl-wrap"><table class="tbl tbl--compact" id="list"></table></div>
+        </section>
+
+        <!-- ============ 매월 확인 (설계 검토 2026-11-11 답 ②, CTL-143) ============
+          월별 확인: 운영을 시작한 달부터 이달까지 한 줄씩(legacy-contract.js renderMonths). 기한은 다음 달 말일 [가정] -->
+        <section class="panel" aria-labelledby="month-title" id="sec-month">
+          <h2 class="section-title" id="month-title">매월 확인</h2>
+          <!-- 보기만 하는 사람에게는 legacy-contract.js가 이 안내 끝에 "보기만 합니다"를 붙임(다른 매월 점검과 같음) -->
+          <p class="section-desc" id="months-desc">영업지원 리더가 매월 그달 올린 예전 계약 기록을 체결본과 맞춰 보고 다음 달 말일까지 확인을 남깁니다.</p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="월별 확인 표">
+            <table class="tbl tbl--compact">
+              <caption class="sr-only">월별 확인: 대상 월, 기한, 올린 기록, 체결본 없음, 확인, 보기</caption>
+              <thead><tr><th scope="col">대상 월</th><th scope="col">기한</th><th scope="col" class="num">올린 기록</th><th scope="col" class="num">체결본 없음</th><th scope="col" class="col-phone-wide">확인</th><th scope="col" class="col-action">보기</th></tr></thead>
+              <tbody id="month-rows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 고른 달의 올린 기록과 확인 남기기(legacy-contract.js renderDetail) -->
+        <section class="panel" aria-labelledby="sec-month-detail">
+          <div class="panel-head panel-head--act">
+            <h2 class="section-title" id="sec-month-detail">올린 기록 확인</h2>
+            <div class="recon-month-pick"><label class="field-label field-label--sm" for="f-month">대상 월</label><select class="select" id="f-month"></select></div>
+          </div>
+          <!-- (2026-11-14 주말 점검 W7) 볼 것에 "예전 문서 번호로 열어 결재가 끝났음을 봄"과 결재일, "전환 날 뒤" 표시를 더함 -->
+          <p class="section-desc">그달 올린 예전 계약 기록마다 체결본(없으면 예전 문서)과 거래처, 계약 기간, 금액, 제품 줄, 자동갱신이 맞는지 봅니다.
+            예전 문서 번호로 예전 전자결재를 열어 결재가 끝났음과 결재일도 봅니다. "전환 날 뒤" 표시가 붙은 기록은 시스템 전에 맺은 계약이 맞는지 더 살핍니다.
+            바로잡은 기록과 바로잡는 기록도 함께 봅니다. 맞지 않는 것이 있으면 컴플라이언스 담당자에게 넘어가고 이메일로 알립니다.</p>
+          <div id="month-detail"></div>
+        </section>
+
+        <!-- 확인 기록: 쌓기만 하고 고치거나 지우지 않음. 20줄씩 -->
+        <section class="panel" aria-labelledby="sec-check-log">
+          <h2 class="section-title" id="sec-check-log">확인 기록</h2>
+          <p class="section-desc">영업지원 리더가 남긴 매월 확인입니다. 고치거나 지울 수 없고, 같은 달에 다시 남기면 한 줄 더 쌓입니다.</p>
+          <div class="tbl-scroll" tabindex="0" role="region" aria-label="확인 기록 표">
+            <table class="tbl tbl--compact recon-log">
+              <caption class="sr-only">확인 기록: 일시, 대상 월, 결과, 본 건수, 메모, 남긴 사람</caption>
+              <thead><tr><th scope="col">일시</th><th scope="col">대상 월</th><th scope="col">결과</th><th scope="col" class="num">본 건수</th><th scope="col" class="col-phone-wide">메모</th><th scope="col">남긴 사람</th></tr></thead>
+              <tbody id="check-rows"></tbody>
+            </table>
+          </div>
+          <nav class="pagination" id="check-pages" aria-label="확인 기록 쪽 이동"></nav>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer id="site-footer"></footer>
+  </div><!-- /.sheet -->
+
+  <!-- 올리기 확인 창 -->
+  <div class="modal-backdrop" id="confirm-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <h2 class="modal-title" id="confirm-title">예전 계약 기록을 올릴까요?</h2>
+      <div class="modal-body" id="confirm-body"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn--tertiary btn--md" data-act="close">닫기</button>
+        <button type="button" class="btn btn--primary btn--md" data-act="confirm">올리기</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/js/mock-data.js"></script>
+  <script src="assets/js/common.js"></script>
+  <script src="assets/js/control-checks.js"></script><!-- 매월 확인의 "맞지 않는 것이 있음"을 컴플라이언스에 넘기기(설계 검토 2026-11-11 답 ②) -->
+  <script src="assets/js/legacy-contract.js"></script>
+</body>
+</html>

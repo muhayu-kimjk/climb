@@ -204,6 +204,7 @@ a.brand-title:hover { color: var(--text-primary); }
 .brand-en.is-ko { font-family: var(--font-family); } /* 한글 이름 줄은 Noto Sans KR */
 
 /* 머리글 아이콘(v0.61 기획자 요청): 계정, 메뉴 검색(휴대폰은 ≡도). 조직과 이름, 로그아웃은 계정 판 안(아래 .acc-sheet)
+ *   PC와 태블릿은 맨 왼쪽에 밝기 단추(.theme-btn, 2026-11-11 기획자 요청: 검색 왼쪽). 휴대폰은 ≡ 메뉴판의 밝기 단추를 써서 감춤(13장)
  *   PC: 누르는 칸 40px, 그림 22px. 휴대폰은 아래 13장(44px, 24px). 마우스를 올리거나 판이 열려 있으면 옅은 바탕 */
 .user-line { display: flex; align-items: center; }
 .hdr-icon {
@@ -692,6 +693,7 @@ a.cell-title:hover { text-decoration: underline; text-underline-offset: 0.3rem; 
   .hdr-icon { width: var(--touch-min); height: var(--touch-min); margin: -1rem 0; }
   .hdr-icon .icon { width: 2.4rem; height: 2.4rem; }
   .user-line .menu-btn { display: inline-flex; }
+  .user-line .theme-btn { display: none; } /* 밝기 단추는 PC와 태블릿 머리글만(2026-11-11). 휴대폰은 ≡ 메뉴판 닫기 단추 옆(2026-11-06) */
   .site-header.is-stuck .user-line .hdr-icon { visibility: visible; } /* 휴대폰은 로고 줄째로 붙어 아이콘이 늘 보임 */
   .hdr-sheet { top: 100%; padding: 1.2rem var(--page-margin) 1.6rem; } /* 휴대폰은 로고 줄 아래(메뉴 줄이 없음) */
   .acc-sheet > * { max-width: none; } /* 휴대폰 계정 판은 폭 제한 없이 왼쪽 여백부터 오른쪽 끝까지(2026-11-06: 32rem 제한이면 선이 왼쪽에서 조금 떨어져 시작했음) */
@@ -884,6 +886,10 @@ a.step-body:hover .step-tit { color: var(--text-primary); text-decoration: under
 .modal-form { margin-top: 2rem; }
 .modal-form .field { margin-bottom: var(--gap-item); }
 .modal-form .field:last-child { margin-bottom: 0; }
+/* 입력 창 안의 정보 줄(예: 지금 담당자, 계약과 리더 확인)을 회색 상자로. admin.css에서 옮김(2026-11-11 저녁 정리):
+   진행 중단, 날인본 회수, 전자계약 취소 확인 창(common.js)은 admin.css를 읽지 않는 결재 문서에서도 열려, 거기서는 상자 없이 아래 칸에 붙어 보였음 */
+.modal-info { padding: 1.2rem 1.6rem; border-radius: var(--radius-md); background: var(--surface-gray-subtler); font-size: var(--fs-body-small); color: var(--text-basic); }
+.modal-info + .field, .modal-info + .field-row { margin-top: 2rem; }
 
 /* 손가락으로 누르는 화면: 모양과 자리는 그대로 두고 누르는 영역만 44px로 넓힘 (기획자 결정: 터치 44px, REQ-ENV-06)
  *   펼치기 줄(이전 판, 표로 보기, 본 자료), 체크와 라디오 줄, 표 안의 짧은 글자 버튼(확인, 빼기, 수정), 견적 줄 지우기

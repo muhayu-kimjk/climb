@@ -25,6 +25,10 @@
  *        맡을 수 없어 정해야 하면 맨 위 안내 상자에도 같은 단추. 감사 열람과 관찰자에게는 단추가 없음
  *      기안 단추, 보완 후 재기안, 사후관리 기록, 원본 내려받기, 유예 요청은 지금 영업대표(C.isSalesRep: 맡을 수 없으면 대신 맡는 영업 리더). 처음 기안한 사람이라도 바뀌었으면 원본을 받지 않음
  *      계약 이력 아래 "영업대표 바뀐 기록"(누가, 언제, 누구에서 누구로, 사유). 쌓기만 함. 결재 기록 묶음의 결재 기록에도 같은 줄
+ *  10. 설계 검토 2026-11-11 1번 "가볍게 잇기": 지금 유효한 계약에 "연결한 견적"(묶음의 계약에 남긴 견적번호와 판, 견적서 보기 링크)
+ *  11. 설계 검토 2026-11-11 3장 [가정]: 분할 정산인데 청구 일정 의무가 없으면 맨 위 안내와 "청구 일정 추가" 단추(아래 4-1.). 막지 않음
+ *  12. 설계 검토 2026-11-11 6번: 1번 묶음 끝(계약 이력 위)에 "지금 유효한 조건" 표(C.currentTerms, C.currentTermsHtml: 계약 완료된 것만 반영한
+ *      제품과 수량, 금액, 기간). 계약 금액 칸에 변경과 유상 충전을 반영한 지금 금액이 다르면 작은 줄 하나
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -44,6 +48,21 @@
   const root = b.root;
   if (!C.canView(root, me)) {
     $('#doc-title').innerHTML = C.icon('lock') + '열람 제한 계약';
+    /* 기획자 결정 2026-11-16(결정할것 새 결정 W3-1 (가)): 볼 수 없는 열람 제한 계약이어도 계약 유닛의 영업 리더(리더 본인 계약은 영업 임원)는
+     *   영업대표를 바꿀 수 있어야 함(REQ-ARC-12 (다)). 그래서 내용은 모두 가리고 계약번호, 지금 영업대표, "영업대표 바꾸기" 단추만 보임
+     *   창(C.openRepChange)도 고객사 이름 없이 번호만(masked). 가린 창에서는 나를 고르지 못해(leak-01 [가정]) 바꾼 뒤에도 보는 사람이 늘지 않음 */
+    if (C.canChangeRep(b, me)) {
+      $('#notice').innerHTML = notice('', '이 계약은 볼 수 없습니다',
+        // (2026-11-16 밤 코드 다시 보기 w3-05) 리더 본인 계약이나 리더 없는 유닛의 계약은 영업 임원이 바꾸므로 안내를 나눔
+        '열람 제한 계약이라 내용은 가립니다. ' + (C.leaderAt(C.salesTeamOf(b), '9999') === me.id
+          ? '계약 유닛의 ' + C.salesTeamOf(b) + ' 리더라 영업대표만 바꿀 수 있습니다.' : '리더 본인 계약이거나 리더가 없는 유닛의 계약이라 영업 임원으로서 영업대표만 바꿀 수 있습니다.') + '<br>' +
+        C.meta([['계약번호', esc(b.id)], ['지금 영업대표', esc(C.ownerLabel(C.salesRepOf(b)))]]),
+        '<button type="button" class="btn btn--primary btn--md" data-rep="change">영업대표 바꾸기</button>');
+      document.addEventListener('click', function (e) {
+        if (e.target.closest('[data-rep="change"]')) C.openRepChange(b, me, function (msg) { C.flash(msg); location.reload(); }, { masked: true });
+      });
+      return;
+    }
     $('#notice').innerHTML = notice('', '이 계약은 볼 수 없습니다', C.restrictedMsg);
     return;
   }
@@ -57,7 +76,12 @@
   const hold = C.holdOf(b);
   $('#doc-title').textContent = root.counterparty;
   $('#doc-meta').innerHTML = C.meta([esc(b.id), esc(C.serviceLabel(root.services)), esc(D.METHODS[C.methodOf(root)]),
-    (exOn ? C.badge(ex.tone, ex.label) : C.badge(st.tone, st.label)) + (hold ? ' ' + C.holdBadge(hold) : '') + (root.restricted ? ' ' + C.icon('lock', 'sm') : '')]);
+    (exOn ? C.badge(ex.tone, ex.label) : C.badge(st.tone, st.label)) + (hold ? ' ' + C.holdBadge(hold) : '') +
+      (root.legacy ? ' ' + C.legacyBadges(root) : '') + // 설계 검토 2026-11-11 5번: 예전 계약 기록, 체결본 없음, 바로잡힘
+      (C.stopPending(root) ? ' ' + C.stopBadge(root) : '') + // (설계 검토 2026-11-11 7번) 원계약이 진행 중단 요청 중이면 "중단 요청 중"
+      (root.restricted ? ' ' + C.icon('lock', 'sm') : '')]);
+  // 설계 검토 2026-11-11 5번 [가정]: 바로잡힌 예전 계약 기록이면 새 기록(없으면 null). 아래 안내와 기안 단추 자리에 씀
+  const legacyNext = C.legacyReplacedBy(root);
   // 계약 요약서(SCR-47, v0.53): 이 묶음을 A4 한 벌로. 볼 수 있는 사람은 이 화면과 같음
   $('#btn-summary').href = 'contract-print.html?id=' + encodeURIComponent(b.id);
   // 기획자 결정 2026-11-02 C-3: 결재 기록 묶음(아래 6.). 이 화면을 볼 수 있는 사람 모두. 상자를 보이기 전에 넣어 화면이 흔들리지 않음
@@ -118,11 +142,23 @@
     noticeHtml += notice('', '진행 중인 기안이 있습니다', pend.map(function (o) {
       return '<a class="doc-link" href="review.html?id=' + encodeURIComponent(o.id) + '">' + esc(o.id) + '</a> ' + esc(C.kindLabel(o)) + ': ' +
         // 보류 중(C-16)이면 보완 후 재기안 링크를 감춤(그 화면들도 막음). 까닭은 아래 기안 단추 자리의 회색 안내 한 줄
-        (o.status === 'REJECTED' ? (o.round || 1) + '차 반려' + (mine && !hold ? ' <a class="doc-link" href="' + C.resubmitHref(o) + '">보완 후 재기안</a>' : '') : C.progressText(o));
+        // (설계 검토 2026-11-11 7번) 진행 중단 요청 중이면 재기안 링크를 감추고(C.canResubmit) "중단 요청 중" 배지, 요청할 수 있으면 "진행 중단 요청" 글 단추
+        (o.status === 'REJECTED' ? (o.round || 1) + '차 반려' + (mine && !hold && C.canResubmit(o) ? ' <a class="doc-link" href="' + C.resubmitHref(o) + '">보완 후 재기안</a>' : '') : C.progressText(o)) +
+        (C.stopPending(o) ? ' ' + C.stopBadge(o) : '') +
+        (C.canAskStop(o, me) ? ' <button type="button" class="btn-text" data-stop="ask" data-id="' + esc(o.id) + '">진행 중단 요청</button>' : '') +
+        (C.stopSignedNote(o, me) ? '<span class="cell-meta">체결본을 올린 계약이라 진행 중단 대신 계약 완료 뒤 해지로 끝냅니다</span>' : ''); // 확인 1(2026-11-16)
     }).join('<br>'));
   } else if (b.status === 'TERMINATED') {
     noticeHtml += notice('', '해지된 계약입니다', '해지일 ' + C.fmtDate(root.terminateDate) + (root.terminatedAt ? ' (' + C.fmtDateTime(root.terminatedAt) + '에 해지 처리 완료)' : ''));
   }
+  // 설계 검토 2026-11-11 5번 [가정]: 바로잡힌 예전 계약 기록은 기록으로만 남고 전체 계약, 만료 예정, 원계약 고르기에서 빠짐. 새 기록으로 가는 길
+  if (legacyNext) {
+    noticeHtml += notice('', '바로잡힌 예전 계약 기록입니다', '까닭을 적어 새 기록(<a class="doc-link" href="contract.html?id=' + encodeURIComponent(legacyNext.id) + '">' +
+      esc(legacyNext.id) + '</a>)을 올렸습니다. 까닭: ' + esc(legacyNext.legacy.fixReason || '') + '. 후속 일은 새 기록에서 기안합니다.');
+  }
+  // (설계 검토 2026-11-11 7번) 진행 중단 안내(C.stopNotice): 원계약은 요청 중이거나 끝났으면 그 기록, 지금 영업대표가 요청할 수 있으면 요청 단추가 있는 안내.
+  //   변경, 연장 등 묶음의 다른 계약은 요청 중일 때만(제목 앞에 계약번호). 그 계약의 요청 단추는 위 "진행 중인 기안" 줄에
+  noticeHtml += b.items.map(function (x) { return x === root ? C.stopNotice(x, me, { ask: true }) : C.stopPending(x) ? C.stopNotice(x, me, { link: true }) : ''; }).join('');
   $('#notice').innerHTML = noticeHtml;
   // 만료 처리와 유예 단추: 처리한 뒤 화면을 다시 불러와 상태와 단추를 새로 그림(결재 문서처럼). 안내 글은 다음 화면에서 한 번
   function exAfter(msg) { C.flash(msg); location.reload(); }
@@ -138,6 +174,8 @@
   document.addEventListener('click', function (e) {
     if (e.target.closest('[data-rep="change"]')) C.openRepChange(b, me, exAfter);
   });
+  // (설계 검토 2026-11-11 7번) 진행 중단 단추(요청, 확인, 돌려보내기, 날인본 회수 확인, 답 ④의 전자계약 취소 확인): 처리하면 화면을 다시 불러옴(만료 처리와 같은 방식)
+  document.addEventListener('click', function (e) { C.stopClick(e, me, exAfter); });
 
   /* ---------- 할 일 버튼 (REQ-ARC-02) ----------
    * 지금 유효한 계약이 계약 완료일 때, 영업대표 본인(시연용 최고관리자 포함)에게만.
@@ -150,10 +188,20 @@
   // 반려된 변경이 있으면 새 변경 기안(새 번호) 대신 그 변경을 보완해 다시 올림 (REQ-FLOW-17, v0.63 점검에서 고침: 변경만 빠져 있었음)
   const rejAmend = b.rejected.some(function (o) { return o.kind === 'AMEND'; });
   // 기간을 바꾸는 운영 변경이 진행 중이면 연장은 그 뒤에 (v0.58 QA)
-  const periodBusy = b.open.some(function (o) { return o.kind === 'CHANGE' && o.changeType === 'PERIOD'; });
+  //   (2026-11-14 주말 점검 W7, icfr-05) 금액이 바뀌는 변경(추가, 줄임)이 진행 중이어도 연장 단추 없음(연장 검토 renewal.js, 계약 등록 originBlock과 같은 규칙).
+  //     조항만 변경은 기간을 줄이지 않으면 막지 않음. "변경 기안" 단추는 그대로 둠(조항만은 기안할 수 있고, 추가와 줄임은 계약 등록이 막음)
+  //   (2026-11-14 주말 점검, 코드 다시 보기 amend-01, amend-02) 기간을 줄이는 변경(조항만 포함, C.amendShortens)도 연장 단추 없음(늦은 연장 포함).
+  //     예전에는 연장 검토와 계약 등록만 막아, 단추는 보이는데 누르면 화면이 막혔음(CTL-66)
+  const periodBusy = b.open.some(function (o) {
+    return (o.kind === 'CHANGE' && o.changeType === 'PERIOD') || (o.kind === 'AMEND' && C.amendKindOf(o) !== 'TERMS') || C.amendShortens(o, b.end);
+  });
   // 늦은 연장(A-11)을 받을 수 있는 만료 계약인지(아래 둘째 갈래와 보류 안내가 함께 씀)
   const lateOk = b.status === 'EXPIRED' && !!ex && (ex.state === 'OPEN' || ex.state === 'GRACE') && !blocking && !rejRenew;
-  if (hold && canDraft && (b.status === 'ACTIVE' || lateOk || b.rejected.length)) {
+  if (legacyNext) {
+    // 설계 검토 2026-11-11 5번 [가정]: 바로잡힌 예전 계약 기록에는 기안 단추를 두지 않음(새 기록에서 기안. 기안 화면들도 막음)
+    $('#bundle-actions').innerHTML = '<p class="section-desc bundle-note">바로잡힌 예전 계약 기록이라 기안하지 않습니다. 새 기록 ' + esc(legacyNext.id) + '에서 기안합니다.</p>';
+    $('#bundle-actions').hidden = false;
+  } else if (hold && canDraft && (b.status === 'ACTIVE' || lateOk || b.rejected.length)) {
     // 기획자 결정 2026-11-02 C-16: 보류 중이면 변경, 운영 변경, 연장(검토), 해지, 늦은 연장 단추 대신 회색 안내 한 줄(D-5와 같은 모양)
     //   유예 요청도 막힘(C.canAskGrace가 false). 각 기안 화면도 보류를 먼저 봄(두 겹). 보류는 컴플라이언스 담당자가 풂
     $('#bundle-actions').innerHTML = '<p class="section-desc bundle-note">' + esc(C.holdText(hold, me)) + ' 보류가 풀릴 때까지 연장, 변경, 해지를 기안할 수 없습니다.</p>';
@@ -171,7 +219,7 @@
       // 기획자 결정 2026-11-02 A-11: 끝나기 30일 전부터 연장 협상이 이어지면 유예 요청(요청 중이거나 확인된 유예가 있으면 위 안내 상자에)
       (C.canAskGrace(b, me) && !(ex && ex.note) ? '<button type="button" class="btn btn--tertiary btn--md" data-ex="ask">유예 요청</button>' : '');
     $('#bundle-actions').hidden = false;
-  } else if (lateOk && canDraft) {
+  } else if (lateOk && !periodBusy && canDraft) { // (2026-11-14 주말 점검 W7, icfr-05) 늦은 연장도 기간 변경이나 금액이 바뀌는 변경이 진행 중이면 단추 없음(renewal.js와 같음)
     // 기획자 결정 2026-11-02 A-11: 만료되었어도 서비스를 닫기 전(만료 처리 차례, 유예 중)이면 늦은 연장 기안. 유예의 끝이 연장 기안이 되게
     //   계약 등록(new-contract.js)과 연장 검토(renewal.js)가 같은 규칙으로 받음. 기안하면 만료 처리 차례가 없어짐. 변경과 해지는 없음
     const q = encodeURIComponent(b.id);
@@ -192,20 +240,43 @@
 
   /* ---------- 1. 지금 유효한 계약 ---------- */
   const cur = b.current;
-  const curSigns = !C.isShort(cur) && !C.isChange(cur); // ⑦ ⑨에서 날짜를 받는 계약(신규, 변경, 바꿔서 연장)
+  const curSigns = !C.isShort(cur) && !C.isChange(cur) && !cur.legacy; // ⑦ ⑨에서 날짜를 받는 계약(신규, 변경, 바꿔서 연장). 예전 계약 기록은 ⑦ ⑨가 없어 뺌(설계 검토 2026-11-11 5번)
   function info(label, value, cls) { return '<div><dt>' + esc(label) + '</dt><dd' + (cls ? ' class="' + cls + '"' : '') + '>' + value + '</dd></div>'; } // cls amount: 금액은 오른쪽(REQ-UI-16)
   // 해지 통지 기한: 만료 n일 전. 30일 안이거나 지났으면 강조 (v0.53, REQ-FLOW-32)
   function noticeDeadlineHtml() {
     if (!C.noticeDate(b)) return '';
     return '<span class="cell-meta">' + C.noticeText(b) + '<br>만료 ' + b.noticeDays + '일 전까지 상대방에게 알려야 연장되지 않음</span>';
   }
+  /* 연결한 견적 (설계 검토 2026-11-11 1번 "가볍게 잇기"): 이 묶음의 계약(원계약, 변경, 연장)에 남긴 견적번호와 판(C.quoteLinkOf)
+   *   견적을 볼 수 있는 사람(C.canSeeQuote)에게는 견적서 보기 링크, 아니면 번호만 [가정]. 묶음에 계약이 여럿이면 작은 줄에 어느 계약의 견적인지
+   *   없으면 "없음(견적 없이 등록)" */
+  function quoteLinksHtml() {
+    const list = b.items.map(function (c) { return { c: c, lk: C.quoteLinkOf(c) }; }).filter(function (x) { return !!x.lk; });
+    if (!list.length) return '없음<span class="cell-meta">견적 없이 등록</span>';
+    return list.map(function (x) {
+      const name = esc(x.lk.no + (x.lk.ver ? ' ' + x.lk.ver + '판' : ''));
+      return (x.lk.q && C.canSeeQuote(me, x.lk.q) ? '<a href="quote.html?no=' + encodeURIComponent(x.lk.no) + '&ver=' + (x.lk.ver || x.lk.q.ver) + '&view=1">' + name + '</a>' : name) +
+        (b.items.length > 1 ? '<span class="cell-meta">' + esc(x.c.id + ' ' + C.kindLabel(x.c)) + '</span>' : '');
+    }).join('<br>');
+  }
+  // (설계 검토 2026-11-11 6번) 지금 유효한 조건: 계약 완료된 원계약, 변경(추가, 줄임, 조항만), 연장, 운영 변경만 반영(C.currentTerms). 아래 1번 묶음 끝에 표로
+  const terms = C.currentTerms(b.id);
   $('#now').innerHTML = [
-    info('계약번호', '<a href="review.html?id=' + encodeURIComponent(cur.id) + '">' + esc(cur.id) + '</a>'),
+    // 설계 검토 2026-11-11 5번: 예전 계약 기록은 결재 문서 대신 그 기록 보기(SCR-95)로
+    info('계약번호', '<a href="' + (cur.legacy ? 'legacy-contract.html' : 'review.html') + '?id=' + encodeURIComponent(cur.id) + '">' + esc(cur.id) + '</a>'),
     info('계약종류', esc(C.kindLabel(cur))),
+    // 설계 검토 2026-11-11 5번, 4-1 5-3: 원계약이 예전 계약 기록이면 예전 문서 번호, 체결본 여부(없으면 까닭), 올린 사람과 때
+    root.legacy ? info('예전 계약 기록', '예전 문서 ' + esc(root.legacy.docNo || '-') +
+      '<span class="cell-meta">' + (root.legacy.file ? '체결본 있음' : C.badge('attention', '체결본 없음') + ' 까닭: ' + esc(root.legacy.noFile || '-')) + '</span>' +
+      '<span class="cell-meta">' + esc(C.ownerLabel(root.legacy.by, root.legacy.dept)) + ' ' + C.fmtDate(root.legacy.at) + ' 올림, 결재 없음. <a href="legacy-contract.html?id=' +
+      encodeURIComponent(root.id) + '">올린 내용 보기</a></span>') : '',
     info('계약 기간', b.start ? C.fmtPeriod(b.start, b.end) : '-'),
     // 정확한 금액 한 줄 + 아래 작은 줄(어림 금액, 부가세 별도). 계약 요약서와 같은 모양 (v0.59 QA: 오른쪽 정렬에서 두 줄로 어색하게 꺾였음)
-    info('계약 금액', Number(cur.amount || 0).toLocaleString('ko-KR') + '원<span class="cell-meta">' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도</span>', 'amount'),
+    info('계약 금액', Number(cur.amount || 0).toLocaleString('ko-KR') + '원<span class="cell-meta">' + esc(C.fmtKRW(cur.amount)) + ', 부가세 별도</span>' +
+      // (설계 검토 2026-11-11 6번) 계약 완료된 변경과 유상 충전으로 지금 금액이 다르면 한 줄 더(셈은 아래 "지금 유효한 조건")
+      (terms && terms.ready && terms.amount !== Number(cur.amount || 0) ? '<span class="cell-meta">변경과 충전을 반영한 지금 금액 ' + esc(C.fmtWon(terms.amount)) + '</span>' : ''), 'amount'),
     info('자동갱신', b.autoRenew === 'YES' ? '있음' + noticeDeadlineHtml() : '없음'),
+    info('연결한 견적', quoteLinksHtml()), // 설계 검토 2026-11-11 1번: 이 묶음의 계약에 남긴 견적번호와 판(아래 quoteLinksHtml)
     root.unit ? info('기관 또는 부서명', esc(root.unit)) : '', // 계약마다 직접 적은 기관 이름 (C-24 v0.39, 이름 v0.46)
     // 기획자 결정 2026-11-03(C-44): 지금 영업대표. 바뀌었으면 처음 기안한 사람, 사용 중지라 정하기 전이면 "담당 지정 필요 (영업 리더가 맡음)"
     //   정할 수 있는 사람(영업 리더, 시연용 최고관리자)에게만 "영업대표 바꾸기"(인쇄하지 않음). 읽기만 하는 역할은 C.canChangeRep가 false
@@ -217,15 +288,27 @@
     info('서비스 수준 협약(SLA)', root.sla === 'YES' ? '있음' : '없음'), // v0.40
     // 지정 열람자(v0.52)도 함께: 이 묶음을 기본 밖에서 더 볼 수 있는 조직이나 사람
     info('열람 제한', root.restricted ? C.icon('lock', 'sm') + '있음' + (C.viewerText(root) ? '<span class="cell-meta">지정 열람자: ' + esc(C.viewerText(root)) + '</span>' : '') : '없음'),
+    // (설계 검토 2026-11-11 남은 것 ③) 체결 방식(C.signMethodLabel): ⑥~⑧을 거친 지금 유효한 계약(신규, 변경, 바꿔서 연장)만, 서명본 체결일 바로 앞
+    //   전자계약이면 ⑥ 인증서 서명한 사람(C.esignSignedBy), 견적서로 대신했으면 그 한 줄. 예전 계약 기록은 체결 방식을 받지 않아 "기록 없음" [가정]
+    curSigns ? info('체결 방식', esc(C.signMethodLabel(cur)) +
+      (C.isEsign(cur) && C.esignSignedBy(cur) ? '<span class="cell-meta">⑥ 인증서 서명 ' + esc(C.ownerLabel(C.esignSignedBy(cur))) + '</span>' : '') +
+      (C.isQuoteInstead(cur) ? '<span class="cell-meta">견적서로 계약서를 대신함</span>' : ''))
+      : cur.legacy ? info('체결 방식', '기록 없음<span class="cell-meta">예전 계약 기록은 체결 방식을 받지 않음</span>') : '',
     // 기획자 결정 2026-11-02 B-8: 지금 유효한 계약의 서명본 체결일(⑦, 견적서로 대신했으면 고객 날인일)과 실제 개통일(⑨). 날인과 체결본을 거치는 계약만
-    curSigns ? info(C.isQuoteInstead(cur) ? '고객 날인일' : '서명본 체결일', C.signedDate(cur) ? C.fmtDate(C.signedDate(cur)) + '<span class="cell-meta">올린 날 ' + C.fmtDate(cur.signedAt) + '</span>' : '-') : '',
-    curSigns ? info('실제 개통일', C.openDate(cur) ? C.fmtDate(C.openDate(cur)) : '-') : '',
+    //   (설계 검토 2026-11-11 답 ⑤, 남은 것 ④) 날짜 이름은 그 계약에 맞게: ⑦ C.signDayLabel(전자계약은 전자계약 체결일), ⑨ C.openDateLabel(줄임과 조항만 변경은 적용일)
+    curSigns ? info(C.signDayLabel(cur), C.signedDate(cur) ? C.fmtDate(C.signedDate(cur)) + '<span class="cell-meta">올린 날 ' + C.fmtDate(cur.signedAt) + '</span>' : '-') : '',
+    curSigns ? info(C.openDateLabel(cur), C.openDate(cur) ? C.fmtDate(C.openDate(cur)) : '-') : '',
     info('계약 완료일', cur.completedAt ? C.fmtDateTime(cur.completedAt) : '-'),
     info('해지일', b.status === 'TERMINATED' ? C.fmtDate(root.terminateDate) : '-'),
     // 만료 처리(기획자 결정 2026-11-02 A-10): 종료일이 지난 계약만. 처리한 때와 사람, 아니면 지금 상태
     exOn ? info('만료 처리', ex.done ? C.fmtDateTime(ex.done.at) + '<span class="cell-meta">' + esc(C.ownerLabel(ex.done.actorId, ex.done.actorDept)) + ' 처리</span>'
       : esc(ex.label) + (ex.step && ex.step.state === 'PENDING' ? '<span class="cell-meta">' + esc(C.ownerLabel(ex.step.userId)) + ' 차례, ' + C.waitDays(ex.holder, ex.step) + '일째</span>' : '')) : '',
   ].join('');
+  /* (설계 검토 2026-11-11 6번) "지금 유효한 조건": 1번 묶음(지금 유효한 계약) 끝, 계약 이력 위. 제품과 수량, 금액(원계약 + 계약 완료된 변경 + 유상 충전), 기간
+   *   표와 셈은 common.js currentTermsHtml(계약 요약서와 같음). 계약번호는 결재 문서로. 화면을 보이기 전에 넣어 흔들리지 않음 */
+  $('#now').insertAdjacentHTML('afterend', '<h3 class="box-subtitle" id="terms-title">지금 유효한 조건</h3>' +
+    '<p class="section-desc">계약 완료된 원계약, 변경, 연장, 운영 변경만 반영한 지금의 제품과 수량, 금액, 기간입니다. 진행 중이거나 반려된 기안은 넣지 않습니다. ' +
+    '변경 금액은 늘거나 준 만큼이라 줄임은 빼기(-)로 셉니다. 금액은 부가세 별도입니다.</p>' + C.currentTermsHtml(terms, { link: true, title: 'terms-title' }));
 
   /* ---------- 2. 계약 이력 ----------
    * 기획자 결정 2026-11-02 D-6(C-40 ⑥): 이름을 "차수별 이력"에서 "계약 이력"으로. 반려 뒤 다시 올린 기안도 "2차 기안"처럼
@@ -252,11 +335,13 @@
     '<thead><tr><th scope="col">계약번호</th><th scope="col">계약종류</th><th scope="col">기안일</th><th scope="col">상태</th><th scope="col">계약 기간 또는 해지일</th></tr></thead>' +
     '<tbody>' + b.items.map(function (c) {
       return '<tr' + (c === cur ? ' class="is-current"' : '') + '>' +
-        '<td class="nowrap"><a class="cell-title" href="review.html?id=' + encodeURIComponent(c.id) + '">' + esc(c.id) + '</a>' + (c === cur ? '<span class="cell-meta">지금 유효</span>' : '') +
+        // 설계 검토 2026-11-11 5번: 예전 계약 기록은 결재 문서가 없어 그 기록 보기(SCR-95)로
+        '<td class="nowrap"><a class="cell-title" href="' + (c.legacy ? 'legacy-contract.html' : 'review.html') + '?id=' + encodeURIComponent(c.id) + '">' + esc(c.id) + '</a>' + (c === cur ? '<span class="cell-meta">지금 유효</span>' : '') +
           // 기획자 결정 2026-11-02 B-6: 체결 전에 남긴 재무 의견이 있으면 결재 문서의 재무 의견 칸으로
           ((c.finOpinions || []).length ? '<span class="cell-meta"><a href="review.html?id=' + encodeURIComponent(c.id) + '#fin-opinion">재무 의견 ' + c.finOpinions.length + '건</a></span>' : '') + '</td>' +
         '<td class="nowrap">' + esc(C.kindLabel(c)) + '</td>' +
-        '<td class="num-left">' + C.fmtDate(c.requestedAt) + '</td>' +
+        // 예전 계약 기록은 기안일이 없어 올린 날(설계 검토 2026-11-11 5번)
+        '<td class="num-left">' + (c.legacy ? C.fmtDate(c.legacy.at) + '<span class="cell-meta">올린 날</span>' : C.fmtDate(c.requestedAt)) + '</td>' +
         // 종료일이 지난 지금 유효한 계약은 만료 처리 상태로(A-10, 머리의 배지와 같음)
         '<td class="nowrap">' + (exOn && c === ex.holder ? C.badge(ex.tone, ex.label) : C.statusBadge(c)) + '</td>' +
         '<td class="num-left">' + termOf(c) + '</td>' +
@@ -274,16 +359,29 @@
   //   기획자 결정 2026-11-02 B-5: 견적서로 계약서를 대신한 계약은 최종 견적서(고객 날인)로 보임. B-8: 서명본 체결일이 있으면 함께
   $('#signed').innerHTML = signed.length ? signed.map(function (x) {
     const fate = C.signedFateText(x.v), quote = x.v.doc === 'QUOTE';
-    return '<li' + (x.v.current ? '' : ' class="is-old"') + '><span class="file-info">' + C.badge('line', D.FILE_KINDS[x.v.doc] || D.FILE_KINDS.SIGNED) +
+    // (설계 검토 2026-11-11 남은 것 ④) 전자계약은 ⑦에 올린 문서가 "전자계약서 출력본"이고 날짜는 "전자계약 체결일"(결재 문서의 C.signDocLabel, C.signDayLabel과 같은 말)
+    const esignDoc = !quote && C.isEsign(x.c);
+    return '<li' + (x.v.current ? '' : ' class="is-old"') + '><span class="file-info">' + C.badge('line', esignDoc ? C.signDocLabel(x.c) : D.FILE_KINDS[x.v.doc] || D.FILE_KINDS.SIGNED) +
       // REQ-SIGN-04: 배지는 결재 문서와 같게 "확인한 최종 견적서". B-5: 견적서로 대신한 계약은 서명본 체결일 대신 고객 날인일
-      (quote ? ' ' + C.badge('line', '계약서 대신') : '') + (x.v.checked ? ' ' + C.badge('success', quote ? '확인한 최종 견적서' : '확인한 체결본') : '') + ' <span class="file-name">' + esc(x.v.name) + '</span>' +
-      '<span class="file-size">' + esc(x.c.id) + ' ' + x.v.round + '차 기안, ' + C.fmtDateTime(x.v.at) + ' 등록' + (x.v.signDate ? ', ' + (quote ? '고객 날인일 ' : '서명본 체결일 ') + C.fmtDate(x.v.signDate) : '') + (fate ? ', ' + fate : '') + '</span></span>' +
+      (quote ? ' ' + C.badge('line', '계약서 대신') : '') + (x.v.checked ? ' ' + C.badge('success', quote ? '확인한 최종 견적서' : esignDoc ? '확인한 출력본' : '확인한 체결본') : '') + ' <span class="file-name">' + esc(x.v.name) + '</span>' +
+      '<span class="file-size">' + esc(x.c.id) + ' ' + x.v.round + '차 기안, ' + C.fmtDateTime(x.v.at) + ' 등록' + (x.v.signDate ? ', ' + (quote ? '고객 날인일' : esignDoc ? '전자계약 체결일' : '서명본 체결일') + ' ' + C.fmtDate(x.v.signDate) : '') + (fate ? ', ' + fate : '') + '</span></span>' +
       // 단추 뒤에 파일 이름 (2026-11-06 점검: 줄마다 같은 단추 이름이라 화면낭독기가 어느 것인지 알게 보이지 않는 글을 붙임. 보이는 글이 이름의 앞)
       //   (2026-11-06 점검: 단추 이름 "미리보기"를 맞춤법대로 "미리 보기"로. 결재 문서와 같음)
       '<span class="file-acts"><button type="button" class="btn-text" data-file="preview">미리 보기<span class="sr-only"> ' + esc(x.v.name) + '</span></button>' +
       '<button type="button" class="btn-text file-dl" data-file="pdf">PDF 내려받기<span class="sr-only"> ' + esc(x.v.name) + '</span></button>' +
       (canOriginal ? '<button type="button" class="btn-text file-dl" data-file="original">원본 내려받기<span class="sr-only"> ' + esc(x.v.name) + '</span></button>' : '') + '</span></li>';
   }).join('') : '<li class="empty">아직 등록된 체결본이 없습니다.</li>';
+  // 설계 검토 2026-11-11 5번, 4-1 5-3: 예전 계약 기록이면 올릴 때 붙인 체결본을 맨 위에. 찾지 못했으면 "체결본 없음"과 까닭(내려받기 단추 없음)
+  if (root.legacy) {
+    const L = root.legacy, empty = $('#signed').querySelector('li.empty');
+    if (empty) empty.remove();
+    $('#signed').insertAdjacentHTML('afterbegin', '<li><span class="file-info">' + C.badge('line', D.FILE_KINDS.SIGNED) + ' ' + C.badge('line', '예전 계약 기록') +
+      (L.file ? ' <span class="file-name">' + esc(L.file) + '</span>' : ' ' + C.badge('attention', '체결본 없음')) +
+      '<span class="file-size">' + esc(root.id) + ', ' + C.fmtDateTime(L.at) + ' 올림' + (L.file ? '' : ', 찾지 못한 까닭: ' + esc(L.noFile || '-')) + '</span></span>' +
+      (L.file ? '<span class="file-acts"><button type="button" class="btn-text" data-file="preview">미리 보기<span class="sr-only"> ' + esc(L.file) + '</span></button>' +
+        '<button type="button" class="btn-text file-dl" data-file="pdf">PDF 내려받기<span class="sr-only"> ' + esc(L.file) + '</span></button>' +
+        (canOriginal ? '<button type="button" class="btn-text file-dl" data-file="original">원본 내려받기<span class="sr-only"> ' + esc(L.file) + '</span></button>' : '') + '</span>' : '') + '</li>');
+  }
   $('#signed').addEventListener('click', function (e) {
     const btn = e.target.closest('[data-file]');
     if (!btn) return;
@@ -311,6 +409,7 @@
           '<td class="center">' + OB.dueHtml(o) + '</td><td>' + OB.titleHtml(o) + '<span class="cell-sub">맡은 분야 ' + esc(C.obligationOwnerLabel(o)) + '</span></td>' +
           '<td class="center nowrap col-owner">' + esc(C.obligationOwnerLabel(o)) + '</td><td class="col-action">' + OB.actionsHtml(o, me, root) + '</td></tr>';
       }).join('') : '<tr><td class="empty-row" colspan="4">' + (C.canHaveObligations(b) ? '아직 더한 의무가 없습니다.' : '체결본이 등록되면 의무를 더할 수 있습니다.') + '</td></tr>') + '</tbody>';
+    syncBillGap(); // (설계 검토 2026-11-11 3장) 의무를 더하면 분할 정산 안내를 다시 봄(아래 4-1.)
   }
   renderObligations();
   OB.wire($('#obligations'), me, renderObligations);
@@ -318,6 +417,49 @@
     $('#btn-ob-add').hidden = false;
     $('#btn-ob-add').addEventListener('click', function () { OB.openAdd(root, me, renderObligations); });
   }
+
+  /* ---------- 4-1. 분할 정산의 청구 일정 의무 (설계 검토 2026-11-11 3장, 재무질문 6번 추천 (다)) ----------
+   * [가정: 재무에게 물을 한 장 6번의 답을 받기 전] (2026-11-14 주말 점검 W7, icfr-06) C.billingGapList: 기록마다 봄.
+   *   정산 방식이 분할(SPLIT)인 기록(원계약, 연장, 추가 변경)마다 그 기간 안에 기한이 있는 청구 일정(BILLING) 의무가 없으면
+   *   맨 위 안내 상자 "분할 정산인데 청구 일정 의무가 없음"(빠진 기록 번호와 기간, C.billingGapText)과 "청구 일정 추가" 단추. 막지 않음(결재와 계약 완료는 그대로)
+   *   때: 체결본이 등록된 뒤부터(C.canHaveObligations: ⑧ 체결본 확인을 기다릴 때, 계약 완료 뒤). 해지, 만료, 진행 중단된 묶음은 알리지 않음
+   *   예전 규칙(묶음에 청구 일정 의무가 하나도 없을 때만, 정산 방식은 가장 늦은 기록의 값)은 연장이나 추가 변경의 둘째 기간을 놓쳐 바꿈
+   *   끝낸 청구 일정 의무도 그 기간에는 "있음"으로 봄(끝낸 되풀이 의무는 끝낸 날까지)
+   *   단추: 청구 일정을 더할 수 있는 사람(C.canAddObligation: 재무, 지금 영업대표, 법무, 관리자, 시연용 최고관리자). 읽기만 하는 역할은 안내만
+   *     누르면 의무 추가 창(obligation-ui.js)을 열고 종류를 청구 일정, 자주 쓰는 의무를 "분할 청구하기"로 미리 고름(고칠 수 있음)
+   *   더하면 renderObligations가 이 안내를 다시 봄(syncBillGap). 같은 규칙을 개요의 재무 "챙길 의무"(dashboard.js)와 결재 문서의 ⑧ ⑨ ⑩ 차례 안내(review.js)가 씀
+   *   (설계 검토 2026-11-11 남은 것 ⑥) 판단(정산 방식, 빠졌는지)은 common.js C.settlementOf, C.billingGap 하나로 옮김(이 파일과 dashboard.js에 있던 두 벌을 지움)
+   *     [제안] 실제 시스템은 이 판단을 서버 함수 하나로 둠
+   *   결재 문서의 "청구 일정 추가"(contract.html?id=묶음&bill=add)로 들어오면 그릴 것을 다 그린 뒤 같은 추가 창을 바로 엶(더할 수 있고 아직 빠졌을 때만) [가정] */
+  // 안내를 넣거나 뺌. 처음 그릴 때(문서를 보이기 전)와 의무를 더한 뒤에 부름. 안내는 #notice의 맨 끝에 붙음
+  //   (2026-11-14 주말 점검 W7, icfr-06) 판단을 기록(원계약, 연장, 추가 변경)마다로 바꾸고(C.billingGapList) 안내 문장에 빠진 기록과 그 기간을 넣음(C.billingGapText).
+  //     의무를 더해도 다른 기록이 아직 빠졌으면 안내를 지우지 않고 문장만 바꿈(예전에는 한 번 그린 문장을 그대로 두었음)
+  function syncBillGap() {
+    const el = document.getElementById('bill-gap'), gap = C.billingGap(b);
+    if (!gap) { if (el) el.remove(); return; }
+    const can = C.canAddObligation(me, root, 'BILLING');
+    const html = notice('', '분할 정산인데 청구 일정 의무가 없음',
+      '정산 방식이 분할인데 ' + esc(C.billingGapText(b)) + '에 기한이 있는 청구 일정 의무가 없습니다. 분할 청구마다 기한과 금액을 청구 일정 의무로 더하면 재무가 기한 전에 이메일을 받습니다. 더하지 않아도 계약은 그대로 진행됩니다.' +
+        (can ? '' : ' 재무, 영업대표, 법무가 더할 수 있습니다.'),
+      can ? '<button type="button" class="btn btn--primary btn--md" data-bill="add">청구 일정 추가</button>' : '');
+    if (el) { el.innerHTML = html; return; }
+    $('#notice').insertAdjacentHTML('beforeend', '<div id="bill-gap">' + html + '</div>');
+  }
+  function openBillAdd() {
+    OB.openAdd(root, me, renderObligations);
+    // 창의 종류를 청구 일정으로, 자주 쓰는 의무를 한 번 하는 청구("분할 청구하기")로 미리 고름. 창의 change 처리(obligation-ui.js)가 칸을 채움
+    const f = document.getElementById('fm-form');
+    if (!f || !f.elements.kind) return;
+    f.elements.kind.value = 'BILLING';
+    f.elements.kind.dispatchEvent(new Event('change', { bubbles: true }));
+    const i = D.OBLIGATION_PRESETS.findIndex(function (p) { return p.kind === 'BILLING' && p.when === 'ONCE'; });
+    if (i > -1 && f.elements.preset) { f.elements.preset.value = String(i); f.elements.preset.dispatchEvent(new Event('change', { bubbles: true })); }
+  }
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('[data-bill="add"]')) openBillAdd();
+  });
+  // 결재 문서에서 "청구 일정 추가"로 들어옴(&bill=add): 문서를 다 그려 보인 뒤(setTimeout) 창을 엶. 이미 더했거나 더할 수 없으면 열지 않고 위 안내만
+  if (new URLSearchParams(location.search).get('bill') === 'add' && C.billingGap(b) && C.canAddObligation(me, root, 'BILLING')) setTimeout(openBillAdd, 0);
 
   /* ---------- 5. 사후관리 기록 (REQ-FLOW-06, 19, REQ-SEC-09) ---------- */
   function renderNotes() {
@@ -359,7 +501,8 @@
 
   /* ---------- 6. 결재 기록 묶음 (기획자 결정 2026-11-02 C-3, G-13, REQ-DASH-21) ----------
    * 이 계약을 볼 수 있는 사람 모두(이 화면에 들어온 사람. 감사 열람과 관찰자도: 꺼낸 기록이 남는 보기)
-   * 묶음에 드는 것: 결재 문서 PDF(계약과 차수마다, 워터마크), 결재 기록 전체, 첨부 판과 지문, 그때의 가격 기준(기안일에 쓰던 표준 단가와 한도, 품의 번호)
+   * 묶음에 드는 것: 결재 문서 PDF(계약과 차수마다, 워터마크), 결재 기록 전체, 첨부 판과 지문, 그때의 가격 기준(기안일에 쓰던 표준 단가와 한도, 품의 번호.
+ *   설계 검토 2026-11-11 남은 것 ⑤: C.contractStd로 고객사 티어 단가, 이용 달 수, 표준 금액까지)
    * 실제 시스템은 이 파일들을 zip 하나로 묶어 내려받음. 시안은 묶음에 든 것의 목록(CSV, 엑셀에서 열림)만 내려받음
    *   목록 파일 맨 위: 실행 시각, 실행한 사람, 계약 묶음, 건수, 파일 지문(빈 줄 아래 본문의 SHA-256), 워터마크
    *   첨부의 지문은 실제 시스템이 파일을 올릴 때 만든 값을 적음(시안에는 파일이 없어 "-")
@@ -395,17 +538,29 @@
           h.onBehalfOf ? C.ownerLabel(h.onBehalfOf) : '', C.fmtDateTime(h.at), h.comment || '']);
       });
       const day = String(c.requestedAt || D.TODAY).slice(0, 10);
-      const price = C.pricesAt(day);
       if (c === root) {
         // 기획자 결정 2026-11-03(C-44): 영업대표 바뀐 기록도 결재 기록에 한 줄씩(묶음 단위라 원계약 줄 뒤에 한 번만)
         C.repChangesOf(b).forEach(function (r) {
           hist.push([b.id, '-', '영업대표 지정', C.ownerLabel(r.from) + ' → ' + C.ownerLabel(r.to), C.ownerLabel(r.by, r.byDept), '', C.fmtDateTime(r.at), r.reason || '']);
         });
       }
-      (c.products || (c.form && c.form.products) || []).forEach(function (l) {
-        const p = price[l.feature] || null;
-        prices.push([c.id, C.fmtDate(day), featureOf(l.feature), p ? p.listPrice : '', p ? p.unit : '', p ? (Math.round((p.discountCap || 0) * 1000) / 10) + '%' : '',
-          p ? p.validFrom : '없음', p ? [p.docNo, p.docUrl].filter(Boolean).join(' ') : '']);
+      /* (설계 검토 2026-11-11 남은 것 ⑤) 그때의 가격 기준은 공통 셈(C.contractStd)으로: 결재 문서, 할인 예외 점검, 통계와 같은 표준 금액
+       *   쓴 표준 단가(티어 단가면 그 값, 기안 때 남긴 값이 먼저), 단위와 단위 종류, 고객사 티어, 이용 달 수(기간제만), 수량, 표준 금액, 한도, 가격 줄의 적용 시작일과 품의
+       *   [가정] 머리글에 "고객사 티어"(티어 단가를 썼으면 그 티어와 기본 단가, 아니면 "티어 단가 없음(기본 단가)")와 "이용 달 수" 칸을 둠. 줄임과 조항만 변경은 표준 금액을 셈하지 않아 그 칸에 까닭 */
+      C.contractStd(c).forEach(function (x) {
+        const l = x.line, s = x.s, p = s ? s.row : null;
+        if (!s) {
+          // (2026-11-17 다른 눈 oversight-01) ③을 거친 줄임은 그 기능의 변경 뒤 할인율(기안 때 남긴 reduceOver)을 까닭 칸에
+          const ro = c.reduceOver && c.reduceOver.feats ? c.reduceOver.feats.filter(function (f) { return f.feature === l.feature && f.std; })[0] : null;
+          const why = ro ? '③을 거친 줄임: 변경 뒤 ' + ro.qtyAfter + '개 ' + C.fmtWon(ro.amountAfter) + ', 표준 ' + C.fmtWon(ro.std) + ', 할인 ' + Math.round(ro.discount * 1000) / 10 + '%, 한도 ' + Math.round(ro.cap * 1000) / 10 + '%(기안 때 남긴 reduce_over)'
+            : '표준 금액 셈 안 함(줄임, 조항만 변경)';
+          prices.push([c.id, C.fmtDate(day), featureOf(l.feature), '', l.unit || '', '', '', '', Number(l.qty) || '', why, '', '', '']);
+          return;
+        }
+        prices.push([c.id, C.fmtDate(day), featureOf(l.feature), s.unitPrice, (p && p.unit) || l.unit || '', C.unitKindLabel(s.kind),
+          // (L3 검토) 티어 단가를 쓰지 않은 줄은 "티어 단가 없음(기본 단가)": 거래처에 티어가 있어도 그날 가격 줄에 티어 단가가 없으면 기본 단가라 "없음"만 쓰면 거래처 티어가 없는 것으로 읽힘
+          s.tier ? C.tierLabel(s.tier) + '(기본 ' + C.fmtWon(s.basePrice) + ')' : '티어 단가 없음(기본 단가)', s.months || '-', Number(l.qty) || 0, s.std,
+          (Math.round((s.cap || 0) * 1000) / 10) + '%', p ? p.validFrom : '없음', p ? [p.docNo, p.docUrl].filter(Boolean).join(' ') : '']);
       });
     });
     return { files: files, hist: hist, prices: prices };
@@ -421,7 +576,8 @@
         '<li>결재 문서 PDF ' + docs + '개: 계약과 차수마다 한 개, 이름과 일시 워터마크</li>' +
         '<li>결재 기록 전체 ' + x.hist.length + '줄: 단계마다 처리한 사람, 누구 대신, 일시, 한 일, 의견</li>' +
         '<li>첨부 판과 지문 ' + att + '개: 계약서 초안, 조항 대비표, 체결본 등 올린 판마다. 지문은 올릴 때 만든 SHA-256</li>' +
-        '<li>그때의 가격 기준 ' + x.prices.length + '줄: 기안일에 쓰던 표준 단가, 할인율 한도, 적용 시작일, 품의 번호</li>' +
+        // (설계 검토 2026-11-11 남은 것 ⑤) 고객사 티어와 이용 달 수가 들어간 표준 금액
+        '<li>그때의 가격 기준 ' + x.prices.length + '줄: 기안일에 쓰던 표준 단가(고객사 티어 단가면 그 값), 이용 달 수, 표준 금액, 할인율 한도, 적용 시작일, 품의 번호</li>' +
         '</ul></div>',
       btn: '목록 내려받기',
       done: function () {
@@ -432,7 +588,8 @@
         const body = [
           sec('묶음에 든 파일', ['종류', '계약번호', '차수', '파일 이름', '지문(SHA-256)'], x.files.map(function (f) { return f.concat(['-']); })),
           sec('결재 기록', ['계약번호', '차수', '단계', '한 일', '처리한 사람', '누구 대신', '일시', '의견'], x.hist),
-          sec('그때의 가격 기준', ['계약번호', '기안일', '기능', '표준 단가(원)', '단위', '할인율 한도', '적용 시작일', '품의'], x.prices),
+          // (설계 검토 2026-11-11 남은 것 ⑤) 단위 종류, 고객사 티어, 이용 달 수, 수량, 표준 금액 칸을 더함(C.contractStd)
+          sec('그때의 가격 기준', ['계약번호', '기안일', '기능', '표준 단가(원)', '단위', '단위 종류', '고객사 티어', '이용 달 수', '수량', '표준 금액(원)', '할인율 한도', '적용 시작일', '품의'], x.prices),
         ].join(NL + NL) + NL;
         const file = '결재기록묶음_' + b.id + '_목록.csv';
         sha256Hex(body).then(function (hash) {

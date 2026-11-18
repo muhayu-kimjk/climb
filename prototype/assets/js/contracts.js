@@ -5,10 +5,12 @@
  * 하는 일
  *   1. 계약 묶음(원계약 + 변경, 연장, 해지)을 한 줄씩 모음 (common.js bundles). 최근 원계약부터
  *   2. 검색, 상태, 서비스, 영업대표로 거르기
+ *      유닛 거르기(설계 검토 2026-11-11 10번): 지금 영업대표의 유닛, 기본은 전체. ?unit=으로 미리 거름(개요 영업 리더의 내 유닛)
  *   3. 열람 제한 계약은 볼 수 없는 사람에게 가림. 한 쪽에 20건
  *   4. 변경과 연장 칸은 계약 완료된 것만 셈. 진행 중이거나 반려된 기안은 상태 칸 아래 줄에 (기획자 결정 2026-11-02 D-13)
  *   5. "④에서 반부패 조항 없음을 고른 계약만" 거르기 (기획자 결정 2026-11-02 C-15, 통계의 통제 지표에서 ?ab=NONE으로 이어짐)
  *   6. 보류가 걸린 묶음은 상태 칸 아래에 "보류 중" 배지 (기획자 결정 2026-11-02 C-16)
+ *   7. 진행 중단(설계 검토 2026-11-11 7번): 상태 거르기와 건수에 "진행 중단"(?status=STOPPED), 진행 중단 요청 중인 묶음은 상태 아래에 "중단 요청 중" 배지
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -19,13 +21,16 @@
   const PAGE_SIZE = 20;
   const WORKING = ['IN_REVIEW', 'SUPPLEMENT', 'REJECTED', 'APPROVED', 'OPS_REVIEW'];
 
-  const all = C.bundles().sort(function (a, b) { return (b.root.requestedAt || '').localeCompare(a.root.requestedAt || ''); });
+  // 예전 계약 기록은 기안일이 없어 올린 때로 줄 세움(설계 검토 2026-11-11 5번)
+  const dateOfRoot = function (x) { return x.root.requestedAt || (x.root.legacy && x.root.legacy.at) || ''; };
+  const all = C.bundles().sort(function (a, b) { return dateOfRoot(b).localeCompare(dateOfRoot(a)); });
 
   function options(first, pairs) {
     return '<option value="">' + esc(first) + '</option>' + pairs.map(function (p) { return '<option value="' + p[0] + '">' + esc(p[1]) + '</option>'; }).join('');
   }
   // 상태: 진행 중(검토 중, 반려, 체결 대기, 운영 검토)은 하나로 묶어 거름
-  $('#f-status').innerHTML = options('전체 상태', [['WORKING', '진행 중'], ['ACTIVE', '계약 완료'], ['EXPIRED', '만료'], ['TERMINATED', '해지']]);
+  //   (설계 검토 2026-11-11 7번) 진행 중단(STOPPED)은 진행 중에 넣지 않고 따로 거름. 진행 중단 요청 중인 묶음은 그 상태(진행 중) 그대로
+  $('#f-status').innerHTML = options('전체 상태', [['WORKING', '진행 중'], ['ACTIVE', '계약 완료'], ['EXPIRED', '만료'], ['TERMINATED', '해지'], ['STOPPED', D.STATUS.STOPPED.label]]);
   $('#f-service').innerHTML = options('전체 서비스', Object.keys(D.SERVICES).map(function (k) { return [k, D.SERVICES[k]]; }));
   // 기획자 결정 2026-11-03(C-44): 영업대표는 지금 영업대표(C.salesRepOf, 넘겨받은 새 영업대표). 개요의 진행 현황(?owner=)과 같은 사람
   const owners = all.map(function (b) { return C.salesRepOf(b); }).filter(function (v, i, a) { return a.indexOf(v) === i; });
@@ -38,11 +43,21 @@
     owners.push(me.id);
   }
   if (owners.indexOf(presetOwner) > -1) $('#f-owner').value = presetOwner;
+  // 설계 검토 2026-11-11 10번: 유닛 거르기. 거르는 유닛은 지금 영업대표의 조직(C.repUnitOf [가정], 데이터 정의서의 "계약의 유닛" sales_team과 다름). 기본은 전체 유닛
+  //   모두가 모든 묶음을 보는 화면이라 모든 역할에 보임(영업 임원도 아무 유닛이나 고름). 개요의 영업 리더 "내 유닛"에서 오면 ?unit=으로 미리 거름(목록에 있는 값만)
+  const units = C.unitChoices(all);
+  $('#f-unit').innerHTML = options('전체 유닛', units.map(function (u) { return [esc(u), u]; }));
+  const presetUnit = new URLSearchParams(location.search).get('unit');
+  if (units.indexOf(presetUnit) > -1) $('#f-unit').value = presetUnit;
   // 개요의 "계약 완료"에서 오면 그 상태로 거름 (?status=, v0.63 점검). 정해 둔 값만 받음
   const presetStatus = new URLSearchParams(location.search).get('status');
-  if (['WORKING', 'ACTIVE', 'EXPIRED', 'TERMINATED'].indexOf(presetStatus) > -1) $('#f-status').value = presetStatus;
+  if (['WORKING', 'ACTIVE', 'EXPIRED', 'TERMINATED', 'STOPPED'].indexOf(presetStatus) > -1) $('#f-status').value = presetStatus; // STOPPED: 설계 검토 2026-11-11 7번
   // 통계의 통제 지표에서 "없음" 건수를 누르면 반부패 조항 없음으로 거름 (?ab=NONE, 기획자 결정 2026-11-02 C-15)
   if (new URLSearchParams(location.search).get('ab') === 'NONE') $('#f-ab').checked = true;
+  if (new URLSearchParams(location.search).get('acc') === '1') $('#f-acc').checked = true; // W3-8(2026-11-16)
+  // 설계 검토 2026-11-11 5번: 기록 종류. 결재한 계약(시스템에서 기안한 원계약)과 예전 계약 기록(영업지원이 결재 없이 올린 원계약). ?legacy=1이면 예전 계약 기록으로
+  $('#f-legacy').innerHTML = options('전체', [['NO', '결재한 계약'], ['YES', '예전 계약 기록']]);
+  if (new URLSearchParams(location.search).get('legacy') === '1') $('#f-legacy').value = 'YES';
   // 묶음 안에 ④ 법무가 "반부패 조항 없음"을 고른 계약이 있는지(지금 유효한 ④ 승인 기록, C.legalApproval)
   function abNone(b) { return b.items.some(function (c) { const h = C.legalApproval(c); return !!h && h.antiBribe === 'NONE'; }); }
 
@@ -61,8 +76,10 @@
   let page = 1;
   function filtered() {
     const q = $('#f-q').value.trim().toLowerCase();
-    const status = $('#f-status').value, service = $('#f-service').value, owner = $('#f-owner').value;
+    const status = $('#f-status').value, service = $('#f-service').value, owner = $('#f-owner').value, unit = $('#f-unit').value;
     return all.filter(function (b) {
+      // 유닛(설계 검토 2026-11-11 10번): 영업대표 칸처럼 열람 제한 묶음에도 적용(영업대표 이름은 가리지 않으므로 유닛으로 드러나는 것이 없음)
+      if (unit && C.repUnitOf(b) !== unit) return false;
       const visible = C.canView(b.root, me);
       // 볼 수 없는 계약은 고객사 이름으로 찾을 수 없게 함
       if (q && (!visible || (b.root.counterparty.toLowerCase().indexOf(q) < 0 && b.items.every(function (c) { return String(c.id).toLowerCase().indexOf(q) < 0; })))) return false;
@@ -71,6 +88,11 @@
       if (owner && C.salesRepOf(b) !== owner) return false; // 지금 영업대표(C-44)
       // 볼 수 없는 계약은 이 거르기로도 빼서, 거른 결과로 판단 내용이 드러나지 않게(서비스 거르기와 같음)
       if ($('#f-ab').checked && (!visible || !abNone(b))) return false;
+      // W3-8(2026-11-16): 묶음의 어느 계약이든 체크리스트 4번이 예. 볼 수 없는 계약은 빼서 거른 결과로 내용이 드러나지 않게
+      if ($('#f-acc').checked && (!visible || !b.items.some(function (c) { return (c.checklist || {}).accounting === 'YES'; }))) return false;
+      // 기록 종류(설계 검토 2026-11-11 5번): 원계약이 예전 계약 기록인지. 영업대표 칸처럼 열람 제한 묶음에도 적용(번호가 LG-로 드러나므로 숨길 것이 없음)
+      const lg = $('#f-legacy').value;
+      if (lg && (lg === 'YES') !== !!b.root.legacy) return false;
       return true;
     });
   }
@@ -86,15 +108,20 @@
       ['진행 중', count(function (b) { return WORKING.indexOf(b.status) > -1; }) + '건'],
       ['계약 완료', count(function (b) { return b.status === 'ACTIVE'; }) + '건'],
       ['만료', count(function (b) { return b.status === 'EXPIRED'; }) + '건'],
-      ['해지', count(function (b) { return b.status === 'TERMINATED'; }) + '건']]);
+      ['해지', count(function (b) { return b.status === 'TERMINATED'; }) + '건'],
+      ['진행 중단', count(function (b) { return b.status === 'STOPPED'; }) + '건']]); // 설계 검토 2026-11-11 7번
     $('#rows').innerHTML = rows.length ? rows.map(function (b) {
       const c = b.root;
       const visible = C.canView(c, me);
       const service = esc(C.serviceLabel(c.services));
       const cust = visible
         ? '<a class="cell-title" href="contract.html?id=' + encodeURIComponent(b.id) + '">' + esc(c.counterparty) + '</a>' +
-          '<span class="cell-sub">' + service + '</span><span class="cell-meta">' + esc(b.id) + (c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span>'
-        : '<span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>';
+          '<span class="cell-sub">' + service + '</span><span class="cell-meta">' + esc(b.id) + (c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span>' +
+          (c.legacy ? '<span class="cell-meta">' + C.legacyBadges(c) + '</span>' : '') + // 설계 검토 2026-11-11 5번: 예전 계약 기록, 체결본 없음
+          (c.lateEntry ? '<span class="cell-meta">' + C.lateBadge(c) + '</span>' : '') // W7-7(2026-11-16): 사후 등록
+        : '<span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>' +
+          // W3-1(2026-11-16): 영업대표를 바꿀 수 있는 사람(계약 유닛의 리더 등)에게만 들어가는 링크(내용은 계약 상세에서도 가림)
+          (C.canChangeRep(b, me) ? '<span class="cell-meta"><a href="contract.html?id=' + encodeURIComponent(b.id) + '">영업대표 바꾸기</a></span>' : '');
       const st = D.STATUS[b.status];
       // 진행 중인 변경, 연장, 해지가 있으면 상태 아래에 알림. "해지 검토 중"처럼 종류와 상태로 씀(만료 예정 화면과 같은 말. "진행 중:"은 위 거르기의 진행 중과 헷갈려 뺌)
       //   기획자 결정 2026-11-02 D-13: 반려되어 다시 기안을 기다리는 기안도 "변경 반려"처럼 함께 보임. 변경과 연장 칸에서 빠져도 목록에서 사라지지 않게. 기안한 순서대로
@@ -102,10 +129,13 @@
       const open = pending.length ? '<span class="cell-meta">' + esc(pending.map(function (o) { return C.kindLabel(o) + ' ' + D.STATUS[o.status].label; }).join(', ')) + '</span>' : '';
       // 기획자 결정 2026-11-02 C-16: 거래처나 묶음에 보류가 걸려 있으면 상태 아래에 "보류 중" 배지(사유는 계약 상세에서. 열람 제한이어도 배지만 보임)
       const hold = C.holdOf(b);
+      // (설계 검토 2026-11-11 7번) 묶음의 어느 계약이든 진행 중단 요청 중이면 상태 아래에 "중단 요청 중" 배지(보류 배지와 같은 자리, 열람 제한이어도 배지만)
+      const stopReq = b.items.some(C.stopPending);
       return '<tr' + (b.status === 'REJECTED' ? ' class="is-alert"' : '') + '>' +
         '<td>' + cust + '</td>' +
         '<td class="col-service">' + (visible ? service : '-') + '</td>' +
-        '<td>' + C.badge(st.tone, st.label) + open + (hold ? '<span class="cell-meta">' + C.holdBadge(hold) + '</span>' : '') + '</td>' +
+        '<td>' + C.badge(st.tone, st.label) + open + (hold ? '<span class="cell-meta">' + C.holdBadge(hold) + '</span>' : '') +
+          (stopReq ? '<span class="cell-meta">' + C.badge('attention', '중단 요청 중') + '</span>' : '') + '</td>' +
         // 기간: 날짜는 하이픈에서 끊기지 않게 한 덩어리로, 줄은 물결표 뒤에서만 바꿈 (휴대폰에서 네 줄로 꺾였음. 만료 예정 화면과 같은 방식)
         '<td class="num-left">' + (b.start ? '<span class="nowrap">' + C.fmtDate(b.start) + '~</span><wbr><span class="nowrap">' + C.fmtDate(b.end) + '</span>' : '-') + '</td>' +
         '<td class="nowrap">' + (visible ? esc(childText(b)) : '-') + '</td>' +

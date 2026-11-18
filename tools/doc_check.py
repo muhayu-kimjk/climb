@@ -7,6 +7,7 @@
      REQ-, C-(01 요구사항 정의서), SCR-(02 화면 목록), CODE-(03 데이터 정의서),
      G-(05 표준 대응표), CTL-, AC-, R-(06 통제 목록), "05 4장 N번"
   4. 화면과 파일: 02 화면 목록의 SCR마다 적힌 HTML 파일이 있는지, 시안의 HTML이 모두 02에 있는지
+  5. 코드 이름(2026-11-13): 문서의 `백틱` 안 시안 파일과 함수 이름(C., X., D., 낙타 이름)이 시안에 있는지. 변경 이력 장은 보지 않음
 표준 라이브러리만 씁니다.
 
 사용: python -I doc_check.py <climb 폴더>
@@ -115,6 +116,47 @@ for scr, rest in re.findall(r'^\| (SCR-\d+) \|(.*)$', d02, re.M):
 for n in sorted(os.listdir(PROTO)):
     if n.endswith('.html') and n not in listed:
         problems.append(f'02에 없는 화면: {n}')
+
+# 5. 코드 이름 (2026-11-13 주말 점검 W4): 문서의 `백틱` 안에 적은 시안 파일과 함수 이름이 시안에 실제로 있는지
+#    파일 이름(.js .html .css), C.이름(common.js), X.이름(control-checks.js), D.이름(mock-data.js), 낙타 이름(camelCase 함수)
+#    변경 이력 장(그때 지운 함수가 적혀 있음)과 브라우저 기본 이름은 보지 않음
+js_text, proto_files = {}, set()
+for base, dirs, names in os.walk(PROTO):
+    for n in names:
+        proto_files.add(n)
+        if n.endswith('.js'):
+            js_text[n] = read(os.path.join(base, n))
+all_js = '\n'.join(js_text.values())
+all_html = '\n'.join(read(os.path.join(PROTO, n)) for n in os.listdir(PROTO) if n.endswith('.html'))
+BUILTIN = {'localStorage', 'sessionStorage', 'isConnected', 'innerText', 'textContent', 'scrollIntoView', 'preventScroll', 'getBoundingClientRect'}
+OWNER = {'C': 'common.js', 'X': 'control-checks.js', 'D': 'mock-data.js'}
+
+
+def code_defined(name):
+    return re.search(r'(function\s+%s\b|\b%s\s*[:=]|\.%s\s*=|\b%s\s*\()' % ((re.escape(name),) * 4), all_js) is not None
+
+
+for name in sorted(os.listdir(DOCS)):
+    if not name.endswith('.md'):
+        continue
+    body = re.split(r'^## 변경 이력', doc(name), flags=re.M)[0]
+    for i, line in enumerate(body.split('\n'), 1):
+        for tok in re.findall(r'`([^`\n]{2,80})`', line):
+            for part in re.split(r'[\s,()]+', tok):
+                part = part.strip('.;')
+                if not part or part in BUILTIN:
+                    continue
+                if re.fullmatch(r'[\w-]+\.(?:js|html|css)', part):
+                    if part not in proto_files:
+                        problems.append(f'코드 이름: {name} {i}줄의 파일 {part}가 시안에 없음')
+                    continue
+                m = re.fullmatch(r'(C|X|D)\.([A-Za-z_]\w*)(?:\.[\w.]+)?', part)
+                if m:
+                    if not re.search(r'\b%s\b' % re.escape(m.group(2)), js_text.get(OWNER[m.group(1)], '')):
+                        problems.append(f'코드 이름: {name} {i}줄의 {part}가 {OWNER[m.group(1)]}에 없음')
+                    continue
+                if re.fullmatch(r'[a-z][a-z0-9]*[A-Z]\w*', part) and not code_defined(part) and part not in all_html:
+                    problems.append(f'코드 이름: {name} {i}줄의 {part}가 시안 코드에 없음')
 
 print('정의된 번호:', ', '.join(f'{k} {len(v)}' for k, v in defined.items()), f', 05 4장 {len(ch4)}')
 for p in problems:

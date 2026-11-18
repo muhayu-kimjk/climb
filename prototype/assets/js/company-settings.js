@@ -11,6 +11,10 @@
  *   1. 회사 정보: 지금 값(D.COMPANY). 최고관리자는 "회사 정보 바꾸기"(바꾼 칸만 이력에 "이름: 앞 → 뒤")
  *   2. 회사 인장 그림: 지금 그림과 판, 올린 사람. 총무는 "인장 그림 바꾸기"(PNG, JPG)
  *   3. 바꾼 기록: 관리자 변경 이력의 회사 설정(C.adminLog(['COMPANY'])), 20줄씩 쪽 나눔
+ *   1-1. 전환 날 (2026-11-14 주말 점검 W7, 점검 번호 abc-01, ai-ops-02, icfr-01): D.COMPANY.conversionDate(YYYY-MM-DD, 결정할것 결정 12 답 전이라 비어 있음)
+ *        최고관리자(C.canEditCompany)가 "전환 날 넣기(바꾸기)"로 날짜와 사유를 넣음. 회사 정보와 같은 길(op.k COMPANY, set.conversionDate, common.js applyAdmin)
+ *        예전 계약 기록(SCR-95, legacy-contract.js)이 예전 문서 결재일과 견주어 같거나 뒤면 "전환 날 뒤" 표시만 붙임(막지 않음 [가정], 막을지는 결정할것 W7-1)
+ *        비우기는 두지 않음 [가정: 한 번 정한 날을 지우면 표시가 모두 사라져서. 날짜를 바꾸는 것은 됨, 사유와 이력이 남음]
  * 프로토타입: 바꾼 값과 그림은 이 브라우저에만 저장(시연 기록, common.js applyAdmin COMPANY, SEAL). 그림은 저장소 크기 때문에 300KB 이하 [가정]
  *   실제 시스템은 서버에 저장하고 그림 파일은 파일 지문과 함께 보관
  * ===================================================================== */
@@ -96,6 +100,39 @@
     }).filter(function (x) { return x.from !== x.to; });
   }
 
+  /* ---------- 1-1. 전환 날 (2026-11-14 주말 점검 W7) ----------
+   * 값이 없으면 "아직 정하지 않음". 단추는 최고관리자에게만(회사 정보와 같은 사람). 단추 글은 값이 있는지에 따라 "넣기"와 "바꾸기" */
+  function renderCutover() {
+    const v = CO.conversionDate || '';
+    $('#cutover-info').innerHTML = '<div><dt>전환 날</dt><dd>' + (v ? esc(C.fmtDate(v)) : '<span class="empty-val">아직 정하지 않음(견주지 않음)</span>') + '</dd></div>';
+    $('#cutover-act').innerHTML = canCompany ? '<button type="button" class="btn btn--secondary btn--md" id="btn-cutover">' + (v ? '전환 날 바꾸기' : '전환 날 넣기') + '</button>' : '';
+  }
+  function openCutover() {
+    const from = CO.conversionDate || '';
+    C.formModal({
+      title: from ? '전환 날을 바꿀까요?' : '전환 날을 넣을까요?',
+      desc: '저장하면 예전 계약 기록의 예전 문서 결재일을 이 날과 견주고, 바꾼 값과 사유가 관리자 변경 이력에 남습니다.',
+      body: C.fieldHtml({ name: 'conversionDate', label: '전환 날', type: 'date', required: true, value: from,
+          help: '예전 전자결재에서 계약 기안을 멈추고 이 시스템에서만 받는 날입니다. 결재일이 이 날과 같거나 뒤인 예전 계약 기록에 "전환 날 뒤" 표시가 붙습니다.' }) +
+        C.fieldHtml({ name: 'reason', label: '사유', type: 'textarea', required: true, placeholder: '예: 재무, 영업 리더, 영업지원과 정한 전환 날(회의 2026-12-01)' }),
+      btn: '저장',
+      check: function (f) {
+        const to = val(f, 'conversionDate');
+        return {
+          conversionDate: !to ? (C.dateFieldError(f.elements.conversionDate, '전환 날을 고르세요.') || '전환 날을 고르세요.') : to === from ? '지금 전환 날과 같습니다. 바꿀 날을 고르세요.' : '',
+          reason: val(f, 'reason') ? '' : '사유를 적으세요.',
+        };
+      },
+      done: function (f) {
+        const to = val(f, 'conversionDate');
+        const saved = C.adminSave('COMPANY', '전환 날', '전환 날: ' + (from ? C.fmtDate(from) : '없음') + ' → ' + C.fmtDate(to), val(f, 'reason'), { k: 'COMPANY', set: { conversionDate: to } });
+        if (saved.refused) return;
+        render();
+        C.toast('전환 날을 정했습니다(' + C.fmtDate(to) + '). 예전 계약 기록의 예전 문서 결재일과 견줍니다.');
+      },
+    });
+  }
+
   /* ---------- 2. 회사 인장 그림 ---------- */
   function renderSeal() {
     const s = CO.seal && CO.seal.src ? CO.seal : null;
@@ -166,9 +203,10 @@
       (all.length > PAGE_SIZE ? '<nav class="pagination" id="history-pages" aria-label="바꾼 기록 쪽 이동">' + C.pagerHtml(page, pages, all.length, from, rows.length, PAGE_SIZE, '건') + '</nav>' : '');
   }
 
-  function render() { renderInfo(); renderSeal(); renderHistory(); }
+  function render() { renderInfo(); renderCutover(); renderSeal(); renderHistory(); } // renderCutover: 2026-11-14 주말 점검 W7
   document.addEventListener('click', function (e) {
     if (e.target.closest('#btn-company') && canCompany) openCompany();
+    if (e.target.closest('#btn-cutover') && canCompany) openCutover(); // (2026-11-14 주말 점검 W7) 전환 날
     if (e.target.closest('#btn-seal') && canSeal) openSeal();
     const pg = e.target.closest('#history-pages [data-page]');
     // 쪽 번호를 다시 그려 누른 단추가 없어지므로 초점과 화면을 바꾼 기록 제목으로(다른 목록과 같게)(2026-11-06 점검 3회차)

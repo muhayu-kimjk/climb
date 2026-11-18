@@ -16,8 +16,33 @@
  *     B-5 견적서로 계약서를 대신함(quoteInstead), B-6 4번 조건의 종류(checklist.acctKinds), E-3 결재선에 ③ 영업 임원 승인
  *     E-1 ① 영업기회번호 하나에 계약 하나(syncOpp), C-13 거래처 확인 경고와 C-16 보류 막기(syncGuards)
  *     E-4 제품 줄에 기안한 날의 표준 단가와 할인율 한도(listPrice, cap)를 남김: 뒤에 한도를 바꿔도 이 계약의 결재선(③, ③ 영업 임원 승인)이 그대로
+ *   설계 검토 2026-11-11 3번, 4번, 4-1 3-1(가격 틀): 표준 금액 = 표준 단가 x 수량, 기간제(1년 단위)는 x 계약 기간 달 수 / 12(C.stdLine, C.periodMonths)
+ *     표준 단가는 고른 우리 거래처의 고객사 티어 단가가 있으면 그 값. 제품 줄 설명 두 줄(표준 단가와 한도, 표준 금액 셈), 기간이 없으면 체크리스트 2, 3번 계산 대기
+ *     줄에 unitKind, months, stdAmount, tier를 listPrice, cap과 함께 남김(priceKeep). 결재선(C.capOver)과 결재 문서, 통계가 이 값을 씀
  *   기획자 결정 2026-11-03 C-44: "내가 영업대표"는 지금 영업대표(C.isSalesRep: 넘겨받은 새 영업대표, 맡을 수 없으면 대신 맡는 영업 리더).
  *     원계약 목록, 보완 후 재기안, 변경과 연장의 기안자(C.repActorOf)가 모두 같은 사람. 영업 리더도 그런 계약이 있으면 들어와 변경, 연장만
+ *   설계 검토 2026-11-11 1번 "가볍게 잇기"(REQ-QUO-01 바꿈, 4-1 5-1 견적의 영업기회번호는 선택 그대로)
+ *     견적서 보기의 "이 견적으로 계약 등록"(?quote=견적번호&ver=판)이면 고객사(우리 거래처일 때만), 영업기회번호, 신규, 제품 줄을 채우고 그 판을 연결함
+ *     1번 묶음의 "연결한 견적": 영업대표가 출력한 판에서 고름(같은 고객사 먼저). 계약 기록 quoteNo, quoteVer로 남음(임시 저장 form에도)
+ *     견적서로 계약서를 대신하면 연결한 견적이 꼭 있어야 함(REQ-REG-25). 견적 없이 등록은 예전 그대로
+ *   설계 검토 2026-11-11 6번(변경 계약 넓히기, REQ-SCOPE-05의 0원 막음을 조항만에 한해 풂)
+ *     계약종류가 변경이면 변경 종류(추가, 줄임, 조항만)를 꼭 고름(계약 기록 amendKind). 변경 금액은 "늘거나 준 만큼"(부호 있음)
+ *     줄임: 줄이는 수량과 금액을 숫자로 넣으면 빼기로 남김(제품 줄 qty, amount와 총액이 음수). 지금 유효한 조건(C.currentTerms)의 수량보다 많이 줄이지 못함 [가정]
+ *     조항만: 제품 줄과 제품 추가를 감추고 0원으로 기안. 서비스는 원계약 것 [가정]
+ *     줄임과 조항만은 체크리스트 2, 3번이 해당 없음(NA)이라 ③을 거치지 않고, 견적서로 계약서를 대신하지 못함 [가정]. 그 밖의 결재선은 같음
+ *     원계약을 고르면 도움말에 지금 유효한 조건 한 줄. 변경의 종료일은 변경 뒤 계약 전체의 종료일이라 지금 종료일보다 늦지 못함(늘리려면 연장) [가정]
+ *     (2026-11-14 주말 점검 W7) 줄임은 금액도 기능마다 지금 금액 이하, 합계는 지금 계약 금액 이하(icfr-03, ai-ops-01, validate).
+ *       추가, 줄임 변경과 연장(그대로, 조건을 바꿔)은 서로 진행 중이면 기안하지 않음. 조항만은 막지 않음(icfr-05, originBlock)
+ *     (2026-11-14 주말 점검, 코드 다시 보기 amend-01~05)
+ *       변경은 기안 때 지금 종료일을 oldEndDate로 남기고(formRecord), 계약 완료되면 종료일이 그보다 앞일 때만 기간을 줄임(common.js termsEnd).
+ *       기간을 줄이는 변경은 기간 변경 겹침 막기(CTL-66)에 듦: 진행 중인 연장, 기간 변경, 기간을 줄이는 다른 변경이 있으면 종료일은 지금 종료일 그대로(validate),
+ *       기간을 줄이는 변경이 진행 중이면 연장을 막음(originBlock). 운영 변경도 막음(ops-change.js periodBusy)
+ *       줄임의 상한은 진행 중인 줄임 변경을 먼저 뺌(nowQty의 pend, amend-03 (가)). 줄임은 지금 조건의 사용 안 함 기능도 고름(readProducts, syncPick, amend-05 (가))
+ *     (2026-11-14 주말 점검, 코드 다시 보기 common-03) 변경은 기안 때 원계약 묶음의 자동갱신과 해지 통지 일수를 renewBase로 남김(formRecord).
+ *       계약 완료되면 그 값과 같은 변경은 묶음의 두 값을 바꾸지 않음(common.js renewTermsOf) [가정]
+ *   설계 검토 2026-11-11 9번, 4-1 9-1(체결 방식): 1번 묶음의 "체결 방식"(종이 날인 처음 값, 나라장터 전자계약, 고객사 전자계약). 계약 기록 signMethod(임시 저장 form에도)
+ *     전자계약이면 결재선 3단계가 ⑥ 인증서 서명(영업지원), ⑦ 전자계약서 출력본 등록, ⑧ 출력본 확인(⑥을 하지 않은 다른 영업지원, 없으면 영업지원 리더)과 그 까닭
+ *     [가정] 나라장터 전자계약은 계약 방식이 조달일 때만, 견적서로 계약서를 대신하는 계약은 종이 날인만(기안할 때 막음)
  * 프로토타입: 임시 저장과 기안은 이 브라우저에만 저장(시연 기록), 파일은 이름만 남습니다. 실제 시스템에서는 서버에 저장하고,
  *   가격 기준 계산과 결재선 결정도 서버에서 다시 검증해야 합니다(화면 값은 바꿀 수 있으므로).
  * ===================================================================== */
@@ -81,7 +106,11 @@
   $('#method-choices').innerHTML = C.codeList('METHOD').map(function (c) {
     return '<label class="choice"><input type="radio" name="method" value="' + c.code + '">' + esc(c.label) + '</label>';
   }).join('');
-  $('#settlement-choices').innerHTML = C.codeList('SETTLEMENT').map(function (c) {
+  // (설계 검토 2026-11-11 9번, 4-1 9-1) 체결 방식: 시스템 고정 코드(D.SIGN_METHODS) [가정]. 처음 값은 종이 날인(이어서 작성이면 아래 미리 채우기가 저장한 값으로 바꿈)
+  $('#sign-method-choices').innerHTML = Object.keys(D.SIGN_METHODS).map(function (k) {
+    return '<label class="choice"><input type="radio" name="signMethod" value="' + k + '"' + (k === 'PAPER' ? ' checked' : '') + '>' + esc(D.SIGN_METHODS[k]) + '</label>';
+  }).join('');
+  $('#settlement-choices').innerHTML =C.codeList('SETTLEMENT').map(function (c) {
     return '<label class="choice"><input type="radio" name="settlement" value="' + c.code + '">' + esc(c.label) + '</label>';
   }).join('');
   // 기준 표준계약서 (v0.53, REQ-CHK-09): 지금 판이 있는 표준계약서 + 상대방 양식. 기안하면 고른 것과 오늘의 판이 계약에 남음
@@ -215,8 +244,9 @@
   //   기획자 결정 2026-11-03(C-44): 내가 영업대표인 계약 = 지금 영업대표(C.isSalesRep: 넘겨받은 새 영업대표, 맡을 수 없으면 대신 맡는 영업 리더)
   //     처음 기안했어도 다른 사람에게 넘어간 계약은 목록에 없음(계약 상세의 단추와 같은 사람)
   const anyOrigin = me.role === 'SUPER';
+  //   (설계 검토 2026-11-11 5번) 영업지원이 올린 예전 계약 기록(LG-번호)도 원계약 후보. 바로잡힌 예전 기록은 뺌(C.legacyReplacedBy)
   const mine = D.CONTRACTS.filter(function (c) {
-    return c.id && !c.parentId && (anyOrigin || C.isSalesRep(c, me)) && C.canView(c, me);
+    return c.id && !c.parentId && (anyOrigin || C.isSalesRep(c, me)) && C.canView(c, me) && !C.legacyReplacedBy(c);
   });
   function lateRenewable(b) {
     const x = b && b.status === 'EXPIRED' ? C.expiryOf(b) : null;
@@ -236,6 +266,7 @@
     sel.innerHTML = '<option value="">고르세요</option>' + origins.map(function (c) {
       const b = C.bundleOf(c.id), x = b.status === 'ACTIVE' ? null : C.expiryOf(b);
       return '<option value="' + esc(c.id) + '">' + esc(c.id + ' ' + c.counterparty + ' (' + C.serviceLabel(c.services) + ')' +
+        (c.legacy ? ', 예전 계약 기록' : '') + // 설계 검토 2026-11-11 5번: 결재 없이 올린 예전 계약임을 목록에서 알림
         (x ? ', 만료 ' + C.fmtDate(b.end) + (x.state === 'GRACE' ? ', 유예 중' : ', 서비스 닫기 전') : '')) + '</option>';
     }).join('');
     if (extra && !origins.some(function (c) { return c.id === extra.id; })) {
@@ -319,11 +350,14 @@
   function featureOf(id) { return D.FEATURES.filter(function (f) { return f.id === id; })[0] || null; }
   function productOf(id) { return D.PRODUCTS.filter(function (x) { return x.id === id; })[0] || null; }
   // 줄마다 서비스 → 제품 → 기능 칸을 다시 채움. keep: 지금 쓰지 않아도 보여 줄 기능(다시 연 줄의 사용 안 함 기능)
+  //   (2026-11-14 주말 점검, 코드 다시 보기 amend-05) 줄임이면 원계약 묶음의 지금 유효한 조건에 수량이 남은 기능도 보여 줌(사용 안 함이면 "(사용 안 함)"을 붙여, readProducts와 같은 규칙)
   function syncPick(li, keep) {
     const ss = li.querySelector('[data-k="service"]'), sp = li.querySelector('[data-k="product"]'), sf = li.querySelector('[data-k="feature"]');
     const live = liveFeatureIds();
     const keepF = keep ? featureOf(keep) : null;
-    const usable = function (f) { return live.indexOf(f.id) > -1 || (keepF && f.id === keepF.id); };
+    const rot = reduceMode() ? originTerms() : null;
+    const reduceKeep = rot && rot.ready ? rot.lines.filter(function (l) { return l.qty > 0; }).map(function (l) { return l.feature; }) : [];
+    const usable = function (f) { return live.indexOf(f.id) > -1 || (keepF && f.id === keepF.id) || reduceKeep.indexOf(f.id) > -1; };
     const feats = D.FEATURES.filter(usable);
     const prods = D.PRODUCTS.filter(function (x) { return feats.some(function (f) { return f.product === x.id; }); });
     const svcs = C.codeList('SERVICE', true).filter(function (c) { return prods.some(function (x) { return x.service === c.code; }); });
@@ -345,9 +379,9 @@
       return [f.id, C.featureText(f.id) + (live.indexOf(f.id) < 0 ? ' (사용 안 함)' : '')];
     }), fid, pid ? '고르세요' : '제품을 먼저 고르세요');
     sf.disabled = !pid;
-    // 수량 단위: 가격 단위가 건이면 건, 그 밖에는 개
+    // 수량 단위: 가격 단위가 건이면 건, 그 밖에는 개 (설계 검토 2026-11-11 3번: 단위 종류가 건당(PER_UNIT)이면 건)
     const pr = PRICE[fid];
-    li.querySelector('.qty-unit').textContent = pr && /^건/.test(pr.unit) ? '건' : '개';
+    li.querySelector('.qty-unit').textContent = pr && C.unitKindOf(pr) === 'PER_UNIT' ? '건' : '개';
   }
   function addProduct(data) {
     data = data || {};
@@ -371,14 +405,15 @@
       '</div>' +
       '<div class="product-grid">' +
         '<div class="field"><label class="field-label field-label--sm" for="p-qty-' + n + '">수량</label>' +
-          '<div class="input-unit"><input class="input" id="p-qty-' + n + '" data-k="qty" inputmode="numeric" maxlength="7"' + rowErr + ' value="' + (data.qty || 1) + '"><span class="unit qty-unit">개</span></div></div>' +
+          '<div class="input-unit"><input class="input" id="p-qty-' + n + '" data-k="qty" inputmode="numeric" maxlength="7"' + rowErr + ' value="' + Math.abs(data.qty || 1) + '"><span class="unit qty-unit">개</span></div></div>' + // (설계 검토 2026-11-11 6번) 줄임 줄은 빼기로 저장돼 다시 열면 숫자만 보임
         '<div class="field"><label class="field-label field-label--sm" for="p-amt-' + n + '">계약 금액</label>' +
-          '<div class="input-unit"><input class="input" id="p-amt-' + n + '" data-k="amount" inputmode="numeric"' + rowErr + ' value="' + fmtNum(data.amount != null ? data.amount : null) + '"><span class="unit">원</span></div></div>' +
+          '<div class="input-unit"><input class="input" id="p-amt-' + n + '" data-k="amount" inputmode="numeric"' + rowErr + ' value="' + fmtNum(data.amount != null ? Math.abs(data.amount) : null) + '"><span class="unit">원</span></div></div>' +
       '</div>' +
       // 사용 업체: 직접, 조달은 선택. 간접은 필수이고, 아직 모르면 "정해지지 않음"과 까닭을 고름 (v0.62, 표준 대응표 G-19). syncOrg()가 바꿈
       '<div class="field org-field"><label class="field-label field-label--sm" for="p-org-' + n + '">사용 업체<span class="req" aria-hidden="true" hidden>*</span>' +
           '<span class="sr-only org-sr" hidden>(필수)</span> <span class="opt">(선택, 계약 상대방과 다를 때만)</span></label>' +
-        '<input class="input" id="p-org-' + n + '" data-k="org" aria-describedby="p-org-err-' + n + '" value="' + esc(data.org || '') + '">' +
+        // W7-4(2026-11-16): 거래처 목록의 이름을 제안(list). 간접 계약은 고른 거래처의 티어로 표준 단가를 셈
+        '<input class="input" id="p-org-' + n + '" data-k="org" list="org-names" autocomplete="off" aria-describedby="p-org-err-' + n + '" value="' + esc(data.org || '') + '">' +
         '<div class="org-pending" hidden>' +
           // 칸이 숨어도 무엇을 정하지 않았는지 화면낭독기가 알게 "사용 업체"를 붙여 읽힘
           '<label class="choice"><input type="checkbox" data-k="orgPending" aria-describedby="p-org-err-' + n + '"' + (data.orgPending ? ' checked' : '') + '><span class="sr-only">사용 업체 </span>아직 정해지지 않음</label>' +
@@ -449,20 +484,75 @@
     }
   });
 
+  /* (설계 검토 2026-11-11 3번, 4번, 4-1 3-1) 표준 금액의 바탕: 고른 거래처(우리 거래처면 그 고객사 티어)와 계약 기간의 달 수(C.periodMonths)
+   *   사업자 정보 DB에서 고르거나 직접 넣은 새 거래처는 티어가 없어 기본 단가 [가정: 티어는 거래처 관리에서 관리자가 넣음] */
+  // W7-4(2026-11-16): 사용 업체 칸이 제안하는 거래처 이름(합치지 않은 사용 중 거래처). 사용 업체 칸에 처음 들어갈 때 한 번 채움
+  //   (화면을 열 때 채우면 계약과 상관없는 거래처 이름이 문서에 미리 들어가 열람 제한 점검(AC-41)에 걸림. 보이지 않는 목록이라 흔들리지 않음)
+  document.addEventListener('focusin', function fillOrgNames(e) {
+    if (!e.target || !e.target.matches || !e.target.matches('[data-k="org"]')) return;
+    const dl = document.getElementById('org-names');
+    if (dl && !dl.childElementCount) dl.innerHTML = (D.CUSTOMERS || []).filter(function (cu) { return cu.use !== false && !cu.mergedInto; })
+      .map(function (cu) { return '<option value="' + esc(cu.name) + '"></option>'; }).join('');
+  });
+  // W7-7(2026-11-16): 사후 등록을 고르면 임시 결재 번호 칸을 씀(자리는 처음부터 있음)
+  (function () {
+    const cb = document.getElementById('f-late'), no = document.getElementById('f-late-no');
+    if (!cb || !no) return;
+    const sync = function () { no.disabled = !cb.checked; if (!cb.checked) { no.value = ''; C.setFieldError(no.closest('.field'), ''); } };
+    cb.addEventListener('change', sync);
+    if (source && source.lateEntry) { cb.checked = true; no.value = source.lateEntry.tempNo || ''; }
+    sync();
+  })();
+  function priceCustomer() {
+    const k = val('customer');
+    return k.indexOf('C:') === 0 ? D.CUSTOMERS.filter(function (x) { return x.id === k.slice(2); })[0] || null : null;
+  }
+  /* 변경 종류 (설계 검토 2026-11-11 6번): 계약종류가 변경일 때 고른 값(ADD, REDUCE, TERMS), 아니면 ''
+   *   줄임은 칸에 넣은 숫자를 빼기로 셈(sign -1): 휴대폰 숫자 자판에 빼기 표시가 없어 [가정] 줄이는 만큼을 숫자로만 넣음. 조항만은 제품 줄을 읽지 않음 */
+  function amendKind() { return val('kind') === 'AMEND' ? val('amendKind') : ''; }
+  function reduceMode() { return amendKind() === 'REDUCE'; }
+  function termsMode() { return amendKind() === 'TERMS'; }
+  function priceOff() { return reduceMode() || termsMode(); }
+  function signed(n) { return n && reduceMode() ? -n : n; } // 0은 그대로(-0이 "−0"으로 보이지 않게)
   function readProducts() {
+    if (termsMode()) return []; // (설계 검토 2026-11-11 6번) 조항만: 제품 줄 없이 0원. 감춘 줄은 남겨 두어 종류를 되돌리면 다시 셈
+    const cu = priceCustomer(), months = C.periodMonths(val('startDate'), val('endDate'));
+    /* (2026-11-14 주말 점검, 코드 다시 보기 amend-05) 줄임은 원계약 묶음의 지금 유효한 조건에 있는(수량이 남은) 기능이면 "사용 안 함"이어도 줄일 수 있음 [가정, 결정할것 amend-05 (가)]
+     *   예전에는 사용 안 함이 된 기능(예: 추가 이용자)을 고를 수 없고 넣어도 "지금 쓰지 않는 기능" 오류라, 계약 금액의 큰 몫을 줄임으로 줄이지 못했음
+     *   (2511CL001 추가 이용자 30개 42,000,000원). 줄임은 표준 단가와 견주지 않아(2, 3번 해당 없음) 사용 안 함 기능을 막는 까닭(AC-04, 할인율 셈이 빠짐)이 맞지 않음.
+     *   가격 줄이 없어도 기능에서 제품과 서비스를 정함. 추가와 신규는 지금처럼 사용 중이고 가격이 있는 기능만(AC-04) */
+    const rot = reduceMode() ? originTerms() : null;
+    const reduceKeep = rot && rot.ready ? rot.lines.filter(function (l) { return l.qty > 0; }).map(function (l) { return l.feature; }) : [];
     return $$('#product-list > li').map(function (li) {
       const feature = li.querySelector('[data-k="feature"]').value;
       const qtyEl = li.querySelector('[data-k="qty"]'), amtEl = li.querySelector('[data-k="amount"]');
-      const qty = parseNum(qtyEl.value);
-      const amount = parseNum(amtEl.value);
+      const qty = signed(parseNum(qtyEl.value)); // (설계 검토 2026-11-11 6번) 줄임이면 빼기
+      const amount = signed(parseNum(amtEl.value));
       const bad = badNum(qtyEl.value) || badNum(amtEl.value); // 숫자가 아닌 글자가 든 칸(2026-11-06 점검 3회차): 값은 비운 것으로 셈
-      const retired = !!feature && liveFeatureIds().indexOf(feature) < 0; // 다시 연 줄의 사용 안 함 기능
-      const p = retired ? null : PRICE[feature];
-      const std = p && qty ? p.listPrice * qty : null;
+      const off = !!feature && liveFeatureIds().indexOf(feature) < 0; // 사용 안 함 기능(다시 연 줄, 줄임의 지금 조건 기능)
+      const retired = off && reduceKeep.indexOf(feature) < 0; // (amend-05) 줄임의 지금 조건 기능은 빼고
+      const fo = off && !retired ? featureOf(feature) : null, po = fo ? productOf(fo.product) : null;
+      const p = retired ? null : off ? PRICE[feature] || (po ? { feature: feature, product: po.id, service: po.service } : null) : PRICE[feature];
+      // (설계 검토 2026-11-11 4번) 표준 금액 = 표준 단가(티어 단가) x 수량, 기간제는 x 계약 기간 달 수 / 12 (C.stdLine). 영업은 기관 수만 적음
+      //   기간제인데 계약 기간이 아직 없으면 표준 금액을 셈하지 않음(needPeriod: 체크리스트 2, 3번은 계산 대기)
+      //   (설계 검토 2026-11-11 6번) 줄임은 표준 단가와 견주지 않음(s 없음: 할인율, 계산 대기, 남길 가격 값 모두 없음)
+      // W7-4(2026-11-16): 간접은 그 줄의 사용 업체가 거래처 목록에 있으면 그 티어, 없으면 기본 단가(C.tierCustomerFor). 리셀러의 티어는 쓰지 않음
+      const orgEl = li.querySelector('[data-k="org"]');
+      const lcu = val('method') === 'INDIRECT' ? C.customerByName(orgEl && !orgEl.hidden ? orgEl.value : '') : cu;
+      const s = p && !reduceMode() ? C.stdLine({ feature: feature, qty: qty || 0 }, { row: p, customer: lcu, months: months || 12, fresh: true }) : null;
+      const needPeriod = !!s && s.kind === 'PERIOD' && !months;
+      const std = s && qty && !needPeriod ? s.std : null;
       // 할인율: 표준 금액보다 높게 받으면 음수(표준 단가보다 높음). v0.58 QA: 예전에는 0으로 보아 "표준 단가"라고 잘못 보였음
       const discount = std && amount != null ? (std - amount) / std : null;
-      return { li: li, feature: feature, retired: retired, bad: bad, qty: qty, amount: amount, product: p, std: std, discount: discount, cap: p ? p.discountCap : null };
+      return { li: li, feature: feature, retired: retired, bad: bad, qty: qty, amount: amount, product: p, s: s, needPeriod: needPeriod, std: std, discount: discount, cap: p ? p.discountCap : null };
     });
+  }
+  // 줄에 남길 가격 값(E-4, 설계 검토 2026-11-11 3번, 4번): 쓴 표준 단가와 한도, 단위 종류, 티어. 계약 기간이 있으면 달 수와 표준 금액도(C.stdKeep)
+  function priceKeep(r) {
+    if (!r.product || !r.s) return {};
+    const k = C.stdKeep(r.s);
+    if (r.needPeriod || !r.qty) { delete k.months; delete k.stdAmount; }
+    return k;
   }
 
   // 서비스: 계약명 대신 거래처와 함께 계약을 구분하는 값. 넣은 제품의 서비스에서 정해짐 (v0.12)
@@ -473,16 +563,18 @@
   }
 
   /* ---------- 연도별 금액 (REQ-FLOW-21) ---------- */
+  // 연차 구간(2026-11-13 주말 점검, 06 AC-02): n번째 해는 시작일 + 12(n-1)개월부터 시작일 + 12n개월의 전날까지 [가정]
+  //   말일에 시작하면 말일 기준(공통 셈 C.monthsLater). 달 수(C.periodMonths)와 계약 연도(C.contractYearOf)와 같은 세는 법
+  //   예전에는 날짜를 그냥 넘겨(2월 29일 + 1년 = 3월 1일) 화면과 공통 셈이 하루씩 어긋났음
   function contractYears() {
-    const s = toDate(val('startDate')), e = toDate(val('endDate'));
-    if (!s || !e || e < s) return [];
+    const s = val('startDate'), e = val('endDate');
+    if (!toDate(s) || !toDate(e) || e < s) return [];
     const years = [];
-    let from = s;
-    while (from <= e) {
-      const next = addMonths(from, 12);
-      const to = new Date(Math.min(e.getTime(), next.getTime() - 86400000));
-      years.push({ from: iso(from), to: iso(to) });
-      from = next;
+    for (let n = 0; n < 60; n++) {
+      const from = C.monthsLater(s, 12 * n);
+      if (from > e) break;
+      const to = C.addDays(C.monthsLater(s, 12 * (n + 1)), -1);
+      years.push({ from: from, to: to < e ? to : e });
     }
     return years;
   }
@@ -490,7 +582,7 @@
   function renderYearly() {
     const years = contractYears();
     const box = $('#yearly-field');
-    box.hidden = years.length <= 1;
+    box.hidden = years.length <= 1 || termsMode(); // (설계 검토 2026-11-11 6번) 조항만은 금액이 없어 연도별 금액도 없음
     if (box.hidden) { yearSig = ''; return; }
     // 기간이 바뀌었을 때만 다시 그림 (입력하는 중에 칸이 사라지지 않게)
     const sig = JSON.stringify(years);
@@ -506,7 +598,7 @@
     }).join('') + '<p class="year-sum" id="year-sum"></p>';
     updateYearSum();
   }
-  function yearlyAmounts() { return $$('.yearly-input').map(function (i) { return parseNum(i.value); }); }
+  function yearlyAmounts() { return $$('.yearly-input').map(function (i) { return signed(parseNum(i.value)); }); } // 줄임이면 빼기(설계 검토 2026-11-11 6번)
   function updateYearSum() {
     const el = $('#year-sum');
     if (!el) return;
@@ -520,13 +612,25 @@
    * 3번(할인율 한도 준수): 모든 줄의 할인율이 그 기능의 한도 이하이면 예 (v0.49: 한도는 기능마다)
    * 모든 계약에는 제품과 금액이 있음(v0.41: 금액이 없는 계약은 시스템에 등록하지 않음) */
   function priceCheck(rows) {
+    // (설계 검토 2026-11-11 6번) 줄임과 조항만 변경은 2, 3번이 해당 없음(NA, 03 CODE-CHECK-ANSWER). ③ 가격 확인을 거치지 않음 [가정]
+    if (priceOff()) {
+      const msg = reduceMode() ? '줄임 변경이라 표준 단가와 견주지 않습니다(해당 없음).' : '조항만 바꾸는 변경이라 제품과 금액이 없습니다(해당 없음).';
+      return { q2: 'NA', q3: 'NA', d2: msg, d3: msg };
+    }
     if (!rows.length) return { q2: 'WAIT', q3: 'WAIT', d2: '제품을 넣으면 자동으로 계산됩니다.', d3: '제품을 넣으면 자동으로 계산됩니다.' };
     if (rows.some(function (r) { return !r.product || !r.qty || r.amount == null; })) {
       const msg = '서비스, 제품, 기능, 수량, 계약 금액을 모두 넣으면 계산됩니다.';
       return { q2: 'WAIT', q3: 'WAIT', d2: msg, d3: msg };
     }
-    const discounted = rows.filter(function (r) { return Math.abs(r.discount) > 1e-9; });
-    const over = rows.filter(function (r) { return r.discount > r.cap + 1e-9; });
+    // (설계 검토 2026-11-11 4번) 기간제 기능은 계약 기간의 달 수로 표준 금액을 셈: 기간이 없으면 계산 대기
+    if (rows.some(function (r) { return r.needPeriod; })) {
+      const msg = '1년 단위 기능은 계약 시작일과 종료일을 넣으면 계산됩니다(표준 금액이 달 수에 비례).';
+      return { q2: 'WAIT', q3: 'WAIT', d2: msg, d3: msg };
+    }
+    // (2026-11-13 주말 점검, 06 AC-05) 할인 판단은 원 단위 정수와 천분율 한도로 견줌(허용치 없음). 예전에는 할인율 소수에 1e-9 허용치가 있어
+    //   표준 금액이 10억 원 넘는 줄의 1원 할인을 놓쳤음. C.priceDiffers, C.overCap(공통)
+    const discounted = rows.filter(function (r) { return C.priceDiffers(r.std, r.amount); });
+    const over = rows.filter(function (r) { return C.overCap(r.std, r.amount, r.cap); });
     return {
       q2: discounted.length ? 'NO' : 'YES',
       q3: over.length ? 'NO' : 'YES',
@@ -543,12 +647,13 @@
   function answerHtml(v) {
     if (v === 'YES') return '<span class="badge badge--success">예</span>';
     if (v === 'NO') return '<span class="badge badge--danger">아니요</span>';
+    if (v === 'NA') return '<span class="badge badge--neutral">해당 없음</span>'; // (설계 검토 2026-11-11 6번) 줄임, 조항만
     return '<span class="badge badge--line">계산 대기</span>';
   }
 
   /* ---------- 5. 결재선 자동 결정 (REQ-CHK-05, 3.5 경우의 수) ---------- */
   function caseNo(q1, q2, q3) {
-    if (!q1 || q2 === 'WAIT') return null;
+    if (!q1 || q2 === 'WAIT' || q2 === 'NA') return null; // (설계 검토 2026-11-11 6번) 해당 없음은 경우의 수 밖(refresh가 따로 알림)
     if (q1 === 'YES') return q2 === 'YES' ? 1 : (q3 === 'YES' ? 2 : 3);
     return q2 === 'YES' ? 4 : (q3 === 'YES' ? 5 : 6);
   }
@@ -558,17 +663,23 @@
     const legal = q1 === 'YES' ? ['skip', '표준계약서를 그대로 씀'] : q1 === 'NO' ? ['go', '표준계약서를 바꿈'] : ['wait', '체크리스트 1번 답을 기다림'];
     const privacy = personal === 'YES' ? ['go', '개인정보 처리위탁 계약 있음'] : personal === 'NO' ? ['skip', '개인정보 처리위탁 계약 없음'] : ['wait', '개인정보 처리위탁 계약 여부를 기다림'];
     let sales;
-    if (pc.q2 === 'YES') sales = ['skip', '표준단가표를 적용함'];
+    // W7-3(2026-11-16): 줄임은 변경 뒤 할인율이 한도를 넘으면 ③(기안할 때 남기는 reduceOver와 같은 셈, 미리 보기)
+    const raPrev = pc.q2 === 'NA' && reduceMode() ? C.reduceAfter(Object.assign(formRecord(), { id: '(미리 보기)', requestedAt: C.nowStamp().slice(0, 16) })) : null;
+    if (pc.q2 === 'NA' && raPrev && raPrev.over) sales = ['go', '줄인 수량 몫보다 더 깎아 변경 뒤 할인율이 한도를 넘김'];
+    else if (pc.q2 === 'NA') sales = ['skip', D.AMEND_KINDS[amendKind()] + ' 변경이라 가격 확인 해당 없음']; // (설계 검토 2026-11-11 6번) common.js reviewRoute와 같은 말
+    else if (pc.q2 === 'YES') sales = ['skip', '표준단가표를 적용함'];
     else if (pc.q2 === 'NO' && pc.q3 === 'YES') sales = ['skip', '할인율 한도 이내'];
     else if (pc.q3 === 'NO') sales = ['go', '할인율 한도를 넘김'];
     else sales = ['wait', '금액 계산을 기다림'];
     // ③ 영업 검토는 기안자 유닛의 리더 (리더 본인 계약은 영업 임원, v0.26 재무 문서 반영)
     //   맡는 사람 이름은 결재 문서와 같은 규칙(C.stepWho, 기획자 결정 2026-11-02 D-3): 리더 본인 계약의 ③은 "영업 임원", 영업지원이 기안하면 ②⑧은 "재무"
-    const req = { requesterId: drafterId(), kind: val('kind') || 'NEW', personalData: personal === 'YES', // A-3: 변경과 연장은 원계약의 영업대표
+    const req = { requesterId: drafterId(), kind: val('kind') || 'NEW', amendKind: amendKind() || null, personalData: personal === 'YES', // A-3: 변경과 연장은 원계약의 영업대표. 6번: 변경 종류
       checklist: { standard: q1, price: pc.q2, cap: pc.q3 },
       // E-4: 기안할 때 남기는 줄과 같게 오늘의 표준 단가와 한도를 함께 넘김(C.capOver가 이 값으로 셈)
-      products: rows.filter(function (r) { return r.product && r.qty && r.amount != null; }).map(function (r) { return { feature: r.feature, qty: r.qty, amount: r.amount, listPrice: r.product.listPrice, cap: r.product.discountCap }; }),
-      amount: totalAmount(), quoteInstead: qi };
+      //   (설계 검토 2026-11-11 4번) 표준 금액(달 수 비례, 티어 단가)도 함께 넘김(priceKeep, 기안할 때 남기는 줄과 같음)
+      products: rows.filter(function (r) { return r.product && r.qty && r.amount != null; }).map(function (r) { return Object.assign({ feature: r.feature, qty: r.qty, amount: r.amount }, priceKeep(r)); }),
+      amount: totalAmount(), quoteInstead: qi,
+      signMethod: val('signMethod') || 'PAPER' }; // 설계 검토 2026-11-11 9번: 체결 방식(전자계약이면 ⑥ ⑦ ⑧의 이름과 맡는 사람이 바뀜, C.isEsign)
     const name = function (code) { return C.ownerLabel(C.stepUserNow(code, req)); };
     const who = function (code) { return C.stepWho(code, req) + ' ' + name(code); };
     // 기획자 결정 2026-11-02 E-3(A안): ③을 거치고 한 줄이라도 할인율 한도를 기준 %p보다 더 넘으면 ③ 다음에 영업 임원도 승인(C.reviewRoute S03C)
@@ -589,14 +700,20 @@
         { no: '④', name: '법무 검토', who: '법무 ' + name('S04'), state: legal[0], reason: legal[1] },
         { no: '⑤', name: '개인정보 검토', who: '정보보호 담당자 ' + name('S05'), state: privacy[0], reason: privacy[1] },
       ] },
-      { stage: '3단계 계약 체결', items: [
+      // (설계 검토 2026-11-11 9번, 4-1 9-1) 전자계약이면 ⑥ 인증서 서명(영업지원), ⑦ 전자계약서 출력본 등록, ⑧ 출력본 확인(⑥을 하지 않은 다른 영업지원, 까닭을 함께)
+      { stage: '3단계 계약 체결' + (C.isEsign(req) ? ' (' + C.signMethodLabel(req) + ')' : ''), items: C.isEsign(req) ? [
+        { no: '⑥', name: stepName('S06'), who: who('S06'), state: 'go', reason: '회사 인증서로 서명하고 서명한 사람과 일시를 남김(인장 대장에 적지 않음)' },
+        { no: '⑦', name: stepName('S07'), who: who7, state: 'go', reason: '고객 서명은 ' + (C.signMethodOf(req) === 'ESIGN_G2B' ? '나라장터' : '고객사 전자계약 시스템') + '에서' },
+        { no: '⑧', name: stepName('S08'), who: who('S08'), state: 'go', reason: C.esignCheckerWhy(req) },
+      ] : [
         { no: '⑥', name: '인장 날인 검토', who: '총무 ' + name('S06'), state: 'go', reason: '기초 정보 확인 후 인장 날인' },
         qi ? { no: '⑦', name: stepName('S07'), who: who7, state: 'go', reason: '고객의 날인이나 서명은 시스템 밖에서' }
           : { no: '⑦', name: '상대방 서명, 체결본 등록', who: who7, state: 'go', reason: '서명은 시스템 밖에서' },
         { no: '⑧', name: qi ? stepName('S08') : '체결본 확인', who: who('S08'), state: 'go', reason: qi ? '날인한 견적서가 결재한 견적과 같은지 확인' : '승인된 내용과 같은지 확인' },
       ] },
       { stage: '4단계 운영 검토', items: [
-        { no: '⑨', name: '운영 적용', who: '고객지원 ' + name('S09'), state: 'go', reason: '라이선스나 도메인 열기' },
+        // (설계 검토 2026-11-11 답 ⑤) 줄임 변경과 조항만 변경의 ⑨는 새로 여는 것이 아니라 바뀐 것을 반영하고 적용일을 적음 [가정: 문장, 결재 문서 ⑨ 안내와 같은 뜻]
+        { no: '⑨', name: '운영 적용', who: '고객지원 ' + name('S09'), state: 'go', reason: priceOff() ? '바뀐 것을 서비스에 반영하고 적용일을 적음' : '라이선스나 도메인 열기' },
         { no: '⑩', name: '재무 확인', who: who('S10'), state: 'go', reason: '회계 인식 (결재선에는 없음)' },
       ] },
       { stage: '5단계 계약 완료', items: [
@@ -620,24 +737,99 @@
     }).join('');
   }
 
+  /* ---------- 변경 종류에 맞춰 칸 바꾸기 (설계 검토 2026-11-11 6번) ----------
+   * 변경 종류 칸은 계약종류가 변경일 때만. 줄임이면 줄 칸 이름을 "줄이는 수량", "줄어드는 금액"으로, 조항만이면 제품 줄과 제품 추가를 감추고 안내 한 줄
+   *   총액 이름은 변경이면 "변경 금액(늘거나 준 만큼)". 고른 결과로 칸이 생기고 없어지는 것이라 아래가 밀려도 됨(화면 규칙 2026-11-06) */
+  function syncAmendMode() {
+    const amend = val('kind') === 'AMEND', k = amendKind();
+    $('#amend-kind-field').hidden = !amend;
+    const help = $('#products-help');
+    // (2026-11-14 주말 점검 W7, icfr-03, ai-ops-01) 줄임은 수량에 더해 금액도 지금 유효한 조건보다 많이 줄일 수 없음(validate의 금액 상한)
+    // (2026-11-14 주말 점검, 코드 다시 보기 amend-03, amend-05) 진행 중인 줄임을 먼저 빼고, 지금 조건의 기능은 사용 안 함이어도 줄일 수 있음을 함께 알림
+    const msg = k === 'REDUCE' ? '줄임: 줄이는 수량과 줄어드는 금액을 숫자로만 넣으면 빼기로 남습니다(예: 1개, 7,150,000원 → -1개, -7,150,000원). 지금 유효한 조건의 수량과 금액(진행 중인 줄임 변경은 먼저 뺌)보다 많이 줄일 수 없습니다. 지금 조건에 있는 기능은 사용 안 함이어도 줄일 수 있습니다.'
+      : k === 'TERMS' ? '조항만 바꾸는 변경이라 제품과 금액을 넣지 않습니다. 변경 금액은 0원으로 남고, 바꾼 조항은 계약서 초안과 조항 대비표로 올립니다.' : '';
+    if (help.textContent !== msg) help.textContent = msg;
+    help.hidden = !msg;
+    $('#product-list').hidden = k === 'TERMS';
+    $('#btn-add-product').hidden = k === 'TERMS';
+    $$('#products-label .req, #products-label .sr-only').forEach(function (x) { x.hidden = k === 'TERMS'; }); // 조항만은 제품 줄이 필수가 아님
+    $$('#product-list > li').forEach(function (li) {
+      const q = li.querySelector('label[for^="p-qty-"]'), a = li.querySelector('label[for^="p-amt-"]');
+      const qt = k === 'REDUCE' ? '줄이는 수량' : '수량', at = k === 'REDUCE' ? '줄어드는 금액' : '계약 금액';
+      if (q.textContent !== qt) q.textContent = qt;
+      if (a.textContent !== at) a.textContent = at;
+    });
+    $('#amount-total-name').textContent = amend ? '변경 금액(늘거나 준 만큼)' : '계약 금액 총액';
+  }
+  // 고른 원계약 묶음의 지금 유효한 조건(C.currentTerms). 변경이 아니거나 원계약을 고르지 않았으면 null
+  function originTerms() {
+    const o = val('kind') === 'AMEND' && $('#f-origin').value;
+    return o ? C.currentTerms(C.rootOf(D.CONTRACTS.find(function (c) { return c.id === o; }) || { id: o })) : null;
+  }
+  // 줄임에서 기능마다 지금 수량(지금 유효한 조건). 제품 줄이 없는 원계약이면 null(셀 수 없음)
+  //   (2026-11-14 주말 점검 W7, icfr-03, ai-ops-01) what이 'amount'이면 그 기능의 지금 금액(지금 유효한 조건의 줄 금액). 셀 수 없으면 null, 조건에 없는 기능은 0
+  //     금액 상한을 따로 함수로 두지 않고 이 함수를 넓힌 까닭: 시험 틀(tools/control_tests/lib.js NC_FNS)이 이 이름의 함수만 꺼내 씀
+  //   (2026-11-14 주말 점검, 코드 다시 보기 amend-03) pend가 참이면 같은 묶음에서 진행 중인 줄임 변경(C.pendingReduces, 다시 기안하는 이 기안은 뺌)의
+  //     그 기능 줄을 먼저 뺀 값 [가정, 결정할것 amend-03 (가)]. 줄임 두 건을 함께 진행하면 저마다 상한 안이라도 둘 다 끝나 음수가 되던 것을 막음.
+  //     추가 변경을 함께 진행하는 것은 막지 않음(줄임 상한만 낮아짐)
+  function nowQty(t, feature, what, pend) {
+    if (!t || !t.ready || t.noLines || t.partial) return null;
+    const l = t.lines.filter(function (x) { return x.feature === feature; })[0];
+    let n = l ? (what === 'amount' ? l.amount : l.qty) : 0;
+    if (pend) {
+      C.pendingReduces(t, source && source.id).forEach(function (x) {
+        (x.products || (x.form && x.form.products) || []).forEach(function (p) {
+          if (p.feature === feature) n += Number(what === 'amount' ? p.amount : p.qty) || 0; // 줄임 줄은 빼기로 남아 있어 더함
+        });
+      });
+    }
+    return n;
+  }
+
   /* ---------- 화면 전체 다시 그리기 (입력이 바뀔 때마다) ---------- */
   let current = { route: [], pc: {} };
   function refresh() {
     // 영업대표 칸: 기안자로 남을 사람(drafterId). 신규는 나, 변경과 연장은 원계약의 지금 영업대표(A-3, 2026-11-03 C-44). 최고관리자가 대신 기안해도 그 영업대표
     $('#f-owner').value = C.ownerLabel(drafterId());
+    syncAmendMode(); // (설계 검토 2026-11-11 6번) 변경 종류 칸, 줄 칸 이름, 조항만이면 제품 줄 감춤
     const rows = readProducts();
+    // (설계 검토 2026-11-11 6번) 줄임: 기능마다 줄이는 수량의 합(같은 기능을 두 줄로 넣어도 함께 셈)과 원계약의 지금 수량
+    //   (2026-11-14 주말 점검 W7, icfr-03, ai-ops-01) 줄어드는 금액도 기능마다 더해(cutAmt) 지금 금액과 견줌
+    const ot = reduceMode() ? originTerms() : null, cut = {}, cutAmt = {};
+    rows.forEach(function (r) { if (r.feature && r.qty) cut[r.feature] = (cut[r.feature] || 0) + r.qty; });
+    rows.forEach(function (r) { if (r.feature && r.amount) cutAmt[r.feature] = (cutAmt[r.feature] || 0) + r.amount; });
     // 제품 줄마다 표준 금액과 할인율 표시
     rows.forEach(function (r) {
       const info = r.li.querySelector('.price-info');
       const badge = r.li.querySelector('.price-badge');
-      if (r.retired) { info.textContent = '지금 쓰지 않는 기능입니다. 다른 기능을 고르세요.'; badge.innerHTML = '<span class="badge badge--danger">사용 안 함</span>'; return; }
-      if (!r.product) { info.textContent = '서비스, 제품, 기능을 고르면 표준 단가가 나옵니다.'; badge.innerHTML = ''; return; }
-      info.textContent = '표준 단가 ' + krw(r.product.listPrice) + ' (' + r.product.unit + ')' + (r.qty ? ' x ' + r.qty + ' = ' + krw(r.std) : '') +
-        ', 할인율 한도 ' + pct(r.cap);
-      if (r.amount == null || r.discount == null) badge.innerHTML = '<span class="badge badge--line">금액 입력 대기</span>';
-      else if (Math.abs(r.discount) < 1e-9) badge.innerHTML = '<span class="badge badge--success">표준 단가</span>';
+      // (설계 검토 2026-11-11 3번, 4번, 4-1 3-1) 설명은 늘 두 줄(new-contract.css .price-line): 1) 표준 단가(단위, 티어 단가면 티어와 기본 단가)와 한도
+      //   2) 표준 금액 셈(기간제는 x 계약 기간 달 수/12). 줄 수가 같아 기간이나 수량을 넣어도 아래가 들썩이지 않음
+      const two = function (a, b) { info.innerHTML = '<span class="price-line">' + esc(a) + '</span><span class="price-line">' + esc(b) + '</span>'; };
+      if (r.retired) { two('지금 쓰지 않는 기능입니다. 다른 기능을 고르세요.', '표준 단가와 표준 금액은 셈하지 않습니다.'); badge.innerHTML = '<span class="badge badge--danger">사용 안 함</span>'; return; }
+      if (!r.product) { two('서비스, 제품, 기능을 고르면 표준 단가가 나옵니다.', '표준 금액은 수량으로 셈하고, 1년 단위 기능은 계약 기간 달 수에 비례합니다.'); badge.innerHTML = ''; return; }
+      if (reduceMode()) {
+        // (설계 검토 2026-11-11 6번) 줄임: 표준 단가와 견주지 않음. 둘째 줄에 지금 수량과 변경 뒤 수량(같은 기능의 줄을 모두 더해), 넘으면 빨간 배지 [가정]
+        // (2026-11-14 주말 점검 W7, icfr-03, ai-ops-01) 지금 금액도 함께 보이고(원계약을 고를 때 수량과 같이 생겨 입력 중에는 늘지 않음),
+        //   줄어드는 금액(같은 기능의 줄을 모두 더해)이 그 기능의 지금 금액보다 크면 빨간 배지 "지금 금액보다 많음"(기안은 validate가 막음)
+        // (2026-11-14 주말 점검, 코드 다시 보기 amend-03) 진행 중인 줄임 변경이 이 기능을 줄이면 그 몫을 먼저 뺀 수량과 금액(nowQty의 pend)을 "진행 중인 줄임을 빼면"으로 보임
+        const now = nowQty(ot, r.feature, null, true), nowAmt = nowQty(ot, r.feature, 'amount', true), u = r.li.querySelector('.qty-unit').textContent;
+        const pendOn = now != null && (now !== nowQty(ot, r.feature) || nowAmt !== nowQty(ot, r.feature, 'amount'));
+        two('줄이는 줄이라 표준 단가와 견주지 않습니다(체크리스트 2, 3번 해당 없음).',
+          !ot ? '원계약을 고르면 지금 수량과 금액이 나옵니다.' : now == null ? '원계약에 제품 줄이 없어 지금 수량과 금액을 셀 수 없습니다.'
+            : (pendOn ? '진행 중인 줄임을 빼면 ' : '지금 ') + now.toLocaleString('ko-KR') + u + '(' + fmtNum(nowAmt) + '원)' + (cut[r.feature] ? ', 변경 뒤 ' + (now + cut[r.feature]).toLocaleString('ko-KR') + u : ''));
+        badge.innerHTML = now != null && now + (cut[r.feature] || 0) < 0 ? '<span class="badge badge--danger">지금 수량보다 많음</span>'
+          : nowAmt != null && nowAmt + (cutAmt[r.feature] || 0) < 0 ? '<span class="badge badge--danger">지금 금액보다 많음</span>'
+          : r.amount == null ? '<span class="badge badge--line">금액 입력 대기</span>' : '<span class="badge badge--neutral">줄임</span>';
+        return;
+      }
+      two(C.unitKindLabel(r.s.kind) + ', 표준 단가 ' + C.stdPriceText(r.s) + ', 할인율 한도 ' + pct(r.cap),
+        r.needPeriod ? '계약 시작일과 종료일을 넣으면 표준 금액이 나옵니다(달 수에 비례).'
+          : r.qty ? C.stdCalcText(r.s, r.qty) : '수량을 넣으면 표준 금액이 나옵니다.');
+      if (r.needPeriod) badge.innerHTML = '<span class="badge badge--line">계약 기간 입력 대기</span>';
+      else if (r.amount == null || r.discount == null) badge.innerHTML = '<span class="badge badge--line">금액 입력 대기</span>';
+      else if (!C.priceDiffers(r.std, r.amount)) badge.innerHTML = '<span class="badge badge--success">표준 단가</span>'; // 2026-11-13 주말 점검: 정수로 견줌
       else if (r.discount < 0) badge.innerHTML = '<span class="badge badge--line">' + esc(discountText(r.discount)) + '</span>';
-      else if (r.discount > r.cap + 1e-9) badge.innerHTML = '<span class="badge badge--danger">' + pct(r.discount) + ' 할인, 한도 초과</span>';
+      else if (C.overCap(r.std, r.amount, r.cap)) badge.innerHTML = '<span class="badge badge--danger">' + pct(r.discount) + ' 할인, 한도 초과</span>';
       else badge.innerHTML = '<span class="badge badge--progress">' + pct(r.discount) + ' 할인, 한도 이내</span>';
     });
     // 총액
@@ -659,6 +851,7 @@
     $('#q3-detail').textContent = pc.d3;
     const cn = caseNo(q1, pc.q2, pc.q3);
     const qi = syncQuoteInstead(total); // B-5: 견적서로 계약서를 대신할 수 있는지 다시 보고, 넘으면 풂
+    syncQuoteLink(); // 설계 검토 2026-11-11 1번: 연결한 견적의 목록(영업대표, 거래처가 바뀌면), 상태 줄, 필수 표시(견적서로 대신하면 필수)
     const route = buildRoute(q1, pc, rows, qi);
     const reviews = route[0].items.filter(function (i) { return i.state === 'go'; }).map(function (i) { return i.name; });
     const passText = '계약 검토에서 거치는 단계는 ' + esc(reviews.join(', ')) + '입니다.';
@@ -671,6 +864,7 @@
     showNote('accountingNote', q4 === 'YES');
     $('#case-summary').innerHTML = cn
       ? '<strong>경우 ' + cn + '</strong>: ' + passText // 경우의 수: 요구사항 정의서 3.5
+      : pc.q2 === 'NA' && q1 ? '<strong>가격 확인 해당 없음</strong>: ' + passText // (설계 검토 2026-11-11 6번) 줄임, 조항만은 경우의 수 밖
       : '';
     $('#route').innerHTML = routeHtml(route);
     current = { route: route, pc: pc, q1: q1, total: total, qi: qi };
@@ -694,30 +888,35 @@
    *   고른 뒤 합계가 기준 이상이 되거나 견적서를 지우면 저절로 풀고 까닭을 알림(quoteDropped). 다시 고르면 알림을 지움
    *   고르면 계약서 초안은 선택(최종 견적서가 계약서를 대신함) [가정]. 계약 기록 quoteInstead(와 form.quoteInstead)로 남음 */
   const QI_UNDER = D.QUOTE_INSTEAD.under;
+  //   설계 검토 2026-11-11 1번: 고르면 1번 묶음의 연결한 견적이 꼭 있어야 하고 ⑧은 그 견적번호와 판으로 확인함을 알림(REQ-REG-25)
   $('#quote-instead-rule').textContent = '공급가액 합계(부가세 별도)가 ' + fmtNum(QI_UNDER) + '원 미만이고 최종 견적서를 첨부했을 때만 고를 수 있습니다. ' +
-    '고르면 계약서 대신 ⑦에서 고객이 날인한 견적서를 올리고 ⑧ 영업지원이 확인합니다.';
+    '고르면 1번 묶음의 연결한 견적을 꼭 고르고, 계약서 대신 ⑦에서 고객이 날인한 견적서를 올리며 ⑧ 영업지원이 그 견적번호와 판으로 확인합니다.';
   let quoteDropped = ''; // 저절로 푼 까닭: AMOUNT(합계가 기준 이상), FILE(견적서를 지움)
   function quoteInsteadOk(total) {
-    return C.quoteInsteadAllowed({ kind: val('kind') || 'NEW', amount: total }) && files.quote.length > 0;
+    // (설계 검토 2026-11-11 6번) 줄임과 조항만 변경은 견적서로 계약서를 대신하지 않음 [가정] (금액이 0원 이하라 C.quoteInsteadAllowed도 막음)
+    return !priceOff() && C.quoteInsteadAllowed({ kind: val('kind') || 'NEW', amount: total }) && files.quote.length > 0;
   }
   // 체크 칸을 쓸 수 있는지 정하고, 고른 채로 기준을 벗어나면 풂. 돌려주는 값: 지금 견적서로 대신하는지
   //   금액 칸을 고쳐 쓰느라 잠깐 비어 합계가 0원이 될 때는 풀지 않음(기안할 때 validate가 다시 봄)
   function syncQuoteInstead(total) {
     const box = $('#f-quote-instead'), state = $('#quote-instead-state');
     const ok = quoteInsteadOk(total);
-    if (box.checked && total >= QI_UNDER) { box.checked = false; quoteDropped = 'AMOUNT'; }
+    if (box.checked && priceOff()) { box.checked = false; quoteDropped = 'AMEND'; } // (설계 검토 2026-11-11 6번) 줄임, 조항만으로 바꾸면 풂
+    else if (box.checked && total >= QI_UNDER) { box.checked = false; quoteDropped = 'AMOUNT'; }
     else if (box.checked && !files.quote.length) { box.checked = false; quoteDropped = 'FILE'; }
     box.disabled = !box.checked && !ok;
     const on = box.checked;
     let msg, warn = false;
     if (quoteDropped && !on) {
       warn = true;
-      msg = quoteDropped === 'AMOUNT'
+      msg = quoteDropped === 'AMEND' ? '줄임이나 조항만 변경이라 견적서로 대신하기를 풀었습니다. 계약서 초안을 첨부하세요.'
+        : quoteDropped === 'AMOUNT'
         ? '공급가액 합계가 ' + fmtNum(QI_UNDER) + '원 이상이 되어 견적서로 대신하기를 풀었습니다. 계약서 초안을 첨부하세요.'
         : '최종 견적서를 지워 견적서로 대신하기를 풀었습니다. 계약서 초안을 첨부하세요.';
     } else if (on) msg = '견적서로 계약서를 대신합니다. 계약서 초안은 선택이고, ⑦ 고객 날인 견적서 등록과 ⑧ 견적서 확인을 거칩니다.';
     //   글에 지금 합계를 넣지 않음: 금액을 칠 때마다 글이 바뀌어 화면낭독기가 계속 읽지 않게(합계는 2번 묶음의 총액에 있음)
     else if (ok) msg = '고를 수 있습니다. 고르면 계약서 초안은 선택이 됩니다.';
+    else if (priceOff()) msg = '줄임이나 조항만 변경은 견적서로 대신하지 않습니다.'; // (설계 검토 2026-11-11 6번) [가정]
     else if (total >= QI_UNDER) msg = '공급가액 합계가 ' + fmtNum(QI_UNDER) + '원 이상이라 고를 수 없습니다.';
     else if (!total) msg = '제품과 계약 금액을 넣으면 고를 수 있는지 나옵니다.';
     else msg = '최종 견적서를 첨부하면 고를 수 있습니다.';
@@ -774,6 +973,84 @@
     showNote('oppReason', known && !opp.other.length && opp.same.length > 0);
   }
 
+  /* ---------- 연결한 견적 (설계 검토 2026-11-11 1번 "가볍게 잇기", REQ-QUO-01 바꿈, REQ-REG-25) ----------
+   * 고를 수 있는 판: 영업대표(drafterId)가 한 번이라도 출력한 판(C.quoteIssued). 최고관리자는 시연으로 모든 출력한 판 [가정]
+   *   같은 고객사(거래처 번호나 사업자등록번호, 없으면 상호가 같음)의 견적이 먼저("같은 고객사" 묶음), 그 안에서는 최근 견적일 순
+   *   이미 이은 판(이어서 작성, 보완 후 재기안, 견적서 보기에서 시작)은 목록 밖이어도 보임(원계약의 extraOrigin과 같은 방식)
+   * 고르면 계약 기록 quoteNo, quoteVer(임시 저장은 form에도)로 남음(formRecord). 견적서로 계약서를 대신하면 꼭 고름(validate)
+   * 고르기만 해서는 다른 칸을 채우지 않음 [가정: 이미 적은 값을 덮지 않게. 값 채우기는 견적서 보기에서 시작할 때만]
+   * 상태 줄은 늘 한 줄 글과 단추 줄(견적서 보기, 연결 풀기)의 자리를 둠(new-contract.css .quote-link-state). 풀면 단추 줄은 보이지 않게만 */
+  const qLinkSel = $('#f-quote-link');
+  let quoteStart = '';   // 견적서 보기에서 시작한 판의 열쇠(견적번호#판). 다른 판을 고르거나 풀면 지움("에서 시작함" → "을 연결함")
+  let quoteExtra = null; // 목록 밖이어도 보일 판
+  let quoteSig = null;   // 목록을 다시 그릴지 보는 값(영업대표와 거래처가 바뀔 때만 다시 그림)
+  function quoteKeyOf(q) { return q.no + '#' + q.ver; }
+  function quoteFromKey(k) { const p = String(k || '').split('#'); return p[0] ? C.findQuote(p[0], p[1]) : null; }
+  function linkedQuote() { return quoteFromKey(qLinkSel.value); }
+  function sameCustomer(q) {
+    const key = val('customer'), biz = val('bizNo').replace(/\D/g, ''), name = val('counterparty');
+    if (key.indexOf('C:') === 0 && q.customer && q.customer === key.slice(2)) return true;
+    if (biz && q.bizNo && String(q.bizNo).replace(/\D/g, '') === biz) return true;
+    return !!name && q.name === name;
+  }
+  function quoteOption(q) {
+    const last = C.quoteLastIssue(q);
+    const tags = (C.quoteStatus(q).code === 'SUPERSEDED' ? ['새 판으로 바뀜'] : []).concat(q.validUntil < D.TODAY ? ['기간 지남'] : []);
+    return '<option value="' + esc(quoteKeyOf(q)) + '">' + esc(q.no + ' ' + q.ver + '판, ' + q.name + (q.unit ? ' ' + q.unit : '') + ', ' +
+      C.fmtDate(last ? last.at : q.date) + ' 출력' + (tags.length ? ', ' + tags.join(', ') : '')) + '</option>';
+  }
+  function renderQuoteLinks() {
+    const rep = drafterId();
+    const sig = rep + '|' + val('customer') + '|' + val('bizNo') + '|' + val('counterparty');
+    if (sig === quoteSig) return;
+    quoteSig = sig;
+    const keep = qLinkSel.value;
+    const list = C.allQuotes().filter(function (q) { return C.quoteIssued(q) && (me.role === 'SUPER' || q.owner === rep); });
+    [quoteExtra, quoteFromKey(keep)].forEach(function (x) { if (x && !list.some(function (q) { return quoteKeyOf(q) === quoteKeyOf(x); })) list.push(x); });
+    list.sort(function (a, b) { return a.date !== b.date ? (a.date < b.date ? 1 : -1) : a.no !== b.no ? (a.no < b.no ? 1 : -1) : b.ver - a.ver; });
+    const known = !!(val('customer') || val('counterparty'));
+    const same = known ? list.filter(sameCustomer) : [], other = list.filter(function (q) { return same.indexOf(q) < 0; });
+    qLinkSel.innerHTML = '<option value="">' + (list.length ? '연결하지 않음' : '연결하지 않음 (출력한 견적 없음)') + '</option>' +
+      (known ? (same.length ? '<optgroup label="같은 고객사">' + same.map(quoteOption).join('') + '</optgroup>' : '') +
+        (other.length ? '<optgroup label="다른 고객사">' + other.map(quoteOption).join('') + '</optgroup>' : '')
+        : list.map(quoteOption).join(''));
+    if (keep && Array.prototype.some.call(qLinkSel.options, function (o) { return o.value === keep; })) qLinkSel.value = keep;
+  }
+  // 상태 줄과 필수 표시: refresh가 견적서로 대신하기(syncQuoteInstead)를 다시 본 뒤 부름
+  function syncQuoteLink() {
+    renderQuoteLinks();
+    const k = qLinkSel.value, q = linkedQuote(), qi = $('#f-quote-instead').checked;
+    if (k !== quoteStart) quoteStart = '';
+    const msg = !k ? (qi ? '견적서로 대신하면 견적을 꼭 고릅니다.' : '견적 없이 등록합니다.')
+      : !q ? '견적 ' + k.replace('#', ' ') + '판을 찾을 수 없습니다.'
+      : '견적 ' + q.no + ' ' + q.ver + '판' + (quoteStart === k ? '에서 시작함' : '을 연결함');
+    const text = $('#quote-link-state');
+    if (text.textContent !== msg) text.textContent = msg; // 같은 글이면 다시 쓰지 않음(화면낭독기가 되풀이하지 않게)
+    text.classList.toggle('is-on', !!q);
+    $('#quote-link-acts').classList.toggle('is-off', !q);
+    $('#quote-link-view').href = q ? 'quote.html?no=' + encodeURIComponent(q.no) + '&ver=' + q.ver + '&view=1' : 'quotes.html';
+    // 견적서로 계약서를 대신하면 필수(REQ-REG-25): 이름 옆 "(선택)"과 "*"을 바꿈(한 줄 안이라 높이는 같음)
+    $('#quote-link-opt').hidden = qi;
+    $('#quote-link-req').hidden = !qi;
+    $('#quote-link-req-sr').hidden = !qi;
+  }
+  // 연결 풀기: 연결만 풂(채운 값은 그대로). 단추가 보이지 않게 되므로 초점은 고르는 칸으로
+  $('#quote-link-off').addEventListener('click', function () {
+    qLinkSel.value = '';
+    quoteStart = '';
+    clearError(qLinkSel);
+    refresh();
+    qLinkSel.focus();
+  });
+  // 견적의 고객사가 우리 거래처 목록에 있는지: 거래처 번호, 없으면 사업자등록번호로 찾음. 합친 거래처는 합친 곳으로. 없으면 null
+  function quoteCustomerOf(q) {
+    const digits = function (x) { return String(x || '').replace(/\D/g, ''); };
+    let cu = q.customer ? D.CUSTOMERS.filter(function (x) { return x.id === q.customer; })[0] || null : null;
+    if (!cu && q.bizNo) cu = D.CUSTOMERS.filter(function (x) { return digits(x.bizNo) === digits(q.bizNo); })[0] || null;
+    if (cu && cu.mergedInto) cu = D.CUSTOMERS.filter(function (x) { return x.id === cu.mergedInto; })[0] || null;
+    return cu && cu.use ? cu : null;
+  }
+
   /* ---------- 거래처 확인과 보류 (기획자 결정 2026-11-02 C-13, C-16, 컴플라이언스가 남김) ----------
    * 보류(C-16): 거래처(사업자등록번호)나 계약 묶음(변경과 연장의 원계약, 보완 후 재기안하는 이 계약)에 걸린 보류(C.holdOf)가 있으면 알리고 기안을 막음
    *   임시 저장은 됨. 보류는 컴플라이언스 담당자가 걸고 풂(개선 과제와 보류 SCR-64)
@@ -828,6 +1105,11 @@
     if (e.target.id === 'f-quote-instead') quoteDropped = ''; // B-5: 직접 고르거나 풀면 저절로 푼 알림을 지움
     if (e.target.name === 'autoRenew') $('#notice-days-field').hidden = val('autoRenew') !== 'YES';
     if (e.target.name === 'method') syncOrgAll();
+    // (2026-11-14 주말 점검, 코드 다시 보기 amend-05) 계약종류, 변경 종류, 원계약이 바뀌면 줄마다 기능 목록을 다시 채움(줄임의 지금 조건 기능이 들고 남).
+    //   고른 기능은 keep으로 남겨 말없이 바뀌지 않게 함(사용 안 함이면 readProducts가 알림)
+    if (e.target.name === 'kind' || e.target.name === 'amendKind' || e.target.id === 'f-origin') {
+      $$('#product-list > li').forEach(function (li) { syncPick(li, li.querySelector('[data-k="feature"]').value); });
+    }
     refresh();
   });
 
@@ -863,12 +1145,21 @@
   }
   // 새로 기안할 수 없는 원계약: 같은 종류의 반려된 기안이 있으면 새 번호 대신 그 기안을 보완해 같은 번호로 다시 올림(REQ-FLOW-17),
   //   연장은 진행 중인 연장, 해지, 기간 변경이 있으면 그 뒤에. 계약 상세의 버튼 규칙과 같게 (v0.63 점검에서 고침: 주소로 오면 막지 않았음)
+  /* (2026-11-14 주말 점검 W7, icfr-05) 금액이 겹치는 기안 막기: 그대로 연장 금액은 기안할 때 계약 완료된 기록(지금 유효한 조건)으로 셈하고,
+   *   조건을 바꿔 연장은 끝나면 새 바탕이 됨. 그래서 금액이 바뀌는 변경(추가, 줄임)과 연장이 함께 진행 중이면 먼저 끝난 쪽이 다른 쪽 금액에서 빠짐
+   *   ① 연장(그대로, 조건을 바꿔)은 추가나 줄임 변경이 진행 중이면 그 뒤에(v0.58 기간 변경 겹침 막기와 같은 규칙, renewal.js와 같음)
+   *   ② 추가와 줄임 변경은 연장(그대로, 조건을 바꿔)이 진행 중이면 그 뒤에. 조항만 변경은 금액이 없어 막지 않음
+   *     ②의 안내 글은 변경 종류와 상관없이 같은 글(원계약을 고를 때 보이고 변경 종류를 바꿔도 칸 아래 글이 바뀌지 않아 화면이 흔들리지 않음).
+   *     조항만이거나 아직 고르지 않았으면 soft(알리기만, 기안 검사에서 막지 않음)
+   *   보완 후 재기안도 이 겹침 막기를 봄 [가정: 겹침 위험은 새 기안과 같음. 연장 검토(renewal.js)도 다시 기안을 같은 규칙으로 막음]. 반려된 같은 종류 막기만 새 기안에서 봄 */
   function originBlock() {
     const kind = val('kind'), origin = $('#f-origin').value;
-    if (!origin || !kind || kind === 'NEW' || (source && source.status === 'REJECTED')) return null;
+    const again = !!(source && source.status === 'REJECTED');
+    if (!origin || !kind || kind === 'NEW') return null;
     const b = C.bundleOf(origin);
     if (!b) return null;
-    const rej = b.rejected.filter(function (o) { return o.kind === kind; })[0];
+    const moneyAmend = function (o) { return o.kind === 'AMEND' && C.amendKindOf(o) !== 'TERMS'; }; // 추가, 줄임(이 칸 전의 변경은 추가로 봄)
+    const rej = again ? null : b.rejected.filter(function (o) { return o.kind === kind; })[0];
     if (rej) {
       // 보완 후 재기안 링크는 그 기안을 올린 사람(시연은 최고관리자)에게만. 다른 사람은 기안자에게 요청 (v0.63 검토)
       //   기획자 결정 2026-11-03(C-44): 올린 사람 대신 지금 영업대표(C.isSalesRep). 요청할 사람도 그 사람(C.repActorOf)
@@ -878,11 +1169,26 @@
         (own ? '' : ' 영업대표(' + C.ownerLabel(C.repActorOf(rej)) + ')에게 보완을 요청하세요.'), href: own ? C.resubmitHref(rej) : '', short: '반려된 기안을 보완 후 재기안하세요. 새로 기안할 수 없습니다.' };
     }
     if (kind === 'RENEW') {
-      const busy = b.open.filter(function (o) { return o.kind === 'RENEW' || o.kind === 'TERMINATE' || (o.kind === 'CHANGE' && o.changeType === 'PERIOD'); })[0];
+      // (2026-11-14 주말 점검 W7, icfr-05) 추가, 줄임 변경도 진행 중이면 막음(① 위). 다시 기안하는 이 연장 자신은 반려라 open에 없음
+      //   (2026-11-14 주말 점검, 코드 다시 보기 amend-01, amend-02) 기간을 줄이는 변경(조항만 포함, C.amendShortens)도 기간 변경처럼 막음(CTL-66):
+      //     그 변경이 연장보다 늦게 끝나면 원계약 기간이 줄어 연장 시작일과 사이가 빔
+      const busy = b.open.filter(function (o) { return o.kind === 'RENEW' || o.kind === 'TERMINATE' || (o.kind === 'CHANGE' && o.changeType === 'PERIOD') || moneyAmend(o) || C.amendShortens(o, b.end); })[0];
       if (busy) return { msg: busy.id + ': 진행 중인 ' + C.kindLabel(busy) + ' 기안이 있어 새 연장을 기안할 수 없습니다. 그 기안이 끝난 뒤에 기안합니다.', short: '진행 중인 기안이 끝난 뒤에 기안하세요.' }; // 말은 "기안"(2026-11-06 점검)
+    }
+    if (kind === 'AMEND') {
+      // (2026-11-14 주말 점검 W7, icfr-05) 연장(그대로, 조건을 바꿔)이 진행 중이면 추가와 줄임을 막음(② 위). 조항만은 됨
+      //   (2026-11-14 주말 점검, 코드 다시 보기 amend-01) 조항만도 종료일은 지금 종료일 그대로(기간을 줄이면 기안 검사 validate가 막음)
+      const busy = b.open.filter(function (o) { return o.kind === 'RENEW'; })[0];
+      if (busy) {
+        const ak = val('amendKind');
+        return { msg: busy.id + ': 진행 중인 ' + C.kindLabel(busy) + ' 기안이 있어 금액이 바뀌는 변경(추가, 줄임)은 그 기안이 끝난 뒤에 기안합니다. 조항만 바꾸는 변경은 종료일을 지금 종료일 그대로 두고 지금 기안할 수 있습니다.',
+          short: '진행 중인 연장이 끝난 뒤에 기안하세요. 조항만 바꾸는 변경은 지금 기안할 수 있습니다.', soft: ak !== 'ADD' && ak !== 'REDUCE' };
+      }
     }
     return null;
   }
+  // (2026-11-14 주말 점검 W7, icfr-08) 이 화면이 채운 자동갱신과 해지 통지 일수인지 알아보는 열쇠(지금 칸의 두 값). 사람이 하나라도 바꾸면 열쇠가 달라져 다시 채우지 않음
+  function renewFillKey() { return val('autoRenew') + '|' + $('#f-notice-days').value.trim(); }
   // 연장 기안의 가장 이른 시작일: 고른 원계약 묶음의 지금 종료일 다음 날(기획자 결정 2026-11-09). 연장이 아니거나 원계약을 고르지 않았으면 ''
   function renewStart() {
     if (val('kind') !== 'RENEW') return '';
@@ -894,14 +1200,35 @@
     const help = $('#origin-help');
     const no = bundleNumber();
     const block = originBlock();
-    help.innerHTML = block ? esc(block.msg) + (block.href ? ' <a class="doc-link" href="' + block.href + '">보완 후 재기안</a>' : '')
+    // (2026-11-14 주말 점검 W7, icfr-05) 앞의 삼항식 전체를 괄호로 묶음: 묶지 않아 "지금 유효한 조건" 줄이 막기가 없을 때만 붙고 soft 막기에는 빠졌음
+    help.innerHTML = (block ? esc(block.msg) + (block.href ? ' <a class="doc-link" href="' + block.href + '">보완 후 재기안</a>' : '')
       : esc(no
         ? '기안하면 ' + no + '(' + D.KINDS[val('kind')] + ' ' + no.slice(-2).replace(/^0/, '') + '차)로 원계약과 함께 묶입니다.'
-        : originHelp()); // A-3: 내가 영업대표인 계약만
+        : originHelp())) + // A-3: 내가 영업대표인 계약만
+      // (설계 검토 2026-11-11 6번) 변경이면 원계약 묶음의 지금 유효한 조건 한 줄(계약 완료된 것만, 계약 상세와 같은 셈): 줄이거나 바꿀 바탕을 보며 넣게
+      //   (2026-11-14 주말 점검 W7, icfr-05) 진행 중인 연장 때문에 추가, 줄임만 막히는 변경(soft가 있는 막기)도 이 줄을 함께 보임(조항만은 기안할 수 있어서)
+      ((!block || 'soft' in block) && originTerms() && originTerms().ready ? '<br>' + esc('지금 유효한 조건: ' + C.currentTermsText(originTerms())) : '');
+    // (설계 검토 2026-11-11 6번) 변경의 종료일은 변경 뒤 계약 전체의 종료일 [가정]: 비어 있으면 지금 종료일을 넣어 두고, 달력은 그날까지(늘리려면 연장)
+    const amendEnd = val('kind') === 'AMEND' && originTerms() && originTerms().ready ? originTerms().end : '';
+    $('#f-end').max = amendEnd || '';
+    if (amendEnd && !$('#f-end').value) $('#f-end').value = amendEnd;
     // 원계약을 고르면 거래처를 미리 채움 (비어 있을 때만). 계약명은 두지 않음 (v0.12)
     const o = D.CONTRACTS.find(function (c) { return c.id === $('#f-origin').value; });
     if (o) {
       if (!$('#f-customer').value) pickCustomerByName(o.counterparty, '', o.unit);
+    }
+    /* (2026-11-14 주말 점검 W7, icfr-08) 변경이면 자동갱신과 해지 통지 일수를 고른 원계약 묶음의 지금 값(C.bundleOf)으로 채움.
+     *   변경이 계약 완료되면 이 두 값이 묶음 값이 되므로(bundleOf renewTermsOf), 고르다 틀린 값으로 만료 처리와 통지 기한 알림이 바뀌지 않게.
+     *   비어 있을 때만 채움(임시 저장과 보완 후 재기안의 값은 그대로). 이 화면이 채운 값을 사람이 바꾸지 않은 채 원계약을 바꾸면 새 원계약의 값으로 다시 채움.
+     *   사람이 바꾸면 결재 문서의 기본 정보에 "바뀜"과 변경 전 값이 보임(review.js renewChangedHtml) */
+    if (val('kind') === 'AMEND' && o && (!val('autoRenew') || form.dataset.renewFill === renewFillKey())) {
+      const nb = C.bundleOf(C.rootOf(o));
+      if (nb) {
+        setRadio('autoRenew', nb.autoRenew);
+        $('#notice-days-field').hidden = nb.autoRenew !== 'YES';
+        $('#f-notice-days').value = nb.autoRenew === 'YES' && nb.noticeDays ? String(nb.noticeDays) : '';
+        form.dataset.renewFill = renewFillKey();
+      }
     }
     // 연장이면 시작일 달력이 원계약 종료일 다음 날부터 열리고, 비어 있으면 그날을 넣어 둠(기획자 결정 2026-11-09)
     const rs = renewStart();
@@ -998,8 +1325,10 @@
     const kind = val('kind');
     need(!!kind, 'kind', '계약종류를 고르세요.');
     if (kind && kind !== 'NEW') need(!!$('#f-origin').value, 'origin', '원계약을 고르세요.');
+    if (kind === 'AMEND') need(!!val('amendKind'), 'amendKind', '변경 종류를 고르세요.'); // (설계 검토 2026-11-11 6번)
     const block = originBlock();
-    if (block) need(false, 'origin', block.short); // 긴 설명과 링크는 칸 아래 도움말에 이미 있음(같은 문장을 두 번 보이지 않게, v0.63 검토)
+    // (2026-11-14 주말 점검 W7, icfr-05) soft는 알리기만 하는 막기(진행 중인 연장이 있는데 조항만 변경이거나 변경 종류를 아직 고르지 않음)
+    if (block && !block.soft) need(false, 'origin', block.short); // 긴 설명과 링크는 칸 아래 도움말에 이미 있음(같은 문장을 두 번 보이지 않게, v0.63 검토)
     need(!!val('customer'), 'customer', '거래처를 검색해 고르세요. 검색 결과가 없으면 직접 입력합니다.', qInput);
     if (val('customer') === NEW_CUSTOMER) {
       // 2026-11-06 점검: 오류 문장을 다른 화면과 맞춤(글자를 치는 칸은 "넣으세요", 날짜 칸은 "고르세요", 폐업은 "기안할 수 없습니다")
@@ -1030,7 +1359,13 @@
     // 기획자 결정 2026-11-02 C-16: 거래처나 계약 묶음에 보류가 걸려 있으면 기안하지 못함(임시 저장은 됨). 거래처 확인(C-13)은 경고만이라 여기서 막지 않음
     syncGuards();
     if (guard.hold) need(false, 'customer', '보류가 걸린 ' + (guard.hold.kind === 'BUNDLE' ? '계약 묶음이라' : '거래처라') + ' 기안할 수 없습니다. 보류가 풀린 뒤 기안합니다.', qInput);
+    // 설계 검토 2026-11-11 1번: 연결한 견적. 고른 판을 찾을 수 없거나 출력한 판이 아니면 다시 고르게, 견적서로 계약서를 대신하면 꼭 고르게(REQ-REG-25)
+    const lq = linkedQuote();
+    if (qLinkSel.value && !(lq && C.quoteIssued(lq))) need(false, 'quoteLink', '연결한 견적을 찾을 수 없습니다. 다시 고르세요.', qLinkSel);
+    else if ($('#f-quote-instead').checked && !qLinkSel.value) need(false, 'quoteLink', '견적서로 계약서를 대신하면 연결한 견적을 고르세요.', qLinkSel);
     need(!!val('method'), 'method', '계약 방식을 고르세요.');
+    // W7-7(2026-11-16): 사후 등록이면 임시 결재 번호 필수
+    if (val('lateEntry')) need(!!val('lateNo'), 'lateNo', '사후 등록이면 임시 결재 번호를 적으세요.');
     // 날짜 칸은 "고르세요"(2026-11-06 점검). 2026-11-06 점검 3회차: 없는 날짜(2월 30일 등)를 적었으면 "없는 날짜입니다"로(C.dateFieldError).
     //   예전에는 날짜 칸이 빈 값을 돌려주어 "고르세요"로 덮어 적었음
     const startErr = C.dateFieldError($('#f-start'), '계약 시작일을 고르세요.');
@@ -1041,6 +1376,20 @@
     const rs = renewStart();
     if (rs && val('startDate')) need(val('startDate') >= rs, 'startDate', '연장 계약은 원계약 종료일 다음 날(' + C.fmtDate(rs) + ')부터 시작합니다.');
     if (val('startDate') && val('endDate')) need(val('endDate') >= val('startDate'), 'endDate', '계약 종료일은 계약 시작일보다 앞설 수 없습니다.'); // 같은 날은 됨 (v0.38)
+    // (설계 검토 2026-11-11 6번, 8-1) 변경의 종료일은 변경 뒤 계약 전체의 종료일 [가정]: 지금 종료일보다 늦으면 막음(늘리려면 연장). 앞이면 기간을 줄이는 변경
+    const te = kind === 'AMEND' && originTerms() && originTerms().ready ? originTerms().end : '';
+    if (te && val('endDate')) need(val('endDate') <= te, 'endDate', '변경 계약의 종료일은 지금 계약 종료일(' + C.fmtDate(te) + ')보다 늦을 수 없습니다. 기간을 늘리려면 연장으로 기안합니다.');
+    /* (2026-11-14 주말 점검, 코드 다시 보기 amend-01, amend-02) 기간을 줄이는 변경(종료일이 지금 종료일보다 앞)은 기간 변경 겹침 막기(CTL-66)에 듦 [가정]:
+     *   같은 묶음에 진행 중인 연장, 기간 변경(운영 변경), 기간을 줄이는 다른 변경이 있으면 종료일은 지금 종료일과 같아야 함(줄이려면 그 기안이 끝난 뒤에).
+     *   그래야 함께 진행한 연장이나 기간 변경이 먼저 끝나도 이 변경이 그 기간을 자르지 않음. 기간을 바꾸지 않은 변경(조항만 포함)은 그대로 기안할 수 있고,
+     *   계약 완료되어도 종료일을 바꾸지 않음(기안 때 지금 종료일 oldEndDate와 같아서, common.js termsEnd) */
+    if (te && val('endDate') && val('endDate') < te) {
+      const busyP = (originTerms().pending || []).filter(function (o) {
+        return o.id !== (source && source.id) && (o.kind === 'RENEW' || (o.kind === 'CHANGE' && o.changeType === 'PERIOD') || C.amendShortens(o, te));
+      })[0];
+      if (busyP) need(false, 'endDate', busyP.id + ': 진행 중인 ' + C.kindLabel(busyP) + ' 기안이 있어 변경 계약으로 계약 기간을 줄일 수 없습니다. 종료일을 지금 계약 종료일(' +
+        C.fmtDate(te) + ')로 두거나, 그 기안이 끝난 뒤에 기안합니다.');
+    }
     need(!!val('autoRenew'), 'autoRenew', '자동갱신 여부를 고르세요.');
     // 2026-11-06 점검 3회차: 숫자가 아닌 글자가 있으면 글자를 빼고 셈하지 않고 숫자로만 넣으라고 알림
     if (val('autoRenew') === 'YES') {
@@ -1052,7 +1401,7 @@
 
     // 제품: 1개 이상, 줄마다 제품, 기능, 수량, 금액 (금전 거래가 있는 계약만 등록, v0.41. 기능은 v0.47, 플랜은 v0.49에 없앰)
     const rows = readProducts();
-    if (!rows.length) need(false, 'products', '제품을 1개 이상 넣으세요.', $('#btn-add-product'));
+    if (!rows.length && !termsMode()) need(false, 'products', '제품을 1개 이상 넣으세요.', $('#btn-add-product')); // (설계 검토 2026-11-11 6번) 조항만은 제품 줄 없음
     rows.forEach(function (r, i) {
       if (r.product && r.qty && r.amount != null) return;
       r.li.classList.add('is-invalid');
@@ -1090,8 +1439,58 @@
       });
     }
     // 금전 거래가 있는 계약만 등록 (REQ-SCOPE-05, v0.58 QA: 금액을 모두 0으로 넣어도 기안되었음)
+    //   (설계 검토 2026-11-11 6번) 0원 막음은 조항만 변경에 한해 풂(조항만은 rows가 비어 이 검사를 건너뜀).
+    //   줄임은 줄어드는 금액이 있어야 하고(0원이면 조항만) [가정], 기능마다 줄이는 수량이 지금 유효한 조건의 수량을 넘지 못하며, 지금 조건에 없는 기능은 줄이지 못함 [가정]
     if (rows.length && rows.every(function (r) { return r.product && r.qty && r.amount != null; })) {
-      need(totalAmount() > 0, 'products', '계약 금액 총액이 0원입니다. 금전 거래가 있는 계약만 등록합니다.', rows[0].li.querySelector('[data-k="amount"]'));
+      if (reduceMode()) {
+        need(totalAmount() < 0, 'products', '줄임 변경은 줄어드는 금액을 넣습니다. 금액이 줄지 않고 조항만 바뀌면 변경 종류를 조항만으로 고릅니다.', rows[0].li.querySelector('[data-k="amount"]'));
+        const ot = originTerms(), cut = {};
+        /* (2026-11-14 주말 점검, 코드 다시 보기 amend-03) 같은 묶음에서 진행 중인 줄임 변경(C.pendingReduces)의 줄을 먼저 빼고 셈 [가정, 결정할것 amend-03 (가)]
+         *   예전에는 계약 완료된 조건만 봐서 줄임 두 건을 함께 진행하면 저마다 통과하고, 둘 다 끝나면 수량과 금액이 음수가 되었음
+         *   (2609CL007: 진행 중인 A02 표절검사 -2개에 둘째 줄임 -1개가 오류 없이 기안되어 끝나면 -1개, -7,150,000원). 아래 수량, 금액, 계약 전체 상한 모두 같음 */
+        const pendIds = C.pendingReduces(ot, source && source.id).map(function (x) { return x.id; });
+        const pendText = function (n, what) { return '지금 ' + n + '이고 진행 중인 줄임(' + pendIds.join(', ') + ')을 빼면 ' + what; };
+        rows.forEach(function (r) { cut[r.feature] = (cut[r.feature] || 0) + r.qty; });
+        rows.forEach(function (r, i) {
+          const now = nowQty(ot, r.feature), left = nowQty(ot, r.feature, null, true);
+          if (now == null || cut[r.feature] == null) return; // 원계약에 제품 줄이 없으면 셀 수 없어 막지 않음
+          const over = left + cut[r.feature] < 0;
+          const unit = C.termsUnit(r.feature);
+          if (over) need(false, 'products', (i + 1) + '번째 줄: ' + C.josa(C.termsFeature(r.feature), '은', '는') +
+            (!now ? ' 지금 유효한 조건에 없어 줄일 수 없습니다.'
+              : left !== now ? ' ' + pendText(now + unit, C.josa(left + unit, '이라', '라')) + ' 그보다 많이 줄일 수 없습니다.'
+              : ' 지금 ' + C.josa(now + unit, '이라', '라') + ' 그보다 많이 줄일 수 없습니다.'), r.li.querySelector('[data-k="qty"]'));
+          delete cut[r.feature]; // 같은 기능은 한 번만 알림
+        });
+        /* (2026-11-14 주말 점검 W7, icfr-03, ai-ops-01) 줄어드는 금액의 상한(CTL-141 위험 "지금 가진 것보다 많이 줄여 계약 금액이 틀린다"):
+         *   ① 기능마다 줄어드는 금액(같은 기능의 줄을 모두 더해)은 지금 유효한 조건의 그 기능 금액 이하. 곧 변경 뒤 그 기능 금액은 0원 이상
+         *     지금 조건에 없는 기능은 위 수량 검사가 이미 막아 금액은 보지 않음. 제품 줄이 없는 원계약이면 셀 수 없어 ②만 봄
+         *   ② 줄어드는 금액의 합계는 지금 계약 금액 이하. 곧 변경 뒤 계약 금액은 0원 이상 [가정: 지금 계약 금액은 이 계약 기간의 유상 충전을 뺀 금액(currentTerms의 core).
+         *     그대로 연장 금액과 같은 바탕이고, 유상 충전은 제품 줄이 아니라 줄임으로 줄이지 않음]. ①에서 이미 알렸으면 같은 까닭이라 다시 알리지 않음
+         *   수량 상한과 같은 자리(제품 묶음 오류), 같은 모양의 글. 줄인 수량 몫보다 더 깎는 줄임(할인)을 어떻게 볼지는 기획자 결정 W7-3으로 남음(여기서 정하지 않음) */
+        const cutAmt = {};
+        let amtOver = false;
+        rows.forEach(function (r) { cutAmt[r.feature] = (cutAmt[r.feature] || 0) + r.amount; });
+        rows.forEach(function (r, i) {
+          const now = nowQty(ot, r.feature), nowAmt = nowQty(ot, r.feature, 'amount'), leftAmt = nowQty(ot, r.feature, 'amount', true);
+          if (!now || nowAmt == null || cutAmt[r.feature] == null) return; // 셀 수 없거나 지금 조건에 없는 기능(수량 검사가 막음)
+          if (leftAmt + cutAmt[r.feature] < 0) { // (amend-03) 진행 중인 줄임을 먼저 뺀 금액과 견줌
+            amtOver = true;
+            need(false, 'products', (i + 1) + '번째 줄: ' + C.josa(C.termsFeature(r.feature), '은', '는') +
+              (leftAmt !== nowAmt ? ' ' + pendText('금액 ' + fmtNum(nowAmt) + '원', '금액이 ' + C.josa(fmtNum(leftAmt) + '원', '이라', '라'))
+                : ' 지금 금액이 ' + C.josa(fmtNum(nowAmt) + '원', '이라', '라')) +
+              ' 줄어드는 금액이 그보다 클 수 없습니다.', r.li.querySelector('[data-k="amount"]'));
+          }
+          delete cutAmt[r.feature]; // 같은 기능은 한 번만 알림
+        });
+        // (amend-03) 계약 전체 상한도 진행 중인 줄임의 금액(빼기로 남은 변경 금액)을 먼저 더함
+        const pendCut = C.pendingReduces(ot, source && source.id).reduce(function (s, x) { return s + (Number(x.amount) || 0); }, 0);
+        if (!amtOver && ot && ot.ready && ot.core + pendCut + totalAmount() < 0) {
+          need(false, 'products', '줄어드는 금액의 합계(' + fmtNum(-totalAmount()) + '원)가 지금 계약 금액(' + (ot.paid ? '이 계약 기간 유상 충전 빼고 ' : '') + fmtNum(ot.core) +
+            '원' + (pendCut ? ', 진행 중인 줄임(' + pendIds.join(', ') + ') ' + fmtNum(-pendCut) + '원을 빼면 ' + fmtNum(ot.core + pendCut) + '원' : '') +
+            ')보다 큽니다. 변경 뒤 계약 금액은 0원보다 적을 수 없습니다.', rows[0].li.querySelector('[data-k="amount"]'));
+        }
+      } else need(totalAmount() > 0, 'products', '계약 금액 총액이 0원입니다. 금전 거래가 있는 계약만 등록합니다.', rows[0].li.querySelector('[data-k="amount"]'));
     }
     // 연도별 금액 합계 = 총액
     if (!$('#yearly-field').hidden) {
@@ -1124,6 +1523,12 @@
     if (qiChecked) need(quoteInsteadOk(totalAmount()), 'quoteInstead', '견적서로 계약서를 대신하려면 공급가액 합계가 ' + fmtNum(QI_UNDER) + '원 미만이고 최종 견적서를 첨부해야 합니다.');
     if (!qiChecked) need(files.draft.length > 0, 'draftFile', '계약서 초안을 첨부하세요.', $('#f-draft'));
     if (val('standard') === 'NO') need(files.diff.length > 0, 'diffFile', '표준계약서를 바꿨으면 조항 대비표를 첨부하세요.', $('#f-diff'));
+    // (설계 검토 2026-11-11 9번) 체결 방식: 꼭 고름(처음 값 종이 날인). [가정] 나라장터 전자계약은 계약 방식이 조달일 때만(나라장터는 조달 계약을 맺는 곳),
+    //   견적서로 계약서를 대신하는 계약은 종이 날인만(전자계약은 전자계약서가 계약서라 견적서로 대신할 것이 없음)
+    const sm = val('signMethod');
+    need(!!sm, 'signMethod', '체결 방식을 고르세요.');
+    if (sm === 'ESIGN_G2B' && val('method') && val('method') !== 'PROCURE') need(false, 'signMethod', '나라장터 전자계약은 계약 방식이 조달일 때 고릅니다. 계약 방식이나 체결 방식을 바꾸세요.');
+    if (sm && sm !== 'PAPER' && qiChecked) need(false, 'signMethod', '견적서로 계약서를 대신하는 계약은 종이 날인입니다. 체결 방식을 종이 날인으로 바꾸거나 견적서로 대신하기를 푸세요.');
     return errors;
   }
 
@@ -1154,7 +1559,8 @@
       // 까닭을 아직 안 고른 미정(true)은 임시 저장에서만 남음(기안은 validate가 막음). 이어서 작성하면 체크한 채로 열림
       //   기획자 결정 2026-11-02 E-4: 그날의 표준 단가와 할인율 한도(listPrice, cap)도 남김(03 계약 제품의 "쓴 가격 기준과 그때의 한도" 제안, G-03)
       //     뒤에 한도를 바꿔도 이 계약의 결재선(③, ③ 영업 임원 승인)은 이 값으로 정함(C.capOver). 이어서 작성하면 그날 값으로 다시 셈
-      return Object.assign({ feature: r.feature, qty: r.qty, amount: r.amount }, r.product ? { listPrice: r.product.listPrice, cap: r.product.discountCap } : {}, o.org ? { org: o.org } : {},
+      //   (설계 검토 2026-11-11 3번, 4번, 4-1 3-1) 쓴 표준 단가(티어 단가면 그 값과 tier), 단위 종류(unitKind), 기간제의 달 수(months), 표준 금액(stdAmount)도 남김(priceKeep)
+      return Object.assign({ feature: r.feature, qty: r.qty, amount: r.amount }, priceKeep(r), o.org ? { org: o.org } : {},
         o.orgPending ? { orgPending: o.orgPending } : {}, o.orgPending === 'OTHER' && o.orgNote ? { orgNote: o.orgNote } : {});
     });
     const checklist = {
@@ -1168,6 +1574,8 @@
     };
     // B-5: 견적서로 계약서를 대신함. 고른 채로 기준을 벗어나면(임시 저장 때) false로 남김
     const quoteInstead = $('#f-quote-instead').checked && quoteInsteadOk(totalAmount());
+    // 설계 검토 2026-11-11 1번: 연결한 견적의 번호와 판(03 contract.quote_no, quote_ver 제안). 없으면 null(보완 후 재기안에서 앞 차수 값이 남지 않게 늘 넣음)
+    const ql = linkedQuote();
     const kind = val('kind') || 'NEW';
     const tp = templatePick();
     const fileList = [];
@@ -1184,21 +1592,42 @@
       products: products, checklist: checklist, yearly: $('#yearly-field').hidden ? [] : yearlyAmounts(),
       ledger: val('ledger'), taxInvoice: val('taxInvoice'), purchase: val('purchase'), memo: val('memo'), template: tp,
       quoteInstead: quoteInstead,
+      signMethod: val('signMethod') || 'PAPER', // 설계 검토 2026-11-11 9번: 체결 방식(임시 저장에도 남아 이어서 작성할 때 다시 고름)
       oppReason: oppDupOk() ? val('oppReason') : '', // E-1 ①: 같은 고객의 다른 계약과 같은 번호를 쓰는 까닭(보일 때만 저장)
+      quoteNo: ql ? ql.no : null, quoteVer: ql ? ql.ver : null, // 설계 검토 2026-11-11 1번: 이어서 작성할 때 다시 고를 연결한 견적
+      amendKind: amendKind() || null, // (설계 검토 2026-11-11 6번) 변경 종류(이어서 작성할 때 다시 고름)
     };
-    return {
-      counterparty: val('counterparty'), unit: unitValue(), services: services, kind: kind,
+    // (설계 검토 2026-11-11 6번) 조항만 변경은 제품 줄이 없어 서비스를 원계약 것으로 [가정]
+    const termsOrigin = termsMode() ? D.CONTRACTS.find(function (c) { return c.id === $('#f-origin').value; }) : null;
+    // (2026-11-14 주말 점검, 코드 다시 보기 amend-01, amend-02) 변경은 기안할 때(임시 저장, 보완 후 재기안도 그때) 원계약 묶음의 지금 종료일을 oldEndDate로 남김
+    //   (03 contract.old_end_date: 운영 변경의 바꾸기 전 종료일과 같은 칸). 계약 완료되면 종료일이 이 값보다 앞일 때만 묶음 기간을 줄임(common.js termsEnd)
+    const amendOt = kind === 'AMEND' ? originTerms() : null;
+    const amendOld = amendOt && amendOt.ready && amendOt.end ? { oldEndDate: amendOt.end } : {};
+    // (2026-11-14 주말 점검, 코드 다시 보기 common-03) 변경은 기안할 때(임시 저장, 보완 후 재기안도 그때 값으로 덮어씀) 원계약 묶음의 지금 자동갱신과 해지 통지 일수
+    //   (이 화면이 채우는 값, onOriginChange의 C.bundleOf)를 renewBase로 남김(03 contract.renew_base_auto_renew, renew_base_notice_days). oldEndDate와 같은 방식.
+    //   계약 완료되면 두 값이 이 값과 같을 때 "값을 바꾸지 않은 변경"으로 보고 묶음 값에서 뺌(common.js renewTermsOf의 kept), 결재 문서 "바뀜"의 "변경 전"도 이 값(review.js renewChangedHtml)
+    //   예전에는 계약 완료 때 셈한 "기안 전 묶음 값"과 견줘, 조항만 변경(90일)이 진행 중일 때 기안한 추가 변경(채운 60일)이 늦게 끝나면 90일을 60일로 되돌렸음
+    const amendRoot = kind === 'AMEND' ? D.CONTRACTS.find(function (c) { return c.id === $('#f-origin').value; }) : null;
+    const amendNb = amendRoot ? C.bundleOf(C.rootOf(amendRoot)) : null;
+    const amendBase = kind === 'AMEND' ? { renewBase: amendNb ? { autoRenew: amendNb.autoRenew, noticeDays: amendNb.autoRenew === 'YES' ? amendNb.noticeDays || null : null } : null } : {};
+    return Object.assign({
+      counterparty: val('counterparty'), unit: unitValue(), services: termsOrigin ? (termsOrigin.services || []).slice() : services, kind: kind,
+      amendKind: kind === 'AMEND' ? amendKind() || null : null, // (설계 검토 2026-11-11 6번) 03 contract.amend_kind. 변경 금액(amount)은 늘거나 준 만큼
       parentId: kind !== 'NEW' ? ($('#f-origin').value || null) : null,
       amount: totalAmount(), requesterId: drafterId(), // A-3: 변경과 연장은 원계약의 영업대표(위 drafterId)
       restricted: !!val('restricted'), personalData: val('personalData') === 'YES', sla: val('sla'),
       startDate: formVals.startDate, endDate: formVals.endDate, autoRenew: formVals.autoRenew, noticeDays: formVals.noticeDays,
       template: tp, checklist: checklist, products: products, memo: formVals.memo, files: fileList, form: formVals,
       quoteInstead: quoteInstead, // B-5 (03 contract.quote_instead 제안)
+      signMethod: formVals.signMethod, // 설계 검토 2026-11-11 9번: 체결 방식(03 contract.sign_method 제안). 결재 흐름(C.isEsign)이 이 값을 봄
+      quoteNo: ql ? ql.no : null, quoteVer: ql ? ql.ver : null, // 설계 검토 2026-11-11 1번: 연결한 견적(결재 문서의 "견적" 상자, ⑧ 견적서 확인이 씀)
+      // 기획자 결정 2026-11-16(W7-7): 사후 등록 표시와 임시 결재 번호(03 contract.late_entry, late_temp_no). 아니면 null
+      lateEntry: val('lateEntry') ? { tempNo: val('lateNo') } : null,
       // 기획자 결정 2026-11-02 E-1 ①: 같은 고객의 다른 계약과 같은 영업기회번호를 쓴 까닭과 그 계약들(결재 문서에 보임). 없으면 null
       //   C-13: 기안할 때 보인 거래처 확인 경고 문장(없으면 ''). 보완 후 재기안은 그때 값으로 바꿔 씀(앞 차수 값이 남지 않게 늘 넣음)
       oppDup: oppDupOk() ? { ids: opp.same.map(function (c) { return c.id; }), reason: val('oppReason') } : null,
       customerCheckWarn: guard.check || '',
-    };
+    }, amendOld, amendBase);
   }
   // 같은 고객의 다른 계약과 같은 번호를 쓰고(다른 고객 계약에는 없음) 까닭을 받는 중인지
   function oppDupOk() { return !opp.other.length && opp.same.length > 0; }
@@ -1235,8 +1664,10 @@
   let lastFocus = null;
   function openModal() {
     const goes = [];
+    let route8 = null; // (2026-11-14 주말 점검, 코드 다시 보기 review-02) 결재선 미리 보기의 3단계 ⑧ 줄(아래 "체결 방식" 줄이 그 까닭을 씀)
     current.route.forEach(function (g) {
       g.items.forEach(function (i) { if (g.stage.indexOf('2단계') === 0 && i.state === 'go') goes.push(i.no + ' ' + i.name); });
+      if (g.stage.indexOf('3단계') === 0) route8 = g.items.filter(function (i) { return i.no === '⑧'; })[0] || route8;
     });
     const rows = [
       ['거래처', val('counterparty') + (val('bizNo') ? ' (' + val('bizNo') + ')' : '') + (unitValue() ? ', 기관 또는 부서: ' + unitValue() : '')],
@@ -1244,14 +1675,24 @@
       guard.check ? ['거래처 확인', guard.check] : null,
       // E-1 ①: 같은 고객의 다른 계약과 같은 번호면 그 계약과 까닭을 함께
       ['영업기회번호', val('opportunity') + (oppDupOk() ? ' (같은 고객의 다른 계약 ' + oppNames(opp.same) + '에도 씀. 까닭: ' + val('oppReason') + ')' : '')],
-      ['서비스', serviceOfProducts()],
-      ['계약 금액', fmtNum(current.total || 0) + '원 (부가세 별도)', 'amount'],
+      // 설계 검토 2026-11-11 1번: 연결한 견적(없으면 "없음, 견적 없이 등록")
+      ['연결한 견적', linkedQuote() ? linkedQuote().no + ' ' + linkedQuote().ver + '판' : '없음 (견적 없이 등록)'],
+      // (설계 검토 2026-11-11 6번) 변경이면 변경 종류와 "늘거나 준 만큼"인 변경 금액. 조항만은 서비스가 원계약 것
+      amendKind() ? ['변경 종류', D.AMEND_KINDS[amendKind()] + (priceOff() ? ' (체크리스트 2, 3번 해당 없음)' : '')] : null,
+      ['서비스', termsMode() ? '원계약과 같음 (조항만 바꿈)' : serviceOfProducts()],
+      val('kind') === 'AMEND' ? ['변경 금액', fmtNum(current.total || 0) + '원 (늘거나 준 만큼, 부가세 별도)', 'amount']
+        : ['계약 금액', fmtNum(current.total || 0) + '원 (부가세 별도)', 'amount'],
       ['계약 기간', C.fmtPeriod(val('startDate'), val('endDate'))],
       ['서비스 수준 협약(SLA)', val('sla') === 'YES' ? '있음' : '없음'],
       ['기준 표준계약서', templatePick() ? (templatePick().id === 'OWN' ? '상대방 양식(표준계약서 없음)' : templatePick().label) : '-'], // v0.53
       ['계약 검토', goes.join(', ')],
       // B-5: 체결할 문서. 견적서로 대신하면 ⑦⑧ 이름도 바뀜
       ['체결 문서', current.qi ? '고객이 날인한 최종 견적서 (견적서로 계약서를 대신함)' : '계약서'],
+      // 설계 검토 2026-11-11 9번: 체결 방식과 ⑥ ⑧을 누가 하는지(결재선의 3단계와 같은 말)
+      //   (2026-11-14 주말 점검, 코드 다시 보기 review-02) ⑧ 줄의 까닭은 결재선 미리 보기의 ⑧ 줄(buildRoute, C.esignCheckerWhy)을 그대로 씀.
+      //     예전 고정 글 "⑧은 ⑥을 하지 않은 다른 영업지원이 확인"은 다른 영업지원이 없어 영업지원 리더나 ⑩ 담당 재무가 맡을 때 미리 보기와 어긋났음
+      ['체결 방식', (D.SIGN_METHODS[val('signMethod')] || D.SIGN_METHODS.PAPER) + (val('signMethod') && val('signMethod') !== 'PAPER'
+        ? ' (⑥ 영업지원이 회사 인증서로 서명, ⑧은 ' + (route8 ? route8.reason : '⑥을 한 사람과 다른 영업지원 담당자가 확인') + ')' : ' (⑥ 총무가 인장 날인)')],
       // B-6: 4번 조건의 종류를 함께 보임
       ['재무 알림', val('accounting') === 'YES' ? '재무에 이메일로 알림 (결재선 아님). 4번 조건: ' + acctKindText(acctKinds()) : '없음'],
       ['기안 차수', round + '차' + (val('restricted') ? ', 열람 제한' : '')],
@@ -1309,13 +1750,16 @@
       registeredVia: via, registeredContractNo: no };
     C.adminSave('CUSTOMER', cu.name + '(' + cu.id + ')',
       '거래처 추가: ' + cu.bizNo + (via === 'MANUAL' ? ', 계약 기안에서 직접 입력' : ', 계약 기안에서 사업자 정보 DB로 고름'),
-      no + ' 계약을 기안하며 함께 등록', { k: 'CUSTOMER_ADD', cu: cu });
+      // 열람 제한이면 사유에 계약번호를 적지 않음(2026-11-14 주말 점검, 열람 제한 점검 leak-01, REQ-AUTH-09). 번호는 화면에 보이지 않는 cu.registeredContractNo에만
+      (val('restricted') ? '' : no + ' ') + '계약을 기안하며 함께 등록', { k: 'CUSTOMER_ADD', cu: cu });
   }
   function done() {
     const no = newNumber();
     const now = C.nowStamp().slice(0, 16);
     const rec = source && source.status === 'REJECTED' ? C.resubmitRecord(source, formRecord())
       : Object.assign(formRecord(), { id: no, status: 'IN_REVIEW', requestedAt: now, round: round, history: [] });
+    // 기획자 결정 2026-11-16(W7-3): 줄임 변경은 기안할 때 변경 뒤 할인율을 셈해 남김(reduceOver). 한도를 넘으면 ③(common.js reviewRoute)
+    if (rec.kind === 'AMEND' && C.amendKindOf(rec) === 'REDUCE') { const ra = C.reduceAfter(rec); rec.reduceOver = ra && ra.over ? ra : null; }
     if (source && source.status === 'DRAFT') C.deleteDraft(source);
     registerCustomer(no, now); // 새 거래처를 거래처 목록에 등록 (REQ-REG-18, 2026-11-06 점검 4회차)
     C.saveDemoContract(rec);
@@ -1327,6 +1771,8 @@
   if (source) {
     const f = source.form || {};
     setRadio('kind', source.kind || 'NEW');
+    // (설계 검토 2026-11-11 6번) 변경 종류: 계약 기록이나 다시 채울 값(form)의 값. 이 칸을 두기 전에 기안한 변경은 추가(C.amendKindOf) [가정]
+    if (source.kind === 'AMEND') setRadio('amendKind', C.amendKindOf(source));
     // 다시 기안하는 변경, 연장: 원계약과 계약종류는 그대로(같은 번호의 다음 차수라 바꿀 수 없음, v0.58 QA)
     //   목록은 계약종류에 맞게 채우고, 목록에 없는 원계약은 extraOrigin(보완 후 재기안은 늘, 이어서 작성은 내가 영업대표일 때만, A-3)
     if (source.parentId) {
@@ -1346,6 +1792,7 @@
     // 기획자 결정 2026-11-02 E-1 ①: 같은 번호를 쓰는 까닭(보이는지는 refresh의 syncOpp가 정함)
     $('#f-opp-reason').value = f.oppReason || (source.oppDup && source.oppDup.reason) || '';
     setRadio('method', (f.method || !source.form) ? C.methodOf(source) : '');
+    setRadio('signMethod', C.signMethodOf(source)); // 설계 검토 2026-11-11 9번: 체결 방식(기록이 없는 예전 계약과 임시 저장은 종이 날인)
     $('#f-start').value = f.startDate || fb.startDate || '';
     $('#f-end').value = f.endDate || fb.endDate || '';
     const autoRenew = f.autoRenew || fb.autoRenew;
@@ -1379,12 +1826,17 @@
     if (source.status === 'REJECTED' && !qiSource && !files.draft.length) { files.draft.push({ name: source.counterparty + ' 계약서 ' + (round - 1) + '차 기안본.docx', size: 84000 }); renderFiles('draft'); }
     if (source.status === 'REJECTED' && ck.standard === 'NO' && !files.diff.length) { files.diff.push({ name: source.counterparty + ' 조항 대비표.docx', size: 36000 }); renderFiles('diff'); }
     $('#f-quote-instead').checked = qiSource;
+    // 설계 검토 2026-11-11 1번: 연결한 견적(계약 기록의 quoteNo, quoteVer, 없으면 다시 채울 값 form). 목록 밖 판이어도 보이게
+    const sl = C.quoteLinkOf(source);
+    if (sl && sl.q) { quoteExtra = sl.q; quoteSig = null; renderQuoteLinks(); qLinkSel.value = quoteKeyOf(sl.q); }
   }
   // 계약 상세, 만료 예정에서 "변경 기안", "연장 기안"으로 들어오면 구분과 원계약을 미리 고름
   //   new-contract.html?kind=AMEND&origin=2601CL001 (REQ-ARC-02, 05)
   const pre = new URLSearchParams(location.search);
   if (!source && ['AMEND', 'RENEW'].indexOf(pre.get('kind')) > -1) {
     setRadio('kind', pre.get('kind'));
+    // (설계 검토 2026-11-11 6번) ?amend=REDUCE처럼 변경 종류도 미리 고를 수 있음(예: 운영 변경의 "더 줄이려면 변경 계약"에서 올 때). 없으면 영업이 고름
+    if (pre.get('kind') === 'AMEND' && D.AMEND_KINDS[pre.get('amend')]) setRadio('amendKind', pre.get('amend'));
     renderOrigins(null);
     if (origins.some(function (c) { return c.id === pre.get('origin'); })) $('#f-origin').value = pre.get('origin');
     else {
@@ -1411,6 +1863,45 @@
       }
     }
   }
+  /* ---------- 견적에서 시작 (설계 검토 2026-11-11 1번 "가볍게 잇기") ----------
+   * 견적서 보기(SCR-17)의 "이 견적으로 계약 등록": new-contract.html?quote=견적번호&ver=판
+   *   작성한 영업(시연은 최고관리자)이 한 번이라도 출력한 판만. 이어서 작성, 보완 후 재기안(?id=)이면 보지 않음
+   *   채우는 것: 계약종류 신규, 고객사와 기관 또는 부서명(견적의 고객사가 우리 거래처 목록에 있을 때만. 없으면 거래처는 고르지 않고 상호만 검색 칸에),
+   *     영업기회번호(견적에 있으면. 4-1 5-1 견적에서는 선택), 제품 줄(기능, 수량, 계약 금액 = 견적 줄 금액, 부가세 별도 공급가액). 모두 고칠 수 있음
+   *     (설계 검토 2026-11-11 4번) 견적 줄 금액은 기간제면 단가 x 수량 x 이용 기간 / 12(예전 "견적 단가 x 수량"을 바꿈)
+   *   연결한 견적은 그 판으로 골라 두고 상태 줄에 "견적 … n판에서 시작함". 맨 위 안내에 채운 것과 고칠 수 있음을 알림
+   *   유효기간이 지난 판이면 할인율은 오늘의 표준 단가와 한도로 다시 셈을 알림 [가정: 계약의 가격 셈은 늘 오늘의 가격 기준(E-4 그대로)]
+   *   영업 담당자가 아니라 변경과 연장만 하는 사람(repOnly)은 신규를 고를 수 없어 채우지 않고 까닭을 알림 */
+  if (!source && pre.get('quote')) {
+    const qq = C.findQuote(pre.get('quote'), pre.get('ver'));
+    const why = !qq || !C.canSeeQuote(me, qq) ? ['견적을 찾을 수 없습니다', '주소의 견적번호와 판을 확인해 주세요. 견적 없이 새 계약을 등록할 수도 있습니다.']
+      : !C.quoteIssued(qq) ? ['아직 출력하지 않은 견적입니다', '견적서를 한 번이라도 출력한 판에서 계약 등록을 시작합니다. 견적서 보기에서 출력한 뒤 다시 누르세요.']
+      : qq.owner !== me.id && me.role !== 'SUPER' ? ['내가 만든 견적이 아닙니다', '견적에서 계약 등록을 시작하는 것은 견적을 만든 영업입니다. 견적 없이 새 계약을 등록할 수 있습니다.']
+      : repOnly ? ['신규 계약은 영업 담당자가 등록합니다', '지금 역할로는 내가 영업대표인 계약의 변경과 연장만 기안합니다.']
+      : null;
+    if (why) {
+      $('#notice').innerHTML = noticeHtml('', why[0], esc(why[1]) + ' <a class="doc-link" href="quotes.html">견적 목록</a>', '');
+    } else {
+      setRadio('kind', 'NEW');
+      const cu = quoteCustomerOf(qq);
+      if (cu) { qInput.value = cu.name; setCustomer('C:' + cu.id, cu.name, cu.bizNo, qq.unit); }
+      else qInput.value = qq.name; // 고르지 않음: 영업이 검색해 고르거나 직접 입력(기안할 때 거래처 칸 검사가 알림)
+      if (qq.opp) { $('#f-opportunity').value = qq.opp; updateOppLink(); }
+      // (설계 검토 2026-11-11 4번) 계약 금액은 견적 줄 금액(기간제는 단가 x 수량 x 견적의 이용 기간 / 12, C.quoteLineAmount)
+      //   [가정] 계약 기간은 채우지 않음(견적에는 시작일이 없음). 기간을 넣으면 그 달 수로 표준 금액을 셈해, 견적의 이용 기간과 다르면 할인율이 달라짐
+      const qm = C.quoteMonths(qq);
+      (qq.lines || []).forEach(function (l) { addProduct({ feature: l.feature, qty: l.qty, amount: C.quoteLineAmount(l, qm) }); });
+      quoteExtra = qq; quoteStart = quoteKeyOf(qq); quoteSig = null;
+      renderQuoteLinks();
+      qLinkSel.value = quoteStart;
+      const filled = [cu ? '고객사' : '', qq.opp ? '영업기회번호' : '', '제품 줄(계약 금액은 견적 금액, 부가세 별도)'].filter(Boolean);
+      $('#notice').innerHTML = noticeHtml('', '견적 ' + qq.no + ' ' + qq.ver + '판에서 시작합니다',
+        esc('견적의 ' + filled.join(', ') + '을 채웠고 계약종류는 신규입니다. 모두 고칠 수 있고, 연결을 풀어도 채운 값은 그대로입니다.') +
+        '<br>' + esc('견적의 이용 기간은 ' + qm + '개월입니다. 계약 기간을 넣으면 그 달 수로 표준 금액을 셉니다.') + // 설계 검토 2026-11-11 4번
+        (cu ? '' : '<br>' + esc('견적의 고객사(' + qq.name + ')가 우리 거래처 목록에 없어 거래처를 고르지 않았습니다. 검색해 고르거나 직접 입력하세요.')) +
+        (qq.validUntil < D.TODAY ? '<br>' + esc('유효기간(' + C.fmtDate(qq.validUntil) + ')이 지난 견적이라 할인율은 오늘의 표준 단가와 할인율 한도로 다시 셉니다.') : ''), '');
+    }
+  }
   // 신규 막기(기획자 결정 2026-11-03 C-44): 영업 담당자가 아닌 사람(위 repOnly)은 지금 영업대표인 계약의 변경과 연장만. 반려된 신규의 보완 후 재기안은 그대로
   if (repOnly && !(source && source.status === 'REJECTED')) {
     const nr = form.querySelector('[name="kind"][value="NEW"]');
@@ -1422,7 +1913,7 @@
   refresh();
   // 연도별 금액은 기간으로 칸이 생긴 뒤에 채움
   if (source && source.form && (source.form.yearly || []).length) {
-    $$('.yearly-input').forEach(function (inp, i) { if (source.form.yearly[i] != null) inp.value = fmtNum(source.form.yearly[i]); });
+    $$('.yearly-input').forEach(function (inp, i) { if (source.form.yearly[i] != null) inp.value = fmtNum(Math.abs(source.form.yearly[i])); }); // 줄임은 빼기로 저장돼 숫자만(설계 검토 2026-11-11 6번)
     updateYearSum();
   }
 })();
