@@ -466,3 +466,5 @@ module.exports = {
 };
 // 2026-11-16 기획자 결정 반영 시험(작업기록/2026-11-16/반영목록.md, tools/control_tests/n16.js)
 module.exports.tests = module.exports.tests.concat(require('./n16')('AC-52'));
+// 2026-11-18 기획자 결정 N-3 반영 시험(작업기록/2026-11-13/결정할것.md 9장, tools/control_tests/n18.js): 간접 견적은 사용 업체의 티어
+module.exports.tests = module.exports.tests.concat(require('./n18')('AC-52'));

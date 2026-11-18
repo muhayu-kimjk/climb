@@ -259,9 +259,10 @@
 
         <!-- 10. 통제 증빙 내보내기 (기획자 결정 2026-11-02 C-3, G-13): 감사 열람과 시연용 최고관리자만 봄(stats.js가 그 밖의 사람에게는 감춤)
              위 조건과 상관없이 고른 기간. CSV(엑셀에서 열림) 한 파일과 꺼낸 기록. 인쇄에는 넣지 않음(no-print) -->
+        <!-- 2026-11-18 셋째 점검 audit-trail-02, 03: 증빙 설명에 사후 등록과 임시 결재 번호, 영업대표 바꾼 기록을 더함 -->
         <section class="panel export-panel no-print" id="export-panel" aria-labelledby="sec-export" hidden>
           <div class="panel-head"><h2 class="panel-title" id="sec-export">통제 증빙 내보내기</h2></div>
-          <p class="panel-desc">고른 기간의 계약과 차수(체크리스트 답, 단계마다 처리한 사람과 시각과 결과), ③ 가격 예외, 4번 예 계약, ⑧ 결과, 가격과 권한 변경, 접속 기록을 한 파일(CSV, 엑셀에서 열림)로 내려받습니다. 위 조건과 상관없이 그 기간의 모든 계약을 넣습니다. 파일 맨 위에 실행 시각, 실행한 사람, 조건, 건수, 금액 합계, 파일 지문과 워터마크가 들어가고, 꺼낸 기록이 남습니다. 외부감사인에게는 이 파일을 줍니다.</p>
+          <p class="panel-desc">고른 기간의 계약과 차수(체크리스트 답, 단계마다 처리한 사람과 시각과 결과, 사후 등록과 임시 결재 번호), 영업대표 바꾼 기록, ③ 가격 예외, 4번 예 계약, ⑧ 결과, 가격과 권한 변경, 접속 기록을 한 파일(CSV, 엑셀에서 열림)로 내려받습니다. 위 조건과 상관없이 그 기간의 모든 계약을 넣습니다. 파일 맨 위에 실행 시각, 실행한 사람, 조건, 건수, 금액 합계, 파일 지문과 워터마크가 들어가고, 꺼낸 기록이 남습니다. 외부감사인에게는 이 파일을 줍니다.</p>
           <div class="close-bar export-bar" id="export-bar">
             <div class="field">
               <label class="field-label field-label--sm" for="ex-from">시작일</label>

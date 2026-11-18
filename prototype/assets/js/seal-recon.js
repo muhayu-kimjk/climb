@@ -212,7 +212,8 @@
     return list.map(function (s) {
       const see = C.canView(s.c, me);
       return '<tr><td class="nowrap cell-strong">' + esc(s.no) + (s.round > 1 ? '<span class="cell-meta">' + s.round + '차 날인</span>' : '') + '</td>' +
-        '<td>' + (see ? esc(s.c.counterparty) + stopMeta(s.c, false, s.at) : '<span class="is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>') + '</td>' + // 남은 것 ⑥: 진행 중단 한 줄
+        '<td>' + (see ? esc(s.c.counterparty) + stopMeta(s.c, false, s.at) : '<span class="is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>') + // 남은 것 ⑥: 진행 중단 한 줄
+          (s.c.lateEntry ? '<span class="cell-meta">' + C.lateBadge(s.c) + ' 임시 결재 번호 ' + esc(s.c.lateEntry.tempNo || '-') + '</span>' : '') + '</td>' + // 2026-11-18 셋째 점검 screen-rules-03 [가정: 번호와 표시는 계약 내용이 아니라 가린 줄에도]
         '<td class="center">' + esc(C.kindLabel(s.c)) + '</td>' +
         '<td class="center">' + esc(C.ownerLabel(s.by)) + (s.behalf ? '<span class="cell-meta">' + esc(C.ownerLabel(s.behalf)) + ' 대신</span>' : '') + '</td>' +
         '<td class="num-left nowrap">' + esc(C.fmtDateTime(s.at)) + '</td></tr>';

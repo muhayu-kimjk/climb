@@ -223,7 +223,9 @@
     // 체결한 달 뒤에 체결본을 올린 계약(B-8: 올린 때도 남김). 기간 말 앞뒤 확인은 아래 기간 마감 점검
     const lateUp = signed.filter(function (c) { const s = signInfo(c); return s.up && s.up.slice(0, 7) > s.date.slice(0, 7); }).length;
     const tiles = [
-      ['체결 금액', fmtMoney(sum(signed)), '서명본 체결일 기준' + (lateUp ? ', 체결한 달 뒤에 올린 ' + lateUp + '건 포함' : '')],
+      // (2026-11-18 셋째 점검 screen-rules-03, W7-7 (가)) 시스템이 멈춘 동안 임시 결재로 진행해 사후 등록한 계약 수
+      ['체결 금액', fmtMoney(sum(signed)), '서명본 체결일 기준' + (lateUp ? ', 체결한 달 뒤에 올린 ' + lateUp + '건 포함' : '') +
+        (signed.filter(function (c) { return !!c.lateEntry; }).length ? ', 사후 등록 ' + signed.filter(function (c) { return !!c.lateEntry; }).length + '건 포함' : '')],
       // (설계 검토 2026-11-11 6번) 변경 가운데 줄임과 조항만이 있으면 괄호에 그 건수(금액은 부호대로 체결 금액에 든 것)
       ['체결 건수', signed.length + '건', AMOUNT_KINDS.filter(function (k) { return kinds[k]; }).map(function (k) {
         const off = k === 'AMEND' ? ['REDUCE', 'TERMS'].map(function (a) { const n = signed.filter(function (c) { return C.amendKindOf(c) === a; }).length; return n ? D.AMEND_KINDS[a] + ' ' + n + '건' : ''; }).filter(Boolean) : [];
@@ -902,9 +904,12 @@
    * 감사 열람(과 시연용 최고관리자)만. 위 조건(기간, 서비스, 영업 유닛)과 상관없이 고른 기간의 볼 수 있는 모든 계약(감사 열람은 열람 제한 포함)
    * 한 파일(CSV, 엑셀에서 열림)에 여러 묶음. 묶음마다 "[이름]" 줄, 머리 줄, 내용 줄
    *   계약과 차수: 기간 안에 기안했거나 결재 기록이 있는 계약. 체크리스트 1~4번 답(아니요면 사유, 4번은 종류)
+   *     (2026-11-18 셋째 점검 audit-trail-03, 결정할것 W7-7 (가)) 끝 칸 "사후 등록(임시 결재 번호)": 사후 등록이면 "예(임시 결재 번호 …)", 아니면 "아니요"
    *   결재 기록: 그 계약들의 기록 가운데 기간 안의 것. 단계마다 처리한 사람, 누구 대신, 시각, 한 일(결과), 의견
+   *     (2026-11-18 셋째 점검 audit-trail-02, CTL-137 모집단) 기간 안의 영업대표 바꾸기도 "영업대표 지정" 줄로(결재 기록 묶음과 같은 꼴, 볼 수 있는 묶음만)
    *   ③ 가격 예외(2번이나 3번 아니요), 4번 예 계약(⑩ 재무 확인 상태), ⑧ 결과(⑧ 기록과 어긋난 항목)
    *   가격과 권한 변경: 가격 기준 줄(티어 단가 포함), 거래처의 고객사 티어 변경(설계 검토 2026-11-11 남은 것 ⑤), 사용자 권한과 결재선 규칙의 변경 이력, 끝나는 날이 지나 풀린 감사 열람
+   *     (2026-11-18 셋째 점검 audit-trail-01, 결정할것 결정 3) 고객사 티어 목록 변경(코드 관리의 추가, 이름 변경, 사용 안 함)도 영역 "거래처(고객사 티어 목록)"으로
    *   접속 기록: 접속 기록 점검과 같은 기록(control-checks.js accessLogs)
    * 파일 맨 위 머리: 실행 시각, 실행한 사람, 조건, 건수, 금액 합계(신규, 변경, 연장), 파일 지문(빈 줄 아래 본문의 SHA-256), 워터마크
    * 내려받으면 꺼낸 기록(누가, 언제, 조건, 건수, 지문)이 남음. 실제 시스템은 서버가 엑셀 파일을 만들고 지문과 꺼낸 기록을 남김 [가정: 시안은 CSV] */
@@ -935,7 +940,10 @@
     const contractRows = cs.map(function (c) {
       return [c.id, (c.round || 1) + '차', c.counterparty, C.kindLabel(c), D.METHODS[C.methodOf(c)], D.STATUS[c.status].label, counted(c) ? c.amount : 0,
         C.fmtDateTime(c.requestedAt), C.ownerLabel(c.requesterId), yesNo(ck(c).standard, ck(c).standardNote), yesNo(ck(c).price, ck(c).priceNote), yesNo(ck(c).cap, ck(c).capNote),
-        yesNo(ck(c).accounting), acctKindText(c), c.restricted ? '예' : '아니요'];
+        yesNo(ck(c).accounting), acctKindText(c), c.restricted ? '예' : '아니요',
+        // (2026-11-18 셋째 점검 audit-trail-03, 결정할것 W7-7 (가)) 사후 등록과 임시 결재 번호. 복구 뒤 컴플라이언스가 임시 결재 목록과 하나씩 맞춰 보는 번호(CTL-59, CTL-121)
+        //   계약(차수)마다 그 계약의 값. 후속 기안(변경, 연장 등)도 따로 사후 등록일 수 있어 원계약 값을 빌리지 않음
+        c.lateEntry ? '예(임시 결재 번호 ' + (c.lateEntry.tempNo || '-') + ')' : '아니요'];
     });
     const histRows = [];
     cs.forEach(function (c) {
@@ -944,6 +952,16 @@
         histRows.push([c.id, (h.round || 1) + '차', D.STEPS[h.step] ? C.stepLabel(h.step, c) : h.step, C.actionLabel(h, c), C.ownerLabel(h.actorId, h.actorDept),
           h.onBehalfOf ? C.ownerLabel(h.onBehalfOf) : '', h.basis || '', C.fmtDateTime(h.at), h.comment || '']);
       });
+    });
+    /* (2026-11-18 셋째 점검 audit-trail-02, CTL-137 모집단) 기간 안의 영업대표 바꾸기(D.OWNER_CHANGES와 시연 기록)도 한 줄씩. 결재 기록 묶음(contract.js bundleParts)과 같은 꼴
+     *   "영업대표 지정", 앞 → 뒤 영업대표, 정한 사람(그때 조직), 일시, 사유. 감사인은 계정 없이 이 파일만 받아 영업대표 바꾸기를 시험할 모집단이 여기 있어야 함
+     *   그 묶음(원계약)을 볼 수 있는 사람만(위 pool과 같은 C.canView). 원계약은 D.CONTRACTS에서 찾음: 예전 계약 기록(LG-)이 원계약인 묶음도 영업대표를 바꿀 수 있어서
+     *     (위 all은 예전 계약 기록을 빼므로 all에서 찾으면 그 줄이 빠짐). 계약별 줄 뒤에 일시 차례로 모아 둠 */
+    (D.OWNER_CHANGES || []).slice().sort(function (a, b) { return String(a.at).localeCompare(String(b.at)); }).forEach(function (r) {
+      if (!inP(r.at)) return;
+      const root = D.CONTRACTS.filter(function (c) { return c.id === r.bundleId; })[0];
+      if (!root || !C.canView(root, me)) return;
+      histRows.push([r.bundleId, '-', '영업대표 지정', C.ownerLabel(r.from) + ' → ' + C.ownerLabel(r.to), C.ownerLabel(r.by, r.byDept), '', '', C.fmtDateTime(r.at), r.reason || '']);
     });
     // (2026-11-17 다른 눈 oversight-01) ③을 거친 줄임(W7-3, reduceOver)도 ③ 가격 예외로 넣음
     const exc = cs.filter(function (c) { return ck(c).price === 'NO' || ck(c).cap === 'NO' || !!(c.reduceOver && c.reduceOver.over); });
@@ -981,6 +999,13 @@
       const items = ti.items.map(function (it) { return it.label + ' ' + (it.before ? it.before + ' → ' : '') + it.after; }).join(', ') || ti.tierNote;
       chg.push([e.at, '거래처(고객사 티어)', e.target, e.change + ' / 표준 단가: ' + items, e.reason || '', '', C.ownerLabel(e.by), '']);
     });
+    /* (2026-11-18 셋째 점검 audit-trail-01, 결정할것 결정 3, W7-6) 고객사 티어 목록 변경(코드 관리 TIER의 추가, 이름 변경, 사용 안 함)도 넣음.
+     *   결정 3은 이 변경을 거래처의 티어 변경처럼 다룸(재무 리더 확인, X.settingChanges의 tierCode 줄). 영역 CODE에 남아 위 C.adminLog(['CUSTOMER'])로는 빠졌음
+     *   이름을 바꾸면 지난 가격 줄과 티어 변경 줄이 새 이름으로 보이므로 그 까닭 줄이 같은 묶음에 함께 있어야 함. 품의 칸은 비움(코드 관리에는 품의 링크 칸이 없음 [가정]) */
+    X.settingChanges({ areas: ['CUSTOMER'] }).forEach(function (x) {
+      if (!x.tierCode || !inP(x.at)) return;
+      chg.push([x.at, '거래처(고객사 티어 목록)', x.target, x.change, x.reason || '', '', C.ownerLabel(x.by), '']);
+    });
     C.adminLog(['USER', 'RULE']).concat(C.roleEndLog()).forEach(function (e) {
       if (!inP(e.at)) return;
       const req = e.requestedBy || (e.op && e.op.requestedBy);
@@ -995,7 +1020,8 @@
     const L = X.csvLine, NL = X.NL;
     const sec = function (title, headRow, rows) { return [L(['[' + title + ']']), L(headRow)].concat(rows.length ? rows.map(L) : [L(['해당 없음'])]).join(NL); };
     const body = [
-      sec('계약과 차수', ['계약번호', '차수', '고객사', '계약종류', '계약 방식', '상태', '금액(원)', '기안 일시', '영업대표', '1번 표준계약서 그대로', '2번 표준단가표 그대로', '3번 할인율 한도 안', '4번 회계 영향 조건', '4번 조건 종류', '열람 제한'], contractRows),
+      sec('계약과 차수', ['계약번호', '차수', '고객사', '계약종류', '계약 방식', '상태', '금액(원)', '기안 일시', '영업대표', '1번 표준계약서 그대로', '2번 표준단가표 그대로', '3번 할인율 한도 안', '4번 회계 영향 조건', '4번 조건 종류', '열람 제한',
+        '사후 등록(임시 결재 번호)' /* 2026-11-18 셋째 점검 audit-trail-03 */], contractRows),
       sec('결재 기록', ['계약번호', '차수', '단계', '한 일', '처리한 사람', '누구 대신', '대리 근거', '일시', '의견'], histRows),
       sec('③ 가격 예외', ['계약번호', '고객사', '2번 답', '3번 답', '한도를 넘은 가장 큰 폭', '③ 영업 검토', '③ 처리한 사람', '③ 일시', '③ 영업 임원 승인', '영업 임원', '영업 임원 일시'], excRows),
       sec('4번 예 계약', ['계약번호', '고객사', '조건 종류', '비고', '재무 의견', '⑩ 재무 확인', '⑩ 처리한 사람', '⑩ 일시'], accRows),

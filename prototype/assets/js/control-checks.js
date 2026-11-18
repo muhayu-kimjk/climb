@@ -7,6 +7,7 @@
  *   1. 접속 기록 만들기(accessLogs): 예시 데이터로 만든 접속 기록. 접속 기록 점검(admin-logs.js)에 있던 것을 옮김
  *      기획자 결정 2026-11-02 C-3: 통제 증빙과 결재 기록 묶음을 꺼낸 일도 "내려받기"로 넣음
  *      점검 화면이 따로 쌓는 기록(할인 예외 점검, 기간 마감 확인, 영업기회 대사, 인장 기록 대조)도 "점검 기록"으로 넣음(2026-11-02)
+ *      (2026-11-18 셋째 점검 audit-trail-02) 영업대표 바꾸기(D.OWNER_CHANGES와 시연 기록)도 "수정"(EDIT)으로 넣음. REQ-AUTH-13의 "등록, 수정"
  *   2. 최고관리자 계정(superIds, 기획자 결정 2026-11-02 C-6): 매월 점검의 "최고관리자 작업"을 따로 모을 때 씀
  *   3. 설정 변경 묶음(settingChanges, 기획자 결정 2026-11-02 C-8): 가격 기준, 제품과 기능, 표준계약서, 결재선 규칙, 회사 설정, 거래처를 바꾼 것 한 건씩
  *      거래처는 2026-11-09 5회차 점검에서 더함(B-11, 05 G-25 ②, CTL-83). 완료 계약이 있는 거래처의 번호 변경만 재무 리더가 확인
@@ -38,7 +39,9 @@ window.CLIMB_CTL = (function () {
   /* ---------- 1. 접속 기록 (시연용) ----------
    * 인쇄(PRINT)도 한 일 (03 CODE-LOG-ACTION. v0.63 점검에서 고침: 빠져 있어 거를 수 없었음). 시연에서는 견적서 출력 기록으로 만듦
    * extra: 화면이 더할 줄 [{ at, userId, act, target, place }] (예: 이 화면을 연 것) */
-  const ACTS = { LOGIN: '로그인', LOGOUT: '로그아웃', VIEW: '열람', SUBMIT: '기안', APPROVE: '결재', DOWNLOAD: '내려받기', PRINT: '인쇄', NOTE: '사후관리 기록', ADMIN: '설정 변경', AUDIT: '점검 기록' };
+  const ACTS = { LOGIN: '로그인', LOGOUT: '로그아웃', VIEW: '열람', SUBMIT: '기안', APPROVE: '결재', DOWNLOAD: '내려받기', PRINT: '인쇄', NOTE: '사후관리 기록', ADMIN: '설정 변경', AUDIT: '점검 기록',
+    // (2026-11-18 셋째 점검 audit-trail-02) REQ-AUTH-13의 "수정". 영업대표 바꾸기(아래 accessLogs). 접속 기록 점검의 "한 일" 거르기와 매월 요약은 이 표를 읽어 저절로 따라옴
+    EDIT: '수정' };
   // 기획자 결정 2026-11-02: 회사 설정(E-9), 컴플라이언스(C-13, C-16) 영역도 이름으로
   // (설계 검토 2026-11-11 남은 것 ⑤) 예전 계약 기록(LEGACY, SCR-95)도 이름으로: 관리자 변경 이력의 영역 거르기와 접속 기록의 대상 글("예전 계약 기록: LG-0001 …")에 보임
   const AREA = { USER: '사용자 권한', RULE: '결재선 규칙', RESTRICT: '열람 제한', PRICE: '가격 기준', PRODUCT: '제품과 기능', TEMPLATE: '표준계약서', CUSTOMER: '거래처', CODE: '코드', NOTICE: '공지사항',
@@ -66,6 +69,14 @@ window.CLIMB_CTL = (function () {
     });
     D.ADMIN_LOG.forEach(function (e) {
       push(e.at, e.by, e.area === 'AUDIT' ? 'AUDIT' : 'ADMIN', (AREA[e.area] ? AREA[e.area] + ': ' : '') + e.target);
+    });
+    /* (2026-11-18 셋째 점검 audit-trail-02, CTL-137) 영업대표 바꾸기도 "수정"으로 한 줄씩: 묶음 번호, 앞뒤 영업대표. 바꾼 사람과 때는 그 기록(by, at)
+     *   관리자 변경 이력에는 남지 않는 기록(계약 묶음의 일)이라 빠져 있었음. 감사인은 계정 없이 내보낸 파일만 받으므로 접속 기록에도 있어야 모집단을 받음
+     *   열람 제한 계약은 위 기안 줄과 같이 번호만(고객사 이름을 넣지 않음, REQ-AUTH-09). 사유는 넣지 않음(계약 내용일 수 있어서. 사유는 결재 기록 쪽에) [가정] */
+    (D.OWNER_CHANGES || []).forEach(function (r) {
+      const root = D.CONTRACTS.filter(function (c) { return c.id === r.bundleId; })[0];
+      push(r.at, r.by, 'EDIT', '영업대표 바꾸기: ' + (root && !root.restricted ? r.bundleId + ' ' + root.counterparty : r.bundleId) +
+        ' (' + C.ownerLabel(r.from) + ' → ' + C.ownerLabel(r.to) + ')');
     });
     // 견적서 출력은 접속 기록의 인쇄에도 남음 (03 8-8 quote_issue)
     C.allQuotes().forEach(function (q) { (q.issues || []).forEach(function (i) { push(i.at, i.by, 'PRINT', '견적서 ' + q.no + ' ' + q.ver + '판'); }); });

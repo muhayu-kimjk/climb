@@ -622,13 +622,15 @@
     const sends = sendsOf(q), acks = acksOf(q);
     $('#send-rows').innerHTML = sends.length ? sends.map(function (s) {
       const leaders = s.units.map(function (u) { return u.to; }).filter(function (x, i, a) { return a.indexOf(x) === i; }).length;
+      // (2026-11-18 셋째 점검 mail-03) 대리 지정 중이라 함께 받은 대신할 사람(units[].also, 묶음 확인 5)도 셈
+      const alsoN = s.units.reduce(function (a, u) { return a.concat(u.also || []); }, []).filter(function (x, i, a) { return a.indexOf(x) === i; }).length;
       const total = s.units.reduce(function (n, u) { return n + (u.n || 0); }, 0);
       return '<tr><td class="num-left">' + dt(s.at) + '</td><td class="center">' + esc(C.ownerLabel(s.by)) + '</td>' +
-        '<td><details class="seen-data"><summary>유닛 ' + s.units.length + '곳, 리더 ' + leaders + '명, ' + esc(ackText(q, s)) + '</summary><ul class="summary-list cell-meta">' +
+        '<td><details class="seen-data"><summary>유닛 ' + s.units.length + '곳, 리더 ' + leaders + '명' + (alsoN ? ', 대신할 사람 ' + alsoN + '명' : '') + ', ' + esc(ackText(q, s)) + '</summary><ul class="summary-list cell-meta">' +
           s.units.map(function (u) {
             const k = acks[u.unit];
             // 대신할 사람이 남긴 확인은 "누구 대신"(2026-11-10 19번), 퇴사, 휴직, 이동 표시 수(2026-11-10 21번)
-            return '<li>' + esc(u.unit + ': ' + C.ownerLabel(u.to) + '(계정 ' + u.n + '개), ' +
+            return '<li>' + esc(u.unit + ': ' + C.ownerLabel(u.to) + (u.also && u.also.length ? ', 대리 지정 중이라 ' + u.also.map(function (x) { return C.ownerLabel(x); }).join(', ') + '에게도' : '') + '(계정 ' + u.n + '개), ' + // mail-03
               (k ? '확인함 ' + C.fmtDateTime(k.at) + (k.onBehalfOf ? ' ' + ackWho(k) : '') + (k.marks && k.marks.length ? ', 퇴사 휴직 이동 표시 ' + k.marks.length + '개' : '') +
                 (k.note ? ', 이상한 계정: ' + k.note : '') : '확인 전')) + '</li>';
           }).join('') + '</ul></details></td>' +
@@ -684,6 +686,8 @@
     if (!q.ended) { C.toast(C.josa(q.label, '이', '가') + ' 끝난 뒤에 보냅니다.', true); return; }
     const rows = unitRows(), ok = rows.filter(function (r) { return r.to; }), none = rows.filter(function (r) { return !r.to; });
     const leaders = ok.map(function (r) { return r.to; }).filter(function (x, i, a) { return a.indexOf(x) === i; }).length;
+    const alsoN = ok.reduce(function (a, r) { return a.concat(r.also || []); }, []).filter(function (x, i, a) { return a.indexOf(x) === i; }).length; // 2026-11-18 셋째 점검 mail-03
+    const whoText = '유닛 리더 ' + leaders + '명' + (alsoN ? '과 대신할 사람 ' + alsoN + '명' : '');
     const total = ok.reduce(function (n, r) { return n + r.n; }, 0);
     const prev = sendsOf(q).length;
     // 2026-11-09 5회차 5번: 메일에는 확인 요청과 계정 수만, 목록은 리더가 시스템 화면에서 봄
@@ -696,11 +700,11 @@
         '<li>메일에는 직원 이름, 이메일, 역할을 넣지 않습니다. 리더는 시스템에서 이름, 이메일, 지금 역할, 상태, 마지막 로그인을 보고, 이상한 계정이 있으면 적어 남깁니다.</li></ul></div>',
       btn: '보내기',
       done: function () {
-        C.adminSave('AUDIT', q.label + ' 유닛별 계정 목록', '유닛 리더 ' + leaders + '명에게 확인 요청 메일 보냄(유닛 ' + ok.length + '곳, 계정 ' + total + '개)',
+        C.adminSave('AUDIT', q.label + ' 유닛별 계정 목록', whoText + '에게 확인 요청 메일 보냄(유닛 ' + ok.length + '곳, 계정 ' + total + '개)',
           '분기 권한 검토 때 유닛마다 리더에게 계정 목록 확인을 요청함(메일에는 계정 수만, 목록은 시스템에서 봄)',
           { k: 'UNIT_LIST_SENT', r: { quarter: q.key, units: ok.map(function (r) { return { unit: r.unit, to: r.to, also: r.also, n: r.n }; }) } }); // also: 묶음 확인 5(2026-11-16)
         refresh();
-        C.toast('유닛 리더 ' + leaders + '명에게 계정 목록 확인을 요청했습니다.');
+        C.toast(whoText + '에게 계정 목록 확인을 요청했습니다.');
       },
     });
   }

@@ -64,7 +64,8 @@
         <div class="list-head"><p class="list-count" id="list-count" aria-live="polite"></p></div>
         <div class="tbl-scroll">
           <table class="tbl tbl--compact tbl--fit">
-            <caption class="sr-only">견적 목록: 고객사와 견적번호, 합계, 상태, 견적일, 유효기간, 작성한 사람, 출력 횟수</caption>
+            <!-- 기획자 결정 2026-11-18 N-3: 간접(총판, 리셀러) 견적은 고객사 칸 아래 작은 줄에 "간접 거래(사용 업체 …)"(quotes.js) -->
+            <caption class="sr-only">견적 목록: 고객사와 견적번호(간접 거래면 사용 업체), 합계, 상태, 견적일, 유효기간, 작성한 사람, 출력 횟수</caption>
             <thead id="thead"></thead>
             <tbody id="rows"></tbody>
           </table>

@@ -1883,6 +1883,8 @@
       $('#notice').innerHTML = noticeHtml('', why[0], esc(why[1]) + ' <a class="doc-link" href="quotes.html">견적 목록</a>', '');
     } else {
       setRadio('kind', 'NEW');
+      // (2026-11-18 기획자 결정 N-3) 간접 견적이면 계약 방식 간접과 줄마다 사용 업체를 이어받음(견적과 계약이 같은 사용 업체 티어로 셈)
+      if (qq.indirect) setRadio('method', 'INDIRECT');
       const cu = quoteCustomerOf(qq);
       if (cu) { qInput.value = cu.name; setCustomer('C:' + cu.id, cu.name, cu.bizNo, qq.unit); }
       else qInput.value = qq.name; // 고르지 않음: 영업이 검색해 고르거나 직접 입력(기안할 때 거래처 칸 검사가 알림)
@@ -1890,11 +1892,11 @@
       // (설계 검토 2026-11-11 4번) 계약 금액은 견적 줄 금액(기간제는 단가 x 수량 x 견적의 이용 기간 / 12, C.quoteLineAmount)
       //   [가정] 계약 기간은 채우지 않음(견적에는 시작일이 없음). 기간을 넣으면 그 달 수로 표준 금액을 셈해, 견적의 이용 기간과 다르면 할인율이 달라짐
       const qm = C.quoteMonths(qq);
-      (qq.lines || []).forEach(function (l) { addProduct({ feature: l.feature, qty: l.qty, amount: C.quoteLineAmount(l, qm) }); });
+      (qq.lines || []).forEach(function (l) { addProduct(Object.assign({ feature: l.feature, qty: l.qty, amount: C.quoteLineAmount(l, qm) }, qq.indirect && qq.endUser ? { org: qq.endUser } : {})); }); // N-3: 사용 업체
       quoteExtra = qq; quoteStart = quoteKeyOf(qq); quoteSig = null;
       renderQuoteLinks();
       qLinkSel.value = quoteStart;
-      const filled = [cu ? '고객사' : '', qq.opp ? '영업기회번호' : '', '제품 줄(계약 금액은 견적 금액, 부가세 별도)'].filter(Boolean);
+      const filled = [cu ? '고객사' : '', qq.opp ? '영업기회번호' : '', '제품 줄(계약 금액은 견적 금액, 부가세 별도)', qq.indirect ? '간접 계약과 사용 업체' : ''].filter(Boolean); // N-3
       $('#notice').innerHTML = noticeHtml('', '견적 ' + qq.no + ' ' + qq.ver + '판에서 시작합니다',
         esc('견적의 ' + filled.join(', ') + '을 채웠고 계약종류는 신규입니다. 모두 고칠 수 있고, 연결을 풀어도 채운 값은 그대로입니다.') +
         '<br>' + esc('견적의 이용 기간은 ' + qm + '개월입니다. 계약 기간을 넣으면 그 달 수로 표준 금액을 셉니다.') + // 설계 검토 2026-11-11 4번

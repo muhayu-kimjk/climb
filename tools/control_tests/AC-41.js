@@ -184,3 +184,5 @@ module.exports = {
     '후속 기안 저장 요청의 원계약 번호: 서버가 기안자가 볼 수 있고 영업대표인 원계약인지 다시 확인(시안은 화면이 막을 뿐 saveDemoContract는 다시 보지 않음)',
   ],
 };
+// 2026-11-18 셋째 점검 반영 시험(audit-trail-01~03, tools/control_tests/n18a.js): 고객사 티어 목록 변경과 영업대표 바꾸기의 감사 증적, 사후 등록 번호
+module.exports.tests = module.exports.tests.concat(require('./n18a')('AC-41'));

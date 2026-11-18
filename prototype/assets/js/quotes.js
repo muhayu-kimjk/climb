@@ -7,6 +7,8 @@
  *   2. 검색(고객사, 견적번호, 영업기회번호)과 상태로 거르기. 최근 견적일 순서, 같은 견적번호는 높은 판이 먼저
  *      (v0.62, REQ-QUO-09, 표준 대응표 G-01 남은 것) "한도 넘은 견적만" 거르기, 합계 아래 "한도 넘음"(C.quoteOverCap)
  *   3. 한 쪽에 20건씩. 영업에게는 "새 견적" 단추
+ *   기획자 결정 2026-11-18 N-3: 간접(총판, 리셀러) 견적은 고객사 아래 작은 줄에 "간접 거래(사용 업체 …)"를 글자로 보임(색만으로 나누지 않음).
+ *     검색은 사용 업체 이름으로도 찾음
  * ===================================================================== */
 (function () {
   const C = window.CLIMB;
@@ -40,7 +42,7 @@
   function filtered() {
     const q = $('#f-q').value.trim().toLowerCase(), status = $('#f-status').value, over = $('#f-over').checked;
     return all.filter(function (x) {
-      const hay = (x.name + ' ' + x.no + ' ' + (x.opp || '') + ' ' + (x.unit || '')).toLowerCase();
+      const hay = (x.name + ' ' + x.no + ' ' + (x.opp || '') + ' ' + (x.unit || '') + ' ' + (x.indirect ? x.endUser || '' : '')).toLowerCase(); // N-3: 사용 업체로도 찾음
       if (q && hay.indexOf(q) < 0) return false;
       if (status && C.quoteStatus(x).code !== status) return false;
       if (over && !C.quoteOverCap(x)) return false;
@@ -64,7 +66,9 @@
       // data-label: 휴대폰에서 줄을 세로로 쌓을 때 값 앞의 이름(common.css 견적 화면 휴대폰 규칙, 2026-11-06 기획자 요청: 옆으로 밀지 않게)
       return '<tr>' +
         '<td><a class="cell-title" href="' + href + '">' + esc(x.name) + (x.unit ? ' ' + esc(x.unit) : '') + '</a>' +
-          '<span class="cell-meta"><span class="nowrap">' + esc(x.no) + '</span> ' + x.ver + '판' + (x.opp ? ', 영업기회번호 <span class="nowrap">' + esc(x.opp) + '</span>' : '') + '</span></td>' +
+          '<span class="cell-meta"><span class="nowrap">' + esc(x.no) + '</span> ' + x.ver + '판' + (x.opp ? ', 영업기회번호 <span class="nowrap">' + esc(x.opp) + '</span>' : '') + '</span>' +
+          // 기획자 결정 2026-11-18 N-3: 간접(총판, 리셀러) 견적 표시. 글자로 보임(색만으로 나누지 않음). 표준 단가는 사용 업체의 티어로 셈
+          (x.indirect ? '<span class="cell-meta">간접 거래(사용 업체 ' + (x.endUser ? esc(x.endUser) : '정해지지 않음') + ')</span>' : '') + '</td>' +
         '<td class="num" data-label="합계">' + C.fmtWon(t.total) + (C.quoteOverCap(x) ? '<span class="cell-meta">한도 넘음</span>' : '') + '</td>' +
         '<td class="nowrap" data-label="상태">' + C.badge(st.tone, st.label) + '</td>' +
         '<td class="num-left" data-label="견적일">' + C.fmtDate(x.date) + '</td>' +

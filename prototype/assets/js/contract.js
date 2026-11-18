@@ -29,6 +29,9 @@
  *  11. 설계 검토 2026-11-11 3장 [가정]: 분할 정산인데 청구 일정 의무가 없으면 맨 위 안내와 "청구 일정 추가" 단추(아래 4-1.). 막지 않음
  *  12. 설계 검토 2026-11-11 6번: 1번 묶음 끝(계약 이력 위)에 "지금 유효한 조건" 표(C.currentTerms, C.currentTermsHtml: 계약 완료된 것만 반영한
  *      제품과 수량, 금액, 기간). 계약 금액 칸에 변경과 유상 충전을 반영한 지금 금액이 다르면 작은 줄 하나
+ *  13. (2026-11-18 셋째 점검 audit-trail-03, 결정할것 W7-7 (가)) 사후 등록(시스템이 멈춘 동안 임시 결재로 진행해 복구 뒤 올린 계약)
+ *      머리 배지는 원계약 값(C.lateBadge 규칙), 1번 묶음의 "사후 등록" 칸에 사후 등록인 계약마다 임시 결재 번호, 결재 기록 묶음 목록 머리에도 한 줄
+ *      복구 뒤 컴플라이언스가 임시 결재 목록과 사후 등록을 하나씩 맞춰 볼 번호를 시스템에서 꺼낼 수 있게 함(06 CTL-59, CTL-121)
  * ===================================================================== */
 (function () {
   const D = window.CLIMB_DATA;
@@ -79,6 +82,7 @@
     (exOn ? C.badge(ex.tone, ex.label) : C.badge(st.tone, st.label)) + (hold ? ' ' + C.holdBadge(hold) : '') +
       (root.legacy ? ' ' + C.legacyBadges(root) : '') + // 설계 검토 2026-11-11 5번: 예전 계약 기록, 체결본 없음, 바로잡힘
       (C.stopPending(root) ? ' ' + C.stopBadge(root) : '') + // (설계 검토 2026-11-11 7번) 원계약이 진행 중단 요청 중이면 "중단 요청 중"
+      (root.lateEntry ? ' ' + C.lateBadge(root) : '') + // (2026-11-18 셋째 점검 audit-trail-03, W7-7 (가)) 원계약이 사후 등록이면 "사후 등록"(묶음은 원계약 값, C.lateBadge 규칙)
       (root.restricted ? ' ' + C.icon('lock', 'sm') : '')]);
   // 설계 검토 2026-11-11 5번 [가정]: 바로잡힌 예전 계약 기록이면 새 기록(없으면 null). 아래 안내와 기안 단추 자리에 씀
   const legacyNext = C.legacyReplacedBy(root);
@@ -259,6 +263,15 @@
         (b.items.length > 1 ? '<span class="cell-meta">' + esc(x.c.id + ' ' + C.kindLabel(x.c)) + '</span>' : '');
     }).join('<br>');
   }
+  /* (2026-11-18 셋째 점검 audit-trail-03, 결정할것 W7-7 (가)) 사후 등록: 이 묶음에서 사후 등록으로 올린 계약마다 배지와 임시 결재 번호(결재 문서 기본 정보와 같은 글)
+   *   [가정] 계약 등록의 사후 등록 칸은 계약종류와 상관없어 변경, 연장 같은 후속 기안도 사후 등록일 수 있음. 그래서 원계약만이 아니라 묶음의 모든 계약을 봄
+   *   (머리 배지는 C.lateBadge 규칙대로 원계약 값). 묶음에 계약이 여럿이면 작은 줄에 어느 계약인지(연결한 견적과 같은 꼴). 없으면 '' */
+  const lateItems = b.items.filter(function (c) { return !!c.lateEntry; });
+  function lateHtml() {
+    return lateItems.map(function (c) {
+      return C.lateBadge(c) + ' 임시 결재 번호 ' + esc(c.lateEntry.tempNo || '-') + (b.items.length > 1 ? '<span class="cell-meta">' + esc(c.id + ' ' + C.kindLabel(c)) + '</span>' : '');
+    }).join('<br>');
+  }
   // (설계 검토 2026-11-11 6번) 지금 유효한 조건: 계약 완료된 원계약, 변경(추가, 줄임, 조항만), 연장, 운영 변경만 반영(C.currentTerms). 아래 1번 묶음 끝에 표로
   const terms = C.currentTerms(b.id);
   $('#now').innerHTML = [
@@ -284,6 +297,7 @@
       (rep !== root.requesterId ? '<span class="cell-meta">처음 기안 ' + esc(C.ownerLabel(root.requesterId)) + '</span>' : '') +
       (C.repNote(b) ? '<span class="cell-meta">' + C.badge('attention', C.repNote(b)) + '</span>' : '') +
       (canRep ? '<span class="cell-meta no-print"><button type="button" class="btn-text" data-rep="change">영업대표 바꾸기</button></span>' : '')),
+    lateHtml() ? info('사후 등록', lateHtml()) : '', // (2026-11-18 셋째 점검 audit-trail-03, W7-7 (가)) 사후 등록인 계약의 임시 결재 번호(아래 lateHtml)
     info('개인정보 처리위탁 계약', root.personalData ? '있음' : '없음'),
     info('서비스 수준 협약(SLA)', root.sla === 'YES' ? '있음' : '없음'), // v0.40
     // 지정 열람자(v0.52)도 함께: 이 묶음을 기본 밖에서 더 볼 수 있는 조직이나 사람
@@ -552,7 +566,7 @@
         if (!s) {
           // (2026-11-17 다른 눈 oversight-01) ③을 거친 줄임은 그 기능의 변경 뒤 할인율(기안 때 남긴 reduceOver)을 까닭 칸에
           const ro = c.reduceOver && c.reduceOver.feats ? c.reduceOver.feats.filter(function (f) { return f.feature === l.feature && f.std; })[0] : null;
-          const why = ro ? '③을 거친 줄임: 변경 뒤 ' + ro.qtyAfter + '개 ' + C.fmtWon(ro.amountAfter) + ', 표준 ' + C.fmtWon(ro.std) + ', 할인 ' + Math.round(ro.discount * 1000) / 10 + '%, 한도 ' + Math.round(ro.cap * 1000) / 10 + '%(기안 때 남긴 reduce_over)'
+          const why = ro ? '③을 거친 줄임: 변경 뒤 ' + Number(ro.qtyAfter).toLocaleString('ko-KR') + C.termsUnit(ro.feature) + ' ' /* 2026-11-18 셋째 점검 screen-rules-05 */ + C.fmtWon(ro.amountAfter) + ', 표준 ' + C.fmtWon(ro.std) + ', 할인 ' + Math.round(ro.discount * 1000) / 10 + '%, 한도 ' + Math.round(ro.cap * 1000) / 10 + '%(기안 때 남긴 reduce_over)'
             : '표준 금액 셈 안 함(줄임, 조항만 변경)';
           prices.push([c.id, C.fmtDate(day), featureOf(l.feature), '', l.unit || '', '', '', '', Number(l.qty) || '', why, '', '', '']);
           return;
@@ -593,10 +607,12 @@
         ].join(NL + NL) + NL;
         const file = '결재기록묶음_' + b.id + '_목록.csv';
         sha256Hex(body).then(function (hash) {
-          const head = [csvLine(['결재 기록 묶음 목록']), csvLine(['실행 시각', at]), csvLine(['실행한 사람', who]), csvLine(['계약 묶음', b.id + ' ' + (root.restricted ? '(열람 제한)' : root.counterparty)]),
+          const head = [csvLine(['결재 기록 묶음 목록']), csvLine(['실행 시각', at]), csvLine(['실행한 사람', who]), csvLine(['계약 묶음', b.id + ' ' + (root.restricted ? '(열람 제한)' : root.counterparty)])]
+            // (2026-11-18 셋째 점검 audit-trail-03, W7-7 (가)) 사후 등록인 계약이 있으면 한 줄: "2610CL002 임시 결재 번호 임시-2027-0003"(위 lateItems, 여럿이면 쉼표로)
+            .concat(lateItems.length ? [csvLine(['사후 등록', lateItems.map(function (c) { return c.id + ' 임시 결재 번호 ' + (c.lateEntry.tempNo || '-'); }).join(', ')])] : []).concat([
             csvLine(['건수', count]), csvLine(['파일 지문(SHA-256)', hash || '만들 수 없음(이 브라우저는 지문 계산을 지원하지 않음)', '빈 줄 아래 본문의 지문']),
             csvLine(['워터마크', who + ' ' + at.slice(0, 16) + ' 내려받음. 사내 감사 증빙 전용이며 다른 곳에 줄 때도 이 줄을 지우지 않음']),
-            csvLine(['안내', '실제 시스템은 이 목록의 파일을 zip 하나로 묶어 내려받음. 첨부의 지문은 올릴 때 만든 값'])].join(NL);
+            csvLine(['안내', '실제 시스템은 이 목록의 파일을 zip 하나로 묶어 내려받음. 첨부의 지문은 올릴 때 만든 값'])]).join(NL);
           const blob = new Blob([String.fromCharCode(0xfeff) + head + NL + NL + body], { type: 'text/csv;charset=utf-8' }); // 맨 앞 BOM: 엑셀이 한글을 바로 읽음
           const url = URL.createObjectURL(blob), a = document.createElement('a');
           a.href = url; a.download = file; a.hidden = true;

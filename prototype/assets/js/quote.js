@@ -9,6 +9,10 @@
  *   (설계 검토 2026-11-11 3번, 4번, 4-1 3-1 가격 틀) 견적 머리에 "이용 기간(개월)"(months, 기본 12, 1~60 [가정]). 기간제 줄의 금액과 표준 금액은 이 달 수에 비례
  *     표준 단가는 고객사(우리 거래처) 티어 단가가 있으면 그 값. 줄 설명에 단위 종류, 표준 단가(티어와 기본 단가), 표준 금액. 견적서에는 "기간" 칸
  *     줄마다 unitKind, months(기간제), stdAmount, tier(티어 단가를 썼으면)를 함께 남김(계약 등록의 제품 줄과 같은 틀, C.stdLine, C.stdKeep)
+ *   기획자 결정 2026-11-18 N-3(추천, 작업기록/2026-11-13/결정할것.md 9장): 견적 머리에 "간접(총판, 리셀러) 거래"(indirect, 참/거짓)와 사용 업체 이름(endUser)
+ *     간접이면 표준 단가를 견적 고객사(리셀러)가 아니라 사용 업체의 고객사 티어로 셈. 사용 업체 이름이 거래처 목록의 이름과 같으면 그 거래처(C.customerByName),
+ *     적지 않았거나 목록에 없으면 기본 표준 단가. 계약 등록의 간접 계약(W7-4, C.tierCustomerFor)과 같은 말. 간접이 아니면 endUser는 비워 저장
+ *     견적서(보기와 인쇄)의 받는 곳에 "간접 거래(사용 업체: …)" 한 줄. 새 판도 같은 규칙으로 표준 단가를 다시 채움(quoteTierCustomer)
  * 하는 일
  *   1. 주소로 고치기와 보기를 가름: 출력하지 않은 내 견적은 고치기(SCR-15), 그 밖에는 보기(SCR-17, 메뉴는 견적 목록)
  *   2. 받는 곳: 거래처 찾기(C.searchBusinesses, KRDS 콤보 상자)로 상호를 채움. 없으면 상호를 직접 적음. 사업자등록번호 칸은 없음(2026-11-06 기획자 요청)
@@ -72,6 +76,9 @@
    *   할인율은 같은 달 수로 견주므로 1 - 단가 / 표준 단가 그대로(C.quoteLineOverCap) */
   const MONTHS_MAX = 60; // [가정] 이용 기간은 1~60개월(5년), 기본 12개월
   const customerById = function (id) { return id ? D.CUSTOMERS.filter(function (x) { return x.id === id; })[0] || null : null; };
+  // 기획자 결정 2026-11-18 N-3: 저장한 견적의 표준 단가를 정할 거래처. 간접이면 사용 업체(거래처 목록에 같은 이름이 있을 때만, 없으면 null = 기본 단가),
+  //   아니면 견적의 거래처(고치는 중인 견적은 startEdit의 tierCustomer가 같은 규칙으로 화면의 값을 봄)
+  const quoteTierCustomer = function (q) { return q && q.indirect ? C.customerByName(q.endUser) : customerById(q && q.customer); };
   // 저장한 줄이나 고치는 줄의 표준 금액(줄에 남긴 표준 단가와 한도를 씀. 가격 기준 줄은 오늘 것, 기본 단가를 보일 때만 씀)
   function stdOf(l, months) {
     return l.feature && l.listPrice != null ? C.stdLine({ feature: l.feature, qty: l.qty, listPrice: l.listPrice, cap: l.cap, unit: l.unit, unitKind: l.unitKind, tier: l.tier },
@@ -132,9 +139,11 @@
     const q = src ? JSON.parse(JSON.stringify(src)) : {
       no: '', ver: 1, customer: '', name: '', bizNo: '', unit: '', opp: '', date: D.TODAY, validUntil: C.addDays(D.TODAY, D.QUOTE_RULES.validDays),
       months: 12, // (설계 검토 2026-11-11 4번 [가정]) 이용 기간(개월) 기본 12
+      indirect: false, endUser: '', // 기획자 결정 2026-11-18 N-3: 간접(총판, 리셀러) 거래와 사용 업체
       owner: me.id, lines: [], note: '', issues: [],
     };
     if (q.months == null) q.months = 12; // 이 칸 전에 저장한 견적은 12개월(C.quoteMonths와 같음)
+    q.indirect = !!q.indirect; q.endUser = q.endUser || ''; // N-3 전에 저장한 견적은 간접 아님
     // 저장된 줄에는 기능만 있어, 고르는 칸을 채우려고 제품과 서비스를 기능에서 다시 찾음(v0.61 검토: 다시 열면 고르는 칸이 비었음)
     q.lines = q.lines.map(function (l) {
       const f = featureOf(l.feature), p = f && productOf(f.product);
@@ -149,6 +158,10 @@
     $('#q-name').value = q.name; $('#q-unit').value = q.unit; $('#q-opp').value = q.opp;
     $('#q-date').value = q.date; $('#q-valid').value = q.validUntil; $('#q-note').value = q.note || '';
     $('#q-months').value = q.months; // (설계 검토 2026-11-11 4번) 이용 기간(개월)
+    // 기획자 결정 2026-11-18 N-3: 간접(총판, 리셀러) 거래와 사용 업체. 아래 tierCustomer가 처음 표준 단가 기준(priceKey)을 정하기 전에 채움
+    const indEl = $('#q-indirect'), endEl = $('#q-enduser');
+    indEl.checked = q.indirect; endEl.value = q.endUser;
+    syncEndUser();
     let customerKey = q.customer || '';
     validHelp();
     // 지금 팔지 않는 기능이 든 줄(새 판을 만든 경우 등)은 열 때 알려 줌
@@ -196,8 +209,13 @@
     });
     /* (설계 검토 2026-11-11 4-1 3-1) 고객사 티어: 지금 고른 우리 거래처(저장할 때 남는 거래처와 같은 규칙, collect). 사업자 정보 DB에서 고르거나 직접 적으면 없음
      *   거래처나 그 티어가 바뀌면 줄마다 오늘 가격 기준의 표준 단가(티어 단가)로 다시 채움. 단가를 표준 단가 그대로 둔 줄은 단가도 함께 바꾸고,
-     *   할인해 고친 단가는 그대로 둠 [가정]. 한도(cap)는 줄에 남긴 그대로(E-4). 처음 열 때는 다시 채우지 않음(저장한 값 그대로) */
-    function tierCustomer() { return customerById(customerKey || (nameIn.value.trim() === (q.name || '').trim() ? q.customer : '')); }
+     *   할인해 고친 단가는 그대로 둠 [가정]. 한도(cap)는 줄에 남긴 그대로(E-4). 처음 열 때는 다시 채우지 않음(저장한 값 그대로)
+     * 기획자 결정 2026-11-18 N-3: 간접(총판, 리셀러) 거래면 견적 고객사(리셀러)가 아니라 사용 업체. 사용 업체 이름이 거래처 목록에 있으면 그 거래처
+     *   (C.customerByName, 합쳐진 거래처 이름이면 남긴 거래처), 적지 않았거나 목록에 없으면 null(기본 표준 단가). 계약 등록의 간접 계약(C.tierCustomerFor)과 같음 */
+    function tierCustomer() {
+      if (indEl.checked) return C.customerByName(endEl.value);
+      return customerById(customerKey || (nameIn.value.trim() === (q.name || '').trim() ? q.customer : ''));
+    }
     let priceKey = (function () { const cu = tierCustomer(); return cu ? cu.id + '|' + C.customerTier(cu) : ''; })();
     function reprice() {
       const cu = tierCustomer(), key = cu ? cu.id + '|' + C.customerTier(cu) : '';
@@ -216,8 +234,26 @@
       });
       if (!n) return;
       renderLines();
-      liveEl.textContent = '고객사 티어(' + (now ? C.tierLabel(now) : '없음') + ')에 맞춰 ' + n + '줄의 표준 단가를 바꿨습니다.';
+      // 기획자 결정 2026-11-18 N-3: 간접 거래면 어느 곳의 티어로 셌는지(사용 업체, 없으면 기본 단가)를 함께 알림
+      const eu = endEl.value.trim();
+      liveEl.textContent = !indEl.checked ? '고객사 티어(' + (now ? C.tierLabel(now) : '없음') + ')에 맞춰 ' + n + '줄의 표준 단가를 바꿨습니다.'
+        : cu ? '간접 거래라 사용 업체(' + eu + ')의 고객사 티어(' + (now ? C.tierLabel(now) : '없음') + ')에 맞춰 ' + n + '줄의 표준 단가를 바꿨습니다.'
+        : '간접 거래이고 사용 업체를 ' + (eu ? '거래처 목록에서 찾지 못해' : '적지 않아') + ' ' + n + '줄을 기본 표준 단가로 바꿨습니다.';
     }
+    /* 기획자 결정 2026-11-18 N-3: 간접(총판, 리셀러) 거래를 고르면 사용 업체 칸을 보임. 칸은 간접일 때만 보임(2026-11-18 사진 확인 뒤 hidden으로 바꿈. 예전 글: 칸의 자리는 처음부터 있고 보이지 않게만 함(visibility:
+     *   고르거나 풀어도 아래 칸이 움직이지 않게, CLAUDE.md 화면 규칙). 보이지 않는 칸은 Tab으로 가지 않고 화면낭독기도 읽지 않음
+     *   간접을 고르거나 풀거나 사용 업체를 바꾸면 고객사 티어가 바뀔 때처럼 표준 단가를 다시 채우고(reprice) 안내 줄에 알림. 사용 업체 글은 풀어도 칸에 남김(다시 고르면 그대로) */
+    // (2026-11-18 사진 확인) 고른 결과로 칸이 생겨 아래가 밀리는 것은 괜찮으므로(CLAUDE.md 화면 규칙) 자리를 두지 않고 감춤. 예전: visibility로 빈 자리를 둠(큰 빈칸)
+    function syncEndUser() { $('#q-enduser-field').hidden = !indEl.checked; }
+    indEl.addEventListener('change', function () { syncEndUser(); reprice(); });
+    endEl.addEventListener('input', reprice);
+    // 사용 업체 칸이 제안하는 거래처 이름(합치지 않은 사용 중 거래처). 칸에 처음 들어갈 때 한 번 채움(계약 등록의 사용 업체 칸 new-contract.js fillOrgNames와 같음)
+    //   화면을 열 때 채우면 견적과 상관없는 거래처 이름이 문서에 미리 들어감(열람 제한 점검 AC-41이 보는 것). 보이지 않는 목록이라 흔들리지 않음
+    endEl.addEventListener('focus', function () {
+      const dl = $('#q-enduser-names');
+      if (dl && !dl.childElementCount) dl.innerHTML = (D.CUSTOMERS || []).filter(function (cu) { return cu.use !== false && !cu.mergedInto; })
+        .map(function (cu) { return '<option value="' + esc(cu.name) + '"></option>'; }).join('');
+    });
     nameIn.addEventListener('focus', renderHits);
     nameIn.addEventListener('blur', function () { setTimeout(closeList, 150); });
     nameIn.addEventListener('keydown', function (e) {
@@ -390,6 +426,9 @@
         date: $('#q-date').value, validUntil: $('#q-valid').value,
         // (설계 검토 2026-11-11 4번) 이용 기간(개월): 칸의 글자 그대로 숫자로(틀리면 NaN이라 출력 검사 problems와 저장 검사가 알림)
         months: /^\s*\d+\s*$/.test($('#q-months').value) ? parseInt($('#q-months').value, 10) : NaN,
+        // 기획자 결정 2026-11-18 N-3: 간접(총판, 리셀러) 거래(참/거짓)와 사용 업체 이름. 간접이 아니면 사용 업체는 비워 남김
+        indirect: !!$('#q-indirect').checked,
+        endUser: $('#q-indirect').checked ? $('#q-enduser').value.trim() : '',
         note: $('#q-note').value.trim(),
         lines: q.lines.filter(function (l, i) { return l.feature || l.bad || (i === 0 && q.lines.length === 1); }),
       });
@@ -546,7 +585,8 @@
     const copy = JSON.parse(JSON.stringify(latest));
     let changed = 0;
     // (설계 검토 2026-11-11 3번, 4번, 4-1 3-1) 오늘 표준 단가는 고객사 티어 단가가 있으면 그 값(C.stdLine). 단위 종류, 표준 금액, 티어도 다시 채움
-    const cu = customerById(copy.customer), m = C.quoteMonths(copy);
+    //   기획자 결정 2026-11-18 N-3: 간접 견적은 사용 업체의 티어(quoteTierCustomer). 간접 표시와 사용 업체는 새 판에 그대로 이어짐
+    const cu = quoteTierCustomer(copy), m = C.quoteMonths(copy);
     copy.lines.forEach(function (l) {
       const p = PRICE[l.feature];
       if (!p) return;
@@ -636,6 +676,8 @@
         '<div><dt>견적일</dt><dd>' + C.fmtDate(q.date) + '</dd></div><div><dt>유효기간</dt><dd>' + C.fmtDate(q.validUntil) + '까지</dd></div></dl></header>' +
       '<div class="qd-parties">' +
         '<section class="qd-party"><h3 class="qd-h3">받는 곳</h3><p class="qd-to">' + esc(q.name) + (q.unit ? ' ' + esc(q.unit) : '') + ' 귀중</p>' +
+          // 기획자 결정 2026-11-18 N-3: 간접(총판, 리셀러) 견적은 받는 곳 아래에 한 줄(글자로만 나눔, 흑백 인쇄 그대로). 사용 업체를 적지 않았으면 "정해지지 않음"
+          (q.indirect ? '<p class="qd-small">간접 거래(사용 업체: ' + (q.endUser ? esc(q.endUser) : '정해지지 않음') + ')</p>' : '') +
           '<p class="qd-small">아래와 같이 견적합니다.</p></section>' + // 받는 곳의 사업자등록번호는 싣지 않음(2026-11-06 기획자 요청)
         '<section class="qd-party"><h3 class="qd-h3">공급자</h3><dl class="qd-kv">' +
           '<div><dt>상호</dt><dd>' + esc(S.name) + '</dd></div>' +

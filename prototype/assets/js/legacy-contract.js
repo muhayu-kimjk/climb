@@ -21,8 +21,11 @@
  *      월별 확인(운영을 시작한 달부터 이달까지 한 줄씩, 기한은 다음 달 말일 [가정]) → 고른 달의 올린 기록과 확인 남기기 → 확인 기록(20줄씩)
  *      결과: 맞음, 맞지 않는 것이 있음(메모 필수, 컴플라이언스에 넘김 X.raiseIssue 찾은 곳 LEGACY), 그달 올린 기록이 없으면 올린 기록 없음 [가정]
  *      이달도 올린 기록이 있으면 미리 확인함 [가정]. 확인 뒤 그달 기록이 늘면 "확인한 뒤 바뀜"(common.js legacyCheckState)
- *      직무 분리 [가정, 인장 기록 대조와 영업기회 대사의 규칙을 따름]: 리더가 직접 올린 기록이 든 달도 리더가 확인함(총무가 날인하고 대조하는 것과 같음).
- *        다만 그 수를 확인 창과 기록에 남겨(seen.own) 컴플라이언스와 감사 열람이 봄. 최고관리자는 자기가 올린 기록이 든 달을 확인하지 못함(C-6)
+ *      직무 분리(기획자 결정 2026-11-16 확인 2, 2026-11-18 새 결정 N-4): 영업지원 리더가 직접 올린 기록(올린 때의 역할, legacy.byLead)은 리더의 매월 확인에서 빼고
+ *        컴플라이언스가 한 건씩 확인함(보기 화면의 "확인 남기기", op.k LEGACY_OWN_CHECK. 맞지 않음은 넘어온 일로, 2026-11-18 셋째 점검 audit-trail-05 [가정]).
+ *        예전 [가정](리더가 직접 올린 기록이 든 달도 리더가 확인하고 그 수만 seen.own에 남김)은 확인 2로 바뀜. seen.own은 올린 때 리더가 아니던 본인 기록 수로만 남음.
+ *        (2026-11-18 셋째 점검 regress-02) [가정] 리더 몫이 빈 달(그달 기록이 모두 리더가 올린 것)도 기록이 없는 달처럼 달이 끝난 뒤 "올린 기록 없음"(NONE)으로 확인하되,
+ *        월별 표, 확인 글, 확인 창에 "리더가 올린 n건 따로(컴플라이언스 확인)"를 보이고 확인 기록에 그 수(seen.lead)를 남김. 최고관리자는 자기가 올린 기록이 든 달을 확인하지 못함(C-6)
  *      기록은 관리자 변경 이력의 점검 기록(영역 AUDIT, op.k LEGACY_CHECK) [가정]. 개요 점검할 일은 common.js legacyCheckTodo
  *      보는 사람: 영업지원(담당자는 보기만), 컴플라이언스와 감사 열람(보기만, C.checkViewers('SCR-95')). 최고관리자는 시연용
  *      [가정] 영업지원 리더는 열람 제한으로 올린 예전 기록도 봄(common.js canView. 체결본과 맞춰 보려면 내용을 봐야 함)
@@ -97,7 +100,9 @@
   function ownCheckInfo(c) {
     if (!C.legacyLeadOwn(c)) return '';
     const e = C.legacyOwnCheckOf(c);
-    return info('컴플라이언스 확인', (e ? esc(RESULT[e.op.result] || e.op.result) + '<span class="cell-meta">' + esc(C.ownerLabel(e.by, e.op.dept)) + ' ' + C.fmtDateTime(e.at) + (e.op.memo ? ', ' + esc(e.op.memo) : '') + '</span>'
+    // (2026-11-18 셋째 점검 audit-trail-05) 맞지 않음으로 넘긴 번호가 있으면 뒤에 붙임(위 매월 확인 칸과 같은 모양)
+    return info('컴플라이언스 확인', (e ? esc(RESULT[e.op.result] || e.op.result) + '<span class="cell-meta">' + esc(C.ownerLabel(e.by, e.op.dept)) + ' ' + C.fmtDateTime(e.at) + (e.op.memo ? ', ' + esc(e.op.memo) : '') +
+        (e.op.issueId ? ', 컴플라이언스에 넘김(' + esc(e.op.issueId) + ')' : '') + '</span>'
       : '확인 전') + '<span class="cell-meta">영업지원 리더가 직접 올린 기록이라 리더의 매월 확인 대신 컴플라이언스가 체결본과 맞춰 봅니다.</span>');
   }
   function openOwnCheck(c) {
@@ -117,8 +122,15 @@
       },
       done: function (f) {
         const r = f.querySelector('input[name="result"]:checked').value, memo = (f.elements.memo.value || '').trim();
-        C.adminSave('AUDIT', '예전 계약 기록 확인(영업지원 리더가 올림): ' + c.id, RESULT[r], memo || RESULT[r], { k: 'LEGACY_OWN_CHECK', id: c.id, result: r, memo: memo, dept: me.dept || '' });
-        C.toast(c.id + ' 확인을 남겼습니다: ' + RESULT[r]);
+        // (2026-11-18 셋째 점검 audit-trail-05) [가정, CTL-78과 같은 길] 맞지 않음은 리더의 매월 확인처럼 넘어온 일(X.raiseIssue, 찾은 곳 LEGACY)로 남겨 개선 과제로 추적.
+        //   예전에는 결과와 상관없이 확인 기록 하나로 점검할 일에서 바로 사라져, 리더가 바로잡지 않으면 맞지 않는 기록이 아무 할 일에도 남지 않았음.
+        //   넘김 글에는 메모(고객사 이름, 금액)를 넣지 않음(2026-11-17 다른 눈 leak-records-02와 같음). 넘긴 번호는 확인 기록(op.issueId)에 남겨 둘을 이음
+        const issue = r === 'DIFF' && X ? X.raiseIssue({ source: 'LEGACY', title: c.id + ' 영업지원 리더가 올린 예전 계약 기록: 체결본과 맞지 않는 것이 있음',
+          note: '컴플라이언스 확인 메모는 예전 계약 기록 화면에서 봅니다(열람 권한대로)', href: 'legacy-contract.html?id=' + encodeURIComponent(c.id), ref: c.id }) : null;
+        const logged = C.adminSave('AUDIT', '예전 계약 기록 확인(영업지원 리더가 올림): ' + c.id, RESULT[r] + (issue ? ', 컴플라이언스에 넘김(' + issue.id + ')' : ''), memo || RESULT[r],
+          { k: 'LEGACY_OWN_CHECK', id: c.id, result: r, memo: memo, dept: me.dept || '', issueId: issue ? issue.id : null });
+        if (logged.refused) return;
+        C.toast(c.id + ' 확인을 남겼습니다: ' + RESULT[r] + '.' + (X ? X.issueToast(issue) : ''));
         location.reload();
       },
     });
@@ -665,7 +677,8 @@
       form: { bizNo: C.fmtBizNo($('#f-bizno').value), method: val('method'), settlement: val('settlement'), personalData: pd, customerNew: $('#f-customer').value === NEW_CUSTOMER },
       // docDate: 예전 문서 결재일(2026-11-14 주말 점검 W7, 03 legacy_doc_date)
       legacy: { docNo: $('#f-doc-no').value.trim(), docDate: $('#f-doc-date').value, docUrl: $('#f-doc-url').value.trim(), file: noFile ? '' : fileName, noFile: noFile ? $('#f-no-file-reason').value.trim() : '',
-        need: needCode, note: note, by: me.id, dept: me.dept || '', at: at, replaces: fixSrc ? fixSrc.id : null, fixReason: fixReason },
+        need: needCode, note: note, by: me.id, dept: me.dept || '', at: at, replaces: fixSrc ? fixSrc.id : null, fixReason: fixReason,
+        byLead: C.legacyLeadAt(me.id) /* 2026-11-18 기획자 결정 N-4: 올릴 때 영업지원 리더였는지를 남김(03 by_lead). 리더 기록인지는 이 값으로 정함 */ },
       history: [],
     };
     // 관리자 변경 이력(영역 LEGACY): 누가, 언제, 무엇을. 열람 제한이면 대상에 고객사 이름을 적지 않음(접속 기록과 같은 규칙)
@@ -738,7 +751,8 @@
       const s = C.legacyCheckState(ym), nf = s.recs.filter(function (c) { return !c.legacy.file; }).length;
       return '<tr' + (s.late ? ' class="is-alert"' : '') + '><td class="nowrap cell-strong">' + monthLabel(ym) + '</td>' +
         '<td class="num-left nowrap">' + C.fmtDate(s.due) + (s.late ? '<span class="cell-meta">기한 지남</span>' : '') + '</td>' +
-        '<td class="num">' + s.recs.length + '건</td><td class="num">' + nf + '건</td>' +
+        // (2026-11-18 셋째 점검 regress-02) [가정] 리더가 올려 컴플라이언스가 따로 확인하는 기록 수를 건수 아래 작은 줄로(칸을 늘리지 않음)
+        '<td class="num">' + s.recs.length + '건' + (s.leadOwn.length ? '<span class="cell-meta">리더가 올린 ' + s.leadOwn.length + '건 따로</span>' : '') + '</td><td class="num">' + nf + '건</td>' +
         '<td>' + (s.last ? resultBadge(s.last) + '<span class="cell-meta">' + esc(C.ownerLabel(s.last.by, s.last.op.dept)) + ' ' + esc(C.fmtDateTime(s.last.at)) + '</span>' +
           (s.changed ? '<span class="cell-meta">' + C.badge('attention', '확인한 뒤 바뀜') + '</span>' : '') : C.badge('line', s.canCheck ? '확인 전' : '예정')) + '</td>' +
         '<td class="col-action"><button type="button" class="link-act" data-month="' + ym + '"' + (ym === selMonth ? ' aria-current="true"' : '') + '>보기<span class="sr-only"> ' + monthLabel(ym) + '</span></button></td></tr>';
@@ -767,13 +781,19 @@
     const table = '<div class="tbl-scroll" tabindex="0" role="region" aria-label="그달 올린 기록 표"><table class="tbl tbl--compact">' +
       '<caption class="sr-only">' + monthLabel(selMonth) + ' 올린 기록: 번호, 고객사와 계약 기간, 계약 금액, 예전 문서 번호와 결재일, 체결본, 올린 사람</caption>' + // 결재일: 2026-11-14 주말 점검 W7
       '<thead><tr><th scope="col">번호</th><th scope="col" class="col-phone-wide">고객사</th><th scope="col" class="num">계약 금액</th><th scope="col">예전 문서 번호</th><th scope="col">체결본</th><th scope="col">올린 사람</th></tr></thead><tbody>' +
-      (rows.length ? rows.join('') : '<tr><td class="empty-row" colspan="6">이 달에 올린 예전 계약 기록이 없습니다.</td></tr>') + '</tbody></table></div>';
+      // (2026-11-18 셋째 점검 regress-02) [가정] 그달 기록이 모두 영업지원 리더가 올린 것이면 "올린 기록이 없습니다"가 아니라 리더 몫이 없음과 컴플라이언스 확인을 알림(번호만)
+      (rows.length ? rows.join('') : '<tr><td class="empty-row" colspan="6">' + (s.leadOwn.length
+        ? '리더가 맞춰 볼 기록이 없습니다. 영업지원 리더가 올린 ' + s.leadOwn.length + '건(' + esc(s.leadOwn.map(function (c) { return c.id; }).join(', ')) + ')은 컴플라이언스가 한 건씩 확인합니다.'
+        : '이 달에 올린 예전 계약 기록이 없습니다.') + '</td></tr>') + '</tbody></table></div>';
     // 확인 줄: 마지막 확인, 또는 무엇을 언제까지 하는지. 남길 수 있으면 단추(줄 높이는 recon.css가 잡아 둠)
     let text;
-    if (s.last) text = '마지막 확인: ' + (RESULT[s.last.op.result] || s.last.op.result) + ', ' + C.ownerLabel(s.last.by, s.last.op.dept) + ', ' + C.fmtDateTime(s.last.at) +
+    // (2026-11-18 셋째 점검 regress-02) [가정] 리더가 올려 컴플라이언스가 따로 확인하는 기록이 있으면 글에 그 수를 함께 적음
+    const leadNote = s.leadOwn.length ? '영업지원 리더가 올린 ' + s.leadOwn.length + '건은 컴플라이언스가 확인' : '';
+    if (s.last) text = '마지막 확인: ' + (RESULT[s.last.op.result] || s.last.op.result) + (s.last.op.result === 'NONE' && leadNote ? '(' + leadNote + ')' : '') + ', ' + C.ownerLabel(s.last.by, s.last.op.dept) + ', ' + C.fmtDateTime(s.last.at) +
       (s.last.op.memo ? '. 메모: ' + (memoHidden(s.last) ? '그 기록을 볼 수 있는 사람만 봄(열람 제한)' : s.last.op.memo) : '') + (s.last.op.issueId ? '. 컴플라이언스에 넘김(' + s.last.op.issueId + ')' : '') +
       (s.changed ? '. 확인한 뒤 이 달에 올린 기록이 달라졌습니다. 다시 맞춰 보고 남겨 주세요.' : '');
-    else if (!s.canCheck) text = '이달이 끝난 뒤 다음 달 말일(' + C.fmtDate(s.due) + ')까지 올린 기록이 없었음을 확인합니다. 그사이 기록을 올리면 바로 맞춰 볼 수 있습니다.';
+    else if (!s.canCheck) text = '이달이 끝난 뒤 다음 달 말일(' + C.fmtDate(s.due) + ')까지 올린 기록이 없었음을 확인합니다. 그사이 기록을 올리면 바로 맞춰 볼 수 있습니다.' + (leadNote ? ' ' + leadNote + '합니다.' : '');
+    else if (!s.recs.length && leadNote) text = '이 달에 리더가 맞춰 볼 기록이 없습니다(' + leadNote + '). "올린 기록 없음"으로 확인을 남깁니다. 기한 ' + C.fmtDate(s.due) + '.';
     else if (!s.recs.length) text = '이 달에 올린 기록이 없습니다. "올린 기록 없음"으로 확인을 남깁니다. 기한 ' + C.fmtDate(s.due) + '.';
     // (2026-11-14 주말 점검 W7) 볼 것에 "예전 문서 번호로 열어 결재가 끝났음을 봄"을 더함
     else text = '올린 기록 ' + s.recs.length + '건을 체결본(없으면 예전 문서)과 맞춰 보고, 예전 문서 번호로 열어 결재가 끝났음을 본 뒤 확인을 남깁니다. 남기면 남긴 사람과 일시, 그때 본 기록이 함께 남고 고칠 수 없습니다. 기한 ' + C.fmtDate(s.due) + '.';
@@ -788,6 +808,8 @@
     const none = !s.recs.length;
     const nofile = s.recs.filter(function (c) { return !c.legacy.file; }).length;
     const own = s.recs.filter(function (c) { return c.legacy.by === me.id; }).length; // 리더가 직접 올린 기록 수(직무 분리 [가정]: 막지 않고 남김)
+    // (2026-11-18 셋째 점검 regress-02) [가정] 그달 영업지원 리더가 올려 이 확인에서 뺀 기록 수(컴플라이언스가 따로 확인). 확인 창에 보이고 기록 seen.lead에 남김
+    const lead = s.leadOwn.length;
     const keys = C.legacyKeys(s.recs);
     C.formModal({
       title: monthLabel(ym) + ' 예전 계약 기록 확인을 남길까요?',
@@ -798,6 +820,7 @@
             return c.id + (c.legacy.file ? '' : '(체결본 없음)') + (afterCutover(c) ? '(전환 날 뒤)' : '');
           }).join(', ')) : '') +
           (own ? '<br>이 가운데 ' + own + '건은 본인이 올린 기록입니다. 확인 기록에 함께 남습니다.' : '') +
+          (lead ? '<br>영업지원 리더가 올린 ' + lead + '건은 이 확인에서 빼고 컴플라이언스가 한 건씩 확인합니다. 그 수가 확인 기록에 함께 남습니다.' : '') + // regress-02 [가정]
           // W7-1(2026-11-16): 결재일이 전환 날 전인지도 봄(전환 날을 바꿔 "전환 날 뒤"가 된 지난 기록은 번호 뒤에 표시)
           (none ? '' : '<br>볼 것: 체결본(없으면 예전 문서)과 기록이 맞음, 예전 문서 번호로 열어 결재가 끝났음을 봄(결재일도 맞음), 결재일이 전환 날' + (cutover() ? '(' + C.fmtDate(cutover()) + ')' : '') + ' 전임') + '</p>' +
         (none ? '<p class="modal-info">결과: ' + RESULT.NONE + '</p>'
@@ -835,8 +858,8 @@
         const label = RESULT[result];
         const logged = C.adminSave('AUDIT', '예전 계약 기록 매월 확인: ' + monthLabel(ym),
           label + ': 올린 기록 ' + s.recs.length + '건' + (s.recs.length ? '(' + s.recs.map(function (c) { return c.id; }).join(', ') + ')' : '') + ', 체결본 없음 ' + nofile + '건' +
-            (own ? ', 본인이 올린 기록 ' + own + '건' : '') + (issue ? ', 컴플라이언스에 넘김(' + issue.id + ')' : ''),
-          memo || label, { k: 'LEGACY_CHECK', month: ym, result: result, memo: memo, dept: me.dept || '', seen: { n: s.recs.length, keys: keys, nofile: nofile, own: own }, issueId: issue ? issue.id : null });
+            (own ? ', 본인이 올린 기록 ' + own + '건' : '') + (lead ? ', 영업지원 리더가 올린 기록 ' + lead + '건 따로(컴플라이언스 확인)' : '') + (issue ? ', 컴플라이언스에 넘김(' + issue.id + ')' : ''),
+          memo || label, { k: 'LEGACY_CHECK', month: ym, result: result, memo: memo, dept: me.dept || '', seen: { n: s.recs.length, keys: keys, nofile: nofile, own: own, lead: lead }, issueId: issue ? issue.id : null });
         if (logged.refused) return;
         refreshMonthly();
         C.toast(monthLabel(ym) + ' 예전 계약 기록 확인을 남겼습니다.' + (X ? X.issueToast(issue) : ''));
@@ -854,7 +877,8 @@
       const seen = e.op.seen || {};
       return '<tr><td class="num-left">' + C.fmtDateTime(e.at).split(' ').map(function (x) { return '<span class="keep">' + x + '</span>'; }).join(' ') + '</td>' +
         '<td class="nowrap">' + monthLabel(e.op.month) + '</td><td class="nowrap">' + resultBadge(e) + '</td>' +
-        '<td class="num">' + (seen.n || 0) + '건' + (seen.nofile ? '<span class="cell-meta">체결본 없음 ' + seen.nofile + '건</span>' : '') + (seen.own ? '<span class="cell-meta">본인이 올림 ' + seen.own + '건</span>' : '') + '</td>' +
+        '<td class="num">' + (seen.n || 0) + '건' + (seen.nofile ? '<span class="cell-meta">체결본 없음 ' + seen.nofile + '건</span>' : '') + (seen.own ? '<span class="cell-meta">본인이 올림 ' + seen.own + '건</span>' : '') +
+          (seen.lead ? '<span class="cell-meta">리더가 올린 ' + seen.lead + '건 따로</span>' : '') + '</td>' + // regress-02 [가정]
         '<td class="col-text">' + (e.op.memo ? (memoHidden(e) ? '<span class="cell-meta">메모는 그 기록을 볼 수 있는 사람만 봄(열람 제한)</span>' : esc(e.op.memo)) : '<span class="recon-none">-</span>') + (e.op.issueId ? '<span class="cell-meta">컴플라이언스에 넘김(' + esc(e.op.issueId) + ')</span>' : '') + '</td>' +
         '<td class="center">' + esc(C.ownerLabel(e.by, e.op.dept)) + '</td></tr>';
     }).join('') : '<tr><td class="empty-row" colspan="6">아직 확인 기록이 없습니다.</td></tr>';

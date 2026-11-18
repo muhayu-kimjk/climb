@@ -989,9 +989,23 @@ window.CLIMB = (function () {
     // (2026-11-16 밤 코드 다시 보기 dec-02) [가정, 결정할것 9장 새 결정 N-2] 기안자가 ②⑧ 담당 본인일 때만이 아니라 영업지원 역할(담당자나 리더)을 지닌 사람이면
     //   ②와 ⑧(종이 날인)은 재무(⑩ 담당)가 맡음. 결정 11로 세일즈어드민유닛이 기타 영업을 기안하게 되어, 같은 유닛의 영업지원(리더의 계약이면 부하 직원)이
     //   그 계약의 ②⑧을 보는 일을 막음(이어진 답 1의 설명 "영업지원이 기안한 계약의 ②, ⑧은 재무"와 같게). 전자계약 ⑧은 묶음 확인 10 규칙(esignCheckerAt) 그대로
-    const saDrafter = !!c.requesterId && activeRoles(accountOf(c.requesterId)).some(function (r) { return r === 'SALES_ADMIN' || r === 'SA_LEAD'; });
+    //   (2026-11-18 셋째 점검 regress-01) [가정] 영업지원 역할은 기안한 때의 역할로 정함(REQ-AUTH-06 v0.25 "이미 차례인 단계는 그대로", 03 assignee_id,
+    //   새 결정 N-4 "올린 때의 역할"과 같은 생각). 기안할 때 계약에 남긴 값(c.drafterSa, saveDemoContract와 예시 계약 채우기)을 먼저 봄.
+    //   지금 역할로 보면 관리자가 뒤에 영업 담당자에게 영업지원 역할을 더할 때 그 사람이 예전에 기안한 계약의 ②⑧이 모두 재무로 바뀌어
+    //   이미 차례인 단계가 옮겨 가고, 결재란에 승인하지 않은 재무가 보이고, 승인한 영업지원이 열람 제한 계약을 볼 수 없게 되었음.
+    //   지금 역할은 번호나 기안 일시가 없는 미리 보기(새 계약 기안 화면, stepUserNow)에만 씀. 칸이 없던 예시 계약과 예전 저장 기록은
+    //   불러올 때(관리자 변경 이력을 되풀이하기 전) 채움 [가정: 예전 저장 기록은 예시 데이터의 역할로 봄]
+    const saDrafter = c.drafterSa ? !!c.drafterSa.v : drafterSaNow(c);
     if ((code === 'S02' || code === 'S08') && (id === c.requesterId || saDrafter)) return assigneeAt('S10', at);
     return id;
+  }
+  // (2026-11-18 셋째 점검 regress-01) 기안자가 지금 영업지원 역할(담당자나 리더)을 지녔는지. 기안할 때 c.drafterSa로 남기고(saveDemoContract), 위 stepUser가 그 값을 먼저 봄
+  function drafterSaNow(c) {
+    return !!c.requesterId && activeRoles(accountOf(c.requesterId)).some(function (r) { return r === 'SALES_ADMIN' || r === 'SA_LEAD'; });
+  }
+  // 번호가 있고 기안한 계약이면 기안한 때의 영업지원 역할을 남김 { v: 참/거짓, at: 기안 일시 }. 다시 기안하면(기안 일시가 바뀌면) 그때 다시 정함(freeUsed와 같은 모양)
+  function keepDrafterSa(c) {
+    if (c && c.id && c.requestedAt && c.requesterId && !(c.drafterSa && c.drafterSa.at === c.requestedAt)) c.drafterSa = { v: drafterSaNow(c), at: c.requestedAt };
   }
   /* ⑨를 한 사람 대신 ⑩을 맡을 다른 재무 담당자 (기획자 결정 2026-11-03, C-18 ⑤) [가정: 고르는 순서]
    *   재무 담당자(FINANCE) 역할이 있는 사용 중인 계정 가운데 exceptId가 아닌 사람. ⑩ 담당자와 같은 조직(재무 조직) 사람을 먼저, 그다음 계정 목록 순서
@@ -2008,6 +2022,8 @@ window.CLIMB = (function () {
     // 기획자 결정 2026-11-03(C-44): 원계약을 기안하면 계약의 유닛(salesTeam)으로 기안자의 그때 조직을 남김. 보완 후 재기안은 앞 차수 값 그대로
     //   영업대표가 뒤에 다른 조직으로 옮겨도 이 유닛의 리더가 새 영업대표를 정함(salesTeamOf). 임시 저장은 기안할 때 정함
     if (c.id && !c.parentId && !c.salesTeam && c.requesterId) c.salesTeam = teamOf(c.requesterId);
+    // (2026-11-18 셋째 점검 regress-01) [가정] 기안한 때 기안자가 영업지원 역할을 지녔는지 남김(②⑧ 담당을 정할 때 stepUser가 씀). 다시 기안하면 다시 정함
+    keepDrafterSa(c);
     const list = loadDemo('contracts').filter(function (x) { return demoKey(x) !== demoKey(c); });
     list.push(c);
     try { localStorage.setItem(DEMO_KEYS.contracts, JSON.stringify(list)); } catch (e) { /* 저장소를 못 쓰면 이 화면에서만 반영 */ }
@@ -2142,6 +2158,9 @@ window.CLIMB = (function () {
   });
   // 기획자 결정 2026-11-03(C-44): 계약의 유닛이 없는 예시 원계약은 기안자의 조직으로 채움(관리자 변경 이력을 되풀이하기 전이라 예시 데이터의 조직)
   D.CONTRACTS.forEach(function (c) { if (c.id && !c.parentId && !c.salesTeam && c.requesterId) c.salesTeam = teamOf(c.requesterId); });
+  // (2026-11-18 셋째 점검 regress-01) 기안자 영업지원 역할(drafterSa)이 없는 예시 계약과 예전 저장 기록도 같은 때에 채움.
+  //   관리자 변경 이력을 되풀이하기 전이라 예시 데이터의 역할로 정해짐(뒤에 관리자가 역할을 더하거나 빼도 ②⑧ 담당이 바뀌지 않음)
+  D.CONTRACTS.forEach(keepDrafterSa);
   loadDemo('notes').forEach(function (n) {
     const c = D.CONTRACTS.find(function (x) { return x.id === n.contractId; });
     if (c) c.notes = (c.notes || []).concat([n]);
@@ -2548,6 +2567,15 @@ window.CLIMB = (function () {
             keep.forEach(function (p) { D.TEAM_LEADERS[p[0]] = p[1]; });
           }
           D.ASSIGNEE_CHANGES.forEach(function (x) { if (x.step === 'S03:' + old) x.step = 'S03:' + op.set.label; });
+          // (2026-11-18 셋째 점검 audit-trail-04) 유닛 계정 확인 요청(UNIT_LIST_SENT)과 리더 확인 기록(UNIT_LIST_ACK)의 유닛 이름도 함께 바꿈(리더 표와 같은 방식).
+          //   바꾸지 않으면 "이동" 표시 계정이 조직 이름만 바뀌어도 처리함이 되어(markHandled) 사용자 권한 관리의 배지와 분기 검토 막음(CTL-114)이 풀렸음.
+          //   기록 줄의 글(target)은 그때 쓴 그대로 둠. 실제 시스템은 조직 코드로 저장하고 견줌
+          D.ADMIN_LOG.forEach(function (x) {
+            const r = x.op && x.op.r;
+            if (!r) return;
+            if (x.op.k === 'UNIT_LIST_ACK' && r.unit === old) r.unit = op.set.label;
+            if (x.op.k === 'UNIT_LIST_SENT') (r.units || []).forEach(function (u) { if (u.unit === old) u.unit = op.set.label; });
+          });
         }
       }
       if (op.set.label) c.label = op.set.label;
@@ -2942,12 +2970,16 @@ window.CLIMB = (function () {
     const live = (D.ACCOUNTS || []).filter(function (x) { return x.status === 'ACTIVE'; });
     const staff = live.filter(function (x) { return activeRoles(x).indexOf('PRIVACY') > -1; }).map(function (x) { return x.id; });
     const leads = live.filter(function (x) { return activeRoles(x).indexOf('SEC_LEAD') > -1; }).map(function (x) { return x.id; });
+    // (2026-11-18 셋째 점검 mail-01) 사용 중인 정보보호 담당자가 없으면 정보보호 리더(사용 중)에게 [가정, 새 결정 R-3과 같은 생각]. 받는 사람이 비지 않게
+    if (!staff.length) return leads;
     return a && staff.indexOf(a.userId) > -1 && leads.length ? leads : staff;
   }
   const UNIT_MARKS = { RESIGN: '퇴사', LEAVE: '휴직', MOVE: '이동' };
   /* (2026-11-16 밤 코드 다시 보기 w3-01) 표시한 뒤 관리자가 처리했는지: 표시한 때(at) 뒤의 관리자 변경 이력에
    *   퇴사와 휴직은 그 계정을 사용 중지한 고치기(ACCOUNT_EDIT의 set.status SUSPENDED), 이동은 다른 조직으로 옮긴 고치기나 조직 옮기기(ACCOUNTS_MOVE)가 있으면 처리함.
-   *   지금 상태만 보면 휴직으로 사용 중지했다가 복직해 다시 사용으로 바꾼 계정이 다시 "처리 전"으로 보였음. 접속 기록 점검의 조치할 계정(admin-logs.js markList)도 같은 판단 */
+   *   지금 상태만 보면 휴직으로 사용 중지했다가 복직해 다시 사용으로 바꾼 계정이 다시 "처리 전"으로 보였음. 접속 기록 점검의 조치할 계정(admin-logs.js markList)도 같은 판단
+   *   (2026-11-18 셋째 점검 audit-trail-04) 코드 관리에서 조직 이름만 바꾼 것은 이동이 아님: applyAdmin의 CODE_EDIT DEPT가 확인 기록의 unit도 새 이름으로 바꾸므로
+   *   여기의 a.dept와 unit은 같은 이름으로 견주어짐(실제 시스템은 조직 코드로 견줌) */
   function markHandled(a, m, unit, at) {
     if (!a) return true;
     if (a.status === 'SUSPENDED' || (m.mark === 'MOVE' && a.dept !== unit)) return true;
@@ -3152,7 +3184,10 @@ window.CLIMB = (function () {
    *   기한: 다음 달 말일 [가정, 다른 매월 점검과 같게]. 이달도 올린 기록이 있으면 미리 확인할 수 있음 [가정: 올린 뒤 바로 후속 기안으로 이어지므로].
    *     올린 기록 없음은 달이 끝난 뒤에만
    *   확인 뒤 그달 기록이 늘면(뒤에 올리거나 바로잡음) "확인한 뒤 바뀜"이라 다시 확인(그때 본 열쇠 seen.keys: 번호@올린 때)
-   *   기록: 관리자 변경 이력의 점검 기록(영역 AUDIT, op.k LEGACY_CHECK { month, result, memo, dept, seen: { n, keys, nofile, own }, issueId }). 쌓기만 함 [가정] */
+   *   기록: 관리자 변경 이력의 점검 기록(영역 AUDIT, op.k LEGACY_CHECK { month, result, memo, dept, seen: { n, keys, nofile, own, lead }, issueId }). 쌓기만 함 [가정]
+   *   (2026-11-18 셋째 점검 regress-02) [가정] 리더 몫이 빈 달(그달 기록이 모두 영업지원 리더가 올려 아래 확인 2로 빠짐)도 기록이 없는 달처럼 달이 끝난 뒤 NONE으로 확인함.
+   *     NONE은 "그달 리더가 맞춰 볼 기록이 없음"(올린 기록이 없거나 모두 리더가 올려 컴플라이언스가 따로 확인함). 화면은 legacyCheckState의 leadOwn으로
+   *     "리더가 올린 n건 따로"를 보이고, 확인 기록에 그 수(seen.lead)를 남김(legacy-contract.js) */
   const LEGACY_RESULT = { MATCH: '맞음', DIFF: '맞지 않는 것이 있음', NONE: '올린 기록 없음' };
   function legacyOfMonth(ym) {
     return D.CONTRACTS.filter(function (c) { return c.id && c.legacy && String(c.legacy.at || '').slice(0, 7) === ym; })
@@ -3174,9 +3209,18 @@ window.CLIMB = (function () {
   /* 기획자 결정 2026-11-16(결정할것 확인 2): 영업지원 리더가 직접 올린 예전 기록은 리더의 매월 확인에서 빼고 컴플라이언스가 한 건씩 확인함
    *   (자기 작업은 스스로 점검하지 않음: 최고관리자의 C-6, G-24 ②와 같은 원칙. 예전 [가정]은 리더가 확인하고 그 건수만 남겼음)
    *   legacyLeadOwn(c): 올린 사람이 지금 영업지원 리더 역할을 지님 [가정: 지금 역할로 봄]
-   *   legacyOwnCheckOf(c): 컴플라이언스의 마지막 확인(관리자 변경 이력 AUDIT, op.k LEGACY_OWN_CHECK { id, result, memo }). 결과 이름은 LEGACY_RESULT의 맞음, 맞지 않는 것이 있음
+   *   legacyOwnCheckOf(c): 컴플라이언스의 마지막 확인(관리자 변경 이력 AUDIT, op.k LEGACY_OWN_CHECK { id, result, memo, dept, issueId }). 결과 이름은 LEGACY_RESULT의 맞음, 맞지 않는 것이 있음
+   *     (2026-11-18 셋째 점검 audit-trail-05) [가정, CTL-78] 맞지 않는 것이 있음이면 넘어온 일(찾은 곳 LEGACY)로 넘기고 그 번호를 issueId에 남김(legacy-contract.js openOwnCheck).
+   *     legacyOwnTodo는 그대로 확인 기록이 있으면 뺌: 맞지 않음은 넘어온 일이 개선 과제가 될 때까지 점검할 일 맨 위(넘어온 일)에 남음
    *   legacyOwnTodo(): 확인 전인 리더 기록(바로잡힌 기록 빼고). 컴플라이언스 개요의 점검할 일(complianceTodo)에 한 줄 */
-  function legacyLeadOwn(c) { const a = c && c.legacy ? accountOf(c.legacy.by) : null; return !!a && activeRoles(a).indexOf('SA_LEAD') > -1; }
+  // (2026-11-18 기획자 결정 N-4) "영업지원 리더가 직접 올린 기록"은 올린 때의 역할로 정함: 올릴 때 legacy.byLead(03 by_lead)에 남긴 값을 봄.
+  //   나중에 리더가 되거나 역할을 잃어도 마친 확인이 흔들리지 않음. 그 칸이 없는 예전 시연 기록만 지금 역할로 봄(예전 글: 늘 올린 사람의 지금 역할)
+  function legacyLeadAt(userId) { const a = accountOf(userId); return !!a && activeRoles(a).indexOf('SA_LEAD') > -1; }
+  function legacyLeadOwn(c) {
+    if (!c || !c.legacy) return false;
+    if (c.legacy.byLead != null) return !!c.legacy.byLead;
+    return legacyLeadAt(c.legacy.by);
+  }
   function legacyOwnCheckOf(c) {
     return D.ADMIN_LOG.filter(function (e) { return e.op && e.op.k === 'LEGACY_OWN_CHECK' && c && e.op.id === c.id; }).slice().sort(function (a, b) { return a.at.localeCompare(b.at); }).pop() || null;
   }
@@ -6101,6 +6145,8 @@ window.CLIMB = (function () {
     // 기안자 기준 지금 담당자 (결재선 미리 보기): C.stepUserNow('S03', { requesterId: 'u_sales1' })
     stepUserNow: function (code, c) { return stepUser(code, c, '9999'); },
     stepUserAt: stepUser,
+    // (2026-11-18 셋째 점검 regress-01 ③) roleFor(사람 번호, 단계) 결재란에 보일 역할(그 단계의 역할을 가졌으면 그것, 아니면 첫 역할). 끝난 단계의 담당 칸이 처리한 사람을 보일 때 씀
+    roleFor: roleFor,
     // 열람 권한과 지정 열람자 (v0.52)
     canView: canView, restrictedMsg: RESTRICTED_MSG,
     viewersOf: viewersOf, viewerState: viewerState, viewerKey: viewerKey, viewerLabel: viewerLabel, viewerText: viewerText,
@@ -6115,7 +6161,7 @@ window.CLIMB = (function () {
     legacyCheckState: legacyCheckState, legacyCheckTodo: legacyCheckTodo,
     pendingMarks: pendingMarks, markHandled: markHandled, // W3-10(2026-11-16), 밤 w3-01
     secAlertMailTo: secAlertMailTo, // 5-3(2026-11-16)
-    legacyLeadOwn: legacyLeadOwn, legacyOwnCheckOf: legacyOwnCheckOf, legacyOwnTodo: legacyOwnTodo, // 확인 2(2026-11-16)
+    legacyLeadOwn: legacyLeadOwn, legacyLeadAt: legacyLeadAt /* N-4 2026-11-18 */, legacyOwnCheckOf: legacyOwnCheckOf, legacyOwnTodo: legacyOwnTodo, // 확인 2(2026-11-16)
     // renewStd(원계약 번호, { day, before, start, end, skip }) 조건 그대로 연장의 표준 금액 { std, months, from } 또는 { why } (설계 검토 2026-11-11 3장)
     renewStd: renewStd,
     // (설계 검토 2026-11-11 6번) 변경 종류와 지금 유효한 조건: amendKindOf(c) 'ADD'|'REDUCE'|'TERMS'|'', amendKindLabel(코드), priceCheckOff(c) 줄임이나 조항만이라 가격 확인 해당 없음,

@@ -156,12 +156,16 @@
 
   /* ---------- 2. 거르기 ---------- */
   let page = 1;
-  /* W3-10(2026-11-16, 결정할것 새 결정 W3-10 (나)): 유닛 리더가 퇴사, 휴직, 이동으로 표시했는데 처리 전인 계정의 배지 한 줄(누가 언제 표시했는지는 풍선 글)
+  /* W3-10(2026-11-16, 결정할것 새 결정 W3-10 (나)): 유닛 리더가 퇴사, 휴직, 이동으로 표시했는데 처리 전인 계정의 배지 한 줄과 그 아래 표시한 사람, 일시, 메모(2026-11-18 셋째 점검 screen-rules-04, 예전: 풍선 글)
    *   사용 중지하거나(퇴사, 휴직) 조직을 옮기면(이동) 저절로 사라짐(C.pendingMarks, 정보보호의 분기 검토와 같은 기준) */
   function markMeta(a) {
     const m = C.pendingMarks()[a.id];
-    return m ? '<span class="cell-meta" title="' + esc(m.unit + ' ' + C.ownerLabel(m.by) + ' ' + C.fmtDateTime(m.at) + (m.note ? ', ' + m.note : '')) + '">' +
-      C.badge('attention', '유닛 리더 표시: ' + m.label + '(처리 전)') + '</span>' : '';
+    if (!m) return '';
+    // (2026-11-18 셋째 점검 screen-rules-04) 누가 언제 표시했는지와 메모를 풍선 글 대신 배지 아래 보이는 작은 줄에(휴대폰, 키보드도 봄).
+    //   유닛 이름은 표시한 사람의 조직과 다를 때(대리)만 앞에 붙임
+    const by = C.accountOf(m.by), other = !!m.unit && (!by || by.dept !== m.unit);
+    return '<span class="cell-meta">' + C.badge('attention', '유닛 리더 표시: ' + m.label + '(처리 전)') + '</span>' +
+      '<span class="cell-meta">' + esc((other ? m.unit + ' 계정 확인, ' : '') + '표시 ' + C.ownerLabel(m.by) + ' ' + C.fmtDateTime(m.at) + (m.note ? ', ' + m.note : '')) + '</span>';
   }
   function filtered() {
     const q = $('#f-q').value.trim().toLowerCase();

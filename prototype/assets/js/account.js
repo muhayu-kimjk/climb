@@ -86,12 +86,17 @@
       return '내 분야가 맡은 체결 후 의무의 기한 ' + days + ', 기한이 지나면 다음 날';
     }
     // (2026-11-16 밤 코드 다시 보기 w3-02) 정보보호 리더는 대상이 정보보호 담당자 본인인 이상 행위 알림만 받음(5-3 작은 확인)
-    if (t.code === 'SECURITY' && me.role !== 'SUPER' && C.hasRole(me, ['SEC_LEAD'])) return '접속 기록에서 이상 행위가 감지됐는데 그 대상이 정보보호 담당자 본인일 때';
+    if (t.code === 'SECURITY' && me.role !== 'SUPER' && C.hasRole(me, ['SEC_LEAD'])) return '접속 기록에서 이상 행위가 감지됐는데 그 대상이 정보보호 담당자 본인이거나, 사용 중인 정보보호 담당자가 없을 때'; // 2026-11-18 셋째 점검 mail-01
     if (t.code === 'NOTICE_DEADLINE') {
       const all = R.noticeMailDays.join('일 전과 ') + '일 전', last = Math.min.apply(null, R.noticeMailDays) + '일 전';
       if (me.role !== 'SUPER' && C.hasRole(me, ['HEAD'])) return '내가 맡은 자동갱신 계약은 해지 통지 기한 ' + all + ', 내 유닛 영업이 맡은 계약은 ' + last;
+      // (2026-11-18 셋째 점검 mail-02) 영업 임원: 리더가 없는 유닛(세일즈어드민유닛)과 리더 본인 계약은 영업 임원이 유닛 리더 몫을 맡음(repLeadOf)
+      if (me.role !== 'SUPER' && C.hasRole(me, ['EXEC'])) return '리더가 없는 유닛 영업이 맡은 자동갱신 계약과 유닛 리더 본인 계약은 해지 통지 기한 ' + last;
       return '내가 맡은 자동갱신 계약의 해지 통지 기한 ' + all + ', 그 유닛 리더에게는 ' + last;
     }
+    // (2026-11-18 셋째 점검 mail-02) 영업 임원에게는 영업대표가 맡을 수 없어 내가 대신 맡는 계약의 메일임을 덧붙임
+    if (['REJECT', 'SIGN_READY', 'EXPIRY', 'GRACE_RESULT', 'PROGRESS'].indexOf(t.code) > -1 && me.role !== 'SUPER' && C.hasRole(me, ['EXEC']) && !C.hasRole(me, ['SALES', 'HEAD']))
+      return t.when + '(영업대표가 맡을 수 없어 내가 대신 맡는 계약)';
     return t.when;
   }
   function previewBtn(t) {

@@ -32,6 +32,8 @@
     브라우저 인쇄(Ctrl+P)로 찍으면 다른 화면처럼 워터마크가 있는 사내 인쇄라 고객에게 낼 수 없습니다.
   - 기획자 결정 2026-11-02: E-7 "견적서 출력"에는 회사 인장 그림을 늘 찍고 출력 기록에 "인장 찍음"을 남김(그림이 없으면 인장 없이 내고 알림).
     화면과 사내 인쇄에는 찍지 않음. 견적서 외부 전자서명은 하지 않음(E-7 ④). E-9 공급자 칸은 회사 설정(SCR-59) 값
+  - 기획자 결정 2026-11-18 N-3(추천): 받는 곳에 "간접(총판, 리셀러) 거래"와 사용 업체. 간접이면 표준 단가는 사용 업체의 고객사 티어로 셈(없으면 기본 단가).
+    견적서(보기와 인쇄)의 받는 곳에 "간접 거래(사용 업체: …)" 한 줄
   - 화면 동작은 assets/js/quote.js, 견적서 모양은 assets/css/quote.css
 ====================================================================== -->
 <body data-page="SCR-15">
@@ -77,13 +79,28 @@
             <p class="field-help" id="q-opp-help">판다(CRM)의 영업기회번호입니다. 예: 2610CK012. 넣으면 견적 목록에서 찾을 수 있습니다.</p>
             <p class="field-error" hidden></p>
           </div>
+          <!-- 기획자 결정 2026-11-18 N-3(추천, 작업기록/2026-11-13/결정할것.md 9장): 간접(총판, 리셀러) 견적은 표준 단가를 견적 고객사(리셀러)가 아니라
+               사용 업체의 고객사 티어로 셈(계약 등록의 간접 계약 W7-4와 같은 말, quote.js tierCustomer). 사용 업체를 적지 않았거나 거래처 목록에 없으면 기본 표준 단가.
+               사용 업체 칸은 간접을 고를 때만 보임(고른 결과로 칸이 생겨 아래가 밀리는 것은 괜찮음. quote.js syncEndUser가 hidden으로 감춤, 2026-11-18 사진 확인 뒤 바꿈) -->
+          <div class="field" data-field="indirect">
+            <label class="choice"><input type="checkbox" id="q-indirect" aria-controls="q-enduser-field" aria-describedby="q-indirect-help">간접(총판, 리셀러) 거래</label>
+            <p class="field-help" id="q-indirect-help">고객사가 총판이나 리셀러이고 실제로 쓰는 곳이 따로 있으면 고릅니다. 표준 단가는 고객사가 아니라 사용 업체의 고객사 티어로 셉니다.</p>
+          </div>
+          <div class="field" data-field="endUser" id="q-enduser-field" hidden>
+            <label class="field-label" for="q-enduser">사용 업체 <span class="opt">(선택)</span></label>
+            <!-- 거래처 이름 제안(list): 칸에 처음 들어갈 때 quote.js가 채움(계약 등록의 사용 업체 칸과 같은 방식) -->
+            <input class="input" id="q-enduser" type="text" list="q-enduser-names" autocomplete="off" maxlength="60" aria-describedby="q-enduser-help">
+            <datalist id="q-enduser-names"></datalist>
+            <p class="field-help" id="q-enduser-help">실제로 쓰는 기관입니다. 우리 거래처 이름과 같게 적으면 그 거래처의 티어 단가로, 적지 않거나 목록에 없으면 기본 표준 단가로 셉니다.</p>
+          </div>
         </section>
 
         <section class="panel" aria-labelledby="sec-body">
           <h2 class="section-title" id="sec-body"><span class="num">2</span>견적 내용</h2>
           <p class="section-desc">제품과 가격 기준에 있는 기능만 고를 수 있고, 단가는 오늘의 표준 단가로 채워집니다. 할인하면 단가를 고칩니다.
-            1년 단위 기능의 단가는 12개월 값이고, 금액은 이용 기간에 비례합니다(24개월이면 2배). 우리 거래처를 고르면 그 고객사 티어의 단가가 있으면 그 값이 표준 단가입니다.</p>
-          <!-- 설계 검토 2026-11-11 3번, 4번, 4-1 3-1: 위 둘째 문장(이용 기간 비례, 고객사 티어 단가)을 더함 -->
+            1년 단위 기능의 단가는 12개월 값이고, 금액은 이용 기간에 비례합니다(24개월이면 2배). 우리 거래처를 고르면 그 고객사 티어의 단가가 있으면 그 값이 표준 단가입니다.
+            간접 거래면 고객사 대신 사용 업체의 티어로 셉니다.</p>
+          <!-- 설계 검토 2026-11-11 3번, 4번, 4-1 3-1: 위 둘째 문장(이용 기간 비례, 고객사 티어 단가)을 더함. 기획자 결정 2026-11-18 N-3: 간접 거래 문장을 더함 -->
           <!-- 견적일과 유효기간도 시작일, 종료일 짝이라 휴대폰에서는 한 줄에 하나씩 (기획자 결정 2026-11-02 D-7, form.css. PC는 나란히 그대로) -->
           <div class="field-row">
             <div class="field" data-field="date">

@@ -121,7 +121,7 @@
           (c.lateEntry ? '<span class="cell-meta">' + C.lateBadge(c) + '</span>' : '') // W7-7(2026-11-16): 사후 등록
         : '<span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>' +
           // W3-1(2026-11-16): 영업대표를 바꿀 수 있는 사람(계약 유닛의 리더 등)에게만 들어가는 링크(내용은 계약 상세에서도 가림)
-          (C.canChangeRep(b, me) ? '<span class="cell-meta"><a href="contract.html?id=' + encodeURIComponent(b.id) + '">영업대표 바꾸기</a></span>' : '');
+          (C.canChangeRep(b, me) ? '<span class="cell-meta"><a class="doc-link" href="contract.html?id=' + encodeURIComponent(b.id) + '">영업대표 바꾸기<span class="sr-only"> (' + esc(b.id) + ')</span></a></span>' : ''); // 2026-11-18 셋째 점검 screen-rules-01: 링크 모양, 휴대폰 44px, 줄마다 다른 이름
       const st = D.STATUS[b.status];
       // 진행 중인 변경, 연장, 해지가 있으면 상태 아래에 알림. "해지 검토 중"처럼 종류와 상태로 씀(만료 예정 화면과 같은 말. "진행 중:"은 위 거르기의 진행 중과 헷갈려 뺌)
       //   기획자 결정 2026-11-02 D-13: 반려되어 다시 기안을 기다리는 기안도 "변경 반려"처럼 함께 보임. 변경과 연장 칸에서 빠져도 목록에서 사라지지 않게. 기안한 순서대로

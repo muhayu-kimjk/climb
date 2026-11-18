@@ -508,8 +508,13 @@
       else if (s.state === 'PENDING') t = C.waitDays(c, s) + '일째';
       else if (s.state === 'SKIPPED') t = esc(s.reason);
       else t = '-';
+      // (2026-11-18 셋째 점검 regress-01 ③, 방어) 끝난 단계(승인, 반려)는 실제로 처리한 사람(decidedBy)과 그 사람의 역할을 담당 칸에 보임.
+      //   담당 규칙이 뒤에 바뀌어 s.userId가 달라져도 결재란 이름이 같은 화면의 결재 기록(처리한 사람)과 어긋나지 않게.
+      //   대신 처리(onBehalfOf)는 예전처럼 그 차례의 사람을 담당에 두고 일시 칸에 "누가 대신"을 보임
+      const doneBy = (s.state === 'DONE' || s.state === 'REJECTED') && !s.onBehalfOf && s.decidedBy ? s.decidedBy : null;
+      const whoId = doneBy || s.userId, whoRole = doneBy && D.STEPS[s.step] ? C.roleFor(doneBy, s.step) : s.role;
       return { tag: C.stepTag(s.step, c), skipped: s.state === 'SKIPPED',
-        who: esc(C.roleShort(s.role)) + person(s.userId), whoLine: personLine(s.userId, s.role),
+        who: esc(C.roleShort(whoRole)) + person(whoId), whoLine: personLine(whoId, whoRole),
         result: C.badge(st.tone, label), when: t };
     }));
     const skip = function (x) { return x.skipped ? ' class="is-skipped"' : ''; };
@@ -634,6 +639,9 @@
       info('영업대표', esc(C.ownerLabel(C.salesRepOf(c))) +
         (C.salesRepOf(c) !== c.requesterId ? '<span class="cell-meta">처음 기안 ' + esc(C.ownerLabel(c.requesterId)) + '</span>' : '') +
         (C.repNote(c) ? '<span class="cell-meta">' + C.badge('attention', C.repNote(c)) + '</span>' : '')),
+    ]).concat(c.lateEntry ? [ // (2026-11-18 셋째 점검 screen-rules-03, W7-7 (가)) 사후 등록이면 임시 결재 번호를 기본 정보에(복구 뒤 임시 결재 목록과 맞춰 봄)
+      info('사후 등록', C.lateBadge(c) + ' 임시 결재 번호 ' + esc(c.lateEntry.tempNo || '-')),
+    ] : []).concat([
       // 판다(CRM) 영업기회번호: 규칙에 맞으면 판다로 가는 링크 (v0.32)
       info('영업기회번호', (detail.opportunity ? C.pandaLink(detail.opportunity) : '-') + oppDupHtml() + oppStoppedHtml()), // (2026-11-14 주말 점검 W7, abc-06)
       info('계약 방식', esc(D.METHODS[detail.method])),
@@ -748,7 +756,12 @@
         dd('원계약', '<a href="contract.html?id=' + encodeURIComponent(rootId) + '">' + esc(c.parentId) + '</a>'),
         dd('해지일', C.fmtDate(c.terminateDate)),
         dd('해지 사유', esc(c.reason || '-')),
-        dd('환불과 위약금', esc(C.refundText(c))), // 2026-11-16 결정 5: 환불 금액, 위약금, 환불받는 곳
+        // 2026-11-16 결정 5: 환불 금액, 위약금, 환불받는 곳. (2026-11-18 셋째 점검 screen-rules-02) 금액은 따로 오른쪽 정렬, 받는 곳과 메모는 글 줄
+        //   세 칸 전 예전 기록(refundAmount 없음)은 한 줄 그대로
+        c.refundAmount == null ? dd('환불과 위약금', esc(C.refundText(c))) :
+          dd('환불 금액', won(c.refundAmount), 'amount') + dd('위약금', won(c.penaltyAmount || 0), 'amount') +
+          (c.refundAmount ? dd('환불받는 곳', esc(c.refundTo || '-') + (C.refundToOther(c) ? '<span class="cell-meta">계약 고객 아님</span>' : '')) : '') +
+          dd('환불과 위약금 메모', esc(c.refundNote || '-')),
       ] : [
         dd('원계약', '<a href="contract.html?id=' + encodeURIComponent(rootId) + '">' + esc(c.parentId) + '</a>'),
         dd('검토 결과', '그대로 자동갱신 (금액과 조건 그대로)'),
@@ -1335,7 +1348,7 @@
   function reduceOverText(ro) {
     const pct1 = function (v) { return Math.round(v * 1000) / 10 + '%'; };
     return '줄인 수량 몫보다 더 깎아 변경 뒤 할인율을 셈해 ③을 거칩니다: ' + (ro.feats || []).filter(function (f) { return f.std; }).map(function (f) {
-      return C.featureLabel({ feature: f.feature }) + ' 변경 뒤 ' + num(f.qtyAfter) + '개 ' + won(f.amountAfter) + '(표준 ' + won(f.std) + ', 할인 ' + pct1(f.discount) + ', 한도 ' + pct1(f.cap) + ')';
+      return C.featureLabel({ feature: f.feature }) + ' 변경 뒤 ' + num(f.qtyAfter) + C.termsUnit(f.feature) + ' ' + won(f.amountAfter) /* 2026-11-18 셋째 점검 screen-rules-05: 건 단위 */ + '(표준 ' + won(f.std) + ', 할인 ' + pct1(f.discount) + ', 한도 ' + pct1(f.cap) + ')';
     }).join(', ') + '.';
   }
   /* 기획자 결정 2026-11-16(결정할것 결정 5): 해지의 ⑩ 재무 확인 항목. 환불 금액과 위약금이 서류와 같은지, 환불받는 곳이 계약 고객인지

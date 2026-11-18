@@ -194,8 +194,9 @@
 }
 
 /* 기획자 결정 2026-11-16(결정할것 새 결정 W7-6): 설정 변경 확인의 모집단 내려받기 한 줄(재무 리더에게만, 처음 그릴 때 정해 흔들리지 않음) */
-.pop-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; margin: 0.75rem 0 0.25rem; }
+/* 2026-11-18 셋째 점검 screen-rules-06: 1rem = 10px 기준으로 간격 단계에 맞춤(예전 gap 0.5rem 0.75rem, margin 0.75rem 0 0.25rem) */
+.pop-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.8rem 1.2rem; margin: 0 0 var(--gap-box); }
 .pop-row .field-label { margin: 0; }
-.pop-row .select { width: auto; min-width: 9rem; }
+.pop-row .select { width: auto; min-width: 14rem; }
 .pop-row .field-help { flex-basis: 100%; margin: 0; }
 @media print { .pop-row { display: none !important; } }

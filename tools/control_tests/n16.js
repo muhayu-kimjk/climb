@@ -382,6 +382,56 @@ const T = {
   // ---------- AC-39 열람 제한 계약 상세와 예전 계약 기록 (W3-1, 확인 2, W7-1) ----------
   'AC-39': [
     {
+      name: '(2026-11-18 셋째 점검 mail-01) 사용 중인 정보보호 담당자가 없으면 이상 행위 메일은 정보보호 리더에게 감(받는 사람이 비지 않음)',
+      kind: 'deny',
+      run(h) {
+        const env = h.fresh({ role: 'SUPER' });
+        const { C, D } = env;
+        const before = C.secAlertMailTo({ userId: 'u_sales2' });
+        if (before.indexOf('u_privacy') < 0) return '시험 전제: 담당자가 있을 때 담당자에게 가지 않음: ' + before.join(',');
+        D.ACCOUNTS.filter(a => (a.roles || []).indexOf('PRIVACY') > -1).forEach(a => { a.status = 'INACTIVE'; });
+        const after = C.secAlertMailTo({ userId: 'u_sales2' });
+        if (!after.length) return '담당자가 없을 때 받는 사람이 비어 메일이 아무에게도 가지 않음';
+        if (after.indexOf('u_seungho_yeo') < 0) return '담당자가 없을 때 정보보호 리더에게 가지 않음: ' + after.join(',');
+        return true;
+      },
+    },
+    {
+      name: '(2026-11-18 기획자 결정 N-4) 리더 기록인지는 올린 때의 역할(legacy.byLead)로 정해, 올린 뒤 역할이 바뀌어도 리더 기록 여부와 매월 확인 범위가 그대로임',
+      kind: 'deny',
+      run(h) {
+        const env = h.fresh({ role: 'COMPLIANCE', hook: D => {
+          const base = D.CONTRACTS.find(c => c.id === 'LG-0001');
+          // 올릴 때 리더였던 사람의 기록(byLead true)과, 올릴 때 리더가 아니었던 기록(byLead false, 올린 사람은 지금 리더)
+          D.CONTRACTS.push(Object.assign(JSON.parse(JSON.stringify(base)), { id: 'LG-0010',
+            legacy: Object.assign({}, base.legacy, { by: 'u_jihoon_eom', dept: '세일즈어드민유닛', at: '2026-10-15 10:00', byLead: true }) }));
+          D.CONTRACTS.push(Object.assign(JSON.parse(JSON.stringify(base)), { id: 'LG-0011',
+            legacy: Object.assign({}, base.legacy, { by: 'u_jihoon_eom', dept: '세일즈어드민유닛', at: '2026-10-16 10:00', byLead: false }) }));
+        } });
+        const { C, D } = env;
+        if (!C.legacyLeadAt('u_jihoon_eom')) return '시험 전제: u_jihoon_eom이 지금 영업지원 리더가 아님';
+        const lg10 = env.contract('LG-0010'), lg11 = env.contract('LG-0011');
+        if (!C.legacyLeadOwn(lg10)) return '올릴 때 리더였던 기록을 리더 기록으로 셈하지 않음';
+        if (C.legacyLeadOwn(lg11)) return '올릴 때 리더가 아니었던 기록을 지금 역할(리더)로 셈함';
+        // 올린 사람이 리더 역할을 잃음: 올린 때 값을 그대로 씀
+        const acc = D.ACCOUNTS.find(u => u.id === 'u_jihoon_eom');
+        acc.roles = (acc.roles || []).filter(r => r !== 'SA_LEAD').concat(['SALES_ADMIN']);
+        if (C.legacyLeadAt('u_jihoon_eom')) return '시험 전제: 역할을 뺐는데도 리더로 봄';
+        if (!C.legacyLeadOwn(lg10)) return '올린 사람이 리더 역할을 잃자 리더 기록이 아니게 됨(마친 확인이 흔들림)';
+        const s = C.legacyCheckState('2026-10');
+        if (s.recs.some(x => x.id === 'LG-0010')) return '리더 기록이 리더의 매월 확인 범위로 돌아감';
+        if (!s.recs.some(x => x.id === 'LG-0011')) return '리더가 아니던 때 올린 기록이 매월 확인 범위에서 빠짐';
+        // 칸이 없는 예전 시연 기록은 지금 역할로(견줌)
+        const old = Object.assign({}, lg10, { legacy: Object.assign({}, lg10.legacy) });
+        delete old.legacy.byLead;
+        if (C.legacyLeadOwn(old)) return '칸이 없는 예전 기록이 지금 역할(리더 아님)과 다르게 셈해짐';
+        // 올리는 화면은 올릴 때 값을 남김
+        const src = require('fs').readFileSync(require('path').join(__dirname, '../../prototype/assets/js/legacy-contract.js'), 'utf8');
+        if (src.indexOf('byLead: C.legacyLeadAt(me.id)') < 0) return '예전 기록을 올릴 때 byLead를 남기지 않음';
+        return true;
+      },
+    },
+    {
       name: '(2026-11-16 확인 2) 영업지원 리더가 직접 올린 예전 기록은 리더의 매월 확인 범위에서 빠지고 컴플라이언스의 확인할 일이 되며, 컴플라이언스는 열람 제한이어도 봄',
       kind: 'deny',
       run(h) {

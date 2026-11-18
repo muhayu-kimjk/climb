@@ -356,3 +356,5 @@ module.exports = {
 };
 // 2026-11-16 기획자 결정 반영 시험(작업기록/2026-11-16/반영목록.md, tools/control_tests/n16.js)
 module.exports.tests = module.exports.tests.concat(require('./n16')('AC-45'));
+// 2026-11-18 셋째 점검 고침 시험(audit-trail-04, audit-trail-05, regress-01, regress-02, tools/control_tests/n18b.js). 이름 앞 괄호에 원래 속한 AC 번호
+module.exports.tests = module.exports.tests.concat(require('./n18b')('AC-45'));

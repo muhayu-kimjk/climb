@@ -111,7 +111,7 @@
           ? '<td><a class="cell-title" href="' + href + '">' + esc(x.c.counterparty) + '</a>' +
             '<span class="cell-sub">' + service + '</span>' + requester + '<span class="cell-meta">' + esc(x.c.id) + (x.c.restricted ? ' ' + C.icon('lock', 'sm') : '') + '</span></td>'
           : '<td><span class="cell-title is-masked">' + C.icon('lock', 'sm') + '열람 제한 계약</span>' + requester +
-            (isRep ? '<span class="cell-meta"><a href="' + href + '">영업대표 바꾸기</a></span>' : '') + '</td>') + // W3-1, W3-2: 가린 줄에서도 계약 상세의 바꾸기 단추로
+            (isRep ? '<span class="cell-meta"><a class="doc-link" href="' + href + '">영업대표 바꾸기<span class="sr-only"> (' + esc(x.c.id) + ')</span></a></span>' : '') /* 2026-11-18 셋째 점검 screen-rules-01 */ + '</td>') + // W3-1, W3-2: 가린 줄에서도 계약 상세의 바꾸기 단추로
         '<td class="col-service">' + (C.canView(x.c, me) ? service : '-') + '</td>' + // 가린 줄은 서비스도 가림 (v0.62)
         // 보류 중이면 배지(기획자 결정 2026-11-09: 결재하는 사람이 목록에서 바로 알게. 전체 진행 현황 progress.js와 같은 모양, REQ-CMP-04 ③)
         '<td class="nowrap">' + esc(isRep ? '영업대표 지정' : C.stepLabel(x.s.step, x.c)) + (isRep ? '<span class="cell-meta">' + esc(C.repNote(x.rep)) + '</span>' : '') + (C.holdOf(x.c) ? '<span class="cell-meta">' + C.holdBadge(C.holdOf(x.c)) + '</span>' : '') + (together ? '<span class="cell-meta">동시: ' + esc(together) + '</span>' : '') +

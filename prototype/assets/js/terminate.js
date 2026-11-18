@@ -219,11 +219,18 @@
   $('#form').addEventListener('submit', function (e) {
     e.preventDefault();
     if (!validate()) return;
+    // (2026-11-18 셋째 점검 screen-rules-02) 확인 창의 환불 줄: 금액은 따로 오른쪽 정렬(dd.amount), 받는 곳과 메모는 글 줄
+    const refundRows = function (r) {
+      const row = function (dt, v, cls) { return '<div><dt>' + esc(dt) + '</dt><dd' + (cls ? ' class="' + cls + '"' : '') + '>' + v + '</dd></div>'; };
+      return row('환불 금액', esc(C.fmtWon(Number(r.refundAmount) || 0)), 'amount') + row('위약금', esc(C.fmtWon(Number(r.penaltyAmount) || 0)), 'amount') +
+        (Number(r.refundAmount) ? row('환불받는 곳', esc(r.refundTo || '-') + (C.refundToOther(r) ? '<span class="cell-meta">계약 고객 아님</span>' : '')) : '') +
+        row('환불과 위약금 메모', esc(r.refundNote || '-'));
+    };
     $('#confirm-body').innerHTML = '<p>기안하면 ③ 영업 검토부터 시작되고, 결재가 끝날 때까지 고칠 수 없습니다. ⑩ 재무 확인까지 끝나면 원계약이 해지 상태가 됩니다.</p>' +
       '<dl class="confirm-list"><div><dt>계약</dt><dd>' + esc(root.counterparty + ' ' + b.id) + '</dd></div>' +
       '<div><dt>해지 번호</dt><dd>' + esc(newId) + '</dd></div>' +
       '<div><dt>해지일</dt><dd>' + C.fmtDate($('#f-date').value) + '</dd></div>' +
-      '<div><dt>환불과 위약금</dt><dd>' + esc(C.refundText(Object.assign({ counterparty: root.counterparty }, refundFields()))) + '</dd></div></dl>'; // 2026-11-16 결정 5
+      refundRows(Object.assign({ counterparty: root.counterparty }, refundFields())) + '</dl>'; // 2026-11-16 결정 5, 2026-11-18 셋째 점검 screen-rules-02
     lastFocus = document.activeElement;
     modal.hidden = false;
     C.focusModal(modal); // 제목에 포커스 (KRDS 모달, v0.28)
